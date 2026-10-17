@@ -84,6 +84,7 @@ Ensure you have the following installed on your local machine:
 
 ## 📁 Project Structure
 
+```text
 flixer-web/
 ├── public/              # Static assets and icons
 ├── resources/
@@ -98,9 +99,10 @@ flixer-web/
 │   ├── stores/          # Pinia state management stores
 │   ├── views/           # Page views (Home, Movies, TVShows, Details)
 │   ├── App.vue          # Root application component
-│   └── main.js          # Application entry point
+│   └── main.ts          # Application entry point
 ├── tailwind.config.js   # Tailwind configuration
 └── package.json         # Dependencies and scripts
+```
 
 ---
 
