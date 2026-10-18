@@ -1,0 +1,610 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { buildStreamUrl, type PlayMethod, type StreamInfo } from '../../api'
+
+const props = withDefaults(
+  defineProps<{
+    streamUrl: string
+    info: StreamInfo
+    title?: string
+    autoplay?: boolean
+    showBack?: boolean
+  }>(),
+  { autoplay: true, showBack: false },
+)
+
+const emit = defineEmits<{
+  back: []
+  error: [message: string]
+}>()
+
+const METHOD_LABELS: Record<PlayMethod, string> = {
+  DirectPlay: 'Direct play',
+  DirectStream: 'Direct stream (remux)',
+  Transcode: 'Transcode',
+}
+
+const SKIP_SECONDS = 10
+const HIDE_DELAY_MS = 3000
+const VOLUME_KEY = 'flixer.player.volume'
+
+const root = ref<HTMLElement>()
+const video = ref<HTMLVideoElement>()
+const bar = ref<HTMLElement>()
+
+// Quality 0 means the original resolution.
+const height = ref(0)
+// Remuxed/transcoded streams restart at `offset`, so the element's clock is relative to it.
+const offset = ref(0)
+const current = ref(0)
+const bufferedEnd = ref(0)
+const nativeDuration = ref(0)
+const paused = ref(true)
+const waiting = ref(true)
+const ended = ref(false)
+const volume = ref(1)
+const muted = ref(false)
+const controlsVisible = ref(true)
+const menuOpen = ref(false)
+const isFullscreen = ref(false)
+const errorMessage = ref('')
+const scrubbing = ref(false)
+const scrubTime = ref(0)
+const hoverTime = ref<number | null>(null)
+
+let nativeStart = 0
+let hideTimer: ReturnType<typeof setTimeout> | undefined
+let frame = 0
+let lastPointerType = 'mouse'
+
+const isNative = computed(() => height.value === 0 && props.info.playMethod === 'DirectPlay')
+const mode = computed<PlayMethod>(() => (height.value > 0 ? 'Transcode' : props.info.playMethod))
+const duration = computed(() => {
+  if (isNative.value && Number.isFinite(nativeDuration.value) && nativeDuration.value > 0) return nativeDuration.value
+  return props.info.source.durationSeconds
+})
+const position = computed(() => {
+  if (scrubbing.value) return scrubTime.value
+  return isNative.value ? current.value : offset.value + current.value
+})
+const qualityOptions = computed(() => [...props.info.availableHeights].sort((a, b) => b - a))
+const controlsShown = computed(() => controlsVisible.value || paused.value || menuOpen.value || scrubbing.value || !!errorMessage.value)
+const showCenterPlay = computed(() => paused.value && !waiting.value && !errorMessage.value)
+const hoverPercent = computed(() => (hoverTime.value === null ? 0 : percent(hoverTime.value)))
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function percent(seconds: number) {
+  return duration.value > 0 ? clamp((seconds / duration.value) * 100, 0, 100) : 0
+}
+
+function format(seconds: number) {
+  const whole = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(whole / 3600)
+  const m = Math.floor((whole % 3600) / 60)
+  const s = String(whole % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
+}
+
+function tryPlay() {
+  void video.value?.play().catch(() => {})
+}
+
+function loadSource(opts: { start?: number; height?: number; resume?: boolean } = {}) {
+  const el = video.value
+  if (!el) return
+  const resume = opts.resume ?? !el.paused
+  if (opts.height !== undefined) height.value = opts.height
+  const start = Math.max(0, opts.start ?? 0)
+
+  errorMessage.value = ''
+  waiting.value = true
+  ended.value = false
+
+  if (isNative.value) {
+    nativeStart = start
+    offset.value = 0
+    current.value = start
+  } else {
+    nativeStart = 0
+    offset.value = start
+    current.value = 0
+  }
+  bufferedEnd.value = start
+
+  el.src = buildStreamUrl(props.streamUrl, isNative.value ? {} : { height: height.value || undefined, start })
+  if (resume) tryPlay()
+}
+
+function isBuffered(el: HTMLVideoElement, time: number) {
+  for (let i = 0; i < el.buffered.length; i++) {
+    if (time >= el.buffered.start(i) && time <= el.buffered.end(i) - 0.3) return true
+  }
+  return false
+}
+
+function seekTo(target: number) {
+  const el = video.value
+  if (!el) return
+  const max = duration.value > 0 ? Math.max(0, duration.value - 0.5) : target
+  const time = clamp(target, 0, max)
+  const resume = !el.paused || ended.value
+  ended.value = false
+
+  if (isNative.value) {
+    el.currentTime = time
+    current.value = time
+    return
+  }
+
+  const local = time - offset.value
+  if (local >= 0 && isBuffered(el, local)) {
+    el.currentTime = local
+    current.value = local
+    return
+  }
+  loadSource({ start: time, resume })
+}
+
+function skip(seconds: number) {
+  seekTo(position.value + seconds)
+  showControls()
+}
+
+function setQuality(next: number) {
+  menuOpen.value = false
+  if (next === height.value) return
+  loadSource({ height: next, start: position.value, resume: !paused.value })
+}
+
+function togglePlay() {
+  const el = video.value
+  if (!el) return
+  if (ended.value) {
+    seekTo(0)
+    tryPlay()
+    return
+  }
+  if (el.paused) tryPlay()
+  else el.pause()
+}
+
+function setVolume(value: number) {
+  const el = video.value
+  if (!el) return
+  el.volume = clamp(value, 0, 1)
+  el.muted = el.volume === 0
+}
+
+function toggleMute() {
+  const el = video.value
+  if (!el) return
+  if (el.muted || el.volume === 0) {
+    el.muted = false
+    if (el.volume === 0) el.volume = 0.5
+  } else {
+    el.muted = true
+  }
+}
+
+function onVolumeInput(event: Event) {
+  setVolume(Number((event.target as HTMLInputElement).value))
+}
+
+type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
+type LockableOrientation = ScreenOrientation & { lock?: (type: string) => Promise<void> }
+
+async function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen().catch(() => {})
+    return
+  }
+  if (root.value?.requestFullscreen) {
+    await root.value.requestFullscreen().catch(() => {})
+    void (screen.orientation as LockableOrientation | undefined)?.lock?.('landscape').catch(() => {})
+  } else {
+    // iOS Safari only supports fullscreen on the video element itself.
+    ;(video.value as FullscreenVideo | undefined)?.webkitEnterFullscreen?.()
+  }
+}
+
+function onFullscreenChange() {
+  isFullscreen.value = document.fullscreenElement === root.value
+  if (!isFullscreen.value) screen.orientation?.unlock?.()
+}
+
+function updateBuffered() {
+  const el = video.value
+  if (!el) return
+  let end = el.currentTime
+  for (let i = 0; i < el.buffered.length; i++) {
+    if (el.currentTime >= el.buffered.start(i) - 0.5 && el.currentTime <= el.buffered.end(i) + 0.5) {
+      end = el.buffered.end(i)
+    }
+  }
+  bufferedEnd.value = (isNative.value ? 0 : offset.value) + end
+}
+
+function sync() {
+  const el = video.value
+  if (!el) return
+  current.value = el.currentTime
+  updateBuffered()
+}
+
+function loop() {
+  sync()
+  frame = requestAnimationFrame(loop)
+}
+
+function startLoop() {
+  if (!frame) frame = requestAnimationFrame(loop)
+}
+
+function stopLoop() {
+  cancelAnimationFrame(frame)
+  frame = 0
+}
+
+function onPlay() {
+  paused.value = false
+  ended.value = false
+  startLoop()
+  scheduleHide()
+}
+
+function onPause() {
+  paused.value = true
+  stopLoop()
+  sync()
+  showControls()
+}
+
+function onEnded() {
+  ended.value = true
+  paused.value = true
+  stopLoop()
+  sync()
+}
+
+function onLoadedMetadata() {
+  const el = video.value
+  if (!el) return
+  nativeDuration.value = el.duration
+  if (nativeStart > 0 && isNative.value) {
+    el.currentTime = nativeStart
+    nativeStart = 0
+  }
+}
+
+function onVolumeChange() {
+  const el = video.value
+  if (!el) return
+  volume.value = el.volume
+  muted.value = el.muted
+  try {
+    localStorage.setItem(VOLUME_KEY, JSON.stringify({ volume: el.volume, muted: el.muted }))
+  } catch {
+    // Storage can be unavailable (private mode); volume just won't persist.
+  }
+}
+
+function onVideoError() {
+  const el = video.value
+  if (!el || !el.getAttribute('src')) return
+  errorMessage.value = mode.value === 'DirectPlay' ? 'This video could not be played by your browser.' : 'The stream stopped unexpectedly. Check that flixer-streamer is running with ffmpeg available.'
+  emit('error', errorMessage.value)
+}
+
+function retry() {
+  loadSource({ start: position.value, resume: true })
+}
+
+function showControls() {
+  controlsVisible.value = true
+  scheduleHide()
+}
+
+function scheduleHide() {
+  clearTimeout(hideTimer)
+  if (paused.value || menuOpen.value || scrubbing.value) return
+  hideTimer = setTimeout(() => {
+    controlsVisible.value = false
+  }, HIDE_DELAY_MS)
+}
+
+function onPointerDown(event: PointerEvent) {
+  lastPointerType = event.pointerType
+}
+
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerType === 'mouse') showControls()
+}
+
+function onPointerLeave(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && !paused.value && !menuOpen.value) controlsVisible.value = false
+}
+
+function releaseFocus(event: PointerEvent) {
+  ;(event.target as HTMLElement).closest('button')?.blur()
+}
+
+function onSurfaceClick() {
+  if (menuOpen.value) {
+    menuOpen.value = false
+    return
+  }
+  if (lastPointerType === 'touch' && !controlsVisible.value) {
+    showControls()
+    return
+  }
+  togglePlay()
+  showControls()
+}
+
+function timeFromPointer(event: PointerEvent) {
+  const rect = bar.value!.getBoundingClientRect()
+  return clamp((event.clientX - rect.left) / rect.width, 0, 1) * duration.value
+}
+
+function onBarDown(event: PointerEvent) {
+  if (duration.value <= 0) return
+  bar.value!.setPointerCapture(event.pointerId)
+  scrubbing.value = true
+  scrubTime.value = timeFromPointer(event)
+  hoverTime.value = scrubTime.value
+}
+
+function onBarMove(event: PointerEvent) {
+  if (duration.value <= 0) return
+  const time = timeFromPointer(event)
+  hoverTime.value = time
+  if (scrubbing.value) scrubTime.value = time
+}
+
+function onBarUp(event: PointerEvent) {
+  if (!scrubbing.value) return
+  scrubbing.value = false
+  seekTo(timeFromPointer(event))
+  if (event.pointerType !== 'mouse') hoverTime.value = null
+  scheduleHide()
+}
+
+function onBarCancel() {
+  scrubbing.value = false
+  hoverTime.value = null
+}
+
+function onBarLeave() {
+  if (!scrubbing.value) hoverTime.value = null
+}
+
+function onKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
+  if (target?.tagName === 'BUTTON' && (event.key === ' ' || event.key === 'Enter')) return
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+
+  const el = video.value
+  if (!el) return
+  let handled = true
+
+  switch (event.key) {
+    case ' ':
+    case 'k':
+      togglePlay()
+      break
+    case 'ArrowLeft':
+    case 'j':
+      skip(-SKIP_SECONDS)
+      break
+    case 'ArrowRight':
+    case 'l':
+      skip(SKIP_SECONDS)
+      break
+    case 'ArrowUp':
+      setVolume(el.volume + 0.05)
+      break
+    case 'ArrowDown':
+      setVolume(el.volume - 0.05)
+      break
+    case 'm':
+      toggleMute()
+      break
+    case 'f':
+      void toggleFullscreen()
+      break
+    case 'Home':
+      seekTo(0)
+      break
+    case 'Escape':
+      if (menuOpen.value) menuOpen.value = false
+      else handled = false
+      break
+    default:
+      if (/^[0-9]$/.test(event.key)) seekTo((Number(event.key) / 10) * duration.value)
+      else handled = false
+  }
+
+  if (handled) {
+    event.preventDefault()
+    showControls()
+  }
+}
+
+watch(menuOpen, () => {
+  if (menuOpen.value) clearTimeout(hideTimer)
+  else scheduleHide()
+})
+
+watch(
+  () => props.streamUrl,
+  () => {
+    height.value = 0
+    loadSource({ start: 0, resume: props.autoplay })
+  },
+)
+
+onMounted(() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? 'null') as { volume: number; muted: boolean } | null
+    if (saved && video.value) {
+      video.value.volume = clamp(saved.volume, 0, 1)
+      video.value.muted = saved.muted
+    }
+  } catch {
+    // Ignore corrupt saved settings.
+  }
+  volume.value = video.value?.volume ?? 1
+  muted.value = video.value?.muted ?? false
+
+  window.addEventListener('keydown', onKeydown)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  loadSource({ start: 0, resume: props.autoplay })
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(hideTimer)
+  stopLoop()
+  window.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (document.fullscreenElement === root.value) void document.exitFullscreen().catch(() => {})
+  // Dropping the source closes the connection so flixer-streamer stops ffmpeg.
+  video.value?.removeAttribute('src')
+  video.value?.load()
+})
+</script>
+
+<template>
+  <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
+    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @error="onVideoError" />
+
+    <!-- Centre status: buffering, error, or the big play/replay button -->
+    <div class="pointer-events-none absolute inset-0 grid place-items-center">
+      <div v-if="waiting && !errorMessage" class="size-14 animate-spin rounded-full border-4 border-white/20 border-t-flixer-accent" role="status" aria-label="Buffering"></div>
+
+      <div v-else-if="errorMessage" class="pointer-events-auto max-w-sm px-6 text-center" role="alert">
+        <p class="text-sm text-red-300">{{ errorMessage }}</p>
+        <button type="button" class="mt-4 rounded-full bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="retry">Try again</button>
+      </div>
+
+      <button v-else-if="showCenterPlay" type="button" class="pointer-events-auto grid size-20 place-items-center rounded-full bg-flixer-primary/90 text-white shadow-2xl shadow-black/60 transition hover:scale-105 hover:bg-flixer-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="ended ? 'Replay' : 'Play'" @click="togglePlay">
+        <svg v-if="ended" class="size-9" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
+        </svg>
+        <svg v-else class="ml-1 size-9" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
+      </button>
+    </div>
+
+    <!-- Top bar -->
+    <div class="absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-4 transition-opacity duration-300 sm:px-6" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
+      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" aria-label="Back" @click="emit('back')">
+        <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+        </svg>
+      </button>
+      <h2 v-if="title" class="truncate text-base font-semibold tracking-tight sm:text-lg">{{ title }}</h2>
+    </div>
+
+    <!-- Settings menu -->
+    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 w-64 rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" aria-label="Playback settings">
+      <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">Quality</p>
+      <button type="button" role="menuitemradio" :aria-checked="height === 0" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="height === 0 ? 'text-flixer-accent' : 'text-flixer-text'" @click="setQuality(0)">
+        <span>Original ({{ info.source.height }}p)</span>
+        <svg v-if="height === 0" class="size-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
+        </svg>
+      </button>
+      <button v-for="option in qualityOptions" :key="option" type="button" role="menuitemradio" :aria-checked="height === option" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="height === option ? 'text-flixer-accent' : 'text-flixer-text'" @click="setQuality(option)">
+        <span>{{ option }}p</span>
+        <svg v-if="height === option" class="size-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
+        </svg>
+      </button>
+
+      <dl class="mt-2 space-y-1 border-t border-flixer-border px-3 pb-2 pt-3 text-xs text-flixer-muted">
+        <div class="flex justify-between gap-3">
+          <dt>Playback</dt>
+          <dd class="text-right text-flixer-text">{{ METHOD_LABELS[mode] }}</dd>
+        </div>
+        <div class="flex justify-between gap-3">
+          <dt>Source</dt>
+          <dd class="text-right text-flixer-text">{{ info.source.videoCodec }} {{ info.source.width }}×{{ info.source.height }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Bottom controls -->
+    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-3 pt-16 transition-opacity duration-300 sm:px-6 sm:pb-4" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
+      <div ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" aria-label="Seek" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="`${format(position)} of ${format(duration)}`" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
+        <div class="relative h-1 w-full rounded-full bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
+          <div class="absolute inset-y-0 left-0 rounded-full bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>
+          <div class="absolute inset-y-0 left-0 rounded-full bg-flixer-accent" :style="{ width: `${percent(position)}%` }"></div>
+          <div class="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md shadow-black/50 transition-opacity group-hover/seek:opacity-100" :class="scrubbing ? 'opacity-100' : 'opacity-0'" :style="{ left: `${percent(position)}%` }"></div>
+        </div>
+
+        <div v-if="hoverTime !== null" class="pointer-events-none absolute bottom-full mb-1 -translate-x-1/2 rounded-md border border-flixer-border bg-flixer-surface px-2 py-1 text-xs font-medium tabular-nums" :style="{ left: `clamp(1.75rem, ${hoverPercent}%, calc(100% - 1.75rem))` }">
+          {{ format(hoverTime) }}
+        </div>
+      </div>
+
+      <div class="mt-1 flex items-center gap-1 sm:gap-2">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? 'Play' : 'Pause'" @click="togglePlay">
+          <svg v-if="paused" class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
+          <svg v-else class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+          </svg>
+        </button>
+
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Rewind ${SKIP_SECONDS} seconds`" @click="skip(-SKIP_SECONDS)">
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
+            <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
+          </svg>
+        </button>
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Skip forward ${SKIP_SECONDS} seconds`" @click="skip(SKIP_SECONDS)">
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 5V1l5 5-5 5V7a6 6 0 106 6h2a8 8 0 11-8-8z" />
+            <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
+          </svg>
+        </button>
+
+        <div class="group/vol flex items-center">
+          <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="muted || volume === 0 ? 'Unmute' : 'Mute'" @click="toggleMute">
+            <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 9v6h4l5 5V4L7 9z" />
+              <path v-if="muted || volume === 0" d="M16 9.4l1.4-1.4 2.6 2.6L22.6 8 24 9.4 21.4 12l2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6z" />
+              <path v-else d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z" />
+            </svg>
+          </button>
+          <input type="range" min="0" max="1" step="0.01" aria-label="Volume" class="h-1 w-0 cursor-pointer accent-flixer-accent opacity-0 transition-all duration-200 group-focus-within/vol:w-20 group-focus-within/vol:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100" :value="muted ? 0 : volume" @input="onVolumeInput" />
+        </div>
+
+        <span class="ml-2 text-sm tabular-nums text-white/90">{{ format(position) }} / {{ format(duration) }}</span>
+
+        <span class="flex-1"></span>
+
+        <span v-if="mode !== 'DirectPlay'" class="hidden rounded-md border border-white/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-flixer-muted sm:inline">
+          {{ mode === 'Transcode' ? `${height}p` : 'Remux' }}
+        </span>
+
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" aria-label="Playback settings" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+          </svg>
+        </button>
+
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'" @click="toggleFullscreen">
+          <svg v-if="!isFullscreen" class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z" />
+          </svg>
+          <svg v-else class="size-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 4v6H4V8h4V4zM14 4h2v4h4v2h-6zM4 14h6v6H8v-4H4zM14 14h6v2h-4v4h-2z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
