@@ -256,3 +256,49 @@ export async function logout(): Promise<void> {
   await api.post('/auth/logout')
   clearAccessToken()
 }
+
+export interface SampleVideo {
+  id: string
+  title: string
+  container: string
+  directPlay: boolean
+}
+
+export interface PlaybackInfo {
+  playSessionId: string
+  mediaSource: SampleVideo & { mediaSourceId: string; streamUrl: string }
+  expiresAt: string
+}
+
+export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
+
+export interface StreamInfo {
+  playMethod: PlayMethod
+  source: { videoCodec: string; audioCodec?: string; width: number; height: number; durationSeconds: number }
+  availableHeights: number[]
+}
+
+export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number } = {}): string {
+  const params = new URLSearchParams()
+  if (options.height) params.set('height', String(options.height))
+  if (options.start && options.start > 0) params.set('start', options.start.toFixed(2))
+  const query = params.toString()
+  return query ? `${streamUrl}?${query}` : streamUrl
+}
+
+// The streamer is called directly (not through the Flixer API); the token in the URL is the credential.
+export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number } = {}): Promise<StreamInfo> {
+  const url = buildStreamUrl(streamUrl.replace('/stream/', '/info/'), options)
+  const response = await axios.get<StreamInfo>(url, { timeout: 20_000 })
+  return response.data
+}
+
+export async function listSampleVideos(): Promise<SampleVideo[]> {
+  const response = await api.get<SampleVideo[]>('/playback/samples')
+  return response.data
+}
+
+export async function getSamplePlaybackInfo(id: string): Promise<PlaybackInfo> {
+  const response = await api.post<PlaybackInfo>(`/playback/samples/${encodeURIComponent(id)}/playback-info`)
+  return response.data
+}

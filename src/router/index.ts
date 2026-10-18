@@ -47,6 +47,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/player-test',
+      name: 'player-test',
+      component: () => import('../views/PlayerTestView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/passkeys',
       redirect: { path: '/settings', query: { tab: 'passkeys' } },
     },
