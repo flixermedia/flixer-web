@@ -1,0 +1,118 @@
+import axios from 'axios'
+import { createRouter, createWebHistory } from 'vue-router'
+import { clearAccessToken, getAccessToken, validateAccessToken } from '../api'
+import { useProfile } from '../composables/useProfile'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    requiresAdmin?: boolean
+  }
+}
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: () => import('../views/VerifyEmailView.vue'),
+    },
+    {
+      path: '/',
+      name: 'home',
+      component: () => import('../views/HomeView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/passkeys',
+      redirect: { path: '/settings', query: { tab: 'passkeys' } },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
+    },
+  ],
+})
+
+router.beforeEach(async (to) => {
+  const accessToken = getAccessToken()
+  const isAuthRoute = to.name === 'login' || to.name === 'register'
+
+  if (isAuthRoute && to.query.sessionCheck === 'unavailable') {
+    return true
+  }
+
+  if (!to.meta.requiresAuth && !isAuthRoute) {
+    return true
+  }
+
+  if (!accessToken) {
+    return to.meta.requiresAuth ? { name: 'login', query: { redirect: to.fullPath } } : true
+  }
+
+  // Offline: trust the stored token so the cached app can still render.
+  if (!navigator.onLine) {
+    return true
+  }
+
+  try {
+    const isValid = await validateAccessToken()
+    if (!isValid) {
+      clearAccessToken()
+      return isAuthRoute ? true : { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    if (to.meta.requiresAdmin) {
+      const { profile, load } = useProfile()
+      await load()
+      if (profile.value?.role !== 'admin') {
+        return { name: 'home' }
+      }
+    }
+
+    return isAuthRoute ? { name: 'home' } : true
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      clearAccessToken()
+      return isAuthRoute ? true : { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    return {
+      name: 'login',
+      query: {
+        ...to.query,
+        redirect: to.query.redirect ?? to.fullPath,
+        sessionCheck: 'unavailable',
+      },
+    }
+  }
+})
+
+router.afterEach((to) => {
+  document.title = to.name === 'register' ? 'Create your Flixer account' : to.name === 'login' ? 'Sign in to Flixer' : 'Flixer'
+})
+
+export default router

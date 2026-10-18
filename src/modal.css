@@ -1,0 +1,42 @@
+.flixer-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(8 8 17 / 0.75);
+  backdrop-filter: blur(6px);
+  transition: opacity 0.2s ease;
+}
+
+.flixer-modal-overlay[data-state='open'] {
+  opacity: 1;
+}
+
+.flixer-modal-overlay[data-state='closed'] {
+  opacity: 0;
+}
+
+.flixer-modal-card {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.flixer-modal-card[data-state='open'] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.flixer-modal-card[data-state='closed'] {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+}
+
+@starting-style {
+  .flixer-modal-overlay[data-state='open'] {
+    opacity: 0;
+  }
+
+  .flixer-modal-card[data-state='open'] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
