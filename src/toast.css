@@ -1,0 +1,30 @@
+:root {
+  --toastify-font-family: 'Segoe UI', system-ui, sans-serif;
+  --toastify-color-dark: #14131d;
+  --toastify-text-color-dark: #f4f2fb;
+  --toastify-color-success: #34d399;
+  --toastify-color-error: #fb7185;
+  --toastify-color-info: #4bd9e8;
+  --toastify-color-warning: #fbbf24;
+  --toastify-icon-color-success: #34d399;
+  --toastify-icon-color-error: #fb7185;
+  --toastify-icon-color-info: #4bd9e8;
+  --toastify-icon-color-warning: #fbbf24;
+}
+
+.Toastify__toast.flixer-toast {
+  border: 1px solid #292735;
+  border-radius: 0.5rem;
+  background: rgb(20 19 29 / 0.95);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+  font-size: 0.875rem;
+}
+
+.Toastify__toast.flixer-toast .Toastify__progress-bar {
+  background: linear-gradient(90deg, #7645d7, #5366e7);
+}
+
+.Toastify__toast.flixer-toast .Toastify__close-button {
+  color: #9492a4;
+}

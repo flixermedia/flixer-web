@@ -48,9 +48,9 @@ Flixer Web provides an immersive, cinematic media experience featuring a floatin
 
 * **Core Framework:** Vue 3 (Composition API)
 * **Build Tool:** Vite
-* **Routing:** Vue Router
+* **Routing:** Vue Router with animated sign-in/registration views, session validation, and protected routes
 * **State Management:** Pinia
-* **Styling:** Tailwind CSS for rapid, scalable utility-first styling
+* **Styling:** Tailwind CSS v4 utilities and theme tokens; shared auth fields use reusable Vue components
 
 ---
 
@@ -72,8 +72,11 @@ Ensure you have the following installed on your local machine:
    npm install
 
 3. **Configure environment variables:**
-   Create a `.env` file in the root directory and point it to your local or hosted Flixer backend instance:
-   VITE_API_BASE_URL=http://localhost:8080/api
+   Optionally create a `.env` file in the root directory to point to your local or hosted Flixer backend instance.
+   `VITE_API_BASE_URL` defaults to `/api`; the Vite dev server proxies API requests to
+   `http://localhost:8083`. Set it to your hosted backend's API URL when needed. Protected routes validate the saved
+   session against `/auth/sessions`; access tokens are kept in tab-scoped session storage and removed when invalid.
+   Sign-in is available at `/login`, and account creation is available at `/register`.
 
 4. **Run the development server:**
    npm run dev
@@ -93,14 +96,15 @@ flixer-web/
 │       └── mobile.jpeg
 ├── src/
 │   ├── assets/          # Logos and branding elements
-│   ├── components/      # Reusable Vue components (Navbar, Hero, MediaCard, etc.)
+│   ├── components/      # Shared components, including LoginForm and RegistrationForm
 │   ├── composables/     # Reusable composition functions
-│   ├── router/          # Vue Router configuration
+│   ├── router/          # Vue Router configuration and authentication guard
 │   ├── stores/          # Pinia state management stores
-│   ├── views/           # Page views (Home, Movies, TVShows, Details)
+│   ├── views/           # Sign-in/registration flow and protected HomeView
+│   ├── api.ts           # Axios API client and authentication helpers
+│   ├── tailwind.css     # Tailwind CSS import and Flixer theme tokens
 │   ├── App.vue          # Root application component
 │   └── main.ts          # Application entry point
-├── tailwind.config.js   # Tailwind configuration
 └── package.json         # Dependencies and scripts
 ```
 

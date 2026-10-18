@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+/* Matches the header's outer edge: its px-3/sm:px-6 padding and 110rem max width. */
+@utility page-gutter {
+  padding-inline: max(0.75rem, calc((100% - 110rem) / 2));
+  scroll-padding-inline: max(0.75rem, calc((100% - 110rem) / 2));
+
+  @media (min-width: 40rem) {
+    padding-inline: max(1.5rem, calc((100% - 110rem) / 2));
+    scroll-padding-inline: max(1.5rem, calc((100% - 110rem) / 2));
+  }
+}
+
+@theme {
+  --color-flixer-background: #080811;
+  --color-flixer-surface: #14131d;
+  --color-flixer-border: #292735;
+  --color-flixer-primary: #7645d7;
+  --color-flixer-secondary: #5366e7;
+  --color-flixer-accent: #a789ff;
+  --color-flixer-cyan: #4bd9e8;
+  --color-flixer-text: #f4f2fb;
+  --color-flixer-muted: #9492a4;
+  --font-sans: 'Segoe UI', system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    overflow-y: scroll;
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Hide scrollbars on touch devices; scrolling still works. */
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      scrollbar-width: none;
+    }
+
+    *::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  /* Inputs under 16px make iOS Safari zoom in on focus. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  html,
+  body {
+    background-color: #080811;
+    color-scheme: dark;
+  }
+
+  input:autofill,
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #14131d inset;
+    -webkit-text-fill-color: #f4f2fb !important;
+    color: #f4f2fb !important;
+    caret-color: #f4f2fb;
+  }
+}
