@@ -1,0 +1,22 @@
+{
+    "common": {
+        "save": "Salva cambios",
+        "cancel": "Cancelar"
+    },
+    "settings": {
+        "title": "Ajustes",
+        "subtitle": "Administrar su perfil, contraseñas y preferencias del servidor.",
+        "tabs": {
+            "profile": "Perfil",
+            "passkeys": "Passkeys",
+            "language": "Idioma",
+            "ariaLabel": "Secciones de configuración"
+        },
+        "language": {
+            "title": "Idioma",
+            "description": "Elija el idioma Flixer usa este dispositivo.",
+            "label": "Idioma visual",
+            "help": "¿Traducciones perdidas o incorrectas? Ayuda a mejorarlos en Weblate."
+        }
+    }
+}
