@@ -11,6 +11,7 @@ import { notify } from '../composables/notify'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken } from '../api'
+import { syncLocaleFromAccount } from '../i18n'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -50,6 +51,7 @@ function switchAuthMode() {
 async function completeAuthentication(accessToken: string) {
   useProfile().clear()
   saveAccessToken(accessToken)
+  await syncLocaleFromAccount()
 
   const redirect = route.query.redirect
   const destination = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'

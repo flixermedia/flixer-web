@@ -1,42 +1,79 @@
+/* Keyframes (not transitions) so the modal package reliably waits for the close animation before unmounting. */
+/* Keep the scrollbar gutter reserved so locking body scroll doesn't shift the page. */
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  padding-right: 0 !important;
+}
+
 .flixer-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgb(8 8 17 / 0.75);
   backdrop-filter: blur(6px);
-  transition: opacity 0.2s ease;
 }
 
 .flixer-modal-overlay[data-state='open'] {
-  opacity: 1;
+  animation: flixer-modal-overlay-in 0.2s ease forwards;
 }
 
 .flixer-modal-overlay[data-state='closed'] {
-  opacity: 0;
-}
-
-.flixer-modal-card {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+  animation: flixer-modal-overlay-out 0.2s ease forwards;
 }
 
 .flixer-modal-card[data-state='open'] {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+  animation: flixer-modal-card-in 0.2s ease forwards;
 }
 
 .flixer-modal-card[data-state='closed'] {
-  opacity: 0;
-  transform: translateY(8px) scale(0.97);
+  animation: flixer-modal-card-out 0.2s ease forwards;
 }
 
-@starting-style {
-  .flixer-modal-overlay[data-state='open'] {
+@keyframes flixer-modal-overlay-in {
+  from {
     opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
 
-  .flixer-modal-card[data-state='open'] {
+@keyframes flixer-modal-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes flixer-modal-card-in {
+  from {
     opacity: 0;
     transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes flixer-modal-card-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flixer-modal-overlay[data-state],
+  .flixer-modal-card[data-state] {
+    animation-duration: 0.01ms;
   }
 }
