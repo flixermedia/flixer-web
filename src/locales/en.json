@@ -517,6 +517,8 @@
     "title": "Choose your language",
     "description": "Flixer will use this language on this device.",
     "close": "Close",
+    "search": "Search languages",
+    "noResults": "No languages match your search.",
     "help": "Missing or wrong translations? Help improve them on Weblate."
   },
   "header": {
