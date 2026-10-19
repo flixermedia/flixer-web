@@ -34,11 +34,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,woff2}', 'favicon.svg', 'icons.svg'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // Country flags (hashed filenames) are cached on first view instead of bloating the install.
+            urlPattern: ({ url }) => url.pathname.startsWith('/assets/') && url.pathname.endsWith('.svg'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'flixer-flags',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Profile pictures have unique, immutable filenames.
             urlPattern: ({ url }) => url.pathname.startsWith('/api/auth/avatars/'),

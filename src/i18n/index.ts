@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { getAccessToken, getPreferences, updatePreferences } from '../api'
 import en from '../locales/en.json'
 
 export type MessageSchema = typeof en
@@ -32,6 +33,18 @@ export function localeName(code: string): string {
   }
 }
 
+const COUNTRY_OVERRIDES: Record<string, string> = { en: 'gb', pt: 'pt', ar: 'sa', zh: 'cn' }
+
+/** Lower-case ISO country code for a locale's flag, e.g. "de" -> "de", "pt-BR" -> "br". */
+export function localeCountry(code: string): string | undefined {
+  if (COUNTRY_OVERRIDES[code]) return COUNTRY_OVERRIDES[code]
+  try {
+    return new Intl.Locale(code).maximize().region?.toLowerCase()
+  } catch {
+    return undefined
+  }
+}
+
 function resolveInitialLocale(): string {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored && availableLocales.includes(stored)) return stored
@@ -43,7 +56,7 @@ function resolveInitialLocale(): string {
   return SOURCE_LOCALE
 }
 
-export async function setLocale(code: string): Promise<void> {
+async function applyLocale(code: string): Promise<void> {
   if (!availableLocales.includes(code)) code = SOURCE_LOCALE
   if (!i18n.global.availableLocales.includes(code)) {
     const load = loaders[`../locales/${code}.json`]
@@ -54,6 +67,29 @@ export async function setLocale(code: string): Promise<void> {
   localStorage.setItem(STORAGE_KEY, code)
 }
 
+/** Switches language and, when signed in, saves the choice to the user's account. */
+export async function setLocale(code: string): Promise<void> {
+  await applyLocale(code)
+  if (getAccessToken() && navigator.onLine) {
+    void updatePreferences({ language: i18n.global.locale.value }).catch(() => undefined)
+  }
+}
+
+/** Applies the language saved on the account (if any); otherwise uploads the current choice. Never throws. */
+export async function syncLocaleFromAccount(): Promise<void> {
+  if (!getAccessToken() || !navigator.onLine) return
+  try {
+    const { language } = await getPreferences()
+    if (language && availableLocales.includes(language)) {
+      await applyLocale(language)
+    } else {
+      await updatePreferences({ language: i18n.global.locale.value })
+    }
+  } catch {
+    // Offline or signed out: keep the locally stored language.
+  }
+}
+
 export function initLocale(): Promise<void> {
-  return setLocale(resolveInitialLocale())
+  return applyLocale(resolveInitialLocale())
 }
