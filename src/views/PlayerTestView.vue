@@ -37,7 +37,7 @@ async function load() {
   } catch {
     playback.value = null
     info.value = null
-    error.value = 'Could not get a stream URL. Is flixer-streamer running on port 8091?'
+    error.value = 'Could not get a stream URL. Is flixer-streamer running?'
   } finally {
     loading.value = false
   }

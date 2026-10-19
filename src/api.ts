@@ -64,7 +64,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     const url = axios.isAxiosError(error) ? error.config?.url : undefined
-    if (axios.isAxiosError(error) && error.response?.status === 401 && !url?.includes('/auth/login') && !url?.includes('/auth/me/password') && !url?.includes('/auth/me/delete') && !url?.includes('/second-factor/') && !/\/passkeys\/[^/]+\/delete$/.test(url ?? '') && !url?.includes('/passkeys/register/options') && !(url?.includes('/auth/me/passkey-required') && error.config?.method === 'patch')) {
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !url?.includes('/auth/login') && !url?.includes('/auth/me/password') && !url?.includes('/auth/me/delete') && !url?.includes('/second-factor/') && !/\/passkeys\/[^/]+\/delete$/.test(url ?? '') && !url?.includes('/passkeys/register/options') && !url?.includes('/passkeys/register/verify') && !(url?.includes('/auth/me/passkey-required') && error.config?.method === 'patch')) {
       clearAccessToken()
       if (!error.config?.url?.includes('/auth/sessions')) {
         window.dispatchEvent(new Event(AUTH_INVALID_EVENT))
@@ -286,7 +286,19 @@ export function buildStreamUrl(streamUrl: string, options: { height?: number; st
   return query ? `${streamUrl}?${query}` : streamUrl
 }
 
-// The streamer is called directly (not through the Flixer API); the token in the URL is the credential.
+export function buildHlsUrl(streamUrl: string, options: { height?: number } = {}): string {
+  const base = `${streamUrl.replace('/stream/', '/hls/')}/index.m3u8`
+  return options.height ? `${base}?height=${options.height}` : base
+}
+
+// Only WebKit plays HLS natively; Chromium browsers fall back to the progressive MP4/WebM stream.
+export function supportsNativeHls(): boolean {
+  if (typeof document === 'undefined') return false
+  const canPlay = document.createElement('video').canPlayType('application/vnd.apple.mpegurl')
+  return canPlay !== '' && !/Chrome|Chromium|Edg\//.test(navigator.userAgent)
+}
+
+// The streamer is reached through the same-origin proxy (/stream, /info), not the Flixer API; the token in the URL is the credential.
 export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number } = {}): Promise<StreamInfo> {
   const url = buildStreamUrl(streamUrl.replace('/stream/', '/info/'), options)
   const response = await axios.get<StreamInfo>(url, { timeout: 20_000 })
@@ -301,4 +313,40 @@ export async function listSampleVideos(): Promise<SampleVideo[]> {
 export async function getSamplePlaybackInfo(id: string): Promise<PlaybackInfo> {
   const response = await api.post<PlaybackInfo>(`/playback/samples/${encodeURIComponent(id)}/playback-info`)
   return response.data
+}
+
+export interface StreamSession {
+  id: string
+  userId?: string
+  user: { username: string; displayName: string } | null
+  mediaItemId?: string
+  file: string
+  delivery: 'progressive' | 'hls'
+  remoteAddr?: string
+  userAgent?: string
+  source: { videoCodec: string; audioCodec?: string; width: number; height: number; durationSeconds: number }
+  mode: PlayMethod
+  height: number
+  positionSeconds: number
+  startedAt: string
+  lastActivityAt: string
+  bytesSent: number
+  running: boolean
+  pid?: number
+}
+
+export interface StreamSessionList {
+  transcodingAvailable: boolean
+  maxTranscodes: number
+  activeTranscodes: number
+  sessions: StreamSession[]
+}
+
+export async function listStreamSessions(): Promise<StreamSessionList> {
+  const response = await api.get<StreamSessionList>('/admin/streams')
+  return response.data
+}
+
+export async function cancelStreamSession(id: string): Promise<void> {
+  await api.delete(`/admin/streams/${encodeURIComponent(id)}`)
 }

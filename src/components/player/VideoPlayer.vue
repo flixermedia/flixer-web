@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { buildStreamUrl, type PlayMethod, type StreamInfo } from '../../api'
+import { buildHlsUrl, buildStreamUrl, supportsNativeHls, type PlayMethod, type StreamInfo } from '../../api'
 
 const props = withDefaults(
   defineProps<{
@@ -57,7 +57,11 @@ let hideTimer: ReturnType<typeof setTimeout> | undefined
 let frame = 0
 let lastPointerType = 'mouse'
 
-const isNative = computed(() => height.value === 0 && props.info.playMethod === 'DirectPlay')
+const nativeHls = supportsNativeHls()
+const directPlay = computed(() => height.value === 0 && props.info.playMethod === 'DirectPlay')
+const useHls = computed(() => nativeHls && !directPlay.value)
+// Direct play and HLS both use the browser's own clock and seeking.
+const isNative = computed(() => directPlay.value || useHls.value)
 const mode = computed<PlayMethod>(() => (height.value > 0 ? 'Transcode' : props.info.playMethod))
 const duration = computed(() => {
   if (isNative.value && Number.isFinite(nativeDuration.value) && nativeDuration.value > 0) return nativeDuration.value
@@ -114,7 +118,7 @@ function loadSource(opts: { start?: number; height?: number; resume?: boolean } 
   }
   bufferedEnd.value = start
 
-  el.src = buildStreamUrl(props.streamUrl, isNative.value ? {} : { height: height.value || undefined, start })
+  el.src = useHls.value ? buildHlsUrl(props.streamUrl, { height: height.value || undefined }) : buildStreamUrl(props.streamUrl, isNative.value ? {} : { height: height.value || undefined, start })
   if (resume) tryPlay()
 }
 
