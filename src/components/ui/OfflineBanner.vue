@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useOnlineStatus } from '../../composables/useOnlineStatus'
+import { useI18n } from 'vue-i18n'
 
 const { isOnline } = useOnlineStatus()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -9,6 +11,6 @@ const { isOnline } = useOnlineStatus()
     <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
       <path d="M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.7M19 12.9a10 10 0 0 0-2.4-1.9M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8A15 15 0 0 0 12 5.5M12 20h.01" />
     </svg>
-    <span>You’re offline. Showing the cached version of Flixer — sign in, uploads and live content are unavailable until you reconnect.</span>
+    <span>{{ t('ui.offlineBanner') }}</span>
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import logo from '../../resources/logo/flixer-logo.svg'
 import LoginForm from '../components/auth/LoginForm.vue'
@@ -11,6 +12,7 @@ import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken } from '../api'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const isSubmitting = ref(false)
@@ -34,7 +36,7 @@ async function loadRegistrationStatus() {
     const status = await getRegistrationStatus()
     registrationEnabled.value = status.registrationEnabled
   } catch {
-    registrationStatusError.value = 'Registration availability couldn’t be checked. Refresh the page to try again.'
+    registrationStatusError.value = t('auth.registrationAvailabilityError')
   }
 }
 
@@ -86,9 +88,9 @@ async function handleSecondFactor() {
     console.error('[passkey] second factor failed', error)
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       passkeyTicket.value = ''
-      notify.error('Your sign-in expired or the passkey wasn’t accepted. Enter your password again.')
+      notify.error(t('auth.passkeySecondFactorExpired'))
     } else {
-      notify.error(error instanceof Error && error.name === 'NotAllowedError' ? 'Passkey check was cancelled or timed out. Try again.' : getRequestErrorMessage(error, false))
+      notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyCheckCancelled') : getRequestErrorMessage(error, false))
     }
   } finally {
     isSubmitting.value = false
@@ -107,7 +109,7 @@ async function handleResendVerification() {
   isResending.value = true
   try {
     await resendVerification(lastCredentials.username, lastCredentials.password)
-    notify.success('Verification email sent. Check your inbox.')
+    notify.success(t('auth.verificationEmailSentToast'))
   } catch (error: unknown) {
     console.error('[auth] resend verification failed', error)
     notify.error(getRequestErrorMessage(error, false))
@@ -129,7 +131,7 @@ async function handlePasskeyLogin() {
     await completeAuthentication(result.accessToken)
   } catch (error: unknown) {
     console.error('[passkey] login failed', error)
-    notify.error(error instanceof Error && error.name === 'NotAllowedError' ? `Passkey sign-in was cancelled or blocked (${error.message}).` : getRequestErrorMessage(error, false))
+    notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: error.message }) : getRequestErrorMessage(error, false))
   } finally {
     isSubmitting.value = false
   }
@@ -164,13 +166,13 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
     }
 
     if (!error.response) {
-      return 'Flixer couldn’t be reached. Check your connection and try again.'
+      return t('auth.networkError')
     }
 
-    return registration ? 'We couldn’t create your account. Check your details and try again.' : 'We couldn’t sign you in. Check your details and try again.'
+    return registration ? t('auth.registrationError') : t('auth.signInError')
   }
 
-  return 'Something went wrong. Please try again.'
+  return t('auth.genericError')
 }
 </script>
 
@@ -182,35 +184,35 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
       <div class="absolute -right-20 top-0 size-72 rounded-full bg-flixer-cyan/10 blur-3xl"></div>
     </div>
 
-    <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" aria-label="Welcome to Flixer">
+    <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" :aria-label="t('auth.welcomeToFlixer')">
       <!-- Decorative background elements -->
       <div class="pointer-events-none absolute -left-24 top-1/3 -z-10 hidden size-80 rounded-full bg-flixer-primary/20 blur-3xl lg:block" aria-hidden="true"></div>
       <div class="pointer-events-none absolute -right-20 top-0 -z-10 hidden size-72 rounded-full bg-flixer-cyan/10 blur-3xl lg:block" aria-hidden="true"></div>
 
       <!-- Logo and navigation -->
-      <RouterLink class="mx-auto lg:mx-0 relative z-10 inline-flex w-fit items-center lg:gap-3 text-flixer-text no-underline" to="/" aria-label="Flixer home">
+      <RouterLink class="mx-auto lg:mx-0 relative z-10 inline-flex w-fit items-center lg:gap-3 text-flixer-text no-underline" to="/" :aria-label="t('auth.flixerHome')">
         <img :src="logo" alt="" class="size-20 mt-4 lg:mt-0 lg:size-10 rounded-xl shadow-lg" aria-hidden="true" />
-        <span class="hidden lg:inline text-2xl font-bold tracking-tight">flixer</span>
+        <span class="hidden lg:inline text-2xl font-bold tracking-tight">{{ t('auth.brandName') }}</span>
       </RouterLink>
 
       <!-- Welcome message -->
       <div class="relative z-10 mb-8 mt-8 hidden max-w-xl lg:mt-[12vh] lg:block">
         <span class="flex items-center gap-2.5 text-[10px] font-bold tracking-[0.2em] text-flixer-muted">
           <span class="size-2 rounded-full bg-flixer-cyan shadow-[0_0_14px_rgba(75,217,232,0.65)]"></span>
-          YOUR NEXT FAVORITE IS HERE
+          {{ t('auth.nextFavoriteIsHere') }}
         </span>
         <h2 class="mt-2 text-4xl font-semibold leading-tight tracking-tight text-flixer-text sm:text-5xl lg:text-6xl">
-          Every story
+          {{ t('auth.everyStory') }}
           <br />
-          starts
-          <span class="text-flixer-accent">somewhere.</span>
+          {{ t('auth.startsSomewhere') }}
+          <span class="text-flixer-accent">{{ t('auth.somewhere') }}</span>
         </h2>
-        <p class="mt-4 max-w-sm text-sm leading-5 text-flixer-muted sm:text-base">Pick up where you left off, or find something new to get lost in.</p>
+        <p class="mt-4 max-w-sm text-sm leading-5 text-flixer-muted sm:text-base">{{ t('auth.welcomeDescription') }}</p>
       </div>
 
       <div class="relative z-10 mt-auto hidden items-center gap-3 pt-12 text-[9px] font-bold tracking-[0.18em] text-flixer-muted lg:flex">
         <span class="h-px w-7 bg-gradient-to-r from-flixer-primary to-flixer-cyan"></span>
-        STORIES WORTH STAYING IN FOR
+        {{ t('auth.storiesWorthStayingInFor') }}
       </div>
     </section>
 
@@ -219,7 +221,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
         <svg class="size-3.5 fill-none stroke-current" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3.5 7h9v7h-9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" />
         </svg>
-        SECURE {{ isRegistration ? 'REGISTRATION' : 'SIGN IN' }}
+        {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
 
       <div class="w-full mt-0 lg:mt-4 max-w-md rounded-2xl border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
@@ -234,9 +236,9 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
       </div>
 
       <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70 lg:flex">
-        <span>© 2026 Flixer</span>
+        <span>{{ t('auth.copyright', { year: 2026 }) }}</span>
         <span class="text-flixer-accent">·</span>
-        <span>Made for movie nights</span>
+        <span>{{ t('auth.madeForMovieNights') }}</span>
       </footer>
     </section>
   </main>

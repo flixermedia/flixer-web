@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/header/Header.vue'
+import LanguageSection from '../components/settings/LanguageSection.vue'
 import PasskeysSection from '../components/settings/PasskeysSection.vue'
 import ProfileSection from '../components/settings/ProfileSection.vue'
 import ServerSection from '../components/settings/ServerSection.vue'
@@ -10,12 +12,14 @@ import { useSignOut } from '../composables/useSignOut'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 
 const tabs = computed<SettingsTab[]>(() => {
   return [
-    { id: 'profile', label: 'Profile' },
-    { id: 'passkeys', label: 'Passkeys' },
+    { id: 'profile', label: t('settings.tabs.profile') },
+    { id: 'passkeys', label: t('settings.tabs.passkeys') },
+    { id: 'language', label: t('settings.tabs.language') },
   ]
 })
 
@@ -35,16 +39,17 @@ const activeTab = computed({
     <Header :links="[]" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter w-full pb-16 pt-28">
-      <h1 class="text-3xl font-semibold tracking-tight">Settings</h1>
-      <p class="mt-2 text-sm text-flixer-muted">Manage your profile, passkeys and server preferences.</p>
+      <h1 class="text-3xl font-semibold tracking-tight">{{ t('settings.title') }}</h1>
+      <p class="mt-2 text-sm text-flixer-muted">{{ t('settings.subtitle') }}</p>
 
-      <nav class="mt-3" aria-label="Settings">
+      <nav class="mt-3" :aria-label="t('settings.title')">
         <SettingsTabs v-model="activeTab" :tabs="tabs" class="w-fit max-w-full" />
       </nav>
 
       <div class="mt-8">
         <ProfileSection v-if="activeTab === 'profile'" />
         <PasskeysSection v-else-if="activeTab === 'passkeys'" />
+        <LanguageSection v-else-if="activeTab === 'language'" />
         <ServerSection v-else-if="activeTab === 'server'" />
       </div>
     </main>

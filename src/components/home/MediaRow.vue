@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 defineProps<{ title: string }>()
+const { t } = useI18n()
 
 const scroller = ref<HTMLElement | null>(null)
 
@@ -18,10 +20,10 @@ function scrollBy(direction: -1 | 1) {
     <div class="mb-3 flex items-end justify-between page-gutter">
       <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">{{ title }}</h2>
       <div class="hidden gap-2 opacity-0 transition group-hover/row:opacity-100 group-focus-within/row:opacity-100 md:flex">
-        <button type="button" class="grid size-8 place-items-center rounded-full border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Scroll ${title} left`" @click="scrollBy(-1)">
+        <button type="button" class="grid size-8 place-items-center rounded-full border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('home.scrollLeft', { title })" @click="scrollBy(-1)">
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
-        <button type="button" class="grid size-8 place-items-center rounded-full border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Scroll ${title} right`" @click="scrollBy(1)">
+        <button type="button" class="grid size-8 place-items-center rounded-full border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('home.scrollRight', { title })" @click="scrollBy(1)">
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
         </button>
       </div>
