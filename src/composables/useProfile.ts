@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ref } from 'vue'
 import { getProfile, type UserProfile } from '../api'
+import { i18n } from '../i18n'
 
 const profile = ref<UserProfile | null>(null)
 let pending: Promise<void> | null = null
@@ -35,10 +36,10 @@ export function useProfile() {
   return { profile, load, setProfile, clear }
 }
 
-export function describeRequestError(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+export function describeRequestError(error: unknown, fallback = i18n.global.t('errors.generic')): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
     if (!error.response) {
-      return 'Flixer couldn’t be reached. Check your connection and try again.'
+      return i18n.global.t('errors.network')
     }
     return error.response.data?.message || fallback
   }

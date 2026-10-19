@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { openModal } from '@kolirt/vue-modal'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import logoUrl from '../../../resources/logo/flixer-logo.svg'
 import { useProfile } from '../../composables/useProfile'
+import LanguageModal from '../ui/LanguageModal.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     links: string[]
     isSigningOut: boolean
@@ -17,11 +20,24 @@ withDefaults(
 
 const emit = defineEmits<{ logout: [] }>()
 
+const { t } = useI18n()
 const { profile, load: loadProfile } = useProfile()
 const menuOpen = ref(false)
 const scrolled = ref(false)
 const menuRoot = ref<HTMLElement | null>(null)
-const activeLink = ref('Home')
+const activeLink = ref(props.links[0] ?? '')
+watch(
+  () => props.links[0],
+  (link) => {
+    if (link) activeLink.value = link
+  },
+  { immediate: true },
+)
+
+function openLanguage() {
+  menuOpen.value = false
+  void openModal(LanguageModal).catch(() => undefined)
+}
 
 function onScroll() {
   scrolled.value = window.scrollY > 24
@@ -58,8 +74,8 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
 
 <template>
   <header class="fixed inset-x-0 top-0 z-40 transition-[padding] duration-300 ease-out" :class="scrolled ? 'p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
-    <nav class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'md:grid-cols-[auto_auto_1fr]' : 'md:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded-lg border-white/10 bg-flixer-background/30']" aria-label="Main">
-      <a class="flex items-center gap-2.5 justify-self-start rounded-lg pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" href="/" aria-label="Flixer home">
+    <nav class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'md:grid-cols-[auto_auto_1fr]' : 'md:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded-lg border-white/10 bg-flixer-background/30']" :aria-label="t('header.mainNavigation')">
+      <a class="flex items-center gap-2.5 justify-self-start rounded-lg pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" href="/" :aria-label="t('header.flixerHome')">
         <img :src="logoUrl" alt="" class="size-10" />
         <span class="text-xl font-semibold tracking-tight text-white">Flixer</span>
       </a>
@@ -75,14 +91,14 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
       </div>
 
       <div class="flex items-center justify-self-end gap-1">
-        <button type="button" :class="iconButton" aria-label="Search">
+        <button type="button" :class="iconButton" :aria-label="t('header.search')">
           <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
           </svg>
         </button>
 
         <div ref="menuRoot" class="relative">
-          <button type="button" class="grid size-10 place-items-center rounded-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" aria-label="Account menu" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+          <button type="button" class="grid size-10 place-items-center rounded-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
             <span class="block size-10 overflow-hidden rounded-lg text-sm">
               <UserAvatar :avatar-url="profile?.avatarUrl" :name="profile?.displayName" />
             </span>
@@ -95,11 +111,12 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
                 <p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
               </div>
               <div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
-              <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">Settings</RouterLink>
-              <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">Admin Dashboard</RouterLink>
+              <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.settings') }}</RouterLink>
+              <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.adminDashboard') }}</RouterLink>
+              <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t('header.language') }}</button>
               <div class="my-1.5 h-px bg-white/10"></div>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
-                {{ isSigningOut ? 'Signing out…' : 'Sign out' }}
+                {{ isSigningOut ? t('header.signingOut') : t('header.signOut') }}
               </button>
             </div>
           </Transition>

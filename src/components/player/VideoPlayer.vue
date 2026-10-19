@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { buildHlsUrl, buildStreamUrl, supportsNativeHls, type PlayMethod, type StreamInfo } from '../../api'
 
 const props = withDefaults(
@@ -19,11 +20,12 @@ const emit = defineEmits<{
 }>()
 
 const METHOD_LABELS: Record<PlayMethod, string> = {
-  DirectPlay: 'Direct play',
-  DirectStream: 'Direct stream (remux)',
-  Transcode: 'Transcode',
+  DirectPlay: 'player.methodDirectPlay',
+  DirectStream: 'player.methodDirectStream',
+  Transcode: 'player.methodTranscode',
 }
 
+const { t } = useI18n()
 const SKIP_SECONDS = 10
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
@@ -298,7 +300,7 @@ function onVolumeChange() {
 function onVideoError() {
   const el = video.value
   if (!el || !el.getAttribute('src')) return
-  errorMessage.value = mode.value === 'DirectPlay' ? 'This video could not be played by your browser.' : 'The stream stopped unexpectedly. Check that flixer-streamer is running with ffmpeg available.'
+  errorMessage.value = mode.value === 'DirectPlay' ? t('player.videoCouldNotPlay') : t('player.streamStoppedUnexpectedly')
   emit('error', errorMessage.value)
 }
 
@@ -487,14 +489,14 @@ onBeforeUnmount(() => {
 
     <!-- Centre status: buffering, error, or the big play/replay button -->
     <div class="pointer-events-none absolute inset-0 grid place-items-center">
-      <div v-if="waiting && !errorMessage" class="size-14 animate-spin rounded-full border-4 border-white/20 border-t-flixer-accent" role="status" aria-label="Buffering"></div>
+      <div v-if="waiting && !errorMessage" class="size-14 animate-spin rounded-full border-4 border-white/20 border-t-flixer-accent" role="status" :aria-label="t('player.buffering')"></div>
 
       <div v-else-if="errorMessage" class="pointer-events-auto max-w-sm px-6 text-center" role="alert">
         <p class="text-sm text-red-300">{{ errorMessage }}</p>
-        <button type="button" class="mt-4 rounded-full bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="retry">Try again</button>
+        <button type="button" class="mt-4 rounded-full bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="retry">{{ t('player.tryAgain') }}</button>
       </div>
 
-      <button v-else-if="showCenterPlay" type="button" class="pointer-events-auto grid size-20 place-items-center rounded-full bg-flixer-primary/90 text-white shadow-2xl shadow-black/60 transition hover:scale-105 hover:bg-flixer-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="ended ? 'Replay' : 'Play'" @click="togglePlay">
+      <button v-else-if="showCenterPlay" type="button" class="pointer-events-auto grid size-20 place-items-center rounded-full bg-flixer-primary/90 text-white shadow-2xl shadow-black/60 transition hover:scale-105 hover:bg-flixer-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="ended ? t('player.replay') : t('player.play')" @click="togglePlay">
         <svg v-if="ended" class="size-9" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
         </svg>
@@ -504,7 +506,7 @@ onBeforeUnmount(() => {
 
     <!-- Top bar -->
     <div class="absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-4 transition-opacity duration-300 sm:px-6" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
-      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" aria-label="Back" @click="emit('back')">
+      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.back')" @click="emit('back')">
         <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
         </svg>
@@ -513,10 +515,10 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Settings menu -->
-    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 w-64 rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" aria-label="Playback settings">
-      <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">Quality</p>
+    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 w-64 rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
+      <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.quality') }}</p>
       <button type="button" role="menuitemradio" :aria-checked="height === 0" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="height === 0 ? 'text-flixer-accent' : 'text-flixer-text'" @click="setQuality(0)">
-        <span>Original ({{ info.source.height }}p)</span>
+        <span>{{ t('player.originalQuality', { height: info.source.height }) }}</span>
         <svg v-if="height === 0" class="size-4" viewBox="0 0 24 24" fill="currentColor">
           <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
         </svg>
@@ -530,11 +532,11 @@ onBeforeUnmount(() => {
 
       <dl class="mt-2 space-y-1 border-t border-flixer-border px-3 pb-2 pt-3 text-xs text-flixer-muted">
         <div class="flex justify-between gap-3">
-          <dt>Playback</dt>
-          <dd class="text-right text-flixer-text">{{ METHOD_LABELS[mode] }}</dd>
+          <dt>{{ t('player.playback') }}</dt>
+          <dd class="text-right text-flixer-text">{{ t(METHOD_LABELS[mode]) }}</dd>
         </div>
         <div class="flex justify-between gap-3">
-          <dt>Source</dt>
+          <dt>{{ t('player.source') }}</dt>
           <dd class="text-right text-flixer-text">{{ info.source.videoCodec }} {{ info.source.width }}×{{ info.source.height }}</dd>
         </div>
       </dl>
@@ -542,7 +544,7 @@ onBeforeUnmount(() => {
 
     <!-- Bottom controls -->
     <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-3 pt-16 transition-opacity duration-300 sm:px-6 sm:pb-4" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
-      <div ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" aria-label="Seek" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="`${format(position)} of ${format(duration)}`" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
+      <div ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" :aria-label="t('player.seek')" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="t('player.seekValue', { current: format(position), duration: format(duration) })" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
         <div class="relative h-1 w-full rounded-full bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
           <div class="absolute inset-y-0 left-0 rounded-full bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>
           <div class="absolute inset-y-0 left-0 rounded-full bg-flixer-accent" :style="{ width: `${percent(position)}%` }"></div>
@@ -555,20 +557,20 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="mt-1 flex items-center gap-1 sm:gap-2">
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? 'Play' : 'Pause'" @click="togglePlay">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? t('player.play') : t('player.pause')" @click="togglePlay">
           <svg v-if="paused" class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
           <svg v-else class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
           </svg>
         </button>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Rewind ${SKIP_SECONDS} seconds`" @click="skip(-SKIP_SECONDS)">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.rewindSeconds', { seconds: SKIP_SECONDS })" @click="skip(-SKIP_SECONDS)">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
             <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
           </svg>
         </button>
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`Skip forward ${SKIP_SECONDS} seconds`" @click="skip(SKIP_SECONDS)">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.skipForwardSeconds', { seconds: SKIP_SECONDS })" @click="skip(SKIP_SECONDS)">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 5V1l5 5-5 5V7a6 6 0 106 6h2a8 8 0 11-8-8z" />
             <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
@@ -576,14 +578,14 @@ onBeforeUnmount(() => {
         </button>
 
         <div class="group/vol flex items-center">
-          <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="muted || volume === 0 ? 'Unmute' : 'Mute'" @click="toggleMute">
+          <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="muted || volume === 0 ? t('player.unmute') : t('player.mute')" @click="toggleMute">
             <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 9v6h4l5 5V4L7 9z" />
               <path v-if="muted || volume === 0" d="M16 9.4l1.4-1.4 2.6 2.6L22.6 8 24 9.4 21.4 12l2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6z" />
               <path v-else d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z" />
             </svg>
           </button>
-          <input type="range" min="0" max="1" step="0.01" aria-label="Volume" class="h-1 w-0 cursor-pointer accent-flixer-accent opacity-0 transition-all duration-200 group-focus-within/vol:w-20 group-focus-within/vol:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100" :value="muted ? 0 : volume" @input="onVolumeInput" />
+          <input type="range" min="0" max="1" step="0.01" :aria-label="t('player.volume')" class="h-1 w-0 cursor-pointer accent-flixer-accent opacity-0 transition-all duration-200 group-focus-within/vol:w-20 group-focus-within/vol:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100" :value="muted ? 0 : volume" @input="onVolumeInput" />
         </div>
 
         <span class="ml-2 text-sm tabular-nums text-white/90">{{ format(position) }} / {{ format(duration) }}</span>
@@ -591,16 +593,16 @@ onBeforeUnmount(() => {
         <span class="flex-1"></span>
 
         <span v-if="mode !== 'DirectPlay'" class="hidden rounded-md border border-white/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-flixer-muted sm:inline">
-          {{ mode === 'Transcode' ? `${height}p` : 'Remux' }}
+          {{ mode === 'Transcode' ? `${height}p` : t('player.remux') }}
         </span>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" aria-label="Playback settings" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" :aria-label="t('player.playbackSettings')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
           </svg>
         </button>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'" @click="toggleFullscreen">
+        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? t('player.exitFullscreen') : t('player.fullscreen')" @click="toggleFullscreen">
           <svg v-if="!isFullscreen" class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z" />
           </svg>

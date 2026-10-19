@@ -2,6 +2,7 @@ import axios from 'axios'
 import { createRouter, createWebHistory } from 'vue-router'
 import { clearAccessToken, getAccessToken, validateAccessToken } from '../api'
 import { useProfile } from '../composables/useProfile'
+import { i18n } from '../i18n'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -118,7 +119,7 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.name === 'register' ? 'Create your Flixer account' : to.name === 'login' ? 'Sign in to Flixer' : 'Flixer'
+  document.title = to.name === 'register' ? i18n.global.t('router.registerTitle') : to.name === 'login' ? i18n.global.t('router.loginTitle') : i18n.global.t('router.defaultTitle')
 })
 
 export default router

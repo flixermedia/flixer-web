@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { logout } from '../api'
+import { i18n } from '../i18n'
 import { notify } from './notify'
 import { useProfile } from './useProfile'
 
@@ -18,9 +19,9 @@ export function useSignOut() {
       await router.replace({ name: 'login' })
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.status !== 401) {
-        notify.error('Flixer couldn’t sign you out. Check your connection and try again.')
+        notify.error(i18n.global.t('errors.signOutNetwork'))
       } else if (!axios.isAxiosError(error)) {
-        notify.error('Something went wrong while signing out. Please try again.')
+        notify.error(i18n.global.t('errors.signOutGeneric'))
       }
     } finally {
       isSigningOut.value = false
