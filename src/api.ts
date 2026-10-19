@@ -41,14 +41,23 @@ export const api = axios.create({
 })
 
 export function getAccessToken(): string | null {
-  return sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  // sessionStorage is wiped when the PWA is force-closed, so the token is persisted in localStorage.
+  const stored = localStorage.getItem(ACCESS_TOKEN_KEY)
+  if (stored) return stored
+  const legacy = sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  if (legacy) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, legacy)
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  }
+  return legacy
 }
 
 export function saveAccessToken(accessToken: string): void {
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
 }
 
 export function clearAccessToken(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
@@ -73,6 +82,21 @@ api.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+export interface UserPreferences {
+  language?: string
+}
+
+export async function getPreferences(): Promise<UserPreferences> {
+  const response = await api.get<UserPreferences>('/preferences')
+  return response.data
+}
+
+/** Partial update; a `null` value clears that preference. */
+export async function updatePreferences(patch: { [K in keyof UserPreferences]: UserPreferences[K] | null }): Promise<UserPreferences> {
+  const response = await api.patch<UserPreferences>('/preferences', patch)
+  return response.data
+}
 
 export interface PasskeyRequired {
   passkeyRequired: true
