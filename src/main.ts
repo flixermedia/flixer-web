@@ -5,6 +5,7 @@ import Vue3Toastify from 'vue3-toastify'
 import { AUTH_INVALID_EVENT } from './api'
 import { toastContainerOptions } from './composables/notify'
 import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
+import { initMonitoring } from './monitoring'
 import router from './router'
 import './tailwind.css'
 import './toast.css'
@@ -29,6 +30,7 @@ app.use(Vue3Toastify, toastContainerOptions)
 app.use(createModal({ groups: { default: {} } }))
 await initLocale()
 app.mount('#app')
+void initMonitoring(app)
 void syncLocaleFromAccount()
 
 void registerSW({ immediate: true })

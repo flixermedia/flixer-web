@@ -3,6 +3,7 @@ import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
+import ErrorMonitoringSection from './ErrorMonitoringSection.vue'
 import { serverInfo } from './mock'
 
 const { t } = useI18n()
@@ -83,6 +84,8 @@ const save = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-w
       <AdminToggle v-model="form.notifyTaskFail" :label="t('admin.general.scheduledTaskFailed')" />
       <AdminToggle v-model="form.quickConnect" :label="t('admin.general.allowQuickConnect')" :description="t('admin.general.quickConnectDescription')" />
     </AdminSection>
+
+    <ErrorMonitoringSection />
 
     <AdminSection :title="t('admin.general.dangerZoneTitle')" :description="t('admin.general.dangerZoneDescription')">
       <div class="flex flex-wrap gap-2">

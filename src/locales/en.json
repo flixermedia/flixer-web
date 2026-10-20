@@ -354,7 +354,28 @@
       "download": "Download logs",
       "empty": "No log entries match this filter."
     },
-    "general": {
+    "monitoring": {
+      "title": "Error monitoring",
+      "description": "Send crash and error reports to Sentry. Apps read these settings when they start, so restart flixer-web (reload) and flixer-streamer to apply changes.",
+      "global": "Enable Sentry for all apps",
+      "globalDescription": "Master switch. When off, no app reports to Sentry.",
+      "apps": {
+        "flixer": "Flixer server",
+        "streamer": "Flixer streamer",
+        "web": "Flixer web"
+      },
+      "appEnabled": "Enable Sentry for {app}",
+      "dsn": "{app} DSN",
+      "dsnInvalid": "Enter a valid DSN URL.",
+      "test": "Send test alert",
+      "testDescription": "Sends a test error from this browser to Sentry. Requires Flixer web reporting to be enabled and the page reloaded.",
+      "testSent": "Test alert sent to Sentry.",
+      "testDisabled": "Sentry is not active in this browser. Enable it for Flixer web with a DSN, then reload.",
+      "loading": "Loading monitoring settings...",
+      "loadFailed": "Could not load the monitoring settings.",
+      "saved": "{setting} saved.",
+      "saveFailed": "Could not save the monitoring setting."
+    },    "general": {
       "title": "Server settings",
       "description": "Configure server preferences and behavior.",
       "serverName": "Server name",
