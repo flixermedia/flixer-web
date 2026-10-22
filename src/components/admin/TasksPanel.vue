@@ -28,8 +28,8 @@ const categoryKeys: Record<string, string> = { Library: 'admin.tasks.libraryCate
             <button v-else type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15">{{ t('admin.tasks.runNow') }}</button>
           </div>
         </div>
-        <div v-if="task.running" class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div class="h-full rounded-full bg-flixer-primary" :style="{ width: `${task.progress}%` }"></div>
+        <div v-if="task.running" class="mt-3 h-1.5 overflow-hidden rounded bg-white/10">
+          <div class="h-full rounded bg-flixer-primary" :style="{ width: `${task.progress}%` }"></div>
         </div>
         <p class="mt-3 text-xs text-flixer-muted">
           {{ t('admin.tasks.trigger') }}: <span class="font-medium text-flixer-text">{{ task.trigger }}</span> · {{ t('admin.tasks.lastRun') }}: <span class="font-medium text-flixer-text">{{ task.lastRun }}</span>

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useLiveTopic } from '../../composables/useLive'
 import { useI18n } from 'vue-i18n'
 import { cancelStreamSession, listStreamSessions, type StreamSession, type StreamSessionList } from '../../api'
+import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 
 const { t } = useI18n()
-
-const REFRESH_MS = 3000
 
 const data = ref<StreamSessionList | null>(null)
 const loadError = ref('')
@@ -41,7 +41,7 @@ async function load() {
 
 async function cancel(session: StreamSession) {
   const who = session.user?.displayName ?? t('admin.streams.thisViewer')
-  if (!window.confirm(t('admin.streams.confirmCancel', { file: session.file, name: who }))) return
+  if (!(await confirmAction(t('admin.streams.confirmCancel', { file: session.file, name: who }), { danger: true }))) return
   cancellingId.value = session.id
   try {
     await cancelStreamSession(session.id)
@@ -77,12 +77,20 @@ function quality(session: StreamSession) {
   return target ? `${target}p` : t('admin.streams.original')
 }
 
+const live = useLiveTopic<StreamSessionList>('streams')
+watch(live.data, (value) => {
+  if (!value) return
+  data.value = value
+  loadError.value = ''
+  now.value = Date.now()
+})
+
 onMounted(() => {
   void load()
+  // Only advances the elapsed clock; data arrives over the WebSocket.
   timer = setInterval(() => {
     now.value = Date.now()
-    void load()
-  }, REFRESH_MS)
+  }, 1000)
 })
 
 onBeforeUnmount(() => clearInterval(timer))
@@ -95,7 +103,7 @@ onBeforeUnmount(() => clearInterval(timer))
         <h2 id="streams-heading" class="text-lg font-semibold">{{ t('admin.streams.title') }}</h2>
         <p class="mt-1 text-sm text-flixer-muted">{{ t('admin.streams.description') }}</p>
       </div>
-      <p v-if="data" class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold" aria-live="polite">{{ data.maxTranscodes > 0 ? t('admin.streams.slotUsage', { active: data.activeTranscodes, max: data.maxTranscodes }) : t('admin.streams.slotUsageUnlimited', { active: data.activeTranscodes }) }}</p>
+      <p v-if="data" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold" aria-live="polite">{{ data.maxTranscodes > 0 ? t('admin.streams.slotUsage', { active: data.activeTranscodes, max: data.maxTranscodes }) : t('admin.streams.slotUsageUnlimited', { active: data.activeTranscodes }) }}</p>
     </div>
 
     <p v-if="loadError" class="mt-4 text-sm text-red-300" role="alert">{{ loadError }}</p>
@@ -110,13 +118,13 @@ onBeforeUnmount(() => clearInterval(timer))
             <p class="truncate text-sm font-semibold" :title="session.file">{{ session.file }}</p>
             <p class="mt-1 text-xs text-flixer-muted">
               {{ session.user?.displayName ?? t('admin.streams.unknownUser') }}
-              <span v-if="session.user"> (@{{ session.user.username }})</span>
+              <span v-if="session.user"> ({{ session.user.username }})</span>
               · {{ session.remoteAddr || t('admin.streams.unknownAddress') }}
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="session.running ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-flixer-muted'">{{ session.running ? t('admin.streams.encoding') : t('admin.streams.idle') }}</span>
-            <button type="button" class="rounded-full bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="cancellingId === session.id" @click="cancel(session)">
+            <span class="rounded px-2.5 py-1 text-xs font-semibold" :class="session.running ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-flixer-muted'">{{ session.running ? t('admin.streams.encoding') : t('admin.streams.idle') }}</span>
+            <button type="button" class="rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="cancellingId === session.id" @click="cancel(session)">
               {{ cancellingId === session.id ? t('admin.streams.cancelling') : t('admin.streams.cancelStream') }}
             </button>
           </div>

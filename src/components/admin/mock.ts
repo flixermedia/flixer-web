@@ -22,58 +22,6 @@ export const libraries: MockLibrary[] = [
   { id: 'l4', name: 'Home Videos', type: 'Home Videos', paths: ['/media/home'], items: 87, sizeGb: 64, lastScan: 'Yesterday', scanning: false, realtimeMonitor: false, metadataLanguage: 'English', providers: [] },
 ]
 
-export interface MockUser {
-  id: string
-  displayName: string
-  username: string
-  email: string
-  role: 'admin' | 'user'
-  status: 'active' | 'disabled' | 'pending'
-  lastActive: string
-  passkeys: number
-  libraries: string
-  maxStreams: number
-  parental: string
-}
-
-export const users: MockUser[] = [
-  { id: 'u1', displayName: 'Zep Li', username: 'zepli', email: 'zep@example.com', role: 'admin', status: 'active', lastActive: 'Now', passkeys: 2, libraries: 'All libraries', maxStreams: 0, parental: 'None' },
-  { id: 'u2', displayName: 'Alex Morgan', username: 'alexm', email: 'alex@example.com', role: 'user', status: 'active', lastActive: '2 hours ago', passkeys: 1, libraries: 'Movies, TV Shows', maxStreams: 2, parental: 'Up to R' },
-  { id: 'u3', displayName: 'Sam Rivera', username: 'samr', email: 'sam@example.com', role: 'user', status: 'active', lastActive: 'Yesterday', passkeys: 0, libraries: 'All libraries', maxStreams: 3, parental: 'None' },
-  { id: 'u4', displayName: 'Kids Account', username: 'kids', email: 'family@example.com', role: 'user', status: 'active', lastActive: '3 days ago', passkeys: 0, libraries: 'Movies, Anime', maxStreams: 1, parental: 'Up to PG' },
-  { id: 'u5', displayName: 'Jordan Lee', username: 'jordan', email: 'jordan@example.com', role: 'user', status: 'pending', lastActive: 'Never', passkeys: 0, libraries: 'None', maxStreams: 1, parental: 'Up to PG-13' },
-  { id: 'u6', displayName: 'Old Guest', username: 'guest', email: 'guest@example.com', role: 'user', status: 'disabled', lastActive: '2 months ago', passkeys: 0, libraries: 'Movies', maxStreams: 1, parental: 'Up to PG-13' },
-]
-
-export interface MockDevice {
-  id: string
-  name: string
-  app: string
-  user: string
-  lastSeen: string
-  ip: string
-}
-
-export const devices: MockDevice[] = [
-  { id: 'd1', name: 'Chrome on Windows', app: 'Flixer Web 0.2.0', user: 'zepli', lastSeen: 'Now', ip: '192.168.1.24' },
-  { id: 'd2', name: 'iPhone 15', app: 'Flixer PWA', user: 'alexm', lastSeen: '2 hours ago', ip: '82.14.9.201' },
-  { id: 'd3', name: 'Living room TV', app: 'Flixer Web 0.2.0', user: 'samr', lastSeen: 'Yesterday', ip: '192.168.1.40' },
-  { id: 'd4', name: 'iPad', app: 'Flixer PWA', user: 'kids', lastSeen: '3 days ago', ip: '192.168.1.61' },
-]
-
-export interface MockApiKey {
-  id: string
-  name: string
-  prefix: string
-  created: string
-  lastUsed: string
-}
-
-export const apiKeys: MockApiKey[] = [
-  { id: 'k1', name: 'Home Assistant', prefix: 'flx_9f3a…', created: '12 Aug 2026', lastUsed: '5 minutes ago' },
-  { id: 'k2', name: 'Request manager', prefix: 'flx_41bc…', created: '2 Sep 2026', lastUsed: 'Yesterday' },
-]
-
 export interface MockTask {
   id: string
   name: string

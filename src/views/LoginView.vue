@@ -72,7 +72,9 @@ async function handleLogin(credentials: { username: string; password: string }) 
     }
     await completeAuthentication(result.accessToken)
   } catch (error: unknown) {
-    needsVerification.value = axios.isAxiosError(error) && error.response?.status === 403
+    const message = axios.isAxiosError(error) ? String((error.response?.data as { message?: unknown } | undefined)?.message ?? '') : ''
+    // Disabled accounts also answer 403, but resending verification can't help them.
+    needsVerification.value = axios.isAxiosError(error) && error.response?.status === 403 && /verify your email/i.test(message)
     notify.error(getRequestErrorMessage(error, false))
   } finally {
     isSubmitting.value = false

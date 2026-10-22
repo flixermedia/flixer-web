@@ -1,18 +1,102 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { openModal } from '@kolirt/vue-modal'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { listAdminUsers, listSettings, updateSetting, type AdminUser } from '../../api'
+import { notify } from '../../composables/notify'
+import { describeRequestError } from '../../composables/useProfile'
+import UserAvatar from '../ui/UserAvatar.vue'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
-import { users } from './mock'
+import CreateUserModal from './CreateUserModal.vue'
+import EditUserModal from './EditUserModal.vue'
 import StatusPill from './StatusPill.vue'
-import UserAvatar from '../ui/UserAvatar.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const users = ref<AdminUser[]>([])
+const isLoading = ref(true)
+const loadError = ref('')
 const query = ref('')
-const selectedId = ref<string | null>(null)
-const filtered = computed(() => users.filter((u) => `${u.displayName} ${u.username} ${u.email}`.toLowerCase().includes(query.value.toLowerCase())))
-const tone = { active: 'good', pending: 'warn', disabled: 'bad' } as const
-const statusKeys = { active: 'admin.users.statuses.active', pending: 'admin.users.statuses.pending', disabled: 'admin.users.statuses.disabled' }
+const registrationEnabled = ref(true)
+const smtpConfigured = ref(false)
+const verificationEnabled = ref(true)
+
+const primaryButton = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
+const secondaryButton = 'rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-60'
+
+const filtered = computed(() => {
+  const needle = query.value.trim().toLowerCase()
+  return users.value.filter((user) => `${user.displayName} ${user.username} ${user.email ?? ''}`.toLowerCase().includes(needle))
+})
+
+type Status = 'active' | 'unverified' | 'disabled'
+const statusTone = { active: 'good', unverified: 'warn', disabled: 'bad' } as const
+const statusOf = (user: AdminUser): Status => (user.disabled ? 'disabled' : !user.emailVerified ? 'unverified' : 'active')
+
+const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+function relativeTime(iso: string | null) {
+  if (!iso) return t('admin.users.never')
+  const seconds = (new Date(iso).getTime() - Date.now()) / 1000
+  if (Math.abs(seconds) < 60) return t('admin.users.justNow')
+  const [unit, size] = UNITS.find(([, s]) => Math.abs(seconds) >= s) ?? UNITS[2]
+  return new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }).format(Math.round(seconds / size), unit)
+}
+
+async function load() {
+  try {
+    const [list, settings] = await Promise.all([listAdminUsers(), listSettings()])
+    users.value = list
+    registrationEnabled.value = settings.find((setting) => setting.key === 'registration_enabled')?.value !== false
+    const host = settings.find((setting) => setting.key === 'smtp_host')?.value
+    smtpConfigured.value = typeof host === 'string' && host.trim() !== ''
+    verificationEnabled.value = settings.find((setting) => setting.key === 'email_verification_required')?.value !== false
+    loadError.value = ''
+  } catch (error: unknown) {
+    console.error('[users] failed to load', error)
+    loadError.value = describeRequestError(error, t('admin.users.loadError'))
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function openEdit(user: AdminUser) {
+  const refresh = await openModal<boolean>(EditUserModal, { props: { user } }).catch(() => false)
+  if (refresh) await load()
+}
+
+async function openCreate() {
+  const refresh = await openModal<boolean>(CreateUserModal).catch(() => false)
+  if (refresh) await load()
+}
+async function setRegistration(enabled: boolean) {
+  const previous = registrationEnabled.value
+  registrationEnabled.value = enabled
+  try {
+    await updateSetting('registration_enabled', enabled)
+  } catch (error: unknown) {
+    registrationEnabled.value = previous
+    notify.error(describeRequestError(error, t('admin.users.registrationError')))
+  }
+}
+
+async function setVerification(enabled: boolean) {
+  const previous = verificationEnabled.value
+  verificationEnabled.value = enabled
+  try {
+    await updateSetting('email_verification_required', enabled)
+  } catch (error: unknown) {
+    verificationEnabled.value = previous
+    notify.error(describeRequestError(error, t('admin.users.verificationError')))
+  }
+}
+
+onMounted(load)
 </script>
 
 <template>
@@ -20,11 +104,12 @@ const statusKeys = { active: 'admin.users.statuses.active', pending: 'admin.user
     <AdminSection :title="t('admin.users.title')" :description="t('admin.users.description')">
       <template #actions>
         <input v-model="query" type="search" :placeholder="t('admin.users.searchPlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm" />
-        <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15">{{ t('admin.users.invite') }}</button>
-        <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80">{{ t('admin.users.addUser') }}</button>
+        <button type="button" :class="primaryButton" @click="openCreate">{{ t('admin.users.addUser') }}</button>
       </template>
 
-      <div class="overflow-x-auto">
+      <p v-if="loadError" role="alert" class="mb-3 text-sm text-red-300">{{ loadError }}</p>
+      <p v-if="isLoading" class="text-sm text-flixer-muted">{{ t('admin.users.loading') }}</p>
+      <div v-else class="overflow-x-auto">
         <table class="w-full min-w-160 text-left text-sm">
           <thead class="text-xs text-flixer-muted">
             <tr>
@@ -37,79 +122,45 @@ const statusKeys = { active: 'admin.users.statuses.active', pending: 'admin.user
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in filtered" :key="u.id" class="border-t border-flixer-border">
+            <tr v-for="user in filtered" :key="user.id" class="border-t border-flixer-border">
               <td class="py-3">
                 <div class="flex items-center gap-3">
-                  <div class="size-8 shrink-0 overflow-hidden rounded-full text-xs"><UserAvatar :avatar-url="null" :name="u.displayName" /></div>
+                  <div class="size-8 shrink-0 overflow-hidden rounded text-xs"><UserAvatar :avatar-url="user.avatarUrl" :name="user.displayName" /></div>
                   <div>
-                    <p class="font-medium">{{ u.displayName }}</p>
-                    <p class="text-xs text-flixer-muted">@{{ u.username }} · {{ u.email }}</p>
+                    <p class="font-medium">
+                      {{ user.displayName }} <span v-if="user.current" class="ml-1 text-xs font-normal text-flixer-muted">({{ t('admin.users.you') }})</span>
+                    </p>
+                    <p class="text-xs text-flixer-muted">
+                      {{ user.username }}<template v-if="user.email"> · {{ user.email }}</template>
+                    </p>
                   </div>
                 </div>
               </td>
               <td>
-                <StatusPill :tone="u.role === 'admin' ? 'accent' : 'neutral'">{{ u.role === 'admin' ? t('admin.users.administrator') : t('admin.users.user') }}</StatusPill>
+                <StatusPill :tone="user.role === 'admin' ? 'accent' : 'neutral'">{{ user.role === 'admin' ? t('admin.users.administrator') : t('admin.users.user') }}</StatusPill>
               </td>
               <td>
-                <StatusPill :tone="tone[u.status]">{{ t(statusKeys[u.status]) }}</StatusPill>
+                <StatusPill :tone="statusTone[statusOf(user)]">{{ t(`admin.users.statuses.${statusOf(user)}`) }}</StatusPill>
               </td>
-              <td class="text-flixer-muted">{{ u.passkeys }}</td>
-              <td class="text-flixer-muted">{{ u.lastActive }}</td>
+              <td class="text-flixer-muted">{{ user.passkeys }}</td>
+              <td class="text-flixer-muted">{{ relativeTime(user.lastActiveAt) }}</td>
               <td class="text-right">
-                <button type="button" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="selectedId = selectedId === u.id ? null : u.id">{{ selectedId === u.id ? t('admin.users.close') : t('admin.users.edit') }}</button>
+                <button type="button" :class="secondaryButton" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="6" class="py-6 text-center text-flixer-muted">{{ t('admin.users.noSearchMatches') }}</td>
+              <td colspan="6" class="py-6 text-center text-flixer-muted">{{ users.length === 0 ? t('admin.users.noUsers') : t('admin.users.noSearchMatches') }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </AdminSection>
 
-    <template v-for="u in users" :key="u.id">
-      <AdminSection v-if="selectedId === u.id" :title="t('admin.users.editTitle', { name: u.displayName })" :description="t('admin.users.editDescription')">
-        <div class="grid gap-6 md:grid-cols-2">
-          <div>
-            <p class="text-xs font-semibold text-flixer-muted">{{ t('admin.users.access') }}</p>
-            <AdminToggle :model-value="u.role === 'admin'" :label="t('admin.users.administrator')" :description="t('admin.users.fullDashboardAccess')" />
-            <AdminToggle :model-value="u.status !== 'disabled'" :label="t('admin.users.accountEnabled')" />
-            <AdminToggle :model-value="true" :label="t('admin.users.allowMediaDownloads')" />
-            <AdminToggle :model-value="u.maxStreams !== 1" :label="t('admin.users.allowTranscoding')" />
-            <label class="mt-2 block text-xs text-flixer-muted">
-              {{ t('admin.users.libraries') }}
-              <input class="mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text" :value="u.libraries" />
-            </label>
-          </div>
-          <div>
-            <p class="text-xs font-semibold text-flixer-muted">{{ t('admin.users.restrictions') }}</p>
-            <label class="mt-2 block text-xs text-flixer-muted">
-              {{ t('admin.users.maximumContentRating') }}
-              <input class="mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text" :value="u.parental" />
-            </label>
-            <label class="mt-3 block text-xs text-flixer-muted">
-              {{ t('admin.users.simultaneousStreams') }}
-              <input type="number" class="mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text" :value="u.maxStreams" />
-            </label>
-            <div class="mt-5 flex flex-wrap gap-2">
-              <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15">{{ t('admin.users.sendPasswordReset') }}</button>
-              <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15">{{ t('admin.users.revokeSessions') }}</button>
-              <button type="button" class="rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30">{{ t('admin.users.deleteUser') }}</button>
-            </div>
-          </div>
-        </div>
-        <div class="mt-5 flex justify-end gap-2">
-          <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="selectedId = null">{{ t('common.cancel') }}</button>
-          <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80">{{ t('common.save') }}</button>
-        </div>
-      </AdminSection>
-    </template>
-
     <AdminSection :title="t('admin.users.signUpPolicy')" :description="t('admin.users.signUpPolicyDescription')">
-      <AdminToggle :model-value="true" :label="t('admin.users.allowPublicRegistration')" :description="t('admin.users.publicRegistrationDescription')" />
-      <AdminToggle :model-value="true" :label="t('admin.users.requireAdminApproval')" :description="t('admin.users.adminApprovalDescription')" />
-      <AdminToggle :model-value="true" :label="t('admin.users.requireEmailVerification')" />
-      <AdminToggle :model-value="false" :label="t('admin.users.requireAdminPasskeys')" />
+      <AdminToggle :model-value="registrationEnabled" :label="t('admin.users.allowPublicRegistration')" :description="t('admin.users.publicRegistrationDescription')" @update:model-value="setRegistration" />
+      <div :class="{ 'pointer-events-none opacity-60': !smtpConfigured }">
+        <AdminToggle :model-value="verificationEnabled" :label="t('admin.users.requireEmailVerification')" :description="smtpConfigured ? t('admin.users.requireEmailVerificationDescription') : t('admin.users.emailVerificationOff')" @update:model-value="setVerification" />
+      </div>
     </AdminSection>
   </div>
 </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildHlsUrl, buildStreamUrl, supportsNativeHls, type PlayMethod, type StreamInfo } from '../../api'
+import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleText, getSubtitleTracks, supportsNativeHls, type PlayMethod, type PlayerSubtitle, type StreamInfo } from '../../api'
+import { cueTextAt, languageName, parseVtt, type SubtitleCue } from '../../composables/subtitles'
 
 const props = withDefaults(
   defineProps<{
@@ -10,13 +11,16 @@ const props = withDefaults(
     title?: string
     autoplay?: boolean
     showBack?: boolean
+    /** Where playback begins, in seconds. */
+    startAt?: number
   }>(),
-  { autoplay: true, showBack: false },
+  { autoplay: true, showBack: false, startAt: 0 },
 )
 
 const emit = defineEmits<{
   back: []
   error: [message: string]
+  progress: [position: number, duration: number]
 }>()
 
 const METHOD_LABELS: Record<PlayMethod, string> = {
@@ -25,10 +29,11 @@ const METHOD_LABELS: Record<PlayMethod, string> = {
   Transcode: 'player.methodTranscode',
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const SKIP_SECONDS = 10
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
+const SUBTITLE_KEY = 'flixer.player.subtitles'
 
 const root = ref<HTMLElement>()
 const video = ref<HTMLVideoElement>()
@@ -56,6 +61,8 @@ const hoverTime = ref<number | null>(null)
 
 let nativeStart = 0
 let hideTimer: ReturnType<typeof setTimeout> | undefined
+let progressTimer: ReturnType<typeof setInterval> | undefined
+const PROGRESS_INTERVAL_MS = 15000
 let frame = 0
 let lastPointerType = 'mouse'
 
@@ -74,6 +81,57 @@ const position = computed(() => {
   return isNative.value ? current.value : offset.value + current.value
 })
 const qualityOptions = computed(() => [...props.info.availableHeights].sort((a, b) => b - a))
+
+// Subtitles are drawn by the player so they stay in step when a transcode restarts at an offset.
+const subtitleTracks = ref<PlayerSubtitle[]>([])
+const subtitleId = ref('')
+const subtitleCues = ref<SubtitleCue[]>([])
+const playhead = computed(() => (isNative.value ? current.value : offset.value + current.value))
+const subtitleText = computed(() => (subtitleId.value ? cueTextAt(subtitleCues.value, playhead.value) : ''))
+
+function subtitleLabel(track: PlayerSubtitle) {
+  const name = languageName(track.language, locale.value)
+  return track.label ? `${name} (${track.label})` : name
+}
+
+async function selectSubtitle(id: string) {
+  menuOpen.value = false
+  subtitleId.value = id
+  subtitleCues.value = []
+  const track = subtitleTracks.value.find((candidate) => candidate.id === id)
+  try {
+    localStorage.setItem(SUBTITLE_KEY, track ? track.language : 'off')
+  } catch {
+    // Remembering the choice is optional.
+  }
+  if (!track) return
+  try {
+    const cues = parseVtt(await getSubtitleText(props.streamUrl, id))
+    if (subtitleId.value === id) subtitleCues.value = cues
+  } catch {
+    if (subtitleId.value === id) subtitleId.value = ''
+  }
+}
+
+async function loadSubtitleTracks() {
+  subtitleTracks.value = []
+  subtitleId.value = ''
+  subtitleCues.value = []
+  try {
+    subtitleTracks.value = await getSubtitleTracks(props.streamUrl)
+  } catch {
+    return
+  }
+  let preferred: string | null = null
+  try {
+    preferred = localStorage.getItem(SUBTITLE_KEY)
+  } catch {
+    // No saved preference.
+  }
+  if (!preferred || preferred === 'off') return
+  const match = subtitleTracks.value.find((track) => track.language === preferred)
+  if (match) await selectSubtitle(match.id)
+}
 const controlsShown = computed(() => controlsVisible.value || paused.value || menuOpen.value || scrubbing.value || !!errorMessage.value)
 const showCenterPlay = computed(() => paused.value && !waiting.value && !errorMessage.value)
 const hoverPercent = computed(() => (hoverTime.value === null ? 0 : percent(hoverTime.value)))
@@ -98,17 +156,30 @@ function tryPlay() {
   void video.value?.play().catch(() => {})
 }
 
-function loadSource(opts: { start?: number; height?: number; resume?: boolean } = {}) {
+let loadToken = 0
+
+async function loadSource(opts: { start?: number; height?: number; resume?: boolean } = {}) {
   const el = video.value
   if (!el) return
+  const token = ++loadToken
   const resume = opts.resume ?? !el.paused
   if (opts.height !== undefined) height.value = opts.height
-  const start = Math.max(0, opts.start ?? 0)
+  let start = Math.max(0, opts.start ?? 0)
 
   errorMessage.value = ''
   waiting.value = true
   ended.value = false
 
+  // A stream-copy seek starts at the previous keyframe, so use the real start for the clock and subtitles.
+  if (!isNative.value && height.value === 0 && start > 0) {
+    try {
+      const snapped = (await getStreamInfo(props.streamUrl, { start })).keyframeStart
+      if (token !== loadToken) return
+      if (typeof snapped === 'number' && snapped <= start) start = snapped
+    } catch {
+      if (token !== loadToken) return
+    }
+  }
   if (isNative.value) {
     nativeStart = start
     offset.value = 0
@@ -259,6 +330,18 @@ function onPlay() {
   ended.value = false
   startLoop()
   scheduleHide()
+  progressTimer ??= setInterval(reportProgress, PROGRESS_INTERVAL_MS)
+}
+
+function stopProgressTimer() {
+  clearInterval(progressTimer)
+  progressTimer = undefined
+}
+
+function reportProgress() {
+  const total = duration.value
+  if (total <= 0) return
+  emit('progress', ended.value ? total : isNative.value ? current.value : offset.value + current.value, total)
 }
 
 function onPause() {
@@ -266,6 +349,8 @@ function onPause() {
   stopLoop()
   sync()
   showControls()
+  stopProgressTimer()
+  reportProgress()
 }
 
 function onEnded() {
@@ -273,6 +358,8 @@ function onEnded() {
   paused.value = true
   stopLoop()
   sync()
+  stopProgressTimer()
+  reportProgress()
 }
 
 function onLoadedMetadata() {
@@ -450,6 +537,7 @@ watch(
   () => {
     height.value = 0
     loadSource({ start: 0, resume: props.autoplay })
+    void loadSubtitleTracks()
   },
 )
 
@@ -468,11 +556,14 @@ onMounted(() => {
 
   window.addEventListener('keydown', onKeydown)
   document.addEventListener('fullscreenchange', onFullscreenChange)
-  loadSource({ start: 0, resume: props.autoplay })
+  loadSource({ start: props.startAt, resume: props.autoplay })
+  void loadSubtitleTracks()
 })
 
 onBeforeUnmount(() => {
   clearTimeout(hideTimer)
+  stopProgressTimer()
+  if (!ended.value && !waiting.value) reportProgress()
   stopLoop()
   window.removeEventListener('keydown', onKeydown)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -487,16 +578,20 @@ onBeforeUnmount(() => {
   <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
     <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @error="onVideoError" />
 
+    <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
+      <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>
+    </div>
+
     <!-- Centre status: buffering, error, or the big play/replay button -->
     <div class="pointer-events-none absolute inset-0 grid place-items-center">
       <div v-if="waiting && !errorMessage" class="size-14 animate-spin rounded-full border-4 border-white/20 border-t-flixer-accent" role="status" :aria-label="t('player.buffering')"></div>
 
       <div v-else-if="errorMessage" class="pointer-events-auto max-w-sm px-6 text-center" role="alert">
         <p class="text-sm text-red-300">{{ errorMessage }}</p>
-        <button type="button" class="mt-4 rounded-full bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="retry">{{ t('player.tryAgain') }}</button>
+        <button type="button" class="mt-4 rounded bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="retry">{{ t('player.tryAgain') }}</button>
       </div>
 
-      <button v-else-if="showCenterPlay" type="button" class="pointer-events-auto grid size-20 place-items-center rounded-full bg-flixer-primary/90 text-white shadow-2xl shadow-black/60 transition hover:scale-105 hover:bg-flixer-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="ended ? t('player.replay') : t('player.play')" @click="togglePlay">
+      <button v-else-if="showCenterPlay" type="button" class="pointer-events-auto grid size-20 place-items-center rounded bg-flixer-primary/90 text-white shadow-2xl shadow-black/60 transition hover:scale-105 hover:bg-flixer-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="ended ? t('player.replay') : t('player.play')" @click="togglePlay">
         <svg v-if="ended" class="size-9" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
         </svg>
@@ -506,7 +601,7 @@ onBeforeUnmount(() => {
 
     <!-- Top bar -->
     <div class="absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-4 transition-opacity duration-300 sm:px-6" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
-      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.back')" @click="emit('back')">
+      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.back')" @click="emit('back')">
         <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
         </svg>
@@ -515,7 +610,25 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Settings menu -->
-    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 w-64 rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
+    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
+      <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.subtitles') }}</p>
+      <p v-if="subtitleTracks.length === 0" class="px-3 pb-2 text-sm text-flixer-muted">{{ t('player.subtitlesNone') }}</p>
+      <template v-else>
+        <button type="button" role="menuitemradio" :aria-checked="subtitleId === ''" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="subtitleId === '' ? 'text-flixer-accent' : 'text-flixer-text'" @click="selectSubtitle('')">
+          <span>{{ t('player.subtitlesOff') }}</span>
+          <svg v-if="subtitleId === ''" class="size-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
+          </svg>
+        </button>
+        <button v-for="track in subtitleTracks" :key="track.id" type="button" role="menuitemradio" :aria-checked="subtitleId === track.id" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="subtitleId === track.id ? 'text-flixer-accent' : 'text-flixer-text'" @click="selectSubtitle(track.id)">
+          <span class="truncate">{{ subtitleLabel(track) }}</span>
+          <svg v-if="subtitleId === track.id" class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
+          </svg>
+        </button>
+        <div class="my-2 border-t border-flixer-border"></div>
+      </template>
+      <div v-if="subtitleTracks.length === 0" class="my-2 border-t border-flixer-border"></div>
       <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.quality') }}</p>
       <button type="button" role="menuitemradio" :aria-checked="height === 0" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="height === 0 ? 'text-flixer-accent' : 'text-flixer-text'" @click="setQuality(0)">
         <span>{{ t('player.originalQuality', { height: info.source.height }) }}</span>
@@ -545,9 +658,9 @@ onBeforeUnmount(() => {
     <!-- Bottom controls -->
     <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-3 pt-16 transition-opacity duration-300 sm:px-6 sm:pb-4" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
       <div ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" :aria-label="t('player.seek')" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="t('player.seekValue', { current: format(position), duration: format(duration) })" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
-        <div class="relative h-1 w-full rounded-full bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
-          <div class="absolute inset-y-0 left-0 rounded-full bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>
-          <div class="absolute inset-y-0 left-0 rounded-full bg-flixer-accent" :style="{ width: `${percent(position)}%` }"></div>
+        <div class="relative h-1 w-full rounded bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
+          <div class="absolute inset-y-0 left-0 rounded bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>
+          <div class="absolute inset-y-0 left-0 rounded bg-flixer-accent" :style="{ width: `${percent(position)}%` }"></div>
           <div class="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md shadow-black/50 transition-opacity group-hover/seek:opacity-100" :class="scrubbing ? 'opacity-100' : 'opacity-0'" :style="{ left: `${percent(position)}%` }"></div>
         </div>
 
@@ -557,20 +670,20 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="mt-1 flex items-center gap-1 sm:gap-2">
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? t('player.play') : t('player.pause')" @click="togglePlay">
+        <button type="button" class="grid size-10 place-items-center rounded text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? t('player.play') : t('player.pause')" @click="togglePlay">
           <svg v-if="paused" class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
           <svg v-else class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
           </svg>
         </button>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.rewindSeconds', { seconds: SKIP_SECONDS })" @click="skip(-SKIP_SECONDS)">
+        <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.rewindSeconds', { seconds: SKIP_SECONDS })" @click="skip(-SKIP_SECONDS)">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z" />
             <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
           </svg>
         </button>
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.skipForwardSeconds', { seconds: SKIP_SECONDS })" @click="skip(SKIP_SECONDS)">
+        <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.skipForwardSeconds', { seconds: SKIP_SECONDS })" @click="skip(SKIP_SECONDS)">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 5V1l5 5-5 5V7a6 6 0 106 6h2a8 8 0 11-8-8z" />
             <text x="12" y="16.5" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor">10</text>
@@ -578,7 +691,7 @@ onBeforeUnmount(() => {
         </button>
 
         <div class="group/vol flex items-center">
-          <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="muted || volume === 0 ? t('player.unmute') : t('player.mute')" @click="toggleMute">
+          <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="muted || volume === 0 ? t('player.unmute') : t('player.mute')" @click="toggleMute">
             <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 9v6h4l5 5V4L7 9z" />
               <path v-if="muted || volume === 0" d="M16 9.4l1.4-1.4 2.6 2.6L22.6 8 24 9.4 21.4 12l2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6z" />
@@ -596,13 +709,13 @@ onBeforeUnmount(() => {
           {{ mode === 'Transcode' ? `${height}p` : t('player.remux') }}
         </span>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" :aria-label="t('player.playbackSettings')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+        <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" :aria-label="t('player.playbackSettings')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
           </svg>
         </button>
 
-        <button type="button" class="grid size-10 place-items-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? t('player.exitFullscreen') : t('player.fullscreen')" @click="toggleFullscreen">
+        <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? t('player.exitFullscreen') : t('player.fullscreen')" @click="toggleFullscreen">
           <svg v-if="!isFullscreen" class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z" />
           </svg>
