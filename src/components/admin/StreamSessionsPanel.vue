@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLiveTopic } from '../../composables/useLive'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { cancelStreamSession, listStreamSessions, type StreamSession, type StreamSessionList } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -107,7 +108,7 @@ onBeforeUnmount(() => clearInterval(timer))
     </div>
 
     <p v-if="loadError" class="mt-4 text-sm text-red-300" role="alert">{{ loadError }}</p>
-    <p v-else-if="!data" class="mt-4 text-sm text-flixer-muted">{{ t('admin.streams.loading') }}</p>
+    <ListSkeleton v-else-if="!data" class="mt-4" />
     <p v-else-if="!data.transcodingAvailable" class="mt-4 text-sm text-flixer-muted">{{ t('admin.streams.ffmpegUnavailable') }}</p>
     <p v-else-if="sessions.length === 0" class="mt-4 text-sm text-flixer-muted">{{ t('admin.streams.noSessions') }}</p>
 

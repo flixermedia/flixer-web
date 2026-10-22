@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { getAdminOverview, type AdminOverview } from '../../api'
 import { describeRequestError } from '../../composables/useProfile'
 import { useLiveTopic } from '../../composables/useLive'
@@ -124,7 +125,7 @@ watch(live.data, (value) => {
 
 <template>
   <p v-if="loadError" role="alert" class="rounded border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{{ loadError }}</p>
-  <p v-else-if="isLoading" class="text-sm text-flixer-muted">{{ t('admin.overview.loading') }}</p>
+  <ListSkeleton v-else-if="isLoading" />
 
   <div v-if="overview" class="flex flex-col gap-6">
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">

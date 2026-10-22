@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { cancelIndexerTask, INDEXER_QUEUES, INDEXER_TASK_STATES, listIndexerTasks, retryIndexerTask, type IndexerQueueName, type IndexerTask, type IndexerTaskState } from '../../api'
+import ListSkeleton from '../ui/ListSkeleton.vue'
+import { cancelIndexerTask, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TASK_STATES, listIndexerTasks, retryIndexerTask, type IndexerQueueName, type IndexerTask, type IndexerTaskState } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
@@ -15,6 +16,7 @@ const tasks = ref<IndexerTask[]>([])
 const loading = ref(false)
 const error = ref('')
 const busyId = ref<string | null>(null)
+const clearing = ref(false)
 
 const PAGE_SIZE = 20
 const inputClass = 'rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text'
@@ -41,6 +43,20 @@ async function act(task: IndexerTask, action: 'cancel' | 'retry') {
     notify.error(describeRequestError(err, t('admin.indexer.taskError')))
   } finally {
     busyId.value = null
+  }
+}
+
+async function clearFailed() {
+  if (!window.confirm(t('admin.indexer.clearFailedConfirm'))) return
+  clearing.value = true
+  try {
+    const n = await clearFailedIndexerTasks(queue.value)
+    notify.success(t('admin.indexer.clearedFailed', { n }))
+    await load()
+  } catch (err: unknown) {
+    notify.error(describeRequestError(err, t('admin.indexer.taskError')))
+  } finally {
+    clearing.value = false
   }
 }
 
@@ -77,6 +93,7 @@ watch([queue, state], () => {
           <option v-for="name in INDEXER_TASK_STATES" :key="name" :value="name">{{ t(`admin.indexer.states.${name}`) }}</option>
         </select>
       </label>
+      <button v-if="state === 'archived'" type="button" :disabled="clearing || loading || tasks.length === 0" class="self-end rounded bg-red-500/20 px-3 py-1.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearFailed">{{ t('admin.indexer.clearFailed') }}</button>
     </div>
 
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
@@ -95,6 +112,7 @@ watch([queue, state], () => {
           </div>
         </div>
       </li>
+      <li v-if="loading && tasks.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && tasks.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-4 text-center text-sm text-flixer-muted">{{ t('admin.indexer.noTasks') }}</li>
     </ul>
 

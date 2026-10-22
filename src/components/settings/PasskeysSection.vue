@@ -3,6 +3,7 @@ import { browserSupportsWebAuthn, type PublicKeyCredentialCreationOptionsJSON } 
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listPasskeys, registerPasskey, setPasskeyRequired, type Passkey, type UserProfile } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
@@ -124,7 +125,7 @@ onMounted(() => {
       </div>
 
       <div>
-        <p v-if="isLoading" class="text-sm text-flixer-muted">{{ t('settings.passkeys.loading') }}</p>
+        <ListSkeleton v-if="isLoading" />
         <PasskeyList v-else :passkeys="passkeys" :deleting-id="deletingId" @remove="handleRemove" />
       </div>
     </div>

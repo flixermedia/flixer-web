@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listSettings, updateSetting, type ServerSetting } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -68,7 +69,7 @@ onMounted(load)
     <h2 id="server-heading" class="text-lg font-semibold">{{ t('settings.server.title') }}</h2>
     <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.server.description') }}</p>
 
-    <p v-if="isLoading" class="mt-6 text-sm text-flixer-muted">{{ t('settings.server.loading') }}</p>
+    <ListSkeleton v-if="isLoading" class="mt-6" />
     <ul v-else class="mt-6 flex max-w-2xl flex-col gap-3">
       <li v-for="field in fields" :key="field.key" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-4">
         <div v-if="field.type === 'boolean'" class="flex items-center justify-between gap-4">

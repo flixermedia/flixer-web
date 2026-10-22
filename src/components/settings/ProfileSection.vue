@@ -2,6 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { useRouter } from 'vue-router'
 import { clearAccessToken, updateProfile } from '../../api'
 import { notify } from '../../composables/notify'
@@ -72,7 +73,7 @@ async function save() {
       <h2 id="profile-heading" class="text-lg font-semibold">{{ t('settings.profile.title') }}</h2>
       <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.profile.description') }}</p>
 
-      <p v-if="isLoading && !profile" class="mt-6 text-sm text-flixer-muted">{{ t('settings.profile.loading') }}</p>
+      <ListSkeleton v-if="isLoading && !profile" class="mt-6" />
       <form v-else class="mt-6 flex flex-col gap-5" @submit.prevent="save">
         <AvatarUploader />
         <TextInput v-model.trim="displayName" :label="t('settings.profile.displayName')" type="text" maxlength="64" required autocomplete="nickname" />

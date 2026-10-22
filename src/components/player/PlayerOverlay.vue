@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getItemPlaybackInfo, getStreamInfo, getWatchProgress, saveWatchProgress, type PlaybackInfo, type StreamInfo } from '../../api'
 import VideoPlayer from './VideoPlayer.vue'
+import Skeleton from '../ui/Skeleton.vue'
 
 const props = defineProps<{ itemId: string; title: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -48,7 +49,9 @@ onBeforeUnmount(() => {
     <VideoPlayer v-if="playback && info" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" show-back @back="emit('close')" @error="error = $event" @progress="onProgress" />
     <div v-else class="grid size-full place-items-center p-6 text-center">
       <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
-      <p v-else class="text-sm text-flixer-muted">{{ t('mediaItem.loading') }}</p>
+      <div v-else class="w-full max-w-3xl" role="status" :aria-label="t('mediaItem.loading')">
+        <Skeleton class="aspect-video w-full rounded-lg" />
+      </div>
     </div>
     <button v-if="!(playback && info)" type="button" class="absolute left-4 top-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="emit('close')">{{ t('mediaItem.close') }}</button>
   </div>

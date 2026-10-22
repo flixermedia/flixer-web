@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listSettings, sendTestEmail, updateSetting, type ServerSetting } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -96,7 +97,7 @@ onMounted(load)
       <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-60" :disabled="isLoading || isTesting || !isConfigured" @click="sendTest">{{ t('admin.general.sendTestEmail') }}</button>
       <button type="button" :class="button" :disabled="isLoading || isSaving" @click="save">{{ t('common.save') }}</button>
     </template>
-    <p v-if="isLoading" class="text-sm text-flixer-muted">{{ t('admin.general.emailLoading') }}</p>
+    <ListSkeleton v-if="isLoading" />
     <template v-else>
       <p v-if="!isConfigured" class="mb-3 text-xs text-flixer-muted">{{ t('admin.general.emailNotConfigured') }}</p>
       <div class="grid gap-4 md:grid-cols-3">

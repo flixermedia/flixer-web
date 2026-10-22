@@ -30,12 +30,13 @@ function onVolume(event: Event) {
     <div class="mx-auto flex max-w-[110rem] items-center gap-3 p-2 md:gap-6 md:px-6">
       <div class="flex min-w-0 flex-1 items-center gap-3 md:w-1/4 md:flex-none">
         <div class="size-12 shrink-0 overflow-hidden rounded bg-flixer-background">
-          <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" alt="" />
+          <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="96" alt="" />
         </div>
         <div class="min-w-0">
           <RouterLink v-if="current.albumId" :to="{ name: 'media-item', params: { id: current.albumId } }" class="block truncate text-sm font-semibold text-white hover:underline">{{ current.title }}</RouterLink>
           <p v-else class="truncate text-sm font-semibold text-white">{{ current.title }}</p>
-          <p class="truncate text-xs text-flixer-muted">{{ player.error.value ? t('music.error') : (current.artist ?? current.album ?? '') }}</p>
+          <RouterLink v-if="current.artist && current.artistId && !player.error.value" :to="{ name: 'person', params: { id: current.artistId } }" class="block truncate text-xs text-flixer-muted hover:text-white hover:underline">{{ current.artist }}</RouterLink>
+          <p v-else class="truncate text-xs text-flixer-muted">{{ player.error.value ? t('music.error') : (current.artist ?? current.album ?? '') }}</p>
         </div>
       </div>
 

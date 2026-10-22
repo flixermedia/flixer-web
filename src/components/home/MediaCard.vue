@@ -33,7 +33,7 @@ const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.
   >
     <component :is="linkTo ? RouterLink : 'a'" v-bind="linkTo ? { to: linkTo } : { href: '#' }" class="group block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
       <div class="relative overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface transition duration-300 group-hover:-translate-y-1 group-hover:border-white/30 group-hover:shadow-xl group-hover:shadow-black/50" :class="variant === 'poster' ? 'aspect-[2/3]' : variant === 'square' ? 'aspect-square' : 'aspect-video'">
-        <AuthImage v-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library" :item-id="itemId" :index="imageIndex" :version="version" :alt="variant === 'library' ? '' : title" img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
+        <AuthImage v-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library" :item-id="itemId" :index="imageIndex" :version="version" :width="variant === 'landscape' ? 300 : variant === 'library' ? 260 : 200" :alt="variant === 'library' ? '' : title" img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
         <span v-else-if="variant !== 'library'" class="absolute inset-0 grid place-items-center p-3 text-center text-sm font-medium text-flixer-muted">{{ title }}</span>
 
         <template v-if="variant === 'library'">

@@ -3,6 +3,7 @@ import HeroCarousel from '../components/home/HeroCarousel.vue'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MediaRow from '../components/home/MediaRow.vue'
+import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -56,7 +57,7 @@ onMounted(load)
       <HeroCarousel v-if="content && content.featured.length > 0" :items="content.featured" />
       <div v-else class="h-24 sm:h-28"></div>
 
-      <p v-if="isLoading" class="page-gutter py-10 text-sm text-flixer-muted" role="status">{{ t('home.loading') }}</p>
+      <HomeSkeleton v-if="isLoading" />
 
       <div v-else-if="loadFailed" class="page-gutter py-10">
         <p class="text-sm text-flixer-muted">{{ t('home.loadError') }}</p>
