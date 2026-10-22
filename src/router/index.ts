@@ -43,6 +43,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/media/:id',
+      name: 'media-item',
+      component: () => import('../views/MediaItemView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
@@ -53,6 +59,33 @@ const router = createRouter({
       name: 'admin',
       component: () => import('../views/AdminView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/movies',
+      name: 'movies',
+      component: () => import('../views/BrowseView.vue'),
+      props: { kind: 'movies' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tv',
+      name: 'tv',
+      component: () => import('../views/BrowseView.vue'),
+      props: { kind: 'tv' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/music',
+      name: 'music',
+      component: () => import('../views/BrowseView.vue'),
+      props: { kind: 'music' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/search',
+      name: 'search',
+      component: () => import('../views/SearchView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/player-test',

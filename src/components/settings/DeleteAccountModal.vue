@@ -32,7 +32,7 @@ async function submit() {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <div class="flex size-11 items-center justify-center rounded-full bg-rose-400/10 text-rose-300">
+      <div class="flex size-11 items-center justify-center rounded bg-rose-400/10 text-rose-300">
         <svg class="size-5 fill-none stroke-current" viewBox="0 0 20 20" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M10 6v5M10 14h.01M8.6 3.5 2.5 14a1.6 1.6 0 0 0 1.4 2.4h12.2a1.6 1.6 0 0 0 1.4-2.4L11.4 3.5a1.6 1.6 0 0 0-2.8 0Z" />
         </svg>

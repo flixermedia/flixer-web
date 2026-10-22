@@ -76,6 +76,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8083',
         changeOrigin: true,
+        ws: true,
       },
       '/stream': {
         target: 'http://localhost:8091',
@@ -86,6 +87,14 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/hls': {
+        target: 'http://localhost:8091',
+        changeOrigin: true,
+      },
+      '/lyrics': {
+        target: 'http://localhost:8091',
+        changeOrigin: true,
+      },
+      '/subtitles': {
         target: 'http://localhost:8091',
         changeOrigin: true,
       },

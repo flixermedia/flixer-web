@@ -213,6 +213,11 @@ export async function updateSetting(key: string, value: unknown): Promise<Server
   return response.data
 }
 
+export async function sendTestEmail(): Promise<{ sentTo: string }> {
+  const response = await api.post<{ sentTo: string }>('/settings/email/test')
+  return response.data
+}
+
 export interface Passkey {
   id: string
   name: string
@@ -300,6 +305,8 @@ export interface StreamInfo {
   playMethod: PlayMethod
   source: { videoCodec: string; audioCodec?: string; width: number; height: number; durationSeconds: number }
   availableHeights: number[]
+  /** Where a stream-copy stream requested at `start` really begins (the preceding keyframe). */
+  keyframeStart?: number
 }
 
 export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number } = {}): string {
@@ -339,6 +346,50 @@ export async function getSamplePlaybackInfo(id: string): Promise<PlaybackInfo> {
   return response.data
 }
 
+export async function getItemPlaybackInfo(id: string): Promise<PlaybackInfo> {
+  const response = await api.post<PlaybackInfo>(`/playback/items/${encodeURIComponent(id)}/playback-info`)
+  return response.data
+}
+
+export interface PlayerSubtitle {
+  id: string
+  language: string
+  label?: string
+}
+
+/** Subtitle files beside the video, listed by the streamer for a stream token. Empty when there are none. */
+export async function getSubtitleTracks(streamUrl: string): Promise<PlayerSubtitle[]> {
+  try {
+    const response = await axios.get<{ tracks: PlayerSubtitle[] }>(streamUrl.replace('/stream/', '/subtitles/'), { timeout: 20_000 })
+    return response.data.tracks ?? []
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return []
+    throw error
+  }
+}
+
+/** WebVTT text for one subtitle file. */
+export async function getSubtitleText(streamUrl: string, id: string): Promise<string> {
+  const response = await axios.get<string>(streamUrl.replace('/stream/', '/subtitles/'), {
+    params: { file: id },
+    responseType: 'text',
+    transformResponse: (data: string) => data,
+    timeout: 20_000,
+  })
+  return response.data
+}
+
+/** Raw LRC text for a track's stream token, or null when the track has no lyrics file. */
+export async function getTrackLyrics(streamUrl: string): Promise<string | null> {
+  try {
+    const response = await axios.get<string>(streamUrl.replace('/stream/', '/lyrics/'), { responseType: 'text', transformResponse: (data: string) => data, timeout: 20_000 })
+    return response.data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
 export interface StreamSession {
   id: string
   userId?: string
@@ -373,4 +424,665 @@ export async function listStreamSessions(): Promise<StreamSessionList> {
 
 export async function cancelStreamSession(id: string): Promise<void> {
   await api.delete(`/admin/streams/${encodeURIComponent(id)}`)
+}
+
+export interface AdminOverview {
+  counts: { movies: number; series: number; episodes: number; albums: number; tracks: number; users: number }
+  libraries: Array<{ id: string; name: string; type: string; items: number; sizeBytes: number }>
+  storage: { usedBytes: number; disks: Array<{ totalBytes: number; freeBytes: number; roots: string[] }> }
+  activity: Array<{
+    user: string
+    title: string
+    type: string
+    showTitle: string | null
+    seasonNumber: number | null
+    episodeNumber: number | null
+    positionSeconds: number
+    durationSeconds: number
+    completed: boolean
+    at: string
+  }>
+  server: {
+    name: string
+    version: string
+    node: string
+    os: string
+    uptimeSeconds: number
+    streamer: { reachable: boolean; transcodingAvailable: boolean; activeTranscodes: number; maxTranscodes: number; sessions: number }
+    indexer: { reachable: boolean; activeScans: number; providers: string[] }
+  }
+}
+
+export async function getAdminOverview(): Promise<AdminOverview> {
+  const response = await api.get<AdminOverview>('/admin/overview')
+  return response.data
+}
+
+export interface AdminDevice {
+  id: string
+  device: string
+  app: string
+  user: { id: string; username: string; displayName: string }
+  ipAddress: string | null
+  createdAt: string
+  lastSeenAt: string
+  current: boolean
+}
+
+export async function listDevices(): Promise<AdminDevice[]> {
+  const response = await api.get<AdminDevice[]>('/admin/devices')
+  return response.data
+}
+
+export async function signOutDevice(id: string): Promise<void> {
+  await api.delete(`/admin/devices/${encodeURIComponent(id)}`)
+}
+
+export interface AdminUser {
+  id: string
+  username: string
+  displayName: string
+  email: string | null
+  emailVerified: boolean
+  role: 'admin' | 'user'
+  disabled: boolean
+  passkeys: number
+  activeSessions: number
+  lastActiveAt: string | null
+  createdAt: string
+  avatarUrl: string | null
+  current: boolean
+}
+
+export interface NewAdminUser {
+  username: string
+  displayName?: string
+  email: string
+  password: string
+  role: 'admin' | 'user'
+}
+
+export interface AdminUserChanges {
+  displayName?: string
+  email?: string
+  role?: 'admin' | 'user'
+  disabled?: boolean
+}
+
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  const response = await api.get<AdminUser[]>('/admin/users')
+  return response.data
+}
+
+export async function createAdminUser(user: NewAdminUser): Promise<AdminUser> {
+  const response = await api.post<AdminUser>('/admin/users', user)
+  return response.data
+}
+
+export async function updateAdminUser(id: string, changes: AdminUserChanges): Promise<AdminUser> {
+  const response = await api.patch<AdminUser>(`/admin/users/${encodeURIComponent(id)}`, changes)
+  return response.data
+}
+
+export async function setAdminUserAvatar(id: string, file: File): Promise<AdminUser> {
+  const body = new FormData()
+  body.append('avatar', file)
+  const response = await api.post<AdminUser>(`/admin/users/${encodeURIComponent(id)}/avatar`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
+export async function removeAdminUserAvatar(id: string): Promise<AdminUser> {
+  const response = await api.delete<AdminUser>(`/admin/users/${encodeURIComponent(id)}/avatar`)
+  return response.data
+}
+
+export async function setAdminUserPassword(id: string, password: string): Promise<void> {
+  await api.put(`/admin/users/${encodeURIComponent(id)}/password`, { password })
+}
+
+export async function revokeAdminUserSessions(id: string): Promise<{ revoked: number }> {
+  const response = await api.delete<{ revoked: number }>(`/admin/users/${encodeURIComponent(id)}/sessions`)
+  return response.data
+}
+
+export async function deleteAdminUser(id: string): Promise<void> {
+  await api.delete(`/admin/users/${encodeURIComponent(id)}`)
+}
+
+export interface ApiKeyInfo {
+  id: string
+  name: string
+  prefix: string
+  owner: { id: string; username: string; displayName: string }
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+export interface CreatedApiKey extends ApiKeyInfo {
+  secret: string
+}
+
+export async function listApiKeys(): Promise<ApiKeyInfo[]> {
+  const response = await api.get<ApiKeyInfo[]>('/admin/api-keys')
+  return response.data
+}
+
+export async function createApiKey(name: string): Promise<CreatedApiKey> {
+  const response = await api.post<CreatedApiKey>('/admin/api-keys', { name })
+  return response.data
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  await api.delete(`/admin/api-keys/${encodeURIComponent(id)}`)
+}
+
+export type MediaLibraryType = 'movies' | 'tvshows' | 'music' | 'homevideos' | 'mixed'
+
+export interface MediaLibraryFolderInput {
+  rootId: string
+  path: string
+}
+
+export interface MediaLibraryFolder extends MediaLibraryFolderInput {
+  rootName: string
+  location: string
+  available: boolean
+}
+
+export type MediaImageStorage = 'cache' | 'alongside'
+
+export interface MediaLibrary {
+  id: string
+  name: string
+  type: MediaLibraryType
+  imageStorage: MediaImageStorage
+  folders: MediaLibraryFolder[]
+  createdAt: string
+}
+
+export interface MediaLibraryInput {
+  name: string
+  type: MediaLibraryType
+  imageStorage?: MediaImageStorage
+  folders: MediaLibraryFolderInput[]
+}
+
+export type IndexerScanState = 'scanning' | 'indexing' | 'complete' | 'failed'
+
+export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh'] as const
+export type IndexerQueueName = (typeof INDEXER_QUEUES)[number]
+export const INDEXER_TASK_STATES = ['pending', 'active', 'scheduled', 'retry', 'archived', 'completed'] as const
+export type IndexerTaskState = (typeof INDEXER_TASK_STATES)[number]
+
+export interface IndexerQueueStats {
+  queue: IndexerQueueName
+  pending: number
+  active: number
+  scheduled: number
+  retry: number
+  archived: number
+  completed: number
+  processed: number
+  failed: number
+  paused: boolean
+}
+
+export interface IndexerTask {
+  id: string
+  queue: IndexerQueueName
+  type: string
+  state: IndexerTaskState
+  retried: number
+  maxRetry: number
+  lastError?: string
+  lastFailedAt?: string
+  libraryId?: string
+  itemType?: string
+  path?: string
+}
+
+export interface IndexerScan {
+  libraryId: string
+  state: IndexerScanState
+  discovered: number
+  done: number
+  failed: number
+  startedAt?: string
+  finishedAt?: string
+  error?: string
+}
+
+export interface IndexerStatus {
+  reachable: boolean
+  scans: IndexerScan[]
+  queues: IndexerQueueStats[]
+  concurrency: Record<string, number>
+  maxConcurrency: number | null
+  enabledProviders: string[]
+}
+
+export async function getIndexerStatus(): Promise<IndexerStatus> {
+  const response = await api.get<IndexerStatus>('/admin/indexer/status')
+  return response.data
+}
+
+export async function scanMediaLibrary(id: string, force = false): Promise<void> {
+  await api.post(`/admin/indexer/libraries/${encodeURIComponent(id)}/scan`, { force })
+}
+
+export async function listIndexerTasks(queue: IndexerQueueName, state: IndexerTaskState, page = 1, size = 20): Promise<IndexerTask[]> {
+  const response = await api.get<{ tasks: IndexerTask[] }>('/admin/indexer/tasks', { params: { queue, state, page, size } })
+  return response.data.tasks ?? []
+}
+
+export async function cancelIndexerTask(queue: IndexerQueueName, id: string): Promise<void> {
+  await api.post(`/admin/indexer/tasks/${queue}/${encodeURIComponent(id)}/cancel`)
+}
+
+export async function retryIndexerTask(queue: IndexerQueueName, id: string): Promise<void> {
+  await api.post(`/admin/indexer/tasks/${queue}/${encodeURIComponent(id)}/retry`)
+}
+
+export async function setIndexerQueuePaused(queue: IndexerQueueName, paused: boolean): Promise<void> {
+  await api.post(`/admin/indexer/queues/${queue}/${paused ? 'pause' : 'resume'}`)
+}
+
+export async function setIndexerConcurrency(concurrency: Partial<Record<IndexerQueueName, number>>): Promise<IndexerStatus> {
+  const response = await api.put<IndexerStatus>('/admin/indexer/concurrency', concurrency)
+  return response.data
+}
+
+export type MediaItemType = 'movie' | 'series' | 'season' | 'episode' | 'album' | 'track' | 'video'
+export const MEDIA_ITEM_TYPES: MediaItemType[] = ['movie', 'series', 'season', 'episode', 'album', 'track', 'video']
+
+export interface MediaItemSummary {
+  id: string
+  libraryId: string
+  parentId: string | null
+  parentTitle: string | null
+  type: MediaItemType
+  title: string
+  year: number | null
+  seasonNumber: number | null
+  episodeNumber: number | null
+  path: string
+  providerIds: Record<string, string>
+  sizeBytes: number | null
+  edited: boolean
+  /** Index of the item's poster image, or null when it has none. */
+  poster: number | null
+  updatedAt: string
+}
+
+export const MEDIA_IMAGE_TYPES = ['poster', 'backdrop', 'logo', 'banner', 'thumb', 'disc'] as const
+export type MediaImageType = (typeof MEDIA_IMAGE_TYPES)[number]
+
+export interface MediaItemImage {
+  index: number
+  type: string
+  provider: string
+  width: number | null
+  height: number | null
+  language: string | null
+  available: boolean
+  manual: boolean
+}
+
+export interface MediaItemDetail extends Omit<MediaItemSummary, 'parentTitle' | 'edited' | 'poster'> {
+  sortTitle: string | null
+  episodeEndNumber: number | null
+  metadata: Record<string, unknown>
+  technical: Record<string, unknown> | null
+  editedFields: string[]
+  images: MediaItemImage[]
+  parent: { id: string; title: string; type: MediaItemType } | null
+  childCount: number
+}
+
+export interface MediaItemPage {
+  items: MediaItemSummary[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface MediaItemQuery {
+  libraryId?: string
+  type?: MediaItemType
+  parentId?: string
+  search?: string
+  page?: number
+  size?: number
+}
+
+export interface MediaItemChanges {
+  title?: string
+  sortTitle?: string | null
+  year?: number | null
+  seasonNumber?: number | null
+  episodeNumber?: number | null
+  episodeEndNumber?: number | null
+  overview?: string | null
+}
+
+export async function listMediaItems(query: MediaItemQuery): Promise<MediaItemPage> {
+  const response = await api.get<MediaItemPage>('/admin/media/items', { params: query })
+  return response.data
+}
+
+export async function getMediaItem(id: string): Promise<MediaItemDetail> {
+  const response = await api.get<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}`)
+  return response.data
+}
+
+export async function updateMediaItem(id: string, changes: MediaItemChanges): Promise<MediaItemDetail> {
+  const response = await api.patch<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}`, changes)
+  return response.data
+}
+
+export async function deleteMediaItem(id: string): Promise<void> {
+  await api.delete(`/admin/media/items/${encodeURIComponent(id)}`)
+}
+
+/** Images need the admin token, so they are fetched as blobs instead of used as plain img sources. */
+export async function fetchMediaImage(id: string, index: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/admin/media/items/${encodeURIComponent(id)}/images/${index}`, { responseType: 'blob' })
+  return response.data
+}
+
+export async function addMediaItemImage(id: string, type: MediaImageType, file: File): Promise<MediaItemDetail> {
+  const body = new FormData()
+  body.append('image', file)
+  const response = await api.post<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}/images`, body, {
+    params: { type },
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
+export async function removeMediaItemImage(id: string, index: number): Promise<MediaItemDetail> {
+  const response = await api.delete<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}/images/${index}`)
+  return response.data
+}
+
+export interface SubtitleFile {
+  file: string
+  language: string
+  label?: string
+  format: string
+}
+
+export interface SubtitleSearchResult {
+  fileId: number
+  language: string
+  release: string
+  fileName: string
+  downloads: number
+  hearingImpaired: boolean
+  hashMatch: boolean
+  rating: number
+  uploader?: string
+}
+
+export async function listItemSubtitles(id: string): Promise<{ tracks: SubtitleFile[]; configured: boolean }> {
+  const response = await api.get<{ tracks: SubtitleFile[]; configured: boolean }>(`/admin/media/items/${encodeURIComponent(id)}/subtitles`)
+  return response.data
+}
+
+export async function searchItemSubtitles(id: string, options: { query?: string; languages?: string[] } = {}): Promise<SubtitleSearchResult[]> {
+  const response = await api.post<{ results: SubtitleSearchResult[] }>(`/admin/media/items/${encodeURIComponent(id)}/subtitles/search`, options, { timeout: 70_000 })
+  return response.data.results
+}
+
+export async function downloadItemSubtitle(id: string, fileId: number, language: string): Promise<void> {
+  await api.post(`/admin/media/items/${encodeURIComponent(id)}/subtitles/download`, { fileId, language }, { timeout: 70_000 })
+}
+
+export async function deleteItemSubtitle(id: string, file: string): Promise<void> {
+  await api.delete(`/admin/media/items/${encodeURIComponent(id)}/subtitles`, { params: { file } })
+}
+
+export interface HomeCard {
+  id: string
+  type: MediaItemType
+  title: string
+  year: number | null
+  poster: number | null
+  backdrop: number | null
+  updatedAt: string
+}
+
+export interface HomeFeatured extends HomeCard {
+  tagline: string | null
+  overview: string | null
+  rating: string | null
+  runtimeMinutes: number | null
+}
+
+export interface HomeLibrary {
+  id: string
+  name: string
+  type: string
+  itemCount: number
+  cover: { itemId: string; index: number; updatedAt: string } | null
+}
+
+export interface ContinueCard {
+  id: string
+  type: MediaItemType
+  title: string
+  subtitle: string | null
+  imageItemId: string
+  imageIndex: number | null
+  imageUpdatedAt: string
+  positionSeconds: number
+  progress: number
+  updatedAt: string
+}
+
+export interface HomeContent {
+  libraries: HomeLibrary[]
+  featured: HomeFeatured[]
+  continueWatching: ContinueCard[]
+  recentMovies: HomeCard[]
+  recentShows: HomeCard[]
+  recentAlbums: HomeCard[]
+}
+
+export async function getHomeContent(): Promise<HomeContent> {
+  const response = await api.get<HomeContent>('/media/home')
+  return response.data
+}
+
+export async function getWatchProgress(itemId: string): Promise<{ positionSeconds: number; completed: boolean }> {
+  const response = await api.get<{ positionSeconds: number; completed: boolean }>(`/media/items/${encodeURIComponent(itemId)}/progress`)
+  return response.data
+}
+
+export async function saveWatchProgress(itemId: string, positionSeconds: number, durationSeconds: number): Promise<void> {
+  await api.put(`/media/items/${encodeURIComponent(itemId)}/progress`, { positionSeconds: Math.floor(positionSeconds), durationSeconds: Math.floor(durationSeconds) })
+}
+
+export async function searchMedia(query: string, signal?: AbortSignal): Promise<HomeCard[]> {
+  const response = await api.get<HomeCard[]>('/media/search', { params: { q: query }, signal })
+  return response.data
+}
+
+export type BrowseKind = 'movies' | 'tv' | 'music'
+export type BrowseSort = 'added' | 'title' | 'year'
+
+export async function browseMedia(kind: BrowseKind, sort: BrowseSort, offset: number, signal?: AbortSignal): Promise<{ total: number; items: HomeCard[] }> {
+  const response = await api.get<{ total: number; items: HomeCard[] }>(`/media/browse/${kind}`, { params: { sort, offset, limit: 48 }, signal })
+  return response.data
+}
+
+export interface ItemSummary {
+  id: string
+  type: MediaItemType
+  title: string
+  year: number | null
+  seasonNumber: number | null
+  episodeNumber: number | null
+  overview: string | null
+  runtimeMinutes: number | null
+  poster: number | null
+  thumb: number | null
+  updatedAt: string
+}
+
+export interface ItemDetail {
+  id: string
+  type: MediaItemType
+  title: string
+  year: number | null
+  seasonNumber: number | null
+  episodeNumber: number | null
+  tagline: string | null
+  overview: string | null
+  rating: string | null
+  runtimeMinutes: number | null
+  genres: string[]
+  studios: string[]
+  cast: Array<{ name: string; role: string | null }>
+  ratings: Record<string, number>
+  status: string | null
+  artist: string | null
+  technical: { container: string | null; videoCodec: string | null; audioCodec: string | null; width: number | null; height: number | null; hdr: string | null } | null
+  poster: number | null
+  backdrop: number | null
+  logo: number | null
+  updatedAt: string
+  parent: { id: string; type: MediaItemType; title: string } | null
+  series: { id: string; title: string } | null
+  children: Array<ItemSummary & { episodes: ItemSummary[] }>
+}
+
+export async function getItemDetail(id: string): Promise<ItemDetail> {
+  const response = await api.get<ItemDetail>(`/media/items/${encodeURIComponent(id)}`)
+  return response.data
+}
+
+/** Artwork for any signed-in user, fetched as a blob because it needs the Bearer token. */
+export async function fetchHomeImage(id: string, index: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/media/items/${encodeURIComponent(id)}/images/${index}`, { responseType: 'blob' })
+  return response.data
+}
+
+export const INDEXER_PROVIDERS = [
+  { id: 'tmdb', keyed: true },
+  { id: 'tvdb', keyed: true },
+  { id: 'omdb', keyed: true },
+  { id: 'fanart', keyed: true },
+  { id: 'audiodb', keyed: true },
+  { id: 'discogs', keyed: true },
+  { id: 'anidb', keyed: true },
+  { id: 'musicbrainz', keyed: false },
+  { id: 'anilist', keyed: false },
+] as const
+
+export interface IndexerProviderSetting {
+  enabled: boolean
+  apiKey?: string
+}
+
+export interface IndexerSubtitleSetting {
+  apiKey: string
+  username: string
+  password: string
+  languages: string[]
+  autoFetch: boolean
+}
+
+export interface MediaRoot {
+  id: string
+  name: string
+  path: string
+}
+
+export interface MediaBrowseResult {
+  rootId: string
+  path: string
+  directories: string[]
+}
+
+export async function listMediaLibraries(): Promise<MediaLibrary[]> {
+  const response = await api.get<MediaLibrary[]>('/admin/media-libraries')
+  return response.data
+}
+
+export async function listMediaRoots(): Promise<MediaRoot[]> {
+  const response = await api.get<MediaRoot[]>('/admin/media-libraries/roots')
+  return response.data
+}
+
+export async function browseMediaFolders(rootId: string, path: string): Promise<MediaBrowseResult> {
+  const response = await api.get<MediaBrowseResult>('/admin/media-libraries/browse', { params: { rootId, path } })
+  return response.data
+}
+
+export async function createMediaLibrary(library: MediaLibraryInput): Promise<MediaLibrary> {
+  const response = await api.post<MediaLibrary>('/admin/media-libraries', library)
+  return response.data
+}
+
+export async function updateMediaLibrary(id: string, changes: Partial<MediaLibraryInput>): Promise<MediaLibrary> {
+  const response = await api.patch<MediaLibrary>(`/admin/media-libraries/${encodeURIComponent(id)}`, changes)
+  return response.data
+}
+
+export async function deleteMediaLibrary(id: string): Promise<void> {
+  await api.delete(`/admin/media-libraries/${encodeURIComponent(id)}`)
+}
+
+export interface NetworkShare {
+  id: string
+  name: string
+  protocol: 'smb'
+  host: string
+  share: string
+  username: string | null
+  domain: string | null
+  hasPassword: boolean
+  readOnly: boolean
+  rootId: string
+  location: string
+  status: 'connecting' | 'connected' | 'error'
+  error: string | null
+}
+
+export interface NetworkShareInput {
+  name: string
+  host: string
+  share: string
+  username?: string
+  domain?: string
+  /** Omit when editing to keep the saved password. */
+  password?: string
+  readOnly?: boolean
+}
+
+export async function listNetworkShares(): Promise<NetworkShare[]> {
+  const response = await api.get<NetworkShare[]>('/admin/network-shares')
+  return response.data
+}
+
+export async function createNetworkShare(share: NetworkShareInput): Promise<NetworkShare> {
+  const response = await api.post<NetworkShare>('/admin/network-shares', share)
+  return response.data
+}
+
+export async function updateNetworkShare(id: string, changes: Partial<NetworkShareInput>): Promise<NetworkShare> {
+  const response = await api.patch<NetworkShare>(`/admin/network-shares/${encodeURIComponent(id)}`, changes)
+  return response.data
+}
+
+export async function reconnectNetworkShare(id: string): Promise<NetworkShare> {
+  const response = await api.post<NetworkShare>(`/admin/network-shares/${encodeURIComponent(id)}/reconnect`)
+  return response.data
+}
+
+export async function deleteNetworkShare(id: string): Promise<void> {
+  await api.delete(`/admin/network-shares/${encodeURIComponent(id)}`)
 }

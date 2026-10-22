@@ -3,6 +3,7 @@ import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
+import EmailSettingsSection from './EmailSettingsSection.vue'
 import ErrorMonitoringSection from './ErrorMonitoringSection.vue'
 import { serverInfo } from './mock'
 
@@ -17,9 +18,6 @@ const form = reactive({
   remote: true,
   upnp: false,
   lanNetworks: '192.168.1.0/24',
-  smtpHost: 'smtp.example.com',
-  smtpPort: 587,
-  smtpFrom: 'Flixer <no-reply@example.com>',
   logRetention: 30,
   notifyNewUser: true,
   notifyTaskFail: true,
@@ -67,17 +65,7 @@ const save = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-w
       </div>
     </AdminSection>
 
-    <AdminSection :title="t('admin.general.emailTitle')" :description="t('admin.general.emailDescription')">
-      <template #actions>
-        <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15">{{ t('admin.general.sendTestEmail') }}</button>
-        <button type="button" :class="save">{{ t('common.save') }}</button>
-      </template>
-      <div class="grid gap-4 md:grid-cols-3">
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpHost') }}<input v-model="form.smtpHost" :class="inputClass" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpPort') }}<input v-model.number="form.smtpPort" type="number" :class="inputClass" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.fromAddress') }}<input v-model="form.smtpFrom" :class="inputClass" /></label>
-      </div>
-    </AdminSection>
+    <EmailSettingsSection />
 
     <AdminSection :title="t('admin.general.notificationsTitle')" :description="t('admin.general.notificationsDescription')">
       <AdminToggle v-model="form.notifyNewUser" :label="t('admin.general.newUserAwaitingApproval')" />

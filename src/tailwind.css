@@ -24,7 +24,51 @@
   --font-sans: 'Segoe UI', system-ui, sans-serif;
 }
 
+/*
+ * Light theme. The UI draws overlays and emphasis with white (text-white, bg-white/10),
+ * so white becomes the dark ink colour here and every such utility inverts with it.
+ */
+html.light {
+  --color-flixer-background: #f5f4fa;
+  --color-flixer-surface: #ffffff;
+  --color-flixer-border: #dcd9e8;
+  --color-flixer-primary: #6a3bc9;
+  --color-flixer-secondary: #4b5ed6;
+  --color-flixer-accent: #6d3fd0;
+  --color-flixer-cyan: #0e8fa0;
+  --color-flixer-text: #1c1b29;
+  --color-flixer-muted: #5f5d72;
+  --color-white: #14131d;
+  color-scheme: light;
+}
+
+/* Keeps a region dark (video player, lyrics, text over artwork) while the page is light. */
+.theme-dark {
+  --color-flixer-background: #080811;
+  --color-flixer-surface: #14131d;
+  --color-flixer-border: #292735;
+  --color-flixer-primary: #7645d7;
+  --color-flixer-secondary: #5366e7;
+  --color-flixer-accent: #a789ff;
+  --color-flixer-cyan: #4bd9e8;
+  --color-flixer-text: #f4f2fb;
+  --color-flixer-muted: #9492a4;
+  --color-white: #ffffff;
+  color-scheme: dark;
+}
+
 @layer base {
+  /* Room for the fixed mini player so it never covers the end of a page. */
+  html.has-mini-player body {
+    padding-bottom: 4.5rem;
+  }
+
+  @media (max-width: 47.99rem) {
+    html.has-mini-player body {
+      padding-bottom: calc(4.5rem + var(--tabbar-height, 0px));
+    }
+  }
+
   html {
     overflow-y: scroll;
     touch-action: pan-x pan-y;
@@ -51,17 +95,33 @@
 
   html,
   body {
-    background-color: #080811;
+    background-color: var(--color-flixer-background);
     color-scheme: dark;
+  }
+
+  html.light,
+  html.light body {
+    color-scheme: light;
   }
 
   input:autofill,
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px #14131d inset;
-    -webkit-text-fill-color: #f4f2fb !important;
-    color: #f4f2fb !important;
-    caret-color: #f4f2fb;
+    -webkit-box-shadow: 0 0 0 1000px var(--color-flixer-surface) inset;
+    -webkit-text-fill-color: var(--color-flixer-text) !important;
+    color: var(--color-flixer-text) !important;
+    caret-color: var(--color-flixer-text);
   }
+}
+
+/* Native dropdowns: a custom chevron with room from the right edge. Unlayered so it wins over padding utilities. */
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238b8b99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem 1rem;
+  padding-right: 2.5rem;
 }

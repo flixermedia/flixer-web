@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import Vue3Toastify from 'vue3-toastify'
 import { AUTH_INVALID_EVENT } from './api'
 import { toastContainerOptions } from './composables/notify'
+import { initTheme } from './composables/useTheme'
 import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
 import { initMonitoring } from './monitoring'
 import router from './router'
@@ -17,6 +18,7 @@ declare module '@kolirt/vue-modal' {
 }
 
 const app = createApp(App)
+initTheme()
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
   if (router.currentRoute.value.name !== 'login') {

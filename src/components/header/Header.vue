@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import logoUrl from '../../../resources/logo/flixer-logo.svg'
+import { isActivePath } from '../../composables/homeNav'
 import { useProfile } from '../../composables/useProfile'
+import type { NavLink } from '../../types/media'
 import LanguageModal from '../ui/LanguageModal.vue'
+import ThemeModal from '../ui/ThemeModal.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
 
 const props = withDefaults(
   defineProps<{
-    links: string[]
+    links: NavLink[]
     isSigningOut: boolean
     navPosition?: 'center' | 'start'
     navBackground?: boolean
@@ -25,18 +28,16 @@ const { profile, load: loadProfile } = useProfile()
 const menuOpen = ref(false)
 const scrolled = ref(false)
 const menuRoot = ref<HTMLElement | null>(null)
-const activeLink = ref(props.links[0] ?? '')
-watch(
-  () => props.links[0],
-  (link) => {
-    if (link) activeLink.value = link
-  },
-  { immediate: true },
-)
+const route = useRoute()
 
 function openLanguage() {
   menuOpen.value = false
   void openModal(LanguageModal).catch(() => undefined)
+}
+
+function openTheme() {
+  menuOpen.value = false
+  void openModal(ThemeModal).catch(() => undefined)
 }
 
 function onScroll() {
@@ -83,19 +84,19 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
       <div class="hidden md:block" :class="navPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
         <slot name="nav">
           <ul v-if="links.length" class="flex items-center gap-1 rounded-lg p-1" :class="navBackground ? 'bg-white/5' : ''">
-            <li v-for="link in links" :key="link">
-              <a href="#" class="block rounded-md px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="link === activeLink ? 'bg-white/15 text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="link === activeLink ? 'page' : undefined" @click.prevent="activeLink = link">{{ link }}</a>
+            <li v-for="link in links" :key="link.to">
+              <RouterLink :to="link.to" class="block rounded-md px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'bg-white/15 text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
             </li>
           </ul>
         </slot>
       </div>
 
       <div class="flex items-center justify-self-end gap-1">
-        <button type="button" :class="iconButton" :aria-label="t('header.search')">
+        <RouterLink :to="{ name: 'search' }" :class="iconButton" :aria-label="t('header.search')">
           <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
           </svg>
-        </button>
+        </RouterLink>
 
         <div ref="menuRoot" class="relative">
           <button type="button" class="grid size-10 place-items-center rounded-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
@@ -114,6 +115,7 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
               <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.settings') }}</RouterLink>
               <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.adminDashboard') }}</RouterLink>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t('header.language') }}</button>
+              <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t('header.theme') }}</button>
               <div class="my-1.5 h-px bg-white/10"></div>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
                 {{ isSigningOut ? t('header.signingOut') : t('header.signOut') }}

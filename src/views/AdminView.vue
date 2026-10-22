@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import DevicesPanel from '../components/admin/DevicesPanel.vue'
 import GeneralPanel from '../components/admin/GeneralPanel.vue'
 import LibrariesPanel from '../components/admin/LibrariesPanel.vue'
+import IndexerPanel from '../components/admin/IndexerPanel.vue'
+import MediaPanel from '../components/admin/MediaPanel.vue'
 import LogsPanel from '../components/admin/LogsPanel.vue'
 import OverviewPanel from '../components/admin/OverviewPanel.vue'
 import StreamSessionsPanel from '../components/admin/StreamSessionsPanel.vue'
@@ -20,7 +22,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 
-const tabs = computed<SettingsTab[]>(() => ['overview', 'streams', 'libraries', 'users', 'devices', 'transcoding', 'tasks', 'logs', 'general'].map((id) => ({ id, label: t(`admin.tabs.${id}`) })))
+const tabs = computed<SettingsTab[]>(() => ['overview', 'streams', 'libraries', 'media', 'indexer', 'users', 'devices', 'transcoding', 'tasks', 'logs', 'general'].map((id) => ({ id, label: t(`admin.tabs.${id}`) })))
 
 const activeTab = computed({
   get: () => {
@@ -49,6 +51,8 @@ const activeTab = computed({
         <OverviewPanel v-if="activeTab === 'overview'" />
         <StreamSessionsPanel v-else-if="activeTab === 'streams'" />
         <LibrariesPanel v-else-if="activeTab === 'libraries'" />
+        <MediaPanel v-else-if="activeTab === 'media'" />
+        <IndexerPanel v-else-if="activeTab === 'indexer'" />
         <UsersPanel v-else-if="activeTab === 'users'" />
         <DevicesPanel v-else-if="activeTab === 'devices'" />
         <TranscodingPanel v-else-if="activeTab === 'transcoding'" />

@@ -14,7 +14,20 @@
       body {
         background-color: #080811;
       }
+      html.light,
+      html.light body {
+        background-color: #f5f4fa;
+      }
     </style>
+    <script>
+      // Apply the saved theme before first paint to avoid a dark flash.
+      try {
+        var t = localStorage.getItem('flixer.theme')
+        if (t === 'light' || (t === 'auto' && matchMedia('(prefers-color-scheme: light)').matches)) {
+          document.documentElement.classList.add('light')
+        }
+      } catch (e) {}
+    </script>
     <title>Sign in to Flixer</title>
   </head>
   <body>

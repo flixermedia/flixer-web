@@ -114,7 +114,7 @@ function handleSubmit() {
           <span
             v-for="segment in 4"
             :key="segment"
-            class="h-1 rounded-full bg-flixer-border transition-colors"
+            class="h-1 rounded bg-flixer-border transition-colors"
             :class="
               segment <= passwordStrength.value
                 ? {
