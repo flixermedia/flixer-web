@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { browseMedia, type BrowseKind, type BrowseSort, type HomeCard } from '../api'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
+import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
@@ -75,15 +77,18 @@ onBeforeUnmount(() => controller?.abort())
 
       <div class="mt-6" aria-live="polite">
         <p v-if="failed" class="text-sm text-red-400" role="alert">{{ t('browse.error') }}</p>
-        <p v-else-if="isLoading && items.length === 0" class="text-sm text-flixer-muted" role="status">{{ t('home.loading') }}</p>
+        <CardGridSkeleton v-else-if="isLoading && items.length === 0" :square="kind === 'music'" />
         <p v-else-if="items.length === 0" class="text-sm text-flixer-muted">{{ t('browse.empty') }}</p>
 
         <ul v-else class="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
           <MediaCard v-for="item in items" :key="item.id" class="!w-auto" :variant="kind === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" />
+          <li v-for="n in isLoading ? 6 : 0" :key="`more-${n}`" aria-hidden="true">
+            <Skeleton :class="kind === 'music' ? 'aspect-square' : 'aspect-[2/3]'" class="w-full rounded-lg" />
+          </li>
         </ul>
 
         <button v-if="hasMore && !failed" type="button" class="mt-8 rounded bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-60" :disabled="isLoading" @click="load(false)">
-          {{ isLoading ? t('home.loading') : t('browse.loadMore') }}
+          {{ t('browse.loadMore') }}
         </button>
       </div>
     </main>

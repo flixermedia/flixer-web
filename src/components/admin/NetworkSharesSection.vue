@@ -2,6 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { deleteNetworkShare, listNetworkShares, reconnectNetworkShare, type NetworkShare } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -103,6 +104,7 @@ watch(live.data, (value) => {
         </div>
         <p v-if="share.status === 'error' && share.error" class="mt-2 text-xs text-red-300">{{ share.error }}</p>
       </li>
+      <li v-if="loading && shares.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && shares.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.networkShares.empty') }}</li>
     </ul>
   </AdminSection>

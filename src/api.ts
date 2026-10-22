@@ -685,6 +685,11 @@ export async function retryIndexerTask(queue: IndexerQueueName, id: string): Pro
   await api.post(`/admin/indexer/tasks/${queue}/${encodeURIComponent(id)}/retry`)
 }
 
+export async function clearFailedIndexerTasks(queue: IndexerQueueName): Promise<number> {
+  const response = await api.post<{ cleared: number }>(`/admin/indexer/queues/${queue}/clear-failed`)
+  return response.data.cleared ?? 0
+}
+
 export async function setIndexerQueuePaused(queue: IndexerQueueName, paused: boolean): Promise<void> {
   await api.post(`/admin/indexer/queues/${queue}/${paused ? 'pause' : 'resume'}`)
 }
@@ -787,8 +792,8 @@ export async function deleteMediaItem(id: string): Promise<void> {
 }
 
 /** Images need the admin token, so they are fetched as blobs instead of used as plain img sources. */
-export async function fetchMediaImage(id: string, index: number): Promise<Blob> {
-  const response = await api.get<Blob>(`/admin/media/items/${encodeURIComponent(id)}/images/${index}`, { responseType: 'blob' })
+export async function fetchMediaImage(id: string, index: number, width?: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/admin/media/items/${encodeURIComponent(id)}/images/${index}`, { params: width ? { w: width } : undefined, responseType: 'blob' })
   return response.data
 }
 
@@ -918,6 +923,24 @@ export async function browseMedia(kind: BrowseKind, sort: BrowseSort, offset: nu
   return response.data
 }
 
+export interface PersonCredits {
+  id: string
+  name: string
+  hasImage: boolean
+  profile: { description: string | null; biography: string | null; source: string | null; sourceUrl: string | null } | null
+  groups: Array<{ role: string; items: Array<HomeCard & { detail: string | null }> }>
+}
+
+export async function fetchPersonImage(id: string, width?: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/media/people/${encodeURIComponent(id)}/image`, { params: width ? { w: width } : undefined, responseType: 'blob' })
+  return response.data
+}
+
+export async function getPerson(id: string, signal?: AbortSignal): Promise<PersonCredits> {
+  const response = await api.get<PersonCredits>(`/media/people/${encodeURIComponent(id)}`, { signal })
+  return response.data
+}
+
 export interface ItemSummary {
   id: string
   type: MediaItemType
@@ -945,10 +968,12 @@ export interface ItemDetail {
   runtimeMinutes: number | null
   genres: string[]
   studios: string[]
-  cast: Array<{ name: string; role: string | null }>
+  cast: Array<{ id: string; name: string; role: string | null; hasImage: boolean }>
+  crew: Array<{ id: string; name: string; role: string; hasImage: boolean }>
   ratings: Record<string, number>
   status: string | null
   artist: string | null
+  artistId: string | null
   technical: { container: string | null; videoCodec: string | null; audioCodec: string | null; width: number | null; height: number | null; hdr: string | null } | null
   poster: number | null
   backdrop: number | null
@@ -965,8 +990,9 @@ export async function getItemDetail(id: string): Promise<ItemDetail> {
 }
 
 /** Artwork for any signed-in user, fetched as a blob because it needs the Bearer token. */
-export async function fetchHomeImage(id: string, index: number): Promise<Blob> {
-  const response = await api.get<Blob>(`/media/items/${encodeURIComponent(id)}/images/${index}`, { responseType: 'blob' })
+/** `version` only busts the browser's cache when an item changes; the server ignores it. */
+export async function fetchHomeImage(id: string, index: number, width?: number, version?: string): Promise<Blob> {
+  const response = await api.get<Blob>(`/media/items/${encodeURIComponent(id)}/images/${index}`, { params: { ...(width ? { w: width } : {}), ...(version ? { v: version } : {}) }, responseType: 'blob' })
   return response.data
 }
 

@@ -2,6 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { deleteMediaItem, listMediaItems, listMediaLibraries, MEDIA_ITEM_TYPES, type MediaItemPage, type MediaItemSummary, type MediaItemType, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -153,7 +154,7 @@ onMounted(async () => {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex min-w-0 items-center gap-3">
             <div class="h-20 w-14 shrink-0 overflow-hidden rounded bg-white/5">
-              <AuthImage v-if="item.poster !== null" :item-id="item.id" :index="item.poster" :alt="item.title" :version="item.updatedAt" />
+              <AuthImage v-if="item.poster !== null" :item-id="item.id" :index="item.poster" :width="160" :alt="item.title" :version="item.updatedAt" />
             </div>
             <div class="min-w-0">
               <p class="truncate text-sm font-semibold">
@@ -177,6 +178,7 @@ onMounted(async () => {
           </div>
         </div>
       </li>
+      <li v-if="loading && result.items.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && result.items.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ hasFilters ? t('admin.media.noResults') : t('admin.media.empty') }}</li>
     </ul>
 

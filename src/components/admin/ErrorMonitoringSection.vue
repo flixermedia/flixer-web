@@ -2,6 +2,7 @@
 import * as Sentry from '@sentry/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listSettings, updateSetting, type ServerSetting } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -72,7 +73,7 @@ onMounted(load)
 
 <template>
   <AdminSection :title="t('admin.monitoring.title')" :description="t('admin.monitoring.description')">
-    <p v-if="isLoading" class="text-sm text-flixer-muted">{{ t('admin.monitoring.loading') }}</p>
+    <ListSkeleton v-if="isLoading" />
     <template v-else>
       <AdminToggle :model-value="globalEnabled" :label="t('admin.monitoring.global')" :description="t('admin.monitoring.globalDescription')" :class="{ 'pointer-events-none opacity-60': savingKey === 'sentry_enabled' }" @update:model-value="save('sentry_enabled', $event, t('admin.monitoring.global'))" />
       <div class="mt-2 flex flex-col gap-4" :class="{ 'opacity-60': !globalEnabled }">

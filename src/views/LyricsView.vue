@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import AuthImage from '../components/ui/AuthImage.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import { formatTime } from '../components/player/formatTime'
 import { activeLineIndex } from '../composables/lrc'
 import { useAudioPlayer } from '../composables/useAudioPlayer'
@@ -73,7 +75,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="current" class="theme-dark fixed inset-x-0 top-0 z-[60] flex h-[100dvh] flex-col overflow-hidden bg-flixer-background pt-[env(safe-area-inset-top)] text-flixer-text">
     <div v-if="current.art" class="pointer-events-none absolute inset-0 scale-125 opacity-30 blur-3xl" aria-hidden="true">
-      <AuthImage scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" alt="" />
+      <AuthImage scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="128" alt="" />
     </div>
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-flixer-background/60 to-flixer-background"></div>
 
@@ -87,17 +89,19 @@ onBeforeUnmount(() => {
     <main class="relative flex min-h-0 flex-1 flex-col gap-6 px-4 md:flex-row md:items-start md:gap-12 md:pt-[12vh] md:px-12 lg:px-24">
       <div class="flex shrink-0 items-center gap-4 md:w-72 md:flex-col md:items-start lg:w-96">
         <div class="aspect-square w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60 md:w-[min(100%,38vh)]">
-          <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :alt="current.album ?? current.title" />
+          <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="512" :alt="current.album ?? current.title" />
         </div>
         <div class="min-w-0">
           <h1 class="break-words text-xl font-bold text-white md:text-3xl">{{ current.title }}</h1>
-          <p v-if="current.artist" class="mt-1 truncate text-sm text-flixer-text/90 md:text-base">{{ current.artist }}</p>
+          <RouterLink v-if="current.artist && current.artistId" :to="{ name: 'person', params: { id: current.artistId } }" class="mt-1 block truncate text-sm text-flixer-text/90 hover:underline md:text-base" @click="lyricsOpen = false">{{ current.artist }}</RouterLink>
           <p v-if="current.album" class="truncate text-xs text-flixer-muted md:text-sm">{{ current.album }}</p>
         </div>
       </div>
 
       <section ref="scroller" class="relative min-h-0 flex-1 self-stretch overflow-y-auto overscroll-contain pt-4 pb-[40vh] [scrollbar-width:none] md:pt-0 md:pb-[60vh] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)] md:[mask-image:linear-gradient(to_bottom,black,black_75%,transparent)]" :aria-label="t('music.lyrics')" @wheel.passive="onUserScroll" @touchmove.passive="onUserScroll">
-        <p v-if="lyricsLoading" class="text-lg text-flixer-muted" role="status">{{ t('music.loadingLyrics') }}</p>
+        <div v-if="lyricsLoading" class="w-full max-w-md space-y-4" role="status" :aria-label="t('music.loadingLyrics')">
+          <Skeleton v-for="width in ['w-3/4', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2']" :key="width" class="h-6" :class="width" />
+        </div>
         <p v-else-if="!lyrics || lyrics.lines.length === 0" class="text-lg text-flixer-muted">{{ t('music.noLyrics') }}</p>
         <template v-else>
           <p v-if="!lyrics.synced" class="mb-4 text-sm text-flixer-muted">{{ t('music.plainLyrics') }}</p>

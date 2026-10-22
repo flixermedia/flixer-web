@@ -2,6 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, scanMediaLibrary, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -142,6 +143,7 @@ watch(live.data, (status) => {
             </li>
           </ul>
         </li>
+      <li v-if="loading && libraries.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && libraries.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.libraries.empty') }}</li>
     </ul>
   </AdminSection>

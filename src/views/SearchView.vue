@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { searchMedia, type HomeCard } from '../api'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
+import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
@@ -89,7 +90,7 @@ function subtitleOf(item: HomeCard) {
 
       <div class="mt-8" aria-live="polite">
         <p v-if="tooShort" class="text-sm text-flixer-muted">{{ t('search.hint') }}</p>
-        <p v-else-if="isLoading && results.length === 0" class="text-sm text-flixer-muted" role="status">{{ t('search.searching') }}</p>
+        <CardGridSkeleton v-else-if="isLoading && results.length === 0" />
         <p v-else-if="failed" class="text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
         <p v-else-if="results.length === 0" class="text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed }) }}</p>
 

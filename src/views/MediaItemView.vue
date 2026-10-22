@@ -6,6 +6,8 @@ import { RouterLink, useRoute } from 'vue-router'
 import { getItemDetail, type ItemDetail, type ItemSummary } from '../api'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
 import Header from '../components/header/Header.vue'
+import PersonAvatar from '../components/ui/PersonAvatar.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import PlayerOverlay from '../components/player/PlayerOverlay.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
@@ -14,7 +16,7 @@ import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
 const { profile } = useProfile()
 const isAdmin = computed(() => profile.value?.role === 'admin')
@@ -92,6 +94,7 @@ function queueTrack(track: { id: string; title: string }, album: ItemDetail): Qu
     id: track.id,
     title: track.title,
     artist: album.artist,
+    artistId: album.artistId,
     album: album.title,
     albumId: album.id,
     art: album.poster !== null ? { itemId: album.id, index: album.poster, version: album.updatedAt } : null,
@@ -180,7 +183,19 @@ watch(
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main>
-      <p v-if="isLoading" class="page-gutter pt-32 text-sm text-flixer-muted" role="status">{{ t('mediaItem.loading') }}</p>
+      <div v-if="isLoading" class="page-gutter pt-32" role="status" :aria-label="t('mediaItem.loading')" aria-busy="true">
+        <div class="flex flex-col gap-6 sm:flex-row">
+          <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded-lg sm:w-56" />
+          <div class="min-w-0 flex-1 space-y-3">
+            <Skeleton class="h-9 w-2/3" />
+            <Skeleton class="h-4 w-1/3" />
+            <Skeleton class="mt-4 h-4 w-full" />
+            <Skeleton class="h-4 w-full" />
+            <Skeleton class="h-4 w-4/5" />
+            <Skeleton class="mt-4 h-11 w-36 rounded-lg" />
+          </div>
+        </div>
+      </div>
 
       <div v-else-if="failure" class="page-gutter pt-32">
         <h1 class="text-2xl font-semibold text-white">{{ failure === 'missing' ? t('mediaItem.notFound') : t('mediaItem.loadError') }}</h1>
@@ -193,18 +208,18 @@ watch(
       <template v-else-if="item">
         <section class="relative overflow-hidden" :aria-label="item.title">
           <div v-if="item.backdrop !== null" class="absolute inset-0">
-            <AuthImage scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" alt="" img-class="size-full object-cover object-top" />
+            <AuthImage scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" :width="1600" alt="" img-class="size-full object-cover object-top" />
           </div>
           <div class="absolute inset-0 bg-gradient-to-t from-flixer-background via-flixer-background/70 to-flixer-background/30"></div>
           <div class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
           <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly ? 'bg-flixer-surface/20' : ''">
             <div v-if="isMusic" class="aspect-square w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
-              <AuthImage v-if="cover" scope="library" :item-id="cover.itemId" :index="cover.index" :version="cover.version" :alt="item.title" />
+              <AuthImage v-if="cover" scope="library" :item-id="cover.itemId" :index="cover.index" :version="cover.version" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
             <div v-else-if="item.poster !== null || item.backdrop === null" class="aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
-              <AuthImage v-if="item.poster !== null" scope="library" :item-id="item.id" :index="item.poster" :version="item.updatedAt" :alt="item.title" />
+              <AuthImage v-if="item.poster !== null" scope="library" :item-id="item.id" :index="item.poster" :version="item.updatedAt" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
 
@@ -218,7 +233,7 @@ watch(
                 <span v-if="item.year" class="text-flixer-muted">{{ item.year }}</span>
                 <span v-if="item.rating" class="rounded border border-white/40 px-1.5 py-0.5 text-xs">{{ item.rating }}</span>
                 <span v-if="item.runtimeMinutes" class="text-flixer-muted">{{ runtime(item.runtimeMinutes) }}</span>
-                <span v-if="item.artist" class="text-flixer-muted">{{ item.artist }}</span>
+                <RouterLink v-if="item.artist && item.artistId" :to="{ name: 'person', params: { id: item.artistId } }" class="text-flixer-muted hover:text-white hover:underline">{{ item.artist }}</RouterLink>
                 <span v-for="[source, value] in ratings" :key="source" class="text-flixer-muted">{{ source.toUpperCase() }} {{ value.toFixed(1) }}</span>
               </div>
 
@@ -267,7 +282,7 @@ watch(
               <li v-for="episode in episodes" :key="episode.id" class="flex items-center">
                 <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                   <div v-if="episode.type !== 'track'" class="aspect-video w-32 shrink-0 overflow-hidden rounded bg-flixer-surface sm:w-44">
-                    <AuthImage v-if="episode.thumb !== null" scope="library" :item-id="episode.id" :index="episode.thumb" :version="episode.updatedAt" alt="" />
+                    <AuthImage v-if="episode.thumb !== null" scope="library" :item-id="episode.id" :index="episode.thumb" :version="episode.updatedAt" :width="320" alt="" />
                   </div>
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-semibold text-white">{{ episodeLabel(episode) }}</p>
@@ -288,9 +303,25 @@ watch(
           <section v-if="item.cast.length > 0" :aria-label="t('mediaItem.cast')" class="page-gutter">
             <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.cast') }}</h2>
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <li v-for="person in item.cast" :key="`${person.name}-${person.role}`" class="rounded-lg border border-flixer-border bg-flixer-surface/40 px-3 py-2">
-                <p class="truncate text-sm font-medium text-white">{{ person.name }}</p>
-                <p v-if="person.role" class="truncate text-xs text-flixer-muted">{{ person.role }}</p>
+              <li v-for="person in item.cast" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded-lg border border-flixer-border bg-flixer-surface/40 px-3 py-2">
+                <PersonAvatar :person-id="person.id" :name="person.name" :has-image="person.hasImage" :width="40" class="size-10 shrink-0 rounded" />
+                <div class="min-w-0">
+                  <RouterLink :to="{ name: 'person', params: { id: person.id } }" class="block truncate text-sm font-medium text-white hover:underline">{{ person.name }}</RouterLink>
+                  <p v-if="person.role" class="truncate text-xs text-flixer-muted">{{ person.role }}</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section v-if="item.crew.length > 0" :aria-label="t('mediaItem.crew')" class="page-gutter">
+            <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.crew') }}</h2>
+            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <li v-for="person in item.crew" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded-lg border border-flixer-border bg-flixer-surface/40 px-3 py-2">
+                <PersonAvatar :person-id="person.id" :name="person.name" :has-image="person.hasImage" :width="40" class="size-10 shrink-0 rounded" />
+                <div class="min-w-0">
+                  <RouterLink :to="{ name: 'person', params: { id: person.id } }" class="block truncate text-sm font-medium text-white hover:underline">{{ person.name }}</RouterLink>
+                  <p class="truncate text-xs text-flixer-muted">{{ te(`person.roles.${person.role}`) ? t(`person.roles.${person.role}`) : person.role }}</p>
+                </div>
               </li>
             </ul>
           </section>

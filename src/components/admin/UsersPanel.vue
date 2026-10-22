@@ -2,6 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listAdminUsers, listSettings, updateSetting, type AdminUser } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -108,7 +109,7 @@ onMounted(load)
       </template>
 
       <p v-if="loadError" role="alert" class="mb-3 text-sm text-red-300">{{ loadError }}</p>
-      <p v-if="isLoading" class="text-sm text-flixer-muted">{{ t('admin.users.loading') }}</p>
+      <ListSkeleton v-if="isLoading" />
       <div v-else class="overflow-x-auto">
         <table class="w-full min-w-160 text-left text-sm">
           <thead class="text-xs text-flixer-muted">

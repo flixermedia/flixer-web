@@ -6,6 +6,7 @@ export interface QueueTrack {
   id: string
   title: string
   artist: string | null
+  artistId: string | null
   album: string | null
   albumId: string | null
   /** Artwork of the album (or track) as an item id and image index. */

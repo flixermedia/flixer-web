@@ -5,7 +5,13 @@ import { limitedImageLoad } from '../../composables/imageQueue'
 
 // Images need the signed-in user's token, so they are fetched as blobs instead of used as plain img sources.
 // "admin" reads through the admin media endpoint (which can see every image); "library" is for regular users.
-const props = withDefaults(defineProps<{ itemId: string; index: number; alt: string; version?: string; scope?: 'admin' | 'library'; imgClass?: string }>(), { scope: 'admin', imgClass: 'size-full object-cover' })
+const props = withDefaults(defineProps<{ itemId: string; index: number; alt: string; version?: string; scope?: 'admin' | 'library'; imgClass?: string; width?: number }>(), { scope: 'admin', imgClass: 'size-full object-cover' })
+
+/** The server scales to the width asked for, so request what the element needs (in CSS px) plus room for high-density screens. */
+function pixelWidth(): number | undefined {
+  if (!props.width) return undefined
+  return Math.ceil(props.width * Math.min(window.devicePixelRatio || 1, 2))
+}
 
 const src = ref('')
 const failed = ref(false)
@@ -20,10 +26,11 @@ function release() {
 async function load() {
   const current = ++request
   failed.value = false
-  const fetcher = props.scope === 'admin' ? fetchMediaImage : fetchHomeImage
+  const width = pixelWidth()
+  const fetcher = () => (props.scope === 'admin' ? fetchMediaImage(props.itemId, props.index, width) : fetchHomeImage(props.itemId, props.index, width, props.version))
   try {
     if (current !== request) return
-    const blob = await limitedImageLoad(() => fetcher(props.itemId, props.index).catch(() => fetcher(props.itemId, props.index)))
+    const blob = await limitedImageLoad(() => fetcher().catch(() => fetcher()))
     if (current !== request) return
     release()
     objectUrl = URL.createObjectURL(blob)
@@ -37,7 +44,7 @@ async function load() {
   }
 }
 
-watch(() => [props.itemId, props.index, props.version, props.scope], load, { immediate: true })
+watch(() => [props.itemId, props.index, props.version, props.scope, props.width], load, { immediate: true })
 onBeforeUnmount(() => {
   request++
   release()
@@ -46,5 +53,5 @@ onBeforeUnmount(() => {
 
 <template>
   <img v-if="src" :src="src" :alt="alt" loading="lazy" :class="imgClass" />
-  <span v-else class="flex size-full items-center justify-center text-[10px] text-flixer-muted" :aria-label="alt">{{ failed ? '⚠' : '' }}</span>
+  <span v-else class="flex size-full items-center justify-center text-[10px] text-flixer-muted" :class="failed ? '' : 'animate-pulse bg-white/10 motion-reduce:animate-none'" :aria-label="alt">{{ failed ? '⚠' : '' }}</span>
 </template>

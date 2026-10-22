@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ListSkeleton from '../ui/ListSkeleton.vue'
 import { deleteItemSubtitle, downloadItemSubtitle, listItemSubtitles, searchItemSubtitles, type SubtitleFile, type SubtitleSearchResult } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -95,7 +96,7 @@ onMounted(load)
   <section class="grid gap-4" :aria-label="t('subtitles.title')">
     <h3 class="text-xs font-semibold text-flixer-muted">{{ t('subtitles.title') }}</h3>
 
-    <p v-if="loading" class="text-xs text-flixer-muted">{{ t('subtitles.loading') }}</p>
+    <ListSkeleton v-if="loading" />
     <p v-else-if="loadError" role="alert" class="text-xs text-red-300">{{ loadError }}</p>
     <template v-else>
       <div>

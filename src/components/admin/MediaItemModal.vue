@@ -208,7 +208,7 @@ void load()
           <ul v-if="images.length" class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <li v-for="image in images" :key="`${image.index}-${image.type}-${image.provider}-${image.width}`" class="flex flex-col gap-1">
               <div class="overflow-hidden rounded bg-white/5" :class="image.type === 'poster' ? 'aspect-[2/3]' : 'aspect-video'">
-                <AuthImage v-if="image.available" :item-id="item.id" :index="image.index" :alt="imageLabel(image)" />
+                <AuthImage v-if="image.available" :item-id="item.id" :index="image.index" :width="480" :alt="imageLabel(image)" />
                 <span v-else class="flex h-full w-full items-center justify-center px-2 text-center text-[10px] text-flixer-muted">{{ t('admin.media.imagePending') }}</span>
               </div>
               <p class="truncate text-[11px] text-flixer-muted">{{ imageLabel(image) }}</p>

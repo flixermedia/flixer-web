@@ -1,5 +1,6 @@
 {
   "common": {
+    "loading": "Loading",
     "save": "Save changes",
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -294,6 +295,9 @@
       "tasksError": "Could not load tasks.",
       "cancelTask": "Cancel",
       "retryTask": "Retry",
+      "clearFailed": "Clear failed",
+      "clearFailedConfirm": "Delete all failed tasks in this queue?",
+      "clearedFailed": "Cleared {n} failed task(s).",
       "taskError": "Could not update the task.",
       "attempts": "Attempt {n} of {max}",
       "providersTitle": "Metadata providers",
@@ -970,6 +974,35 @@
     "error": "Couldn't load this section. Please try again.",
     "loadMore": "Load more"
   },
+  "person": {
+    "notFound": "We couldn't find this person.",
+    "error": "Couldn't load this person. Please try again.",
+    "viewPerson": "View {name}",
+    "titleCount": "{count} title | {count} titles",
+    "about": "About",
+    "readMore": "Read more",
+    "showLess": "Show less",
+    "source": "Source: {source}",
+    "active": "Active {range}",
+    "kinds": {
+      "artist": "Artist",
+      "actor": "Actor",
+      "director": "Director",
+      "writer": "Writer",
+      "producer": "Producer",
+      "composer": "Composer",
+      "crew": "Crew"
+    },
+    "roles": {
+      "artist": "Albums",
+      "actor": "Acting",
+      "director": "Directing",
+      "writer": "Writing",
+      "producer": "Producing",
+      "composer": "Composing",
+      "crew": "Crew"
+    }
+  },
   "music": {
     "player": "Music player",
     "play": "Play",
@@ -1016,6 +1049,7 @@
     "episodes": "Episodes",
     "tracks": "Tracks",
     "cast": "Cast",
+    "crew": "Crew",
     "studios": "Studios"
   },
   "errors": {

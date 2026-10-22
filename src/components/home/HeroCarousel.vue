@@ -57,7 +57,7 @@ onBeforeUnmount(stopAutoplay)
 <template>
   <section class="relative h-[36rem] overflow-hidden sm:h-[42rem] lg:h-[48rem]" :aria-label="t('home.featured')">
     <div v-for="(item, index) in items" :key="item.id" class="absolute inset-0 transition-opacity duration-700" :class="index === activeSlide ? 'opacity-100' : 'opacity-0'">
-      <AuthImage v-if="item.backdrop !== null" scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" alt="" img-class="absolute inset-0 size-full object-cover object-top" />
+      <AuthImage v-if="item.backdrop !== null" scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" :width="1600" alt="" img-class="absolute inset-0 size-full object-cover object-top" />
     </div>
     <div class="absolute inset-0 bg-gradient-to-t from-flixer-background via-flixer-background/40 to-flixer-background/10"></div>
     <div class="absolute inset-0 bg-gradient-to-r from-flixer-background/80 via-flixer-background/20 to-transparent"></div>
