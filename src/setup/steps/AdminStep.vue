@@ -40,7 +40,7 @@ defineExpose({ submit })
     <SetupNotice v-if="exists" kind="success">{{ t('setup.admin.exists') }}</SetupNotice>
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="username" :label="t('auth.username')" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" :disabled="busy" />
-      <TextInput v-model.trim="displayName" :label="t('auth.displayName')" autocomplete="nickname" maxlength="64" :disabled="busy" />
+      <TextInput v-model="displayName" :label="t('auth.displayName')" autocomplete="nickname" maxlength="64" :disabled="busy" />
       <TextInput v-model.trim="email" type="email" :label="t('auth.email')" autocomplete="email" maxlength="254" :disabled="busy" />
       <TextInput v-model="password" type="password" :label="t('auth.password')" :hint="t('auth.passwordGuidance')" autocomplete="new-password" minlength="8" maxlength="128" :disabled="busy" />
       <TextInput v-model="confirm" type="password" :label="t('setup.admin.confirm')" autocomplete="new-password" maxlength="128" :disabled="busy" />
