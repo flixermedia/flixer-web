@@ -75,15 +75,13 @@ html.light {
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Hide scrollbars on touch devices; scrolling still works. */
-  @media (hover: none) and (pointer: coarse) {
-    * {
-      scrollbar-width: none;
-    }
+  /* Scrollbars are hidden everywhere; scrolling still works. */
+  * {
+    scrollbar-width: none;
+  }
 
-    *::-webkit-scrollbar {
-      display: none;
-    }
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   /* Inputs under 16px make iOS Safari zoom in on focus. */

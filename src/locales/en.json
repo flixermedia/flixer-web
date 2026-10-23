@@ -1065,5 +1065,133 @@
   },
   "ui": {
     "offlineBanner": "You’re offline. Showing the cached version of Flixer — sign in, uploads and live content are unavailable until you reconnect."
+  },
+  "setup": {
+    "title": "Set up Flixer",
+    "progress": "Setup progress",
+    "loading": "Loading setup…",
+    "lockedTitle": "Setup is already done",
+    "locked": "This server has already been set up. Sign in as an administrator to change its configuration.",
+    "loadFailedTitle": "Can't reach setup",
+    "loadFailed": "Setup could not be loaded. Check that Flixer is running, then try again.",
+    "signIn": "Sign in",
+    "retry": "Try again",
+    "back": "Back",
+    "continue": "Continue",
+    "finish": "Finish",
+    "working": "Working…",
+    "testConnection": "Test connection",
+    "connectionOk": "Connection successful.",
+    "connectionFailed": "The connection failed.",
+    "lockedByEnvironment": "This is set by an environment variable on the server, so it can't be changed here. Continue to the next step.",
+    "restartNeeded": "Restart {services} for this to take effect.",
+    "errors": {
+      "generic": "Something went wrong. Try again."
+    },
+    "steps": {
+      "welcome": "Welcome",
+      "database": "Database",
+      "admin": "Administrator",
+      "urls": "Address",
+      "redis": "Redis",
+      "services": "Services",
+      "secrets": "Secrets",
+      "recovered": "Done",
+      "finish": "Finish"
+    },
+    "welcome": {
+      "title": "Welcome to Flixer",
+      "description": "Let's get your server ready. This only takes a minute.",
+      "choose": "Setup type",
+      "soon": "Coming soon",
+      "quick": {
+        "title": "Quick Setup",
+        "description": "Connect the database, create your administrator account and finish. Everything else uses sensible defaults."
+      },
+      "advanced": {
+        "title": "Advanced Setup",
+        "description": "Control every service, secret and address yourself."
+      }
+    },
+    "database": {
+      "title": "Connect your database",
+      "description": "Flixer stores your library and accounts in PostgreSQL.",
+      "url": "Connection URL",
+      "hint": "Format: postgres://user:password{'@'}host:5432/database",
+      "notReady": "The database was saved but Flixer is still starting. Wait a moment and try Continue again.",
+      "starting": "Connecting and preparing the database…"
+    },
+    "admin": {
+      "title": "Create the administrator",
+      "description": "This account manages Flixer. The first account is always the administrator.",
+      "confirm": "Confirm password",
+      "mismatch": "The passwords do not match.",
+      "exists": "An administrator account already exists.",
+      "verification": "This account needs email verification before it can be used. Verify it, then continue."
+    },
+    "urls": {
+      "title": "Where will you open Flixer?",
+      "description": "The address people use in their browser. It is also used for passkeys.",
+      "publicUrl": "Public address",
+      "hint": "Use the address you type in the browser. Passkeys need https unless it is localhost.",
+      "appUrl": "Web app address",
+      "appUrlHint": "Leave empty to use the address above.",
+      "passkeyRpId": "Passkey domain",
+      "passkeyRpIdHint": "Leave empty to derive it from the address.",
+      "passkeyOrigins": "Passkey origins",
+      "passkeyOriginsHint": "Comma-separated https origins. Leave empty to use the web app address."
+    },
+    "redis": {
+      "title": "Connect Redis",
+      "description": "Redis queues background work such as media scans.",
+      "url": "Connection URL",
+      "hint": "Format: redis://[:password{'@'}]host:6379"
+    },
+    "recovery": {
+      "title": "Reconnect your database",
+      "description": "Setup was completed, but this server has no database configured. Enter the recovery code printed in the Flixer server log to reconnect one. Your accounts and library live in the database, so use the one you had before.",
+      "code": "Recovery code",
+      "hint": "Look for \"recovery code\" in the API log, for example: docker compose logs api"
+    },
+    "key": {
+      "use": "Use a recovery key",
+      "title": "Enter the recovery key",
+      "description": "A recovery key was just written to the Flixer server log. Enter it to continue setup without signing in.",
+      "hint": "Look for \"recovery key\" in the API log, for example: docker compose logs api"
+    },
+    "recovered": {
+      "title": "Database reconnected",
+      "description": "Flixer is running again. Continue to sign in with your existing account."
+    },
+    "services": {
+      "title": "Connect services",
+      "description": "Where Flixer reaches the indexer and the streamer. Both are checked before you continue.",
+      "indexerUrl": "Indexer address",
+      "streamerInternalUrl": "Streamer address (internal)",
+      "streamerPublicUrl": "Streamer address (public, optional)",
+      "streamerPublicHint": "Only needed when browsers reach the streamer on a different address."
+    },
+    "secrets": {
+      "title": "Secrets",
+      "description": "Flixer creates its signing secrets automatically. Regenerate one only if you think it has leaked.",
+      "jwtSecret": "Sign-in secret",
+      "streamTokenSecret": "Service and streaming secret",
+      "generated": "Generated and stored encrypted",
+      "pending": "Will be generated when the server starts",
+      "fromEnvironment": "Set by an environment variable",
+      "regenerate": "Regenerate"
+    },
+    "finish_": {
+      "title": "Ready to go",
+      "description": "Review the summary and finish. You can change these settings later from the admin area.",
+      "configured": "Configured",
+      "missing": "Missing"
+    },
+    "unavailable": {
+      "title": "Can't reach Flixer",
+      "description": "The server isn't responding. This page will keep trying and continue automatically.",
+      "startingTitle": "Flixer is starting",
+      "startingDescription": "The server is still getting ready. This page will continue automatically."
+    }
   }
 }
