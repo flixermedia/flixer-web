@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ListSkeleton from '../ui/ListSkeleton.vue'
+import AdminSkeleton from './AdminSkeleton.vue'
 import { cancelIndexerTask, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TASK_STATES, listIndexerTasks, retryIndexerTask, type IndexerQueueName, type IndexerTask, type IndexerTaskState } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -98,7 +98,8 @@ watch([queue, state], () => {
 
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
 
-    <ul class="flex flex-col gap-2">
+    <AdminSkeleton v-if="loading && tasks.length === 0" variant="tasks" />
+    <ul v-else class="flex flex-col gap-2">
       <li v-for="task in tasks" :key="task.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
@@ -112,7 +113,6 @@ watch([queue, state], () => {
           </div>
         </div>
       </li>
-      <li v-if="loading && tasks.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && tasks.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-4 text-center text-sm text-flixer-muted">{{ t('admin.indexer.noTasks') }}</li>
     </ul>
 

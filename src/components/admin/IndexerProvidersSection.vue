@@ -18,7 +18,7 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 
-const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
+const inputClass = 'mt-1 w-full rounded-lg border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text placeholder:text-flixer-muted/60 focus-visible:outline-2 focus-visible:outline-flixer-accent'
 
 async function load() {
   try {
@@ -65,28 +65,26 @@ onMounted(load)
 
 <template>
   <AdminSection :title="t('admin.indexer.providersTitle')" :description="t('admin.indexer.providersDescription')">
-    <template #actions>
-      <button type="button" :disabled="saving || loading" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="save">{{ t('admin.indexer.saveProviders') }}</button>
-    </template>
+    <p v-if="error" role="alert" class="mb-4 text-sm text-red-300">{{ error }}</p>
 
-    <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
-
-    <label class="mb-4 block max-w-xs text-xs text-flixer-muted">
-      {{ t('admin.indexer.language') }}
-      <input v-model="language" type="text" maxlength="10" :class="inputClass" />
-      <span class="mt-1 block">{{ t('admin.indexer.languageHint') }}</span>
-    </label>
-
-    <ul class="grid gap-3 md:grid-cols-2">
-      <li v-for="provider in INDEXER_PROVIDERS" :key="provider.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
-        <AdminToggle v-model="providers[provider.id].enabled" :label="t(`admin.indexer.providerNames.${provider.id}`)" :description="provider.keyed ? undefined : t('admin.indexer.noKeyNeeded')" />
-        <label v-if="provider.keyed" class="mt-2 block text-xs text-flixer-muted">
-          {{ t('admin.indexer.apiKey') }}
-          <input v-model="providers[provider.id].apiKey" type="password" autocomplete="off" :placeholder="providers[provider.id].hasKey ? '••••••••' : t('admin.indexer.apiKeyPlaceholder')" :class="inputClass" />
-          <span v-if="providers[provider.id].hasKey" class="mt-1 block">{{ t('admin.indexer.keyStored') }}</span>
-          <span v-else-if="providers[provider.id].enabled" class="mt-1 block text-amber-300">{{ t('admin.indexer.needsKey') }}</span>
-        </label>
+    <ul class="divide-y divide-flixer-border overflow-hidden rounded-xl border border-flixer-border bg-flixer-background/40">
+      <li v-for="provider in INDEXER_PROVIDERS" :key="provider.id" class="px-4 py-1">
+        <AdminToggle v-model="providers[provider.id].enabled" :label="t(`admin.indexer.providerNames.${provider.id}`)" :description="provider.keyed ? undefined : t('admin.indexer.noKeyNeeded')" :badge="provider.keyed ? t('admin.indexer.keyRequired') : undefined" />
+        <div v-if="provider.keyed && providers[provider.id].enabled" class="pb-3">
+          <input v-model="providers[provider.id].apiKey" type="password" autocomplete="off" :aria-label="`${t(`admin.indexer.providerNames.${provider.id}`)} ${t('admin.indexer.apiKey')}`" :placeholder="providers[provider.id].hasKey ? '••••••••' : t('admin.indexer.apiKeyPlaceholder')" :class="inputClass" />
+          <p v-if="providers[provider.id].hasKey" class="mt-1.5 text-xs text-flixer-muted">{{ t('admin.indexer.keyStored') }}</p>
+          <p v-else class="mt-1.5 text-xs text-amber-300">{{ t('admin.indexer.needsKey') }}</p>
+        </div>
       </li>
     </ul>
+
+    <div class="mt-5 flex flex-wrap items-end justify-between gap-4">
+      <label class="block w-40 text-xs text-flixer-muted">
+        {{ t('admin.indexer.language') }}
+        <input v-model="language" type="text" maxlength="10" :class="inputClass" />
+      </label>
+      <button type="button" :disabled="saving || loading" class="rounded-lg bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="save">{{ t('admin.indexer.saveProviders') }}</button>
+    </div>
+    <p class="mt-2 text-xs text-flixer-muted">{{ t('admin.indexer.languageHint') }}</p>
   </AdminSection>
 </template>

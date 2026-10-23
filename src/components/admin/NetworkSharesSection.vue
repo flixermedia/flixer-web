@@ -2,7 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ListSkeleton from '../ui/ListSkeleton.vue'
+import AdminSkeleton from './AdminSkeleton.vue'
 import { deleteNetworkShare, listNetworkShares, reconnectNetworkShare, type NetworkShare } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -87,7 +87,8 @@ watch(live.data, (value) => {
 
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
 
-    <ul class="flex flex-col gap-3">
+    <AdminSkeleton v-if="loading && shares.length === 0" variant="cards" />
+    <ul v-else class="flex flex-col gap-3">
       <li v-for="share in shares" :key="share.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
@@ -104,7 +105,6 @@ watch(live.data, (value) => {
         </div>
         <p v-if="share.status === 'error' && share.error" class="mt-2 text-xs text-red-300">{{ share.error }}</p>
       </li>
-      <li v-if="loading && shares.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && shares.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.networkShares.empty') }}</li>
     </ul>
   </AdminSection>

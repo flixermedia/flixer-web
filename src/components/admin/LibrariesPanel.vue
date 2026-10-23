@@ -2,7 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ListSkeleton from '../ui/ListSkeleton.vue'
+import AdminSkeleton from './AdminSkeleton.vue'
 import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, scanMediaLibrary, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -114,7 +114,8 @@ watch(live.data, (status) => {
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
     <p v-if="!indexerReachable" class="mb-3 text-sm text-amber-300">{{ t('admin.libraries.indexerOffline') }}</p>
 
-    <ul class="flex flex-col gap-3">
+    <AdminSkeleton v-if="loading && libraries.length === 0" variant="cards" />
+    <ul v-else class="flex flex-col gap-3">
       <li v-for="lib in libraries" :key="lib.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <p class="text-sm font-semibold">
@@ -143,7 +144,6 @@ watch(live.data, (status) => {
             </li>
           </ul>
         </li>
-      <li v-if="loading && libraries.length === 0" class="rounded-lg border border-flixer-border p-4"><ListSkeleton :rows="2" /></li>
       <li v-if="!loading && libraries.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.libraries.empty') }}</li>
     </ul>
   </AdminSection>
