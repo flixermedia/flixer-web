@@ -12,6 +12,7 @@ import StatusPill from './StatusPill.vue'
 const { t, locale } = useI18n()
 
 const devices = ref<AdminDevice[]>([])
+withDefaults(defineProps<{ part?: 'devices' | 'keys' }>(), { part: undefined })
 const apiKeys = ref<ApiKeyInfo[]>([])
 const devicesError = ref('')
 const keysError = ref('')
@@ -125,7 +126,7 @@ watch(liveDevices.data, (value) => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <AdminSection :title="t('admin.devices.title')" :description="t('admin.devices.description')">
+    <AdminSection v-if="part !== 'keys'" :title="t('admin.devices.title')" :description="t('admin.devices.description')">
       <p v-if="devicesError" role="alert" class="mb-3 text-sm text-red-300">{{ devicesError }}</p>
       <div class="overflow-x-auto">
         <table class="w-full min-w-160 text-left text-sm">
@@ -161,7 +162,7 @@ watch(liveDevices.data, (value) => {
       </div>
     </AdminSection>
 
-    <AdminSection :title="t('admin.devices.apiKeysTitle')" :description="t('admin.devices.apiKeysDescription')">
+    <AdminSection v-if="part !== 'devices'" :title="t('admin.devices.apiKeysTitle')" :description="t('admin.devices.apiKeysDescription')">
       <template #actions>
         <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80" @click="showForm = !showForm">
           {{ t('admin.devices.newApiKey') }}

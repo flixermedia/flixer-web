@@ -112,10 +112,10 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
                 <p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
               </div>
               <div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
-              <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.settings') }}</RouterLink>
-              <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.adminDashboard') }}</RouterLink>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t('header.language') }}</button>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t('header.theme') }}</button>
+              <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.administration') }}</RouterLink>
+              <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.settings') }}</RouterLink>
               <div class="my-1.5 h-px bg-white/10"></div>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
                 {{ isSigningOut ? t('header.signingOut') : t('header.signOut') }}

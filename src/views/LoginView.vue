@@ -24,6 +24,7 @@ const isResending = ref(false)
 let lastCredentials: { username: string; password: string } | null = null
 const registrationEnabled = ref<boolean | null>(null)
 const registrationStatusError = ref('')
+const loginBanner = ref('')
 const isRegistration = computed(() => route.name === 'register')
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
 
@@ -36,6 +37,7 @@ async function loadRegistrationStatus() {
   try {
     const status = await getRegistrationStatus()
     registrationEnabled.value = status.registrationEnabled
+    loginBanner.value = status.loginBanner ?? ''
   } catch {
     registrationStatusError.value = t('auth.registrationAvailabilityError')
   }
@@ -227,6 +229,8 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
         </svg>
         {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
+
+      <p v-if="loginBanner" class="w-full max-w-md whitespace-pre-line rounded-xl border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">{{ loginBanner }}</p>
 
       <div class="w-full mt-0 lg:mt-4 max-w-md rounded-2xl border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">

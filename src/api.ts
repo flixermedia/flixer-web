@@ -30,6 +30,8 @@ export interface AuthSession {
 
 export interface RegistrationStatus {
   registrationEnabled: boolean
+  serverName: string
+  loginBanner: string
 }
 
 export const api = axios.create({
