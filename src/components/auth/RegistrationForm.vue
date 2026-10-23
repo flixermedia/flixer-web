@@ -68,7 +68,7 @@ function handleSubmit() {
         <template #icon>
           <path d="M4 6h16M4 12h10M4 18h6" />
         </template>
-        <input id="registration-display-name" v-model.trim="displayName" type="text" name="displayName" :placeholder="t('auth.displayNamePlaceholder')" autocomplete="nickname" maxlength="64" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" />
+        <input id="registration-display-name" v-model="displayName" type="text" name="displayName" :placeholder="t('auth.displayNamePlaceholder')" autocomplete="nickname" maxlength="64" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" />
       </AuthField>
 
       <AuthField id="registration-username" class="mt-4" :label="t('auth.username')">

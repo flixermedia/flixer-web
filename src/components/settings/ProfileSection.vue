@@ -76,7 +76,7 @@ async function save() {
       <ListSkeleton v-if="isLoading && !profile" class="mt-6" />
       <form v-else class="mt-6 flex flex-col gap-5" @submit.prevent="save">
         <AvatarUploader />
-        <TextInput v-model.trim="displayName" :label="t('settings.profile.displayName')" type="text" maxlength="64" required autocomplete="nickname" />
+        <TextInput v-model="displayName" :label="t('settings.profile.displayName')" type="text" maxlength="64" required autocomplete="nickname" />
         <TextInput :model-value="profile?.username ?? ''" :label="t('settings.profile.username')" type="text" disabled />
         <TextInput v-model.trim="email" :label="t('settings.profile.email')" type="email" maxlength="254" autocomplete="email" autocapitalize="none" :hint="profile?.pendingEmail ? t('settings.profile.pendingEmailHint', { email: profile.pendingEmail }) : undefined" />
 
