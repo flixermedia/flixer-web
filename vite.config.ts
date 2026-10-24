@@ -38,6 +38,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             // Country flags (hashed filenames) are cached on first view instead of bloating the install.
@@ -68,6 +69,11 @@ export default defineConfig({
       },
     }),
   ],
+  // Preview serves on the dev port too; host, https and the proxy are inherited from `server`.
+  preview: {
+    port: 5173,
+    strictPort: true,
+  },
   server: {
     host: '0.0.0.0',
     allowedHosts: true,

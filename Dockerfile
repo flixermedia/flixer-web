@@ -17,7 +17,10 @@ COPY src ./src
 RUN npm run build
 
 FROM nginx:alpine AS runtime
+ARG APP_VERSION=dev
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+# The flixer API reads this to show which web version is running in the admin dashboard.
+RUN printf '{"version":"%s"}' "$APP_VERSION" > /usr/share/nginx/html/version.json
 
 EXPOSE 80

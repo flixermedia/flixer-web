@@ -3,7 +3,7 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
-import { getItemDetail, type ItemDetail, type ItemSummary } from '../api'
+import { getItemDetail, setItemWatched, type ItemDetail, type ItemSummary } from '../api'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
 import Header from '../components/header/Header.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
@@ -145,6 +145,27 @@ function episodeLabel(episode: ItemSummary) {
   return number === null ? episode.title : `${number}. ${episode.title}`
 }
 
+const WATCHABLE = ['movie', 'episode', 'video']
+const canMarkWatched = computed(() => item.value !== null && [...WATCHABLE, 'series'].includes(item.value.type))
+// A series counts as watched once every episode is.
+const itemWatched = computed(() => {
+  const current = item.value
+  if (!current) return false
+  if (current.type !== 'series') return current.watched
+  const all = current.children.flatMap((season) => season.episodes ?? [])
+  return all.length > 0 && all.every((episode) => episode.watched)
+})
+
+async function toggleWatched(id: string, watched: boolean) {
+  try {
+    await setItemWatched(id, watched)
+    const fresh = await getItemDetail(String(route.params.id))
+    item.value = fresh
+  } catch {
+    // Leave the current state; the user can retry.
+  }
+}
+
 async function load(id: string) {
   isLoading.value = true
   failure.value = null
@@ -246,22 +267,27 @@ watch(
 
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
 
-              <button v-if="isAlbum && item.children.length > 0" type="button" class="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                {{ t('music.playAlbum') }}
-              </button>
-              <button v-else-if="isTrack" type="button" class="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                {{ t('mediaItem.play') }}
-              </button>
-              <button v-if="playTarget" type="button" class="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                {{ t('mediaItem.play') }}
-              </button>
-              <button v-if="canManageSubtitles" type="button" class="mt-6 inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="playTarget ? 'ml-3' : ''" @click="manageSubtitles">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zM4 12h4v2H4zm10 6H4v-2h10zm6 0h-4v-2h4zm0-4H10v-2h10z" /></svg>
-                {{ t('subtitles.manage') }}
-              </button>
+              <div class="mt-6 flex flex-wrap items-center gap-3">
+                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  {{ t('music.playAlbum') }}
+                </button>
+                <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  {{ t('mediaItem.play') }}
+                </button>
+                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  {{ t('mediaItem.play') }}
+                </button>
+                <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
+                  {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}
+                </button>
+                <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zM4 12h4v2H4zm10 6H4v-2h10zm6 0h-4v-2h4zm0-4H10v-2h10z" /></svg>
+                  {{ t('subtitles.manage') }}
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -290,6 +316,9 @@ watch(
                     <p v-if="episode.overview" class="mt-1 line-clamp-2 text-xs text-flixer-text/80">{{ episode.overview }}</p>
                   </div>
                 </RouterLink>
+                <button v-if="WATCHABLE.includes(episode.type)" type="button" class="mr-2 grid size-10 shrink-0 place-items-center rounded transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="episode.watched ? 'text-flixer-accent' : 'text-white/50'" :aria-pressed="episode.watched" :aria-label="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" :title="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" @click="toggleWatched(episode.id, !episode.watched)">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                </button>
                 <button v-if="episode.type === 'track'" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('music.playTrack', { title: episode.title })" @click="playAlbum(episode.id)">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                 </button>

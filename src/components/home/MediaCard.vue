@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
 
@@ -15,16 +16,21 @@ const props = withDefaults(
     progress?: number
     /** Overrides the default link to the item's page. */
     to?: RouteLocationRaw
+    /** Shows a corner button that marks the item as watched. */
+    markable?: boolean
   }>(),
   { variant: 'poster' },
 )
+
+const emit = defineEmits<{ watched: [] }>()
+const { t } = useI18n()
 
 const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.itemId ? { name: 'media-item', params: { id: props.itemId } } : null))
 </script>
 
 <template>
   <li
-    class="shrink-0 snap-start"
+    class="group/card relative shrink-0 snap-start"
     :class="{
       'w-36 sm:w-44': variant === 'poster' || variant === 'square',
       'w-64 sm:w-72': variant === 'landscape',
@@ -60,5 +66,15 @@ const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.
         <p v-if="subtitle" class="truncate text-xs text-flixer-muted">{{ subtitle }}</p>
       </div>
     </component>
+    <button
+      v-if="markable"
+      type="button"
+      class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded bg-black/70 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
+      :aria-label="t('mediaItem.markWatched')"
+      :title="t('mediaItem.markWatched')"
+      @click.stop="emit('watched')"
+    >
+      <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+    </button>
   </li>
 </template>

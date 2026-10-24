@@ -1,5 +1,5 @@
-export type AdminSectionId = 'overview' | 'streams' | 'logs' | 'libraries' | 'media' | 'indexer' | 'providers' | 'apikeys' | 'users' | 'devices' | 'general' | 'transcoding' | 'tasks'
-export type AdminGroupId = 'dashboard' | 'library' | 'media' | 'providers' | 'transcoding' | 'apikeys' | 'users' | 'settings'
+export type AdminSectionId = 'overview' | 'streams' | 'logs' | 'libraries' | 'media' | 'indexer' | 'providers' | 'apikeys' | 'users' | 'devices' | 'notifications' | 'updates' | 'general' | 'transcoding' | 'tasks'
+export type AdminGroupId = 'dashboard' | 'library' | 'media' | 'providers' | 'transcoding' | 'apikeys' | 'users' | 'notifications' | 'updates' | 'settings'
 
 /** Each group is one tab; the pages inside it are stacked on a single screen. */
 export const ADMIN_GROUPS: Record<AdminGroupId, AdminSectionId[]> = {
@@ -10,6 +10,8 @@ export const ADMIN_GROUPS: Record<AdminGroupId, AdminSectionId[]> = {
   transcoding: ['transcoding'],
   apikeys: ['apikeys'],
   users: ['users', 'devices'],
+  notifications: ['notifications'],
+  updates: ['updates'],
   settings: ['general', 'tasks'],
 }
 

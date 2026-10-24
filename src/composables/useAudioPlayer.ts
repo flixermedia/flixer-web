@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { getItemPlaybackInfo, getTrackLyrics } from '../api'
+import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics } from '../api'
 import { parseLrc, type ParsedLyrics } from './lrc'
 
 export interface QueueTrack {
@@ -58,9 +58,53 @@ function buildOrder(startIndex: number) {
   position.value = 0
 }
 
+let artworkUrl = ''
+let artworkToken = 0
+
+function releaseArtwork() {
+  if (artworkUrl) URL.revokeObjectURL(artworkUrl)
+  artworkUrl = ''
+}
+
 function updateMediaSession(track: QueueTrack | null) {
   if (!('mediaSession' in navigator)) return
+  const token = ++artworkToken
   navigator.mediaSession.metadata = track ? new MediaMetadata({ title: track.title, artist: track.artist ?? '', album: track.album ?? '' }) : null
+  if (!track?.art) return
+  const { itemId, index, version } = track.art
+  void fetchHomeImage(itemId, index, 512, version)
+    .then((blob) => {
+      if (token !== artworkToken) return
+      releaseArtwork()
+      artworkUrl = URL.createObjectURL(blob)
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title,
+        artist: track.artist ?? '',
+        album: track.album ?? '',
+        artwork: [{ src: artworkUrl, sizes: '512x512', type: blob.type || 'image/jpeg' }],
+      })
+    })
+    .catch(() => undefined)
+}
+
+// Resolving the next stream URL ahead of time lets the next track start synchronously when the current one ends,
+// which mobile browsers require to keep playing while the page is in the background.
+const prefetched = new Map<string, Promise<string>>()
+
+function resolveStreamUrl(id: string): Promise<string> {
+  let promise = prefetched.get(id)
+  if (!promise) {
+    promise = getItemPlaybackInfo(id).then((info) => info.mediaSource.streamUrl)
+    promise.catch(() => prefetched.delete(id))
+    prefetched.set(id, promise)
+  }
+  return promise
+}
+
+function prefetchNext() {
+  const nextIndex = order.value[position.value + 1 < order.value.length ? position.value + 1 : repeat.value === 'all' ? 0 : -1]
+  const upcoming = nextIndex === undefined ? null : queue.value[nextIndex]
+  if (upcoming) void resolveStreamUrl(upcoming.id).catch(() => undefined)
 }
 
 async function loadCurrent() {
@@ -74,11 +118,14 @@ async function loadCurrent() {
   duration.value = 0
   updateMediaSession(track)
   try {
-    const info = await getItemPlaybackInfo(track.id)
+    const streamUrl = await resolveStreamUrl(track.id)
+    prefetched.delete(track.id)
     if (token !== loadToken) return
-    audio.src = info.mediaSource.streamUrl
-    await audio.play()
-    void loadLyrics(info.mediaSource.streamUrl, token)
+    audio.src = streamUrl
+    const playing = audio.play()
+    prefetchNext()
+    void loadLyrics(streamUrl, token)
+    await playing
   } catch (cause) {
     if (token !== loadToken) return
     // A rejected play() after a user-initiated pause or skip is not an error.
@@ -172,13 +219,21 @@ function stop() {
   lyricsOpen.value = false
   isPlaying.value = false
   isLoading.value = false
+  prefetched.clear()
   updateMediaSession(null)
+  releaseArtwork()
 }
 
 if (audio) {
   audio.volume = Math.max(0, Math.min(1, volume.value))
-  audio.addEventListener('play', () => (isPlaying.value = true))
-  audio.addEventListener('pause', () => (isPlaying.value = false))
+  audio.addEventListener('play', () => {
+    isPlaying.value = true
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
+  })
+  audio.addEventListener('pause', () => {
+    isPlaying.value = false
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
+  })
   audio.addEventListener('timeupdate', () => (currentTime.value = audio.currentTime))
   audio.addEventListener('durationchange', () => (duration.value = Number.isFinite(audio.duration) ? audio.duration : 0))
   audio.addEventListener('ended', () => next(true))

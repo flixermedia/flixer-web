@@ -5,10 +5,10 @@ import { useI18n } from 'vue-i18n'
 defineProps<{ title: string }>()
 const { t } = useI18n()
 
-const scroller = ref<HTMLElement | null>(null)
+const scroller = ref<{ $el: HTMLElement } | null>(null)
 
 function scrollBy(direction: -1 | 1) {
-  const el = scroller.value
+  const el = scroller.value?.$el
   if (el) {
     el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' })
   }
@@ -28,8 +28,31 @@ function scrollBy(direction: -1 | 1) {
         </button>
       </div>
     </div>
-    <ul ref="scroller" class="flex snap-x gap-4 overflow-x-auto scroll-smooth page-gutter pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <TransitionGroup ref="scroller" tag="ul" name="row-card" class="flex snap-x gap-4 overflow-x-auto scroll-smooth page-gutter pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <slot />
-    </ul>
+    </TransitionGroup>
   </section>
 </template>
+
+<style>
+/* Unscoped: the transition classes land on the slotted cards. */
+.row-card-move,
+.row-card-leave-active {
+  transition:
+    transform 0.3s ease,
+    opacity 0.25s ease;
+}
+.row-card-leave-active {
+  position: absolute;
+}
+.row-card-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-card-move,
+  .row-card-leave-active {
+    transition: none;
+  }
+}
+</style>

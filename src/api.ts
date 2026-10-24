@@ -908,12 +908,30 @@ export async function getWatchProgress(itemId: string): Promise<{ positionSecond
   return response.data
 }
 
+export async function setItemWatched(itemId: string, watched: boolean): Promise<void> {
+  await api.put(`/media/items/${encodeURIComponent(itemId)}/watched`, { watched })
+}
+
 export async function saveWatchProgress(itemId: string, positionSeconds: number, durationSeconds: number): Promise<void> {
   await api.put(`/media/items/${encodeURIComponent(itemId)}/progress`, { positionSeconds: Math.floor(positionSeconds), durationSeconds: Math.floor(durationSeconds) })
 }
 
-export async function searchMedia(query: string, signal?: AbortSignal): Promise<HomeCard[]> {
-  const response = await api.get<HomeCard[]>('/media/search', { params: { q: query }, signal })
+export interface SearchFilters {
+  type?: string
+  genre?: string
+  yearFrom?: number
+  yearTo?: number
+  sort?: 'relevance' | 'title' | 'year' | 'added'
+  unwatched?: boolean
+}
+
+export async function searchMedia(query: string, filters: SearchFilters = {}, signal?: AbortSignal): Promise<HomeCard[]> {
+  const response = await api.get<HomeCard[]>('/media/search', { params: { q: query, ...filters, unwatched: filters.unwatched ? 'true' : undefined }, signal })
+  return response.data
+}
+
+export async function getSearchGenres(): Promise<string[]> {
+  const response = await api.get<string[]>('/media/search/genres')
   return response.data
 }
 
@@ -945,6 +963,7 @@ export async function getPerson(id: string, signal?: AbortSignal): Promise<Perso
 
 export interface ItemSummary {
   id: string
+  watched: boolean
   type: MediaItemType
   title: string
   year: number | null
@@ -959,6 +978,7 @@ export interface ItemSummary {
 
 export interface ItemDetail {
   id: string
+  watched: boolean
   type: MediaItemType
   title: string
   year: number | null
@@ -1113,4 +1133,92 @@ export async function reconnectNetworkShare(id: string): Promise<NetworkShare> {
 
 export async function deleteNetworkShare(id: string): Promise<void> {
   await api.delete(`/admin/network-shares/${encodeURIComponent(id)}`)
+}
+export interface AppNotification {
+  id: string
+  kind: 'new_media' | 'admin'
+  title: string
+  body: string
+  url: string | null
+  read: boolean
+  createdAt: string
+}
+
+export async function listNotifications(): Promise<{ unread: number; items: AppNotification[] }> {
+  const response = await api.get<{ unread: number; items: AppNotification[] }>('/notifications')
+  return response.data
+}
+
+export async function markNotificationsRead(ids?: string[]): Promise<void> {
+  await api.post('/notifications/read', { ids })
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await api.delete(`/notifications/${encodeURIComponent(id)}`)
+}
+
+export async function getPushPublicKey(): Promise<string> {
+  const response = await api.get<{ publicKey: string }>('/notifications/push/key')
+  return response.data.publicKey
+}
+
+export async function getPushStatus(endpoint: string): Promise<boolean> {
+  const response = await api.get<{ subscribed: boolean }>('/notifications/push/status', { params: { endpoint } })
+  return response.data.subscribed
+}
+
+export async function savePushSubscription(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
+  await api.put('/notifications/push/subscription', subscription)
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  await api.post('/notifications/push/unsubscribe', { endpoint })
+}
+
+export async function sendAdminNotification(message: { title: string; body: string; url?: string | null; userIds?: string[] }): Promise<{ recipients: number; pushed: number }> {
+  const response = await api.post<{ recipients: number; pushed: number }>('/admin/notifications', message)
+  return response.data
+}
+
+export async function getNotificationConfig(): Promise<{ enabled: boolean; permissionPrompt: 'button' | 'load' }> {
+  const response = await api.get<{ enabled: boolean; permissionPrompt: 'button' | 'load' }>('/notifications/config')
+  return response.data
+}
+
+export interface UpdateComponent {
+  id: 'flixer' | 'web' | 'streamer' | 'indexer'
+  label: string
+  installed: string | null
+  latest: string | null
+  reachable: boolean
+  updateAvailable: boolean
+}
+
+export interface UpdateRun {
+  id: string
+  startedAt: string
+  finishedAt: string | null
+  status: 'running' | 'succeeded' | 'failed'
+  targets: Partial<Record<UpdateComponent['id'], string>>
+  backup: string | null
+  error: string | null
+}
+
+export interface UpdateStatus {
+  components: UpdateComponent[]
+  updatesAvailable: number
+  lastCheckedAt: string | null
+  canApply: boolean
+  run: UpdateRun | null
+  backups: Array<{ name: string; sizeBytes: number; createdAt: string }>
+}
+
+export async function getUpdateStatus(refresh = false): Promise<UpdateStatus> {
+  const response = await api.get<UpdateStatus>('/admin/updates', { params: refresh ? { refresh: true } : undefined })
+  return response.data
+}
+
+export async function applyUpdates(): Promise<UpdateRun> {
+  const response = await api.post<UpdateRun>('/admin/updates/apply')
+  return response.data
 }

@@ -174,7 +174,9 @@
       "transcoding": "Transcoding",
       "apikeys": "API Keys",
       "users": "Users",
-      "settings": "Settings"
+      "notifications": "Notifications",
+      "settings": "Settings",
+      "updates": "Updates"
     },
     "tabs": {
       "overview": "Overview",
@@ -187,7 +189,9 @@
       "transcoding": "Transcoding",
       "tasks": "Scheduled tasks",
       "logs": "Logs",
-      "general": "Server"
+      "general": "Server",
+      "notifications": "Notifications",
+      "updates": "Updates"
     },
     "overview": {
       "movies": "Movies",
@@ -713,12 +717,13 @@
     },
     "monitoring": {
       "title": "Error monitoring",
-      "description": "Send crash and error reports to Sentry. Apps read these settings when they start, so restart flixer-web (reload) and flixer-streamer to apply changes.",
+      "description": "Send crash and error reports to Sentry. Apps read these settings when they start, so restart flixer-web (reload), flixer-streamer and flixer-indexer to apply changes.",
       "global": "Enable Sentry for all apps",
       "globalDescription": "Master switch. When off, no app reports to Sentry.",
       "apps": {
         "flixer": "Flixer server",
         "streamer": "Flixer streamer",
+        "indexer": "Flixer indexer",
         "web": "Flixer web"
       },
       "appEnabled": "Enable Sentry for {app}",
@@ -799,7 +804,84 @@
       "networkingSaved": "Addresses saved.",
       "networkingSaveFailed": "Could not save the addresses."
     },
-    "adminNavigation": "Admin"
+    "adminNavigation": "Admin",
+    "notifications": {
+      "title": "Send a notification",
+      "description": "Post a message to users' notification inbox. Devices that enabled push also receive it instantly.",
+      "titleLabel": "Title",
+      "bodyLabel": "Message",
+      "urlLabel": "Link (optional)",
+      "urlHelp": "An in-app path such as /search. Leave empty for none.",
+      "recipients": "Recipients",
+      "everyone": "All users",
+      "selected": "Selected users",
+      "searchUsers": "Search users",
+      "selectedCount": "{count} selected",
+      "send": "Send",
+      "sending": "Sending…",
+      "sent": "Sent to {recipients} users ({pushed} devices pushed).",
+      "invalidUrl": "The link must start with a single \"/\".",
+      "noUsers": "Select at least one user.",
+      "settings": {
+        "title": "Notification settings",
+        "description": "Control how Flixer notifies people. Changes apply immediately.",
+        "enabled": "Notifications",
+        "enabledHelp": "Master switch. When off, nothing is sent and the bell is hidden.",
+        "newMedia": "Announce new programmes",
+        "newMediaHelp": "Notify users when new movies, series or episodes are added.",
+        "prompt": "Ask for permission",
+        "promptButton": "When the user turns it on",
+        "promptButtonHelp": "Users enable push with the switch in the bell menu.",
+        "promptLoad": "When the page loads",
+        "promptLoadHelp": "Browsers may ignore prompts without a click (Safari and iOS require one), and users can block them for good.",
+        "subject": "VAPID subject",
+        "subjectHelp": "A mailto: address or https:// URL that push services use to contact you. Some (Apple) reject fake domains. Leave empty to use the VAPID_SUBJECT environment variable.",
+        "save": "Save",
+        "saved": "Saved."
+      }
+    },
+    "updates": {
+      "title": "Updates",
+      "description": "See which version of each Flixer component is running and update them all from here.",
+      "component": "Component",
+      "installed": "Running",
+      "latest": "Latest",
+      "upToDate": "Up to date",
+      "available": "Update available",
+      "unreachable": "Not reachable",
+      "unknown": "Unknown",
+      "check": "Check for updates",
+      "checking": "Checking…",
+      "lastChecked": "Last checked {time}",
+      "never": "never",
+      "updateAll": "Update all",
+      "updating": "Updating…",
+      "confirm": "Update to the latest versions? The database is backed up first, then Flixer restarts and is briefly unavailable.",
+      "notConfigured": "Updating from the dashboard is not set up. Add WATCHTOWER_TOKEN to your .env and start the stack with `docker compose --profile updates up -d`.",
+      "started": "Update started. Flixer will restart shortly.",
+      "allCurrent": "Everything is up to date.",
+      "run": {
+        "running": "Update in progress… the dashboard may be unavailable for a minute.",
+        "succeeded": "The last update finished successfully.",
+        "failed": "The last update failed: {error}",
+        "backup": "Database backup: {name}"
+      },
+      "settings": {
+        "title": "Update settings",
+        "check": "Check for updates automatically",
+        "checkHelp": "Every 6 hours; admins get a notification when something new is released.",
+        "auto": "Install updates automatically",
+        "autoHelp": "Off by default. Backs up the database first, then updates everything as soon as a release is found.",
+        "url": "Watchtower URL",
+        "urlHelp": "Leave empty to use the bundled Watchtower service.",
+        "save": "Save"
+      },
+      "backups": {
+        "title": "Database backups",
+        "empty": "No backups yet. One is made before every update; the latest 5 are kept.",
+        "help": "Restore with pg_restore from the backups folder in your data directory."
+      }
+    }
   },
   "auth": {
     "loginEyebrow": "YOUR PERSONAL LIBRARY",
@@ -954,7 +1036,8 @@
     "settings": "Settings",
     "administration": "Administration",
     "signOut": "Sign Out",
-    "signingOut": "Signing Out…"
+    "signingOut": "Signing Out…",
+    "notifications": "Notifications"
   },
   "home": {
     "featured": "Featured",
@@ -1067,19 +1150,37 @@
   "search": {
     "label": "Search",
     "placeholder": "Search movies, shows and more",
-    "hint": "Type at least 2 characters to search.",
+    "hint": "Type at least 2 characters, or pick a filter, to search.",
+    "filters": "Filters",
+    "clear": "Clear filters",
+    "type": "Type",
+    "anyType": "Any type",
+    "genre": "Genre",
+    "anyGenre": "Any genre",
+    "yearFrom": "Year from",
+    "yearTo": "Year to",
+    "sort": "Sort by",
+    "unwatched": "Hide watched",
+    "sorts": {
+      "relevance": "Relevance",
+      "title": "Title",
+      "year": "Newest release",
+      "added": "Recently added"
+    },
     "searching": "Searching…",
     "error": "Search failed. Please try again.",
     "noResults": "No results for “{query}”.",
     "results": "{count} results for “{query}”"
   },
   "mediaItem": {
+    "markWatched": "Mark as Watched",
+    "markUnwatched": "Mark as Unwatched",
     "play": "Play",
     "close": "Close",
     "loading": "Loading…",
     "notFound": "We couldn’t find that title.",
     "loadError": "Flixer couldn’t load this title. Please try again.",
-    "backHome": "Back to home",
+    "backHome": "Back to Home",
     "noOverview": "No description available yet.",
     "seasons": "Seasons",
     "season": "Season {number}",
@@ -1106,7 +1207,7 @@
   },
   "setup": {
     "title": "Set up Flixer",
-    "progress": "Setup progress",
+    "progress": "Setup Progress",
     "loading": "Loading setup…",
     "lockedTitle": "Setup is already done",
     "locked": "This server has already been set up. Sign in as an administrator to change its configuration.",
@@ -1231,5 +1332,14 @@
       "startingTitle": "Flixer is starting",
       "startingDescription": "The server is still getting ready. This page will continue automatically."
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "dismiss": "Dismiss",
+    "empty": "You're all caught up.",
+    "loading": "Loading…",
+    "pushToggle": "Push notifications on this device",
+    "pushBlocked": "Blocked in your browser settings."
   }
 }
