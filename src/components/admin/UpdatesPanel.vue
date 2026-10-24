@@ -17,7 +17,7 @@ const isChecking = ref(false)
 const isApplying = ref(false)
 const checkEnabled = ref(true)
 const autoUpdate = ref(false)
-const watchtowerUrl = ref('')
+const updaterUrl = ref('')
 const savedUrl = ref('')
 let timer: ReturnType<typeof setTimeout> | undefined
 let unmounted = false
@@ -110,8 +110,8 @@ function setAuto(value: boolean) {
 
 async function saveUrl() {
   try {
-    await updateSetting('updates_watchtower_url', watchtowerUrl.value.trim())
-    savedUrl.value = watchtowerUrl.value.trim()
+    await updateSetting('updates_updater_url', updaterUrl.value.trim())
+    savedUrl.value = updaterUrl.value.trim()
     notify.success(t('admin.updates.settings.save'))
   } catch (error) {
     notify.error(describeRequestError(error))
@@ -126,8 +126,8 @@ onMounted(async () => {
     const value = (key: string) => settings.find((setting) => setting.key === key)?.value
     checkEnabled.value = value('updates_check_enabled') !== false
     autoUpdate.value = value('updates_auto_update') === true
-    const url = value('updates_watchtower_url')
-    watchtowerUrl.value = savedUrl.value = typeof url === 'string' ? url : ''
+    const url = value('updates_updater_url')
+    updaterUrl.value = savedUrl.value = typeof url === 'string' ? url : ''
   } catch (error) {
     notify.error(describeRequestError(error))
   }
@@ -173,10 +173,13 @@ onBeforeUnmount(() => {
       </div>
       <p v-if="status" class="mt-3 text-xs text-flixer-muted">{{ t('admin.updates.lastChecked', { time: formatTime(status.lastCheckedAt) }) }}</p>
       <p v-if="status && !status.canApply" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.notConfigured') }}</p>
+      <p v-else-if="status && !status.updaterReachable" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.unreachable') }}</p>
 
-      <div v-if="status?.run" class="mt-4 rounded border px-3 py-2 text-sm" :class="status.run.status === 'failed' ? 'border-red-500/40 bg-red-500/10' : status.run.status === 'running' ? 'border-flixer-accent/40 bg-flixer-accent/10' : 'border-emerald-500/30 bg-emerald-500/10'">
-        <p v-if="status.run.status === 'running'">{{ t('admin.updates.run.running') }}</p>
+      <div v-if="status?.run" class="mt-4 rounded border px-3 py-2 text-sm" :class="status.run.status === 'failed' || status.run.status === 'rollback_failed' ? 'border-red-500/40 bg-red-500/10' : status.run.status === 'rolled_back' ? 'border-amber-500/40 bg-amber-500/10' : status.run.status === 'running' ? 'border-flixer-accent/40 bg-flixer-accent/10' : 'border-emerald-500/30 bg-emerald-500/10'">
+        <p v-if="status.run.status === 'running'">{{ t('admin.updates.run.running') }} {{ t(`admin.updates.run.steps.${status.run.step.split(':')[0]}`, { component: status.run.step.split(':')[1] ?? '' }) }}</p>
         <p v-else-if="status.run.status === 'succeeded'">{{ t('admin.updates.run.succeeded') }}</p>
+        <p v-else-if="status.run.status === 'rolled_back'">{{ t('admin.updates.run.rolledBack', { error: status.run.error ?? '' }) }}</p>
+        <p v-else-if="status.run.status === 'rollback_failed'">{{ t('admin.updates.run.rollbackFailed', { error: status.run.error ?? '' }) }}</p>
         <p v-else>{{ t('admin.updates.run.failed', { error: status.run.error ?? '' }) }}</p>
         <p v-if="status.run.backup" class="mt-1 text-xs text-flixer-muted">{{ t('admin.updates.run.backup', { name: status.run.backup }) }}</p>
       </div>
@@ -189,10 +192,10 @@ onBeforeUnmount(() => {
           <AdminToggle :model-value="autoUpdate" :label="t('admin.updates.settings.auto')" :description="t('admin.updates.settings.autoHelp')" @update:model-value="setAuto" />
         </div>
         <form class="flex flex-col gap-1 text-sm" @submit.prevent="saveUrl">
-          <label for="watchtower-url">{{ t('admin.updates.settings.url') }}</label>
+          <label for="updater-url">{{ t('admin.updates.settings.url') }}</label>
           <div class="flex gap-2">
-            <input id="watchtower-url" v-model="watchtowerUrl" placeholder="http://watchtower:8080" :class="inputClass" />
-            <button type="submit" :class="buttonClass" class="shrink-0" :disabled="watchtowerUrl.trim() === savedUrl">{{ t('admin.updates.settings.save') }}</button>
+            <input id="updater-url" v-model="updaterUrl" placeholder="http://updater:8093" :class="inputClass" />
+            <button type="submit" :class="buttonClass" class="shrink-0" :disabled="updaterUrl.trim() === savedUrl">{{ t('admin.updates.settings.save') }}</button>
           </div>
           <span class="text-xs text-flixer-muted">{{ t('admin.updates.settings.urlHelp') }}</span>
         </form>
