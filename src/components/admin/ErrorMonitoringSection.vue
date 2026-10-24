@@ -9,7 +9,7 @@ import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 
-const APPS = ['flixer', 'streamer', 'web'] as const
+const APPS = ['flixer', 'streamer', 'indexer', 'web'] as const
 
 const { t } = useI18n()
 const values = ref<Record<string, unknown>>({})

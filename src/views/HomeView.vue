@@ -7,7 +7,7 @@ import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getHomeContent, type HomeContent } from '../api'
+import { getHomeContent, setItemWatched, type HomeContent } from '../api'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useSignOut } from '../composables/useSignOut'
@@ -31,6 +31,21 @@ function libraryRoute(type: string) {
   if (type === 'tvshows') return '/tv'
   if (type === 'music') return '/music'
   return '/movies'
+}
+
+async function markWatched(id: string) {
+  try {
+    await setItemWatched(id, true)
+  } catch {
+    notify.error(t('home.loadError'))
+    return
+  }
+  const home = content.value
+  if (!home) return
+  home.continueWatching = home.continueWatching.filter((entry) => entry.id !== id)
+  home.recentMovies = home.recentMovies.filter((entry) => entry.id !== id)
+  home.recentShows = home.recentShows.filter((entry) => entry.id !== id)
+  home.featured = home.featured.filter((entry) => entry.id !== id)
 }
 
 async function load() {
@@ -69,25 +84,47 @@ onMounted(load)
         <p class="mt-2 max-w-xl text-sm text-flixer-muted">{{ t('home.emptyBody') }}</p>
       </div>
 
-      <div v-else-if="content" class="space-y-8 pt-2">
-        <MediaRow v-if="content.libraries.length > 0" :title="t('home.myMedia')">
+      <TransitionGroup v-else-if="content" tag="div" name="home-row" class="relative flex flex-col gap-8 pt-2">
+        <MediaRow key="libraries" v-if="content.libraries.length > 0" :title="t('home.myMedia')">
           <MediaCard v-for="library in content.libraries" :key="library.id" variant="library" :title="library.name" :to="libraryRoute(library.type)" :item-id="library.cover?.itemId" :image-index="library.cover?.index" :version="library.cover?.updatedAt" />
         </MediaRow>
-        <MediaRow v-if="content.continueWatching.length > 0" :title="t('home.continueWatching')">
-          <MediaCard v-for="entry in content.continueWatching" :key="entry.id" variant="landscape" :title="entry.title" :subtitle="entry.subtitle ?? undefined" :to="{ name: 'media-item', params: { id: entry.id } }" :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt" :progress="entry.progress" />
+        <MediaRow key="continue" v-if="content.continueWatching.length > 0" :title="t('home.continueWatching')">
+          <MediaCard v-for="entry in content.continueWatching" :key="entry.id" variant="landscape" :title="entry.title" :subtitle="entry.subtitle ?? undefined" :to="{ name: 'media-item', params: { id: entry.id } }" :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt" :progress="entry.progress" markable @watched="markWatched(entry.id)" />
         </MediaRow>
-        <MediaRow v-if="content.recentMovies.length > 0" :title="t('home.recentMovies')">
-          <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" />
+        <MediaRow key="movies" v-if="content.recentMovies.length > 0" :title="t('home.recentMovies')">
+          <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" markable @watched="markWatched(item.id)" />
         </MediaRow>
-        <MediaRow v-if="content.recentShows.length > 0" :title="t('home.recentTvShows')">
-          <MediaCard v-for="item in content.recentShows" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" />
+        <MediaRow key="shows" v-if="content.recentShows.length > 0" :title="t('home.recentTvShows')">
+          <MediaCard v-for="item in content.recentShows" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" markable @watched="markWatched(item.id)" />
         </MediaRow>
-        <MediaRow v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
+        <MediaRow key="music" v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
           <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" />
         </MediaRow>
-      </div>
+      </TransitionGroup>
     </main>
 
     <MobileTabBar :tabs="mobileTabs" />
   </div>
 </template>
+
+<style>
+.home-row-move,
+.home-row-leave-active {
+  transition:
+    transform 0.3s ease,
+    opacity 0.25s ease;
+}
+.home-row-leave-active {
+  position: absolute;
+  inset-inline: 0;
+}
+.home-row-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-row-move,
+  .home-row-leave-active {
+    transition: none;
+  }
+}
+</style>
