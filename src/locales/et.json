@@ -1,1 +1,15 @@
-{}
+{
+    "common": {
+        "loading": "Laadin andmeid",
+        "save": "Salvesta muudatused",
+        "cancel": "Katkesta",
+        "confirm": "Kinnita",
+        "confirmTitle": "Kas oled kindel?",
+        "close": "Sulge"
+    },
+    "subtitles": {
+        "title": "Subtiitrid",
+        "manage": "Subtiitrid",
+        "modalTitle": "Subtiitrid: {title}"
+    }
+}
