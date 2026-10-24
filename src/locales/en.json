@@ -857,7 +857,7 @@
       "updateAll": "Update all",
       "updating": "Updating…",
       "confirm": "Update to the latest versions? The database is backed up first, then Flixer restarts and is briefly unavailable.",
-      "notConfigured": "Updating from the dashboard is not set up. Add UPDATER_TOKEN (16+ characters) to your .env and start the stack with `docker compose --profile updates up -d`.",
+      "notConfigured": "Updating from the dashboard is not set up. Start the stack with `docker compose --profile updates up -d`.",
       "unreachable": "The updater is not reachable. Check that the flixer-updater container is running.",
       "started": "Update started. Flixer will restart shortly.",
       "allCurrent": "Everything is up to date.",
