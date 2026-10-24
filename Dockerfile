@@ -1,6 +1,6 @@
 ARG NODE_VERSION=26.12.0
 
-FROM node:${NODE_VERSION}-alpine AS build
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build
 WORKDIR /app
 
 ARG VITE_API_BASE_URL=/api
