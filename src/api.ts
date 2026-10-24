@@ -1198,10 +1198,13 @@ export interface UpdateRun {
   id: string
   startedAt: string
   finishedAt: string | null
-  status: 'running' | 'succeeded' | 'failed'
+  status: 'running' | 'succeeded' | 'failed' | 'rolled_back' | 'rollback_failed'
+  step: string
   targets: Partial<Record<UpdateComponent['id'], string>>
+  previous: Partial<Record<UpdateComponent['id'], string>>
   backup: string | null
   error: string | null
+  log: string[]
 }
 
 export interface UpdateStatus {
@@ -1209,6 +1212,7 @@ export interface UpdateStatus {
   updatesAvailable: number
   lastCheckedAt: string | null
   canApply: boolean
+  updaterReachable: boolean
   run: UpdateRun | null
   backups: Array<{ name: string; sizeBytes: number; createdAt: string }>
 }

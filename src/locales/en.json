@@ -857,13 +857,26 @@
       "updateAll": "Update all",
       "updating": "Updating…",
       "confirm": "Update to the latest versions? The database is backed up first, then Flixer restarts and is briefly unavailable.",
-      "notConfigured": "Updating from the dashboard is not set up. Add WATCHTOWER_TOKEN to your .env and start the stack with `docker compose --profile updates up -d`.",
+      "notConfigured": "Updating from the dashboard is not set up. Add UPDATER_TOKEN (16+ characters) to your .env and start the stack with `docker compose --profile updates up -d`.",
+      "unreachable": "The updater is not reachable. Check that the flixer-updater container is running.",
       "started": "Update started. Flixer will restart shortly.",
       "allCurrent": "Everything is up to date.",
       "run": {
         "running": "Update in progress… the dashboard may be unavailable for a minute.",
         "succeeded": "The last update finished successfully.",
         "failed": "The last update failed: {error}",
+        "rolledBack": "The update failed and the previous versions were restored. {error}",
+        "rollbackFailed": "The update failed and could not be fully rolled back. {error} Check the container logs; the database backup from before the update is kept.",
+        "steps": {
+          "starting": "Starting…",
+          "backup": "Backing up the database…",
+          "pull": "Downloading new images…",
+          "update": "Updating {component}…",
+          "verify": "Waiting for {component} to be healthy…",
+          "rollback": "Rolling back…",
+          "proxy": "Reconnecting the proxy…",
+          "done": "Finishing…"
+        },
         "backup": "Database backup: {name}"
       },
       "settings": {
@@ -872,8 +885,8 @@
         "checkHelp": "Every 6 hours; admins get a notification when something new is released.",
         "auto": "Install updates automatically",
         "autoHelp": "Off by default. Backs up the database first, then updates everything as soon as a release is found.",
-        "url": "Watchtower URL",
-        "urlHelp": "Leave empty to use the bundled Watchtower service.",
+        "url": "Updater URL",
+        "urlHelp": "Leave empty to use the bundled updater service.",
         "save": "Save"
       },
       "backups": {
