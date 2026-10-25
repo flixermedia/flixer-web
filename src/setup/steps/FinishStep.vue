@@ -14,11 +14,12 @@ const { wizard, busy, message, run } = useStepForm('finish')
 
 const summary = computed(() => {
   const config = wizard.progress.value.config
+  // Quick setup saves the bundled Redis default when it finishes, so it counts as configured here.
   return [
     { label: t('setup.steps.database'), ok: config.databaseUrl?.set === true },
     { label: t('setup.steps.admin'), ok: wizard.progress.value.adminExists },
     { label: t('setup.steps.urls'), ok: config.publicUrl?.set === true },
-    { label: t('setup.steps.redis'), ok: config.redisUrl?.set === true },
+    { label: t('setup.steps.redis'), ok: config.redisUrl?.set === true || (wizard.flow.value === 'quick' && Boolean(config.redisUrl?.default)) },
     ...(wizard.flow.value === 'advanced'
       ? [
           { label: t('setup.steps.services'), ok: config.indexerUrl?.set === true && config.streamerInternalUrl?.set === true },
