@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { openModal } from '@kolirt/vue-modal'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
@@ -6,6 +7,7 @@ import { cancelIndexerTask, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TAS
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
+import TaskLogsModal from './TaskLogsModal.vue'
 import { confirmAction } from '../../composables/confirm'
 
 const { t } = useI18n()
@@ -69,8 +71,17 @@ function canRetry(task: IndexerTask) {
   return task.state === 'archived' || task.state === 'scheduled' || task.state === 'retry'
 }
 
+function canViewLogs(task: IndexerTask) {
+  return task.state === 'active' || task.state === 'retry' || task.state === 'archived'
+}
+
+function viewLogs(task: IndexerTask) {
+  void openModal(TaskLogsModal, { props: { queue: task.queue, id: task.id, title: describeTask(task) } }).catch(() => undefined)
+}
+
 function describeTask(task: IndexerTask) {
-  return task.path || task.itemType || task.type
+  const subject = task.path || task.itemType || task.type
+  return task.libraryName ? `${task.libraryName} · ${subject}` : subject
 }
 
 watch(
@@ -113,6 +124,7 @@ watch(
             <p v-if="task.lastError" class="mt-1 break-words text-xs text-red-300">{{ task.lastError }}</p>
           </div>
           <div class="flex gap-2">
+            <button v-if="canViewLogs(task)" type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="viewLogs(task)">{{ t('admin.indexer.viewLogs') }}</button>
             <button v-if="canRetry(task)" type="button" :disabled="busyId === task.id" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="act(task, 'retry')">{{ t('admin.indexer.retryTask') }}</button>
             <button v-if="canCancel(task)" type="button" :disabled="busyId === task.id" class="rounded bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="act(task, 'cancel')">{{ t('admin.indexer.cancelTask') }}</button>
           </div>

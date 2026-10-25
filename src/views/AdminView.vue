@@ -15,6 +15,7 @@ import NotificationsPanel from '../components/admin/NotificationsPanel.vue'
 import OverviewPanel from '../components/admin/OverviewPanel.vue'
 import StreamSessionsPanel from '../components/admin/StreamSessionsPanel.vue'
 import TasksPanel from '../components/admin/TasksPanel.vue'
+import RequestsPanel from '../components/admin/RequestsPanel.vue'
 import TranscodingPanel from '../components/admin/TranscodingPanel.vue'
 import UsersPanel from '../components/admin/UsersPanel.vue'
 import Header from '../components/header/Header.vue'
@@ -67,6 +68,7 @@ const activeTab = computed({
           <UsersPanel />
           <DevicesPanel part="devices" />
         </template>
+        <RequestsPanel v-else-if="activeTab === 'requests'" />
         <NotificationsPanel v-else-if="activeTab === 'notifications'" />
         <UpdatesPanel v-else-if="activeTab === 'updates'" />
         <BackupsPanel v-else-if="activeTab === 'backups'" />

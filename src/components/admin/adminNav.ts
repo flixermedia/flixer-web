@@ -1,5 +1,5 @@
-export type AdminSectionId = 'overview' | 'streams' | 'logs' | 'libraries' | 'media' | 'indexer' | 'providers' | 'apikeys' | 'users' | 'devices' | 'notifications' | 'updates' | 'backups' | 'general' | 'transcoding' | 'tasks'
-export type AdminGroupId = 'dashboard' | 'library' | 'media' | 'providers' | 'transcoding' | 'apikeys' | 'users' | 'notifications' | 'updates' | 'backups' | 'settings'
+export type AdminSectionId = 'overview' | 'streams' | 'logs' | 'libraries' | 'media' | 'indexer' | 'providers' | 'apikeys' | 'users' | 'devices' | 'notifications' | 'updates' | 'backups' | 'general' | 'transcoding' | 'tasks' | 'requests'
+export type AdminGroupId = 'dashboard' | 'library' | 'media' | 'providers' | 'transcoding' | 'apikeys' | 'users' | 'notifications' | 'updates' | 'backups' | 'settings' | 'requests'
 
 /** Each group is one tab; the pages inside it are stacked on a single screen. */
 export const ADMIN_GROUPS: Record<AdminGroupId, AdminSectionId[]> = {
@@ -14,6 +14,7 @@ export const ADMIN_GROUPS: Record<AdminGroupId, AdminSectionId[]> = {
   updates: ['updates'],
   backups: ['backups'],
   settings: ['general', 'tasks'],
+  requests: ['requests'],
 }
 
 const GROUP_IDS = Object.keys(ADMIN_GROUPS) as AdminGroupId[]
