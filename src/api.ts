@@ -432,18 +432,7 @@ export interface AdminOverview {
   counts: { movies: number; series: number; episodes: number; albums: number; tracks: number; users: number }
   libraries: Array<{ id: string; name: string; type: string; items: number; sizeBytes: number }>
   storage: { usedBytes: number; disks: Array<{ totalBytes: number; freeBytes: number; roots: string[] }> }
-  activity: Array<{
-    user: string
-    title: string
-    type: string
-    showTitle: string | null
-    seasonNumber: number | null
-    episodeNumber: number | null
-    positionSeconds: number
-    durationSeconds: number
-    completed: boolean
-    at: string
-  }>
+  activity: AdminActivityEntry[]
   server: {
     name: string
     version: string
@@ -453,6 +442,46 @@ export interface AdminOverview {
     streamer: { reachable: boolean; transcodingAvailable: boolean; activeTranscodes: number; maxTranscodes: number; sessions: number }
     indexer: { reachable: boolean; activeScans: number; providers: string[] }
   }
+}
+
+export interface AdminActivityEntry {
+  user: string
+  title: string
+  type: string
+  showTitle: string | null
+  seasonNumber: number | null
+  episodeNumber: number | null
+  positionSeconds: number
+  durationSeconds: number
+  completed: boolean
+  at: string
+}
+
+export interface AdminActivityFilters {
+  search?: string
+  user?: string
+  type?: string
+  status?: string
+  from?: string
+  to?: string
+  sort?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface AdminActivityPage {
+  items: AdminActivityEntry[]
+  page: number
+  pageSize: number
+  total: number
+  summary: { total: number; finished: number; inProgress: number; users: number }
+  users: Array<{ id: string; name: string }>
+}
+
+export async function getAdminActivity(filters: AdminActivityFilters): Promise<AdminActivityPage> {
+  const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''))
+  const response = await api.get<AdminActivityPage>('/admin/overview/activity', { params })
+  return response.data
 }
 
 export async function getAdminOverview(): Promise<AdminOverview> {
@@ -1111,6 +1140,11 @@ export interface NetworkShareInput {
   readOnly?: boolean
 }
 
+export async function getNetworkShareSupport(): Promise<{ supported: boolean }> {
+  const response = await api.get<{ supported: boolean }>('/admin/network-shares/support')
+  return response.data
+}
+
 export async function listNetworkShares(): Promise<NetworkShare[]> {
   const response = await api.get<NetworkShare[]>('/admin/network-shares')
   return response.data
@@ -1225,4 +1259,79 @@ export async function getUpdateStatus(refresh = false): Promise<UpdateStatus> {
 export async function applyUpdates(): Promise<UpdateRun> {
   const response = await api.post<UpdateRun>('/admin/updates/apply')
   return response.data
+}
+
+export interface BackupEntry {
+  name: string
+  size: number
+  createdAt: string
+  encrypted: boolean
+  components: string[]
+  versions: Record<string, string>
+}
+
+export interface BackupRun {
+  id: string
+  kind: 'backup' | 'restore'
+  startedAt: string
+  finishedAt: string | null
+  status: 'running' | 'succeeded' | 'failed' | string
+  step: string
+  error: string | null
+  log: string[]
+}
+
+export interface BackupStatus {
+  updaterReachable: boolean
+  canRestore: boolean
+  passphraseSet: boolean
+  schedule: 'off' | 'daily' | 'weekly'
+  keep: number
+  lastScheduledAt: string | null
+  run: BackupRun | null
+  backups: BackupEntry[]
+}
+
+export async function getBackupStatus(): Promise<BackupStatus> {
+  const response = await api.get<BackupStatus>('/admin/backups')
+  return response.data
+}
+
+export async function createBackup(): Promise<BackupRun> {
+  const response = await api.post<BackupRun>('/admin/backups')
+  return response.data
+}
+
+export async function restoreBackup(name: string, passphrase?: string): Promise<BackupRun> {
+  const response = await api.post<BackupRun>(`/admin/backups/${encodeURIComponent(name)}/restore`, { passphrase: passphrase || undefined })
+  return response.data
+}
+
+export async function deleteBackup(name: string): Promise<void> {
+  await api.delete(`/admin/backups/${encodeURIComponent(name)}`)
+}
+
+export async function uploadBackup(file: File, onProgress?: (fraction: number) => void): Promise<BackupEntry> {
+  const body = new FormData()
+  body.append('backup', file)
+  const response = await api.post<BackupEntry>('/admin/backups/upload', body, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0,
+    onUploadProgress: (event) => onProgress?.(event.total ? event.loaded / event.total : 0),
+  })
+  return response.data
+}
+
+export async function setBackupPassphrase(passphrase: string): Promise<void> {
+  await api.put('/admin/backups/passphrase', { passphrase })
+}
+
+export async function clearBackupPassphrase(): Promise<void> {
+  await api.delete('/admin/backups/passphrase')
+}
+
+/** A short-lived signed URL, so the browser streams the file to disk instead of holding it in memory. */
+export async function getBackupDownloadUrl(name: string): Promise<string> {
+  const response = await api.post<{ path: string }>(`/admin/backups/${encodeURIComponent(name)}/download-link`)
+  return `${api.defaults.baseURL ?? ''}${response.data.path}`
 }

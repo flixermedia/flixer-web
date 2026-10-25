@@ -176,7 +176,9 @@
       "users": "Users",
       "notifications": "Notifications",
       "settings": "Settings",
-      "updates": "Updates"
+      "updates": "Updates",
+      "backups": "Backups",
+      "backups": "Backups"
     },
     "tabs": {
       "overview": "Overview",
@@ -192,6 +194,147 @@
       "general": "Server",
       "notifications": "Notifications",
       "updates": "Updates"
+    },
+    "backups": {
+      "title": "Backups",
+      "description": "Full backups of your database, settings, secrets and indexer data. Download them, or restore this server from one.",
+      "create": "Back up now",
+      "creating": "Backing up…",
+      "upload": "Upload backup",
+      "uploading": "Uploading {percent}%",
+      "started": "Backup started.",
+      "uploaded": "Backup uploaded.",
+      "restoreStarted": "Restore started. Flixer will restart.",
+      "never": "Never",
+      "empty": "No backups yet.",
+      "encrypted": "Encrypted",
+      "notEncrypted": "Not encrypted",
+      "download": "Download",
+      "restore": "Restore",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete {name}? This cannot be undone.",
+      "restoreUnavailable": "Restoring needs the updater, which is not running. Start it with `docker compose --profile updates up -d`. Backups, uploads and downloads still work.",
+      "components": {
+        "database": "Database",
+        "config": "Settings",
+        "secrets": "Secrets",
+        "metadata": "Indexer data"
+      },
+      "steps": {
+        "dump-database": "Dumping the database…",
+        "archive-config": "Archiving settings…",
+        "archive-secrets": "Archiving secrets…",
+        "archive-metadata": "Archiving indexer data…",
+        "encrypt-finish": "Writing the backup…",
+        "prune": "Removing old backups…",
+        "safety-backup": "Saving a safety backup of the current state…",
+        "stop-services": "Stopping services…",
+        "restore-database": "Restoring the database…",
+        "restore-config": "Restoring settings…",
+        "restore-secrets": "Restoring secrets…",
+        "restore-metadata": "Restoring indexer data…",
+        "start-services": "Starting services…"
+      },
+      "run": {
+        "running": {
+          "backup": "Backing up:",
+          "restore": "Restoring:"
+        },
+        "failed": {
+          "backup": "The backup failed. {error}",
+          "restore": "The restore failed. {error}"
+        },
+        "created": "The backup finished.",
+        "restored": "The restore finished.",
+        "signInAgain": "Your sign-in may have been reset by the restore. Sign in again if you are asked to."
+      },
+      "restoreTitle": "Restore this backup",
+      "restoreDescription": "The backup from {time}.",
+      "restoreWarning": "This replaces your current database, settings, secrets and indexer data with the contents of this backup, and restarts Flixer. A safety backup of the current state is saved first.",
+      "restorePassphrase": "Backup passphrase",
+      "restorePassphraseHelp": "Leave empty to use the passphrase saved on this server.",
+      "restoreConfirm": "I understand this replaces my current data.",
+      "restoreNow": "Restore now",
+      "schedule": {
+        "title": "Schedule",
+        "description": "Back up automatically and keep only the newest backups.",
+        "frequency": "Frequency",
+        "off": "Off",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "keep": "Backups to keep",
+        "help": "Last scheduled backup: {time}.",
+        "save": "Save schedule",
+        "saved": "Backup schedule saved."
+      },
+      "encryption": {
+        "title": "Encryption",
+        "description": "Encrypt new backups with a passphrase.",
+        "on": "Encryption on",
+        "off": "Encryption off",
+        "offWarning": "Backups contain password hashes, secrets and settings. Without a passphrase they are stored unencrypted.",
+        "set": "Set a passphrase",
+        "change": "Change the passphrase",
+        "save": "Save",
+        "remove": "Remove passphrase",
+        "saved": "Passphrase saved.",
+        "removed": "Passphrase removed. New backups are not encrypted.",
+        "confirmRemove": "Remove the passphrase? New backups will not be encrypted. Existing backups still need it to be restored.",
+        "help": "At least 8 characters. It is stored only by the updater, outside any backup. If you lose it, encrypted backups cannot be restored."
+      }
+    },
+    "activity": {
+      "title": "Activity",
+      "subtitle": "Everything your users have watched. Filter, search and page through the full history.",
+      "search": "Search titles or users",
+      "user": "User",
+      "allUsers": "All users",
+      "from": "From",
+      "to": "To",
+      "reset": "Clear filters",
+      "loading": "Loading activity…",
+      "loadError": "Could not load the activity.",
+      "noMatches": "Nothing matches these filters.",
+      "pagination": "Activity pages",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pages}",
+      "range": "{from}–{to} of {total}",
+      "summary": {
+        "total": "Watch events",
+        "finished": "Finished",
+        "inProgress": "In progress",
+        "users": "Active users"
+      },
+      "type": {
+        "label": "Type",
+        "all": "All types",
+        "movie": "Movie",
+        "episode": "Episode",
+        "track": "Track",
+        "video": "Video"
+      },
+      "status": {
+        "label": "Status",
+        "all": "Any status",
+        "finished": "Finished",
+        "inProgress": "In progress"
+      },
+      "sort": {
+        "label": "Sort",
+        "recent": "Newest first",
+        "oldest": "Oldest first",
+        "user": "User (A–Z)",
+        "title": "Title (A–Z)"
+      },
+      "columns": {
+        "user": "User",
+        "title": "Title",
+        "type": "Type",
+        "progress": "Progress",
+        "when": "When"
+      }
     },
     "overview": {
       "movies": "Movies",
@@ -217,6 +360,7 @@
       "noLibraries": "No libraries have been set up yet.",
       "recentActivityTitle": "Recent activity",
       "recentActivityDescription": "The latest activity across your server.",
+      "viewAllActivity": "View all activity",
       "noActivity": "Nothing has been watched yet.",
       "watching": "watched {percent}% of",
       "finished": "finished",

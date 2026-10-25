@@ -3,7 +3,7 @@ import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { deleteNetworkShare, listNetworkShares, reconnectNetworkShare, type NetworkShare } from '../../api'
+import { deleteNetworkShare, getNetworkShareSupport, listNetworkShares, reconnectNetworkShare, type NetworkShare } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -20,6 +20,8 @@ const shares = ref<NetworkShare[]>([])
 const loading = ref(true)
 const error = ref('')
 const busyId = ref<string | null>(null)
+// Hidden where the host cannot mount shares (Docker Desktop), unless shares already exist and need managing.
+const supported = ref(true)
 
 const TONES = { connected: 'good', connecting: 'warn', error: 'bad' } as const
 
@@ -71,7 +73,12 @@ async function remove(share: NetworkShare) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  getNetworkShareSupport()
+    .then((result) => (supported.value = result.supported))
+    .catch(() => undefined)
+})
 
 const live = useLiveTopic<NetworkShare[]>('shares')
 watch(live.data, (value) => {
@@ -80,9 +87,9 @@ watch(live.data, (value) => {
 </script>
 
 <template>
-  <AdminSection :title="t('admin.networkShares.title')" :description="t('admin.networkShares.description')">
+  <AdminSection v-if="supported || shares.length > 0" :title="t('admin.networkShares.title')" :description="t('admin.networkShares.description')">
     <template #actions>
-      <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80" @click="openForm(null)">{{ t('admin.networkShares.add') }}</button>
+      <button v-if="supported" type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80" @click="openForm(null)">{{ t('admin.networkShares.add') }}</button>
     </template>
 
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>

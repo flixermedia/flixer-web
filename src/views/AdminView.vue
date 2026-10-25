@@ -9,6 +9,7 @@ import IndexerPanel from '../components/admin/IndexerPanel.vue'
 import ProvidersPanel from '../components/admin/ProvidersPanel.vue'
 import MediaPanel from '../components/admin/MediaPanel.vue'
 import LogsPanel from '../components/admin/LogsPanel.vue'
+import BackupsPanel from '../components/admin/BackupsPanel.vue'
 import UpdatesPanel from '../components/admin/UpdatesPanel.vue'
 import NotificationsPanel from '../components/admin/NotificationsPanel.vue'
 import OverviewPanel from '../components/admin/OverviewPanel.vue'
@@ -68,6 +69,7 @@ const activeTab = computed({
         </template>
         <NotificationsPanel v-else-if="activeTab === 'notifications'" />
         <UpdatesPanel v-else-if="activeTab === 'updates'" />
+        <BackupsPanel v-else-if="activeTab === 'backups'" />
         <template v-else>
           <GeneralPanel />
           <TasksPanel />
