@@ -8,6 +8,7 @@ import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { useInfiniteScroll } from '../composables/useInfiniteScroll'
 import { useSignOut } from '../composables/useSignOut'
 
 const props = defineProps<{ kind: BrowseKind }>()
@@ -29,6 +30,8 @@ let controller: AbortController | undefined
 
 const heading = computed(() => t(`browse.${props.kind}`))
 const hasMore = computed(() => items.value.length < total.value)
+const canLoadMore = computed(() => hasMore.value && !failed.value && !isLoading.value)
+const { setSentinel, recheck } = useInfiniteScroll(() => void load(false), canLoadMore)
 
 function subtitleOf(item: HomeCard) {
   return item.year ? String(item.year) : undefined
@@ -53,6 +56,8 @@ async function load(reset: boolean) {
     failed.value = true
   }
   isLoading.value = false
+  // The observer only fires on changes, so look again in case the grid still doesn't fill the screen.
+  recheck()
 }
 
 watch([() => props.kind, sort], () => void load(true))
@@ -87,9 +92,7 @@ onBeforeUnmount(() => controller?.abort())
           </li>
         </ul>
 
-        <button v-if="hasMore && !failed" type="button" class="mt-8 rounded bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-60" :disabled="isLoading" @click="load(false)">
-          {{ t('browse.loadMore') }}
-        </button>
+        <div v-if="hasMore && !failed" :ref="setSentinel" class="h-px" aria-hidden="true"></div>
       </div>
     </main>
 

@@ -7,6 +7,7 @@ import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
+import { confirmAction } from '../../composables/confirm'
 
 const POLL_MS = 4000
 
@@ -73,7 +74,7 @@ async function check() {
 }
 
 async function updateAll() {
-  if (!window.confirm(t('admin.updates.confirm'))) return
+  if (!(await confirmAction(t('admin.updates.confirm'), {}))) return
   isApplying.value = true
   try {
     await applyUpdates()
@@ -166,7 +167,9 @@ onBeforeUnmount(() => {
               <td class="py-2.5 pr-4 font-medium">{{ component.label }}</td>
               <td class="py-2.5 pr-4 font-mono text-xs">{{ component.installed ?? '—' }}</td>
               <td class="py-2.5 pr-4 font-mono text-xs">{{ component.latest ?? '—' }}</td>
-              <td class="py-2.5 text-right"><StatusPill :tone="tone(component)">{{ label(component) }}</StatusPill></td>
+              <td class="py-2.5 text-right">
+                <StatusPill :tone="tone(component)">{{ label(component) }}</StatusPill>
+              </td>
             </tr>
           </tbody>
         </table>

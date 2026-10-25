@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getIndexerStatus, INDEXER_QUEUES, setIndexerConcurrency, setIndexerQueuePaused, type IndexerQueueName, type IndexerQueueStats, type IndexerStatus } from '../../api'
+import { cancelActiveIndexerTasks, getIndexerStatus, INDEXER_QUEUES, setIndexerConcurrency, setIndexerQueuePaused, type IndexerQueueName, type IndexerQueueStats, type IndexerStatus } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import StatusPill from './StatusPill.vue'
+import { confirmAction } from '../../composables/confirm'
 
 const { t } = useI18n()
 
@@ -16,6 +17,9 @@ const workers = reactive<Partial<Record<IndexerQueueName, number>>>({})
 const dirty = ref(false)
 const saving = ref(false)
 const busyQueue = ref<IndexerQueueName | null>(null)
+const cancelling = ref(false)
+
+const anyActive = computed(() => (status.value?.queues ?? []).some((entry) => entry.active + entry.pending > 0))
 
 function statsFor(queue: IndexerQueueName): IndexerQueueStats | undefined {
   return status.value?.queues.find((entry) => entry.queue === queue)
@@ -47,6 +51,24 @@ async function togglePause(queue: IndexerQueueName) {
   }
 }
 
+async function cancelRunning(queues: IndexerQueueName[]) {
+  if (!(await confirmAction(t(queues.length > 1 ? 'admin.indexer.cancelAllRunningConfirm' : 'admin.indexer.cancelRunningConfirm'), { danger: true }))) return
+  cancelling.value = true
+  try {
+    let n = 0
+    // A second pass catches work that upstream tasks queued while they were being cancelled.
+    for (let pass = 0; pass < (queues.length > 1 ? 2 : 1); pass++) {
+      for (const queue of queues) n += await cancelActiveIndexerTasks(queue)
+    }
+    notify.success(t('admin.indexer.cancelledRunning', { n }))
+    await refresh()
+  } catch (err: unknown) {
+    notify.error(describeRequestError(err, t('admin.indexer.queueError')))
+  } finally {
+    cancelling.value = false
+  }
+}
+
 async function saveWorkers() {
   saving.value = true
   try {
@@ -73,6 +95,7 @@ watch(live.data, (value) => {
 <template>
   <AdminSection :title="t('admin.indexer.queuesTitle')" :description="t('admin.indexer.queuesDescription')">
     <template #actions>
+      <button type="button" :disabled="cancelling || !anyActive || !status?.reachable" class="mr-2 rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="cancelRunning([...INDEXER_QUEUES])">{{ t('admin.indexer.cancelAllRunning') }}</button>
       <button type="button" :disabled="!dirty || saving || !status?.reachable" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="saveWorkers">{{ t('admin.indexer.saveWorkers') }}</button>
     </template>
 
@@ -106,6 +129,7 @@ watch(live.data, (value) => {
               <input v-model.number="workers[queue]" type="number" min="1" :max="status?.maxConcurrency ?? 64" :aria-label="`${t('admin.indexer.workers')} ${t(`admin.indexer.queueNames.${queue}`)}`" class="w-20 rounded border border-flixer-border bg-flixer-background px-2 py-1 text-sm text-flixer-text" @input="dirty = true" />
             </td>
             <td class="py-2 text-right">
+              <button type="button" :disabled="cancelling || (statsFor(queue)?.active ?? 0) + (statsFor(queue)?.pending ?? 0) === 0 || !status?.reachable" class="mr-2 rounded bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="cancelRunning([queue])">{{ t('admin.indexer.cancelRunning') }}</button>
               <button type="button" :disabled="busyQueue === queue || !status?.reachable" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="togglePause(queue)">{{ statsFor(queue)?.paused ? t('admin.indexer.resume') : t('admin.indexer.pause') }}</button>
             </td>
           </tr>

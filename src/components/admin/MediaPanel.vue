@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Skeleton from '../ui/Skeleton.vue'
-import { deleteMediaItem, listMediaItems, listMediaLibraries, MEDIA_ITEM_TYPES, type MediaItemPage, type MediaItemSummary, type MediaItemType, type MediaLibrary } from '../../api'
+import { deleteMediaItem, listMediaItems, listMediaLibraries, MEDIA_ITEM_TYPES, refreshMediaItem, type MediaItemPage, type MediaItemSummary, type MediaItemType, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -83,6 +83,16 @@ function openChildren(item: MediaItemSummary) {
 async function edit(item: MediaItemSummary) {
   const refresh = await openModal<boolean>(MediaItemModal, { props: { itemId: item.id } }).catch(() => false)
   if (refresh) await load()
+}
+
+async function rescan(item: MediaItemSummary) {
+  if (CONTAINER_TYPES.includes(item.type) && !(await confirmAction(t('admin.media.confirmRescan', { title: item.title })))) return
+  try {
+    const result = await refreshMediaItem(item.id)
+    notify.success(t(result.alreadyQueued ? 'admin.media.rescanAlreadyQueued' : 'admin.media.rescanQueued'))
+  } catch (err: unknown) {
+    notify.error(describeRequestError(err, t('admin.media.rescanError')))
+  }
 }
 
 async function remove(item: MediaItemSummary) {
@@ -200,6 +210,7 @@ onMounted(async () => {
               <div class="mt-2 flex flex-wrap items-center gap-2">
                 <button v-if="CONTAINER_TYPES.includes(item.type)" type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="openChildren(item)">{{ t('admin.media.browseChildren') }}</button>
                 <button type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="edit(item)">{{ t('admin.media.edit') }}</button>
+                <button type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="rescan(item)">{{ t('admin.media.rescan') }}</button>
                 <button type="button" :disabled="deletingId === item.id" class="rounded bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="remove(item)">{{ t('admin.media.delete') }}</button>
               </div>
               <p class="mt-2 truncate font-mono text-xs text-flixer-muted">{{ item.path }}</p>
@@ -232,9 +243,9 @@ onMounted(async () => {
     <div v-if="result.total > 0" class="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-flixer-muted">
       <span>{{ t('admin.media.total', { count: result.total }) }}</span>
       <div class="flex items-center gap-3">
-        <button type="button" :disabled="page <= 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold text-flixer-text transition hover:bg-white/15 disabled:opacity-50" @click="page--, load()">{{ t('admin.media.previous') }}</button>
+        <button type="button" :disabled="page <= 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold text-flixer-text transition hover:bg-white/15 disabled:opacity-50" @click="(page--, load())">{{ t('admin.media.previous') }}</button>
         <span>{{ t('admin.media.pageOf', { page, pages }) }}</span>
-        <button type="button" :disabled="page >= pages || loading" class="rounded bg-white/10 px-3 py-1 font-semibold text-flixer-text transition hover:bg-white/15 disabled:opacity-50" @click="page++, load()">{{ t('admin.media.next') }}</button>
+        <button type="button" :disabled="page >= pages || loading" class="rounded bg-white/10 px-3 py-1 font-semibold text-flixer-text transition hover:bg-white/15 disabled:opacity-50" @click="(page++, load())">{{ t('admin.media.next') }}</button>
       </div>
     </div>
   </AdminSection>

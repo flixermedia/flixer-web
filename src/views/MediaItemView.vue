@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
-import { getItemDetail, setItemWatched, type ItemDetail, type ItemSummary } from '../api'
+import { getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
 import Header from '../components/header/Header.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
+import MediaRow from '../components/home/MediaRow.vue'
+import { thumbnailAt } from '../composables/trickplay'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import PlayerOverlay from '../components/player/PlayerOverlay.vue'
+import { useVideoOverlay } from '../composables/useVideoOverlay'
 import AuthImage from '../components/ui/AuthImage.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
@@ -44,7 +46,7 @@ const listTitle = computed(() => {
 })
 const ratings = computed(() => Object.entries(item.value?.ratings ?? {}).filter(([, value]) => Number.isFinite(value) && value > 0))
 const PLAYABLE = ['movie', 'episode', 'video']
-const playing = ref<{ id: string; title: string } | null>(null)
+const videoOverlay = useVideoOverlay()
 const canManageSubtitles = computed(() => isAdmin.value && item.value !== null && PLAYABLE.includes(item.value.type))
 function manageSubtitles() {
   if (!item.value) return
@@ -73,8 +75,8 @@ const playTarget = computed<{ id: string; title: string } | null>(() => {
   }
   return null
 })
-function play(target: { id: string; title: string }) {
-  playing.value = target
+function play(target: { id: string; title: string; startAt?: number }) {
+  videoOverlay.play(target)
 }
 
 const audioPlayer = useAudioPlayer()
@@ -104,7 +106,13 @@ function playAlbum(startId?: string) {
   const album = item.value
   if (!album) return
   const tracks = album.children.map((track) => queueTrack(track, album))
-  audioPlayer.playQueue(tracks, Math.max(0, tracks.findIndex((track) => track.id === startId)))
+  audioPlayer.playQueue(
+    tracks,
+    Math.max(
+      0,
+      tracks.findIndex((track) => track.id === startId),
+    ),
+  )
 }
 // A track page queues its whole album, starting at that track.
 async function playTrackPage() {
@@ -128,6 +136,45 @@ const quality = computed(() => {
   const resolution = tech.height ? `${tech.height}p` : null
   return [resolution, tech.hdr, tech.videoCodec?.toUpperCase(), tech.audioCodec?.toUpperCase(), tech.container?.toUpperCase()].filter((value): value is string => !!value)
 })
+
+// Chapter cards borrow the seek-preview sheets; without them the cards stay plain.
+const trickplay = shallowRef<Trickplay | null>(null)
+const CHAPTER_THUMB_WIDTH = 256
+
+watch(
+  () => (item.value && PLAYABLE.includes(item.value.type) && item.value.chapters.length > 0 ? item.value.id : null),
+  async (id) => {
+    trickplay.value = null
+    if (!id) return
+    try {
+      const playback = await getItemPlaybackInfo(id)
+      const loaded = await getTrickplay(playback.mediaSource.streamUrl)
+      if (item.value?.id === id) trickplay.value = loaded
+    } catch {
+      // Cards fall back to a plain background.
+    }
+  },
+  { immediate: true },
+)
+
+function chapterThumbStyle(startMs: number) {
+  const sheets = trickplay.value
+  if (!sheets) return {}
+  const place = thumbnailAt(sheets.manifest, startMs / 1000 + 1, CHAPTER_THUMB_WIDTH)
+  return {
+    backgroundImage: `url(${sheets.sheetUrl(place.sheet)})`,
+    backgroundSize: `${(place.sheetWidth / place.width) * 100}% ${(place.sheetHeight / place.height) * 100}%`,
+    backgroundPosition: `${place.width === place.sheetWidth ? 0 : (place.x / (place.sheetWidth - place.width)) * 100}% ${place.height === place.sheetHeight ? 0 : (place.y / (place.sheetHeight - place.height)) * 100}%`,
+  }
+}
+
+function chapterTime(ms: number) {
+  const total = Math.floor(ms / 1000)
+  const hours = Math.floor(total / 3600)
+  const rest = String(Math.floor((total % 3600) / 60)).padStart(hours > 0 ? 2 : 1, '0')
+  const seconds = String(total % 60).padStart(2, '0')
+  return hours > 0 ? `${hours}:${rest}:${seconds}` : `${rest}:${seconds}`
+}
 
 function runtime(minutes: number | null) {
   if (!minutes) return ''
@@ -293,6 +340,18 @@ watch(
         </section>
 
         <div class="space-y-10 pt-4">
+          <MediaRow v-if="playTarget && item.chapters.length > 0 && PLAYABLE.includes(item.type)" :title="t('mediaItem.chapters')">
+            <li v-for="(chapter, index) in item.chapters" :key="chapter.startMs" class="shrink-0 snap-start">
+              <button type="button" class="group relative block aspect-video w-56 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface text-left transition duration-300 hover:-translate-y-1 hover:border-white/30 hover:shadow-xl hover:shadow-black/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent sm:w-64" :style="chapterThumbStyle(chapter.startMs)" @click="play({ ...playTarget, startAt: chapter.startMs / 1000 })">
+                <span class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <span class="absolute inset-x-0 bottom-0 p-3">
+                  <span class="block truncate text-sm font-semibold text-white">{{ chapter.title || t('mediaItem.chapterN', { n: index + 1 }) }}</span>
+                  <span class="block font-mono text-xs text-white/70">{{ chapterTime(chapter.startMs) }}</span>
+                </span>
+              </button>
+            </li>
+          </MediaRow>
+
           <section v-if="isShow && seasons.length > 0" :aria-label="t('mediaItem.seasons')" class="page-gutter">
             <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.seasons') }}</h2>
             <div class="flex flex-wrap gap-2" role="tablist">
@@ -364,6 +423,5 @@ watch(
     </main>
 
     <MobileTabBar :tabs="mobileTabs" />
-    <PlayerOverlay v-if="playing" :key="playing.id" :item-id="playing.id" :title="playing.title" @close="playing = null" />
   </div>
 </template>

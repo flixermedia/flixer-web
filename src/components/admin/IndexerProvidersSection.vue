@@ -10,10 +10,10 @@ import AdminToggle from './AdminToggle.vue'
 const { t } = useI18n()
 
 // The server returns this placeholder for a saved key; sending it back keeps the stored key.
-const providers = reactive<Record<string, { enabled: boolean; apiKey: string; hasKey: boolean }>>(
-  Object.fromEntries(INDEXER_PROVIDERS.map((provider) => [provider.id, { enabled: false, apiKey: '', hasKey: false }])),
-)
+const providers = reactive<Record<string, { enabled: boolean; apiKey: string; hasKey: boolean }>>(Object.fromEntries(INDEXER_PROVIDERS.map((provider) => [provider.id, { enabled: false, apiKey: '', hasKey: false }])))
+const DEFAULT_SKIPME_URL = 'https://database.skipme.deno.net/v3'
 const language = ref('en')
+const skipmeUrl = ref(DEFAULT_SKIPME_URL)
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
@@ -29,6 +29,8 @@ async function load() {
     }
     const lang = settings.find((setting) => setting.key === 'indexer_language')?.value
     if (typeof lang === 'string') language.value = lang
+    const skipme = settings.find((setting) => setting.key === 'skipme_api_url')?.value
+    skipmeUrl.value = typeof skipme === 'string' ? skipme : DEFAULT_SKIPME_URL
     error.value = ''
   } catch (err: unknown) {
     error.value = describeRequestError(err, t('admin.indexer.providersError'))
@@ -51,6 +53,7 @@ async function save() {
     }
     await updateSetting('indexer_language', language.value.trim())
     await updateSetting('indexer_providers', value)
+    await updateSetting('skipme_api_url', skipmeUrl.value.trim())
     notify.success(t('admin.indexer.providersSaved'))
     await load()
   } catch (err: unknown) {
@@ -86,5 +89,11 @@ onMounted(load)
       <button type="button" :disabled="saving || loading" class="rounded-lg bg-flixer-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="save">{{ t('admin.indexer.saveProviders') }}</button>
     </div>
     <p class="mt-2 text-xs text-flixer-muted">{{ t('admin.indexer.languageHint') }}</p>
+
+    <label class="mt-5 block text-xs text-flixer-muted">
+      {{ t('admin.indexer.skipmeUrl') }}
+      <input v-model="skipmeUrl" type="url" :placeholder="DEFAULT_SKIPME_URL" :class="inputClass" />
+    </label>
+    <p class="mt-2 text-xs text-flixer-muted">{{ t('admin.indexer.skipmeHint') }}</p>
   </AdminSection>
 </template>

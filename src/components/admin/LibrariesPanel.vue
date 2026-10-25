@@ -40,11 +40,11 @@ async function pollScans() {
   }
 }
 
-async function scan(library: MediaLibrary, force: boolean) {
+async function scan(library: MediaLibrary, force: boolean, trickplayOnly = false) {
   scanningId.value = library.id
   try {
-    await scanMediaLibrary(library.id, force)
-    notify.success(t('admin.libraries.scanStarted'))
+    await scanMediaLibrary(library.id, force, trickplayOnly)
+    notify.success(t(trickplayOnly ? 'admin.libraries.trickplayStarted' : 'admin.libraries.scanStarted'))
     await pollScans()
   } catch (err: unknown) {
     notify.error(describeRequestError(err, t('admin.libraries.scanError')))
@@ -124,6 +124,7 @@ watch(live.data, (status) => {
             <div class="flex items-center gap-2">
               <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="scan(lib, false)">{{ t('admin.libraries.scan') }}</button>
               <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="scan(lib, true)">{{ t('admin.libraries.rescan') }}</button>
+              <button v-if="lib.type !== 'music'" type="button" :disabled="!indexerReachable || scanningId === lib.id" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="scan(lib, false, true)">{{ t('admin.libraries.trickplay') }}</button>
               <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="openForm(lib)">{{ t('admin.libraries.manage') }}</button>
               <button type="button" :disabled="deletingId === lib.id" class="rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="remove(lib)">{{ t('admin.libraries.deleteLibrary') }}</button>
             </div>

@@ -295,10 +295,37 @@ export interface SampleVideo {
   directPlay: boolean
 }
 
+export type SegmentType = 'intro' | 'recap' | 'credits' | 'preview' | 'commercial'
+
+export interface PlayerChapter {
+  title: string
+  startMs: number
+  endMs: number
+}
+
+export interface PlayerSegment {
+  type: SegmentType
+  startMs: number
+  endMs: number
+  source: 'manual' | 'skipme' | 'chapter'
+}
+
+export interface NextEpisode {
+  id: string
+  title: string
+  seasonNumber: number | null
+  episodeNumber: number | null
+}
+
 export interface PlaybackInfo {
   playSessionId: string
   mediaSource: SampleVideo & { mediaSourceId: string; streamUrl: string }
   expiresAt: string
+  /** Only present when playing an indexed library item. */
+  chapters?: PlayerChapter[]
+  segments?: PlayerSegment[]
+  /** The episode after this one, across seasons; null for the last episode. */
+  nextEpisode?: NextEpisode | null
 }
 
 export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
@@ -367,6 +394,35 @@ export async function getSubtitleTracks(streamUrl: string): Promise<PlayerSubtit
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) return []
     throw error
+  }
+}
+
+/** How the streamer's hover-preview sheets are laid out; see `/trickplay/{token}/index.json`. */
+export interface TrickplayManifest {
+  intervalMs: number
+  thumbWidth: number
+  thumbHeight: number
+  columns: number
+  rows: number
+  count: number
+  sheets: number
+}
+
+export interface Trickplay {
+  manifest: TrickplayManifest
+  sheetUrl: (sheet: number) => string
+}
+
+/** Hover-preview thumbnails for a video, or null when none have been generated for it yet. */
+export async function getTrickplay(streamUrl: string): Promise<Trickplay | null> {
+  const base = streamUrl.replace('/stream/', '/trickplay/')
+  try {
+    const response = await axios.get<TrickplayManifest>(`${base}/index.json`, { timeout: 10_000 })
+    const manifest = response.data
+    if (!manifest || manifest.count <= 0 || manifest.intervalMs <= 0 || manifest.columns <= 0 || manifest.rows <= 0) return null
+    return { manifest, sheetUrl: (sheet) => `${base}/${sheet}.jpg` }
+  } catch {
+    return null
   }
 }
 
@@ -642,7 +698,7 @@ export interface MediaLibraryInput {
 
 export type IndexerScanState = 'scanning' | 'indexing' | 'complete' | 'failed'
 
-export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh'] as const
+export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh', 'trickplay'] as const
 export type IndexerQueueName = (typeof INDEXER_QUEUES)[number]
 export const INDEXER_TASK_STATES = ['pending', 'active', 'scheduled', 'retry', 'archived', 'completed'] as const
 export type IndexerTaskState = (typeof INDEXER_TASK_STATES)[number]
@@ -699,8 +755,8 @@ export async function getIndexerStatus(): Promise<IndexerStatus> {
   return response.data
 }
 
-export async function scanMediaLibrary(id: string, force = false): Promise<void> {
-  await api.post(`/admin/indexer/libraries/${encodeURIComponent(id)}/scan`, { force })
+export async function scanMediaLibrary(id: string, force = false, trickplayOnly = false): Promise<void> {
+  await api.post(`/admin/indexer/libraries/${encodeURIComponent(id)}/scan`, { force, trickplayOnly })
 }
 
 export async function listIndexerTasks(queue: IndexerQueueName, state: IndexerTaskState, page = 1, size = 20): Promise<IndexerTask[]> {
@@ -719,6 +775,11 @@ export async function retryIndexerTask(queue: IndexerQueueName, id: string): Pro
 export async function clearFailedIndexerTasks(queue: IndexerQueueName): Promise<number> {
   const response = await api.post<{ cleared: number }>(`/admin/indexer/queues/${queue}/clear-failed`)
   return response.data.cleared ?? 0
+}
+
+export async function cancelActiveIndexerTasks(queue: IndexerQueueName): Promise<number> {
+  const response = await api.post<{ cancelled: number }>(`/admin/indexer/queues/${queue}/cancel-active`)
+  return response.data.cancelled ?? 0
 }
 
 export async function setIndexerQueuePaused(queue: IndexerQueueName, paused: boolean): Promise<void> {
@@ -815,6 +876,11 @@ export async function getMediaItem(id: string): Promise<MediaItemDetail> {
 
 export async function updateMediaItem(id: string, changes: MediaItemChanges): Promise<MediaItemDetail> {
   const response = await api.patch<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}`, changes)
+  return response.data
+}
+
+export async function refreshMediaItem(id: string): Promise<{ queued: boolean; alreadyQueued: boolean }> {
+  const response = await api.post<{ queued: boolean; alreadyQueued: boolean }>(`/admin/media/items/${encodeURIComponent(id)}/refresh`)
   return response.data
 }
 
@@ -1026,6 +1092,7 @@ export interface ItemDetail {
   artist: string | null
   artistId: string | null
   technical: { container: string | null; videoCodec: string | null; audioCodec: string | null; width: number | null; height: number | null; hdr: string | null } | null
+  chapters: PlayerChapter[]
   poster: number | null
   backdrop: number | null
   logo: number | null

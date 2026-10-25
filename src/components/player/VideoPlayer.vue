@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleText, getSubtitleTracks, supportsNativeHls, type PlayMethod, type PlayerSubtitle, type StreamInfo } from '../../api'
+import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
+import { thumbnailAt } from '../../composables/trickplay'
 import { cueTextAt, languageName, parseVtt, type SubtitleCue } from '../../composables/subtitles'
 
 const props = withDefaults(
@@ -11,14 +12,25 @@ const props = withDefaults(
     title?: string
     autoplay?: boolean
     showBack?: boolean
+    /** Offers the in-page corner player toggle. */
+    allowMini?: boolean
+    /** Compact corner layout: only a small control strip is shown. */
+    mini?: boolean
     /** Where playback begins, in seconds. */
     startAt?: number
+    chapters?: PlayerChapter[]
+    /** Skippable spans such as the intro or credits. */
+    segments?: PlayerSegment[]
+    /** Label of the episode that follows; enables the countdown button and auto-advance. */
+    nextLabel?: string
   }>(),
-  { autoplay: true, showBack: false, startAt: 0 },
+  { autoplay: true, showBack: false, allowMini: false, mini: false, startAt: 0, chapters: () => [], segments: () => [] },
 )
 
 const emit = defineEmits<{
   back: []
+  'toggle-mini': []
+  next: []
   error: [message: string]
   progress: [position: number, duration: number]
 }>()
@@ -34,6 +46,11 @@ const SKIP_SECONDS = 10
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
+const AUTO_SKIP_KEY = 'flixer.player.autoSkip'
+// Credits are never skipped on their own: they run to the end, which would close the video.
+const AUTO_SKIP_TYPES: PlayerSegment['type'][] = ['intro', 'recap', 'preview', 'commercial']
+// Leaves a moment at the end of a segment so the button doesn't flash up as it finishes.
+const SEGMENT_END_GUARD_S = 1
 
 const root = ref<HTMLElement>()
 const video = ref<HTMLVideoElement>()
@@ -54,10 +71,16 @@ const muted = ref(false)
 const controlsVisible = ref(true)
 const menuOpen = ref(false)
 const isFullscreen = ref(false)
+const isPip = ref(false)
+const pipSupported = typeof document !== 'undefined' && document.pictureInPictureEnabled === true
 const errorMessage = ref('')
 const scrubbing = ref(false)
 const scrubTime = ref(0)
 const hoverTime = ref<number | null>(null)
+// Hover previews; null until the streamer has sheets for this video.
+const trickplay = shallowRef<Trickplay | null>(null)
+const THUMB_WIDTH = 176
+let warmedSheets = false
 
 let nativeStart = 0
 let hideTimer: ReturnType<typeof setTimeout> | undefined
@@ -79,6 +102,19 @@ const duration = computed(() => {
 const position = computed(() => {
   if (scrubbing.value) return scrubTime.value
   return isNative.value ? current.value : offset.value + current.value
+})
+const autoSkip = ref(localStorage.getItem(AUTO_SKIP_KEY) === 'on')
+const autoSkipped = new Set<string>()
+const activeSegment = computed(() => {
+  const time = position.value
+  return props.segments.find((segment) => time >= segment.startMs / 1000 && time < segment.endMs / 1000 - SEGMENT_END_GUARD_S) ?? null
+})
+const segmentKey = (segment: PlayerSegment) => `${segment.type}:${segment.startMs}`
+const chapterTicks = computed(() => props.chapters.filter((chapter) => chapter.startMs > 0).map((chapter) => percent(chapter.startMs / 1000)))
+const hoverChapter = computed(() => {
+  if (hoverTime.value === null) return ''
+  const ms = hoverTime.value * 1000
+  return props.chapters.find((chapter) => ms >= chapter.startMs && ms < chapter.endMs)?.title ?? ''
 })
 const qualityOptions = computed(() => [...props.info.availableHeights].sort((a, b) => b - a))
 
@@ -113,6 +149,21 @@ async function selectSubtitle(id: string) {
   }
 }
 
+async function loadTrickplay() {
+  const url = props.streamUrl
+  trickplay.value = null
+  warmedSheets = false
+  const loaded = await getTrickplay(url)
+  if (url === props.streamUrl) trickplay.value = loaded
+}
+
+// Fetch every sheet once the viewer first points at the bar, so dragging never waits on an image.
+function warmTrickplay() {
+  if (warmedSheets || !trickplay.value) return
+  warmedSheets = true
+  for (let sheet = 0; sheet < trickplay.value.manifest.sheets; sheet++) new Image().src = trickplay.value.sheetUrl(sheet)
+}
+
 async function loadSubtitleTracks() {
   subtitleTracks.value = []
   subtitleId.value = ''
@@ -132,9 +183,20 @@ async function loadSubtitleTracks() {
   const match = subtitleTracks.value.find((track) => track.language === preferred)
   if (match) await selectSubtitle(match.id)
 }
-const controlsShown = computed(() => controlsVisible.value || paused.value || menuOpen.value || scrubbing.value || !!errorMessage.value)
-const showCenterPlay = computed(() => paused.value && !waiting.value && !errorMessage.value)
+const controlsShown = computed(() => !props.mini && (controlsVisible.value || paused.value || menuOpen.value || scrubbing.value || !!errorMessage.value))
+const showCenterPlay = computed(() => !props.mini && paused.value && !waiting.value && !errorMessage.value)
 const hoverPercent = computed(() => (hoverTime.value === null ? 0 : percent(hoverTime.value)))
+const hoverThumb = computed(() => {
+  if (!trickplay.value || hoverTime.value === null) return null
+  const place = thumbnailAt(trickplay.value.manifest, hoverTime.value, THUMB_WIDTH)
+  return {
+    width: `${place.width}px`,
+    height: `${place.height}px`,
+    backgroundImage: `url(${trickplay.value.sheetUrl(place.sheet)})`,
+    backgroundSize: `${place.sheetWidth}px ${place.sheetHeight}px`,
+    backgroundPosition: `-${place.x}px -${place.y}px`,
+  }
+})
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -143,6 +205,24 @@ function clamp(value: number, min: number, max: number) {
 function percent(seconds: number) {
   return duration.value > 0 ? clamp((seconds / duration.value) * 100, 0, 100) : 0
 }
+
+function skipSegment() {
+  if (activeSegment.value) seekTo(activeSegment.value.endMs / 1000)
+}
+
+function setAutoSkip(value: boolean) {
+  autoSkip.value = value
+  localStorage.setItem(AUTO_SKIP_KEY, value ? 'on' : 'off')
+}
+
+// Each segment auto-skips once, so seeking back into it plays it.
+watch(activeSegment, (segment) => {
+  if (!segment || !autoSkip.value || props.mini || scrubbing.value || !AUTO_SKIP_TYPES.includes(segment.type)) return
+  const key = segmentKey(segment)
+  if (autoSkipped.has(key)) return
+  autoSkipped.add(key)
+  skipSegment()
+})
 
 function format(seconds: number) {
   const whole = Math.max(0, Math.floor(seconds))
@@ -287,6 +367,25 @@ async function toggleFullscreen() {
   }
 }
 
+async function togglePip() {
+  const el = video.value
+  if (!el) return
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture()
+    else await el.requestPictureInPicture()
+  } catch {
+    // PiP can be refused (no user gesture, disabled by policy); nothing to recover.
+  }
+}
+
+function onEnterPip() {
+  isPip.value = true
+}
+
+function onLeavePip() {
+  isPip.value = false
+}
+
 function onFullscreenChange() {
   isFullscreen.value = document.fullscreenElement === root.value
   if (!isFullscreen.value) screen.orientation?.unlock?.()
@@ -353,6 +452,14 @@ function onPause() {
   reportProgress()
 }
 
+const NEXT_COUNTDOWN_SECONDS = 15
+const nextCountdown = computed(() => {
+  if (!props.nextLabel || duration.value <= 0) return null
+  if (ended.value) return 0
+  const remaining = duration.value - position.value
+  return position.value > 0 && remaining <= NEXT_COUNTDOWN_SECONDS ? Math.max(0, Math.ceil(remaining)) : null
+})
+
 function onEnded() {
   ended.value = true
   paused.value = true
@@ -360,6 +467,7 @@ function onEnded() {
   sync()
   stopProgressTimer()
   reportProgress()
+  if (props.nextLabel) emit('next')
 }
 
 function onLoadedMetadata() {
@@ -454,6 +562,7 @@ function onBarMove(event: PointerEvent) {
   if (duration.value <= 0) return
   const time = timeFromPointer(event)
   hoverTime.value = time
+  warmTrickplay()
   if (scrubbing.value) scrubTime.value = time
 }
 
@@ -509,6 +618,9 @@ function onKeydown(event: KeyboardEvent) {
     case 'f':
       void toggleFullscreen()
       break
+    case 'p':
+      if (pipSupported) void togglePip()
+      break
     case 'Home':
       seekTo(0)
       break
@@ -538,6 +650,7 @@ watch(
     height.value = 0
     loadSource({ start: 0, resume: props.autoplay })
     void loadSubtitleTracks()
+    void loadTrickplay()
   },
 )
 
@@ -558,6 +671,7 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
   loadSource({ start: props.startAt, resume: props.autoplay })
   void loadSubtitleTracks()
+  void loadTrickplay()
 })
 
 onBeforeUnmount(() => {
@@ -568,6 +682,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   if (document.fullscreenElement === root.value) void document.exitFullscreen().catch(() => {})
+  if (document.pictureInPictureElement === video.value) void document.exitPictureInPicture().catch(() => {})
   // Dropping the source closes the connection so flixer-streamer stops ffmpeg.
   video.value?.removeAttribute('src')
   video.value?.load()
@@ -576,7 +691,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
-    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @error="onVideoError" />
+    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
       <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>
@@ -599,9 +714,27 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
+    <!-- Corner player controls -->
+    <div v-if="mini" class="absolute inset-0 flex flex-col justify-between bg-black/0 opacity-0 transition-opacity focus-within:bg-black/40 focus-within:opacity-100 hover:bg-black/40 hover:opacity-100" @click.self="togglePlay">
+      <div class="flex justify-end gap-1 p-1">
+        <button type="button" class="grid size-8 place-items-center rounded text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.expand')" @click="emit('toggle-mini')">
+          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z" /></svg>
+        </button>
+        <button type="button" class="grid size-8 place-items-center rounded text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.closePlayer')" @click="emit('back')">
+          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z" /></svg>
+        </button>
+      </div>
+      <div class="flex justify-center p-2">
+        <button type="button" class="grid size-10 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="paused ? t('player.play') : t('player.pause')" @click="togglePlay">
+          <svg v-if="paused" class="ml-0.5 size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
+          <svg v-else class="size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Top bar -->
     <div class="absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-4 transition-opacity duration-300 sm:px-6" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
-      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.back')" @click="emit('back')">
+      <button v-if="showBack" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="allowMini ? t('player.miniPlayer') : t('player.back')" :title="allowMini ? t('player.miniPlayer') : undefined" @click="allowMini ? emit('toggle-mini') : emit('back')">
         <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
         </svg>
@@ -610,6 +743,12 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Settings menu -->
+    <button v-if="nextCountdown !== null && !mini" type="button" class="absolute bottom-28 right-4 z-10 max-w-[70%] rounded-lg border border-white/40 bg-black/70 px-5 py-2.5 text-left text-sm font-semibold text-white shadow-lg shadow-black/50 backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-8" :class="activeSegment ? 'bottom-44' : ''" @click="emit('next')">
+      <span class="block text-xs font-normal opacity-80">{{ t('player.nextEpisodeIn', { seconds: nextCountdown }) }}</span>
+      <span class="block truncate">{{ nextLabel }}</span>
+    </button>
+    <button v-if="activeSegment && !mini" type="button" class="absolute bottom-28 right-4 z-10 rounded-lg border border-white/40 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/50 backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-8" @click="skipSegment">{{ t(`player.skip.${activeSegment.type}`) }}</button>
+
     <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
       <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.subtitles') }}</p>
       <p v-if="subtitleTracks.length === 0" class="px-3 pb-2 text-sm text-flixer-muted">{{ t('player.subtitlesNone') }}</p>
@@ -629,6 +768,13 @@ onBeforeUnmount(() => {
         <div class="my-2 border-t border-flixer-border"></div>
       </template>
       <div v-if="subtitleTracks.length === 0" class="my-2 border-t border-flixer-border"></div>
+      <button v-if="segments.length > 0" type="button" role="menuitemcheckbox" :aria-checked="autoSkip" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="autoSkip ? 'text-flixer-accent' : 'text-flixer-text'" @click="setAutoSkip(!autoSkip)">
+        <span>{{ t('player.autoSkip') }}</span>
+        <svg v-if="autoSkip" class="size-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
+        </svg>
+      </button>
+      <div v-if="segments.length > 0" class="my-2 border-t border-flixer-border"></div>
       <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.quality') }}</p>
       <button type="button" role="menuitemradio" :aria-checked="height === 0" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="height === 0 ? 'text-flixer-accent' : 'text-flixer-text'" @click="setQuality(0)">
         <span>{{ t('player.originalQuality', { height: info.source.height }) }}</span>
@@ -660,12 +806,16 @@ onBeforeUnmount(() => {
       <div ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" :aria-label="t('player.seek')" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="t('player.seekValue', { current: format(position), duration: format(duration) })" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
         <div class="relative h-1 w-full rounded bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
           <div class="absolute inset-y-0 left-0 rounded bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>
+          <div v-for="segment in segments" :key="segmentKey(segment)" class="absolute inset-y-0 bg-white/40" :style="{ left: `${percent(segment.startMs / 1000)}%`, width: `${percent(segment.endMs / 1000) - percent(segment.startMs / 1000)}%` }"></div>
           <div class="absolute inset-y-0 left-0 rounded bg-flixer-accent" :style="{ width: `${percent(position)}%` }"></div>
+          <div v-for="tick in chapterTicks" :key="tick" class="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-black/70" :style="{ left: `${tick}%` }"></div>
           <div class="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md shadow-black/50 transition-opacity group-hover/seek:opacity-100" :class="scrubbing ? 'opacity-100' : 'opacity-0'" :style="{ left: `${percent(position)}%` }"></div>
         </div>
 
-        <div v-if="hoverTime !== null" class="pointer-events-none absolute bottom-full mb-1 -translate-x-1/2 rounded-md border border-flixer-border bg-flixer-surface px-2 py-1 text-xs font-medium tabular-nums" :style="{ left: `clamp(1.75rem, ${hoverPercent}%, calc(100% - 1.75rem))` }">
-          {{ format(hoverTime) }}
+        <div v-if="hoverTime !== null" class="pointer-events-none absolute bottom-full mb-1 flex -translate-x-1/2 flex-col items-center gap-1" :style="{ left: `clamp(${hoverThumb ? THUMB_WIDTH / 2 : 28}px, ${hoverPercent}%, calc(100% - ${hoverThumb ? THUMB_WIDTH / 2 : 28}px))` }">
+          <div v-if="hoverThumb" class="overflow-hidden rounded border border-flixer-border bg-black shadow-lg shadow-black/60" :style="hoverThumb"></div>
+          <div v-if="hoverChapter" class="max-w-48 truncate rounded-md bg-black/70 px-2 py-0.5 text-xs text-white/90">{{ hoverChapter }}</div>
+          <div class="rounded-md border border-flixer-border bg-flixer-surface px-2 py-1 text-xs font-medium tabular-nums">{{ format(hoverTime) }}</div>
         </div>
       </div>
 
@@ -713,6 +863,10 @@ onBeforeUnmount(() => {
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
           </svg>
+        </button>
+
+        <button v-if="pipSupported" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': isPip }" :aria-label="isPip ? t('player.exitPip') : t('player.pip')" :title="t('player.pip') + ' (p)'" @click="togglePip">
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 7h-8v6h8zm4-4H1v18h22zm-2 16.01H3V4.98h18z" /></svg>
         </button>
 
         <button type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="isFullscreen ? t('player.exitFullscreen') : t('player.fullscreen')" @click="toggleFullscreen">

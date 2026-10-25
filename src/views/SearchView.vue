@@ -22,7 +22,7 @@ const mobileTabs = computed(getMobileTabs)
 
 const input = ref<HTMLInputElement>()
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')
-const TYPES = ['', 'movie', 'series', 'episode', 'album', 'video']
+const TYPES = ['', 'movie', 'series', 'album', 'video']
 const SORTS = ['relevance', 'title', 'year', 'added'] as const
 const str = (value: unknown) => (typeof value === 'string' ? value : '')
 const type = ref(str(route.query.type))
