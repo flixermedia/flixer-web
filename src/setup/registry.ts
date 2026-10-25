@@ -23,7 +23,7 @@ export const STEPS: Record<string, StepDefinition> = {
 
 /** The administrator is created right after the database so every later call is made by a signed-in administrator. */
 export const FLOWS: Record<WizardFlow, string[]> = {
-  quick: ['welcome', 'database', 'admin', 'urls', 'redis', 'finish'],
+  quick: ['welcome', 'database', 'admin', 'urls', 'finish'],
   recovery: ['database', 'recovered'],
   advanced: ['welcome', 'database', 'admin', 'urls', 'redis', 'services', 'secrets', 'finish'],
 }

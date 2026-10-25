@@ -4,5 +4,172 @@
     "tabs": {
       "language": "Sprache"
     }
+  },
+  "requests": {
+    "nav": {
+      "discover": "Entdecken",
+      "requests": "Anfragen"
+    },
+    "notInLibrary": "Nicht in deiner Bibliothek — anfragen",
+    "discover": "Entdecken",
+    "discoverDescription": "Entdecke Filme, Serien und Alben, die du anfragen kannst.",
+    "sections": {
+      "trending": "Im Trend",
+      "movies": "Beliebte Filme",
+      "tv": "Beliebte Serien",
+      "upcoming": "Demnächst",
+      "music": "Beliebte Alben"
+    },
+    "noDiscover": "Zurzeit gibt es nichts zu entdecken.",
+    "title": "Anfragen",
+    "allStatuses": "Alle Status",
+    "allTypes": "Alle Typen",
+    "scope": {
+      "all": "Alle Anfragen",
+      "mine": "Meine Anfragen"
+    },
+    "status": {
+      "none": "Nicht angefragt",
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "declined": "Abgelehnt",
+      "failed": "Fehlgeschlagen",
+      "available": "Verfügbar"
+    },
+    "actions": {
+      "approve": "Genehmigen",
+      "decline": "Ablehnen",
+      "retry": "Erneut versuchen",
+      "delete": "Löschen"
+    },
+    "loadMore": "Mehr laden",
+    "empty": "Keine Anfragen gefunden.",
+    "loadError": "Anfragen konnten nicht geladen werden.",
+    "actionError": "Diese Aktion konnte nicht ausgeführt werden.",
+    "declineReason": "Optionaler Ablehnungsgrund",
+    "noService": "Kein Dienst zugewiesen",
+    "detailError": "Dieser Titel konnte nicht geladen werden.",
+    "requested": "Anfrage gesendet.",
+    "request": "Anfragen",
+    "play": "Ansehen oder anhören",
+    "cast": "Besetzung",
+    "tracklist": "Titelliste",
+    "seasons": "Staffeln",
+    "selectAllSeasons": "Alle verfügbaren Staffeln auswählen",
+    "episodes": "Folgen",
+    "advanced": "Erweiterte Optionen",
+    "server": "Server",
+    "defaultServer": "Standardserver verwenden",
+    "rootFolder": "Stammordner",
+    "quotaHint": "Du hast noch {remaining} Anfragen in deinem Kontingent.",
+    "quotaReached": "Dein Anfragekontingent ist aufgebraucht.",
+    "notAllowed": "Anfragen sind für dein Konto nicht aktiviert.",
+    "cancelRequest": "Anfrage abbrechen",
+    "cardStatus": {
+      "pending": "Angefragt",
+      "approved": "Genehmigt",
+      "available": "Verfügbar",
+      "declined": "Abgelehnt",
+      "failed": "Fehlgeschlagen"
+    }
+  },
+  "admin": {
+    "groups": {
+      "requests": "Anfragen"
+    },
+    "requests": {
+      "generalTitle": "Anfrageeinstellungen",
+      "generalDescription": "Verfügbarkeit, Kontingente und Benachrichtigungen verwalten.",
+      "enabled": "Medienanfragen aktivieren",
+      "enabledHint": "Anfragen sind standardmäßig deaktiviert.",
+      "tmdbWarning": "TMDB ist nicht konfiguriert. Hinterlege unter Anbieter einen TMDB-Schlüssel für Film- und Serienanfragen.",
+      "discogsWarning": "Discogs ist nicht konfiguriert. Hinterlege unter Anbieter ein Discogs-Token für Musikanfragen.",
+      "autoApprove": "Automatisch genehmigen",
+      "requests_movies_enabled": "Film-Anfragen aktivieren",
+      "requests_tv_enabled": "Serienanfragen aktivieren",
+      "requests_music_enabled": "Musikanfragen aktivieren",
+      "defaultCanRequest": "Anfragen für Benutzer standardmäßig erlauben",
+      "notifyAdmins": "Admins über Anfragen benachrichtigen",
+      "notifyUsers": "Benutzer über Änderungen benachrichtigen",
+      "quotaLimit": "Anfragelimit (0 = unbegrenzt)",
+      "quotaDays": "Kontingentzeitraum in Tagen",
+      "servicesTitle": "Anfragedienste",
+      "servicesDescription": "Sonarr-, Radarr- und Lidarr-Ziele konfigurieren.",
+      "addService": "Dienst hinzufügen",
+      "editService": "Dienst bearbeiten",
+      "noServices": "Keine Anfragedienste konfiguriert.",
+      "usersTitle": "Benutzerüberschreibungen",
+      "usersDescription": "Anfragerechte und Kontingente pro Benutzer festlegen.",
+      "user": "Benutzer",
+      "canRequest": "Darf anfragen",
+      "inherit": "Übernehmen",
+      "allow": "Erlauben",
+      "deny": "Verweigern",
+      "name": "Name",
+      "url": "URL",
+      "serviceKind": "Diensttyp",
+      "apiKey": "API-Schlüssel",
+      "qualityProfile": "Qualitätsprofil",
+      "metadataProfile": "Metadatenprofil",
+      "languageProfile": "Sprachprofil",
+      "minimumAvailability": "Mindestverfügbarkeit",
+      "seasonFolders": "Staffelordner verwenden",
+      "defaultService": "Standarddienst",
+      "serviceEnabled": "Aktiviert",
+      "testConnection": "Verbindung testen",
+      "testFailed": "Verbindung zu diesem Dienst fehlgeschlagen.",
+      "connectionOk": "Verbunden, Version {version}.",
+      "confirmDeleteService": "Diesen Dienst löschen?",
+      "loadError": "Anfrageeinstellungen konnten nicht geladen werden.",
+      "saved": "Anfrageeinstellungen gespeichert.",
+      "saveError": "Anfrageeinstellungen konnten nicht gespeichert werden.",
+      "removeService": "Dienst entfernen",
+      "rootFolder": "Stammordner",
+      "mediaTypes": "Medientypen und Genehmigung",
+      "quotaTitle": "Anfragekontingent",
+      "quotaHint": "Für unbegrenzte Anfragen 0 festlegen.",
+      "accessNotifications": "Zugriff und Benachrichtigungen",
+      "serviceDisabled": "Deaktiviert",
+      "noUsers": "Keine Benutzer zum Konfigurieren.",
+      "library": "Bibliothek",
+      "selectLibrary": "Bibliothek auswählen",
+      "mixedLibrary": "Gemischte Bibliothek",
+      "libraryHint": "Verknüpfe diesen Server mit einer passenden Flixer-Bibliothek.",
+      "noCompatibleLibrary": "Für diesen Servertyp gibt es keine passende Bibliothek.",
+      "goToLibraries": "Bibliotheken konfigurieren",
+      "notLinkedLibrary": "Keine Bibliothek verknüpft"
+    },
+    "themes": {
+      "title": "Titelsongs",
+      "description": "Hintergrundmusik für Filme und Serien verwalten.",
+      "enabled": "Titelsongs aktivieren",
+      "toggleHint": "Passende Titelsongs automatisch herunterladen und abspielen, wenn verfügbar.",
+      "attribution": "Für die Zuordnung werden Themerr und ThemerrDB verwendet. Bitte beachte deren Hinweise zu Namensnennung und Nutzung.",
+      "downloadInfo": "Audio wird automatisch mit yt-dlp von YouTube extrahiert.",
+      "storageInfo": "Titelsongs verwenden die Speichereinstellung der jeweiligen Bibliothek, Cache oder neben dem Medienordner.",
+      "sync": "Titelsongs für bestehende Bibliothek herunterladen",
+      "syncing": "Titelsongs werden vorgemerkt…",
+      "queued": "{queued} von {eligible} passenden Titeln vorgemerkt.",
+      "enableFirst": "Aktiviere Titelsongs, um Downloads einzureihen.",
+      "loadError": "Titelsong-Einstellungen konnten nicht geladen werden.",
+      "saveError": "Titelsong-Einstellungen konnten nicht gespeichert werden.",
+      "syncError": "Titelsong-Downloads konnten nicht vorgemerkt werden."
+    },
+    "indexer": {
+      "queueNames": {
+        "scan": "Scan",
+        "identify": "Erkennung",
+        "metadata": "Metadaten",
+        "images": "Bilder",
+        "probe": "Analyse",
+        "refresh": "Aktualisierung",
+        "trickplay": "Trickplay",
+        "themes": "Titelsongs"
+      }
+    }
+  },
+  "mediaItem": {
+    "themeMusicPlay": "Titelsong abspielen",
+    "themeMusicStop": "Titelsong stummschalten"
   }
 }

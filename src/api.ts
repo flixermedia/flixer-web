@@ -698,7 +698,7 @@ export interface MediaLibraryInput {
 
 export type IndexerScanState = 'scanning' | 'indexing' | 'complete' | 'failed'
 
-export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh', 'trickplay'] as const
+export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh', 'trickplay', 'themes'] as const
 export type IndexerQueueName = (typeof INDEXER_QUEUES)[number]
 export const INDEXER_TASK_STATES = ['pending', 'active', 'scheduled', 'retry', 'archived', 'completed'] as const
 export type IndexerTaskState = (typeof INDEXER_TASK_STATES)[number]
@@ -726,6 +726,7 @@ export interface IndexerTask {
   lastError?: string
   lastFailedAt?: string
   libraryId?: string
+  libraryName?: string
   itemType?: string
   path?: string
 }
@@ -762,6 +763,23 @@ export async function scanMediaLibrary(id: string, force = false, trickplayOnly 
 export async function listIndexerTasks(queue: IndexerQueueName, state: IndexerTaskState, page = 1, size = 20): Promise<IndexerTask[]> {
   const response = await api.get<{ tasks: IndexerTask[] }>('/admin/indexer/tasks', { params: { queue, state, page, size } })
   return response.data.tasks ?? []
+}
+
+export interface IndexerTaskLogEntry {
+  time: string
+  level: string
+  message: string
+}
+
+export interface IndexerTaskLogs {
+  state: IndexerTaskState | ''
+  total: number
+  entries: IndexerTaskLogEntry[]
+}
+
+export async function getIndexerTaskLogs(queue: IndexerQueueName, id: string, offset = 0): Promise<IndexerTaskLogs> {
+  const response = await api.get<IndexerTaskLogs>(`/admin/indexer/tasks/${queue}/${encodeURIComponent(id)}/logs`, { params: { offset } })
+  return response.data
 }
 
 export async function cancelIndexerTask(queue: IndexerQueueName, id: string): Promise<void> {
@@ -1237,7 +1255,7 @@ export async function deleteNetworkShare(id: string): Promise<void> {
 }
 export interface AppNotification {
   id: string
-  kind: 'new_media' | 'admin'
+  kind: 'new_media' | 'admin' | 'request'
   title: string
   body: string
   url: string | null
@@ -1401,4 +1419,169 @@ export async function clearBackupPassphrase(): Promise<void> {
 export async function getBackupDownloadUrl(name: string): Promise<string> {
   const response = await api.post<{ path: string }>(`/admin/backups/${encodeURIComponent(name)}/download-link`)
   return `${api.defaults.baseURL ?? ''}${response.data.path}`
+}
+
+export type RequestMediaType = 'movie' | 'tv' | 'music'
+export type RequestSource = 'tmdb' | 'discogs'
+export type RequestStatus = 'pending' | 'approved' | 'declined' | 'failed' | 'available'
+export type ExternalRequestStatus = RequestStatus | 'none'
+
+export interface ExternalMediaCard {
+  source: RequestSource
+  type: RequestMediaType
+  id: string
+  title: string
+  year: number | null
+  poster: string | null
+  overview: string | null
+  status: ExternalRequestStatus
+  requestId: string | null
+}
+
+export interface MediaRequestView {
+  id: string
+  type: RequestMediaType
+  source: RequestSource
+  externalId: string
+  title: string
+  year: number | null
+  poster: string | null
+  seasons: number[] | null
+  status: RequestStatus
+  requestedBy: { id: string; username: string; displayName: string | null }
+  serviceName: string | null
+  declineReason: string | null
+  error: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExternalMediaDetail extends ExternalMediaCard {
+  backdrop: string | null
+  tagline: string | null
+  genres: string[]
+  runtimeMinutes: number | null
+  rating: number | null
+  cast: string[]
+  artist: string | null
+  seasons: { number: number; name: string; episodeCount: number; status: ExternalRequestStatus }[] | null
+  tracklist: string[] | null
+  libraryItemId: string | null
+  requests: MediaRequestView[]
+}
+
+export interface RequestsConfig {
+  enabled: boolean
+  movies: boolean
+  tv: boolean
+  music: boolean
+  canRequest: boolean
+  autoApprove: boolean
+  isAdmin: boolean
+  quota: { limit: number | null; days: number; used: number; remaining: number | null }
+  tmdbConfigured: boolean
+  discogsConfigured: boolean
+}
+
+export interface RequestServiceView {
+  id: string
+  libraryId: string | null
+  libraryName: string | null
+  kind: 'sonarr' | 'radarr' | 'lidarr'
+  name: string
+  url: string
+  hasKey: boolean
+  isDefault: boolean
+  enabled: boolean
+  rootFolder: string
+  qualityProfileId: number
+  metadataProfileId: number | null
+  languageProfileId?: number | null
+  minimumAvailability: 'announced' | 'inCinemas' | 'released' | null
+  seasonFolders: boolean
+  tags: number[]
+}
+
+export type RequestServiceInput = Omit<RequestServiceView, 'id' | 'hasKey' | 'libraryName'> & { libraryId: string; apiKey?: string }
+export interface RequestServiceTest {
+  ok: boolean
+  version: string | null
+  error: string | null
+  qualityProfiles: { id: number; name: string }[]
+  rootFolders: { path: string; freeSpace: number | null }[]
+  metadataProfiles: { id: number; name: string }[]
+  languageProfiles: { id: number; name: string }[]
+}
+export interface RequestUserView {
+  id: string
+  username: string
+  displayName: string | null
+  role: 'admin' | 'user'
+  canRequest: boolean | null
+  autoApprove: boolean | null
+  quotaLimit: number | null
+  quotaDays: number | null
+}
+
+export async function getRequestsConfig(): Promise<RequestsConfig> {
+  return (await api.get<RequestsConfig>('/requests/config')).data
+}
+export async function searchRequests(query: string, type?: RequestMediaType, signal?: AbortSignal): Promise<ExternalMediaCard[]> {
+  return (await api.get<ExternalMediaCard[]>('/requests/search', { params: { q: query, type }, signal })).data
+}
+export async function discoverRequests(section: 'trending' | 'movies' | 'tv' | 'upcoming' | 'music', signal?: AbortSignal): Promise<ExternalMediaCard[]> {
+  return (await api.get<ExternalMediaCard[]>('/requests/discover', { params: { section }, signal })).data
+}
+export async function getExternalMediaDetail(type: RequestMediaType, id: string): Promise<ExternalMediaDetail> {
+  return (await api.get<ExternalMediaDetail>(`/requests/details/${type}/${encodeURIComponent(id)}`)).data
+}
+export async function createMediaRequest(input: { type: RequestMediaType; externalId: string; seasons?: number[]; serviceId?: string; qualityProfileId?: number; rootFolder?: string }): Promise<MediaRequestView> {
+  return (await api.post<MediaRequestView>('/requests', input)).data
+}
+export async function listMediaRequests(params: { scope?: 'mine' | 'all'; status?: RequestStatus; type?: RequestMediaType; offset?: number; limit?: number } = {}): Promise<{ total: number; counts: Record<RequestStatus, number>; items: MediaRequestView[] }> {
+  return (await api.get<{ total: number; counts: Record<RequestStatus, number>; items: MediaRequestView[] }>('/requests', { params })).data
+}
+export async function approveMediaRequest(id: string, input: { serviceId?: string; qualityProfileId?: number; rootFolder?: string } = {}): Promise<MediaRequestView> {
+  return (await api.post<MediaRequestView>(`/requests/${encodeURIComponent(id)}/approve`, input)).data
+}
+export async function declineMediaRequest(id: string, reason?: string): Promise<MediaRequestView> {
+  return (await api.post<MediaRequestView>(`/requests/${encodeURIComponent(id)}/decline`, { reason })).data
+}
+export async function retryMediaRequest(id: string): Promise<MediaRequestView> {
+  return (await api.post<MediaRequestView>(`/requests/${encodeURIComponent(id)}/retry`)).data
+}
+export async function deleteMediaRequest(id: string): Promise<void> {
+  await api.delete(`/requests/${encodeURIComponent(id)}`)
+}
+export async function listRequestServices(): Promise<RequestServiceView[]> {
+  return (await api.get<RequestServiceView[]>('/admin/requests/services')).data
+}
+export async function saveRequestService(input: RequestServiceInput, id?: string): Promise<RequestServiceView> {
+  return (await (id ? api.put<RequestServiceView>(`/admin/requests/services/${encodeURIComponent(id)}`, input) : api.post<RequestServiceView>('/admin/requests/services', input))).data
+}
+export async function deleteRequestService(id: string): Promise<void> {
+  await api.delete(`/admin/requests/services/${encodeURIComponent(id)}`)
+}
+export async function testRequestService(input: { kind: RequestServiceInput['kind']; url: string; apiKey: string; serviceId?: string }): Promise<RequestServiceTest> {
+  return (await api.post<RequestServiceTest>('/admin/requests/services/test', input)).data
+}
+export async function listRequestUsers(): Promise<RequestUserView[]> {
+  return (await api.get<RequestUserView[]>('/admin/requests/users')).data
+}
+export async function updateRequestUser(id: string, patch: Pick<RequestUserView, 'canRequest' | 'autoApprove' | 'quotaLimit' | 'quotaDays'>): Promise<RequestUserView> {
+  return (await api.put<RequestUserView>(`/admin/requests/users/${encodeURIComponent(id)}`, patch)).data
+}
+
+export async function getItemTheme(id: string): Promise<Blob | null> {
+  try {
+    const response = await api.get<Blob>(`/themes/items/${encodeURIComponent(id)}`, { responseType: 'blob' })
+    return response.data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+export async function syncThemes(): Promise<{ eligible: number; queued: number }> {
+  return (await api.post<{ eligible: number; queued: number }>('/themes/sync')).data
 }

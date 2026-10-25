@@ -52,6 +52,7 @@ export interface ConfigField {
   set: boolean
   /** Only present for values that are not secret. */
   value?: string
+  default?: string
 }
 
 export interface SetupProgress extends SetupStatus {

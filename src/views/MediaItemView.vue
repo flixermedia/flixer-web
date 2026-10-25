@@ -17,6 +17,7 @@ import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
+import { useThemeMusic } from '../composables/useThemeMusic'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -27,6 +28,10 @@ const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const item = ref<ItemDetail | null>(null)
+const themeMusic = useThemeMusic(
+  computed(() => item.value?.id),
+  computed(() => item.value !== null && ['movie', 'series'].includes(item.value.type)),
+)
 const isLoading = ref(true)
 const failure = ref<'missing' | 'error' | null>(null)
 const activeSeason = ref(0)
@@ -76,6 +81,7 @@ const playTarget = computed<{ id: string; title: string } | null>(() => {
   return null
 })
 function play(target: { id: string; title: string; startAt?: number }) {
+  themeMusic.stop()
   videoOverlay.play(target)
 }
 
@@ -214,6 +220,7 @@ async function toggleWatched(id: string, watched: boolean) {
 }
 
 async function load(id: string) {
+  themeMusic.stop()
   isLoading.value = true
   failure.value = null
   activeSeason.value = 0
@@ -293,7 +300,12 @@ watch(
 
             <div class="min-w-0 max-w-3xl">
               <RouterLink v-if="item.parent" :to="{ name: 'media-item', params: { id: item.parent.id } }" class="text-sm font-medium text-flixer-accent hover:underline">{{ item.parent.title }}</RouterLink>
-              <h1 class="mt-1 break-words text-4xl font-bold text-white drop-shadow-lg sm:text-5xl">{{ item.title }}</h1>
+              <div class="flex flex-wrap items-center gap-3">
+                <h1 class="mt-1 break-words text-4xl font-bold text-white drop-shadow-lg sm:text-5xl">{{ item.title }}</h1>
+                <button v-if="themeMusic.available.value" type="button" class="mt-1 grid size-10 shrink-0 place-items-center rounded-full border border-white/20 bg-black/35 text-white/80 backdrop-blur transition hover:border-white/40 hover:bg-black/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" :aria-pressed="themeMusic.playing.value" :title="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" @click="themeMusic.toggle">
+                  <svg v-if="themeMusic.playing.value" class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg><svg v-else class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" /></svg>
+                </button>
+              </div>
               <p v-if="item.tagline" class="mt-2 text-base italic text-flixer-text/80">{{ item.tagline }}</p>
 
               <div class="mt-4 flex flex-wrap items-center gap-3 text-sm">

@@ -11,6 +11,7 @@ describe('admin navigation', () => {
     expect(resolveAdminGroup('indexer')).toBe('library')
     expect(resolveAdminGroup('providers')).toBe('providers')
     expect(resolveAdminGroup('tasks')).toBe('settings')
+    expect(resolveAdminGroup('requests')).toBe('requests')
     expect(resolveAdminGroup('devices')).toBe('users')
   })
 

@@ -8,7 +8,7 @@ import { useStepForm } from '../useStepForm'
 
 const { t } = useI18n()
 const { wizard, verified, busy, message, fieldErrors, testResult, test, save, locked } = useStepForm('redis')
-const redisUrl = ref('redis://redis:6379')
+const redisUrl = ref(wizard.progress.value.config.redisUrl?.default || 'redis://localhost:6379')
 const environmentLocked = locked('redisUrl')
 const canContinue = computed(() => environmentLocked.value || verified.value)
 watch(redisUrl, () => (verified.value = false))
