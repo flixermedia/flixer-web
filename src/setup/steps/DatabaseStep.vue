@@ -12,8 +12,7 @@ import { useStepForm } from '../useStepForm'
 const { t } = useI18n()
 const router = useRouter()
 const { wizard, verified, busy, message, fieldErrors, testResult, test, save, locked } = useStepForm('database')
-// Matches the bundled PostgreSQL service in docker-compose.yml.
-const databaseUrl = ref('postgres://flixer:flixer@postgres:5432/flixer')
+const databaseUrl = ref(wizard.progress.value.config.databaseUrl?.default || 'postgres://flixer:flixer@postgres:5432/flixer')
 const environmentLocked = locked('databaseUrl')
 const canContinue = computed(() => environmentLocked.value || verified.value)
 watch(databaseUrl, () => (verified.value = false))
