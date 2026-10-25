@@ -8,10 +8,10 @@ import { useStepForm } from '../useStepForm'
 const { t } = useI18n()
 const { wizard, busy, message, save } = useStepForm('secrets')
 const config = wizard.progress.value.config
-const regenerate = ref<Record<string, boolean>>({ jwtSecret: false, streamTokenSecret: false })
+const regenerate = ref<Record<string, boolean>>({ jwtSecret: false, appSecret: false })
 const restart = ref<string[]>([])
 const notice = ref('')
-const secrets = ['jwtSecret', 'streamTokenSecret'] as const
+const secrets = ['jwtSecret', 'appSecret'] as const
 const allLocked = computed(() => secrets.every((name) => config[name]?.locked))
 
 async function submit(): Promise<boolean> {
@@ -19,7 +19,7 @@ async function submit(): Promise<boolean> {
   // The server creates both secrets on first start, so leaving everything untouched is a valid choice.
   if (generate.length === 0) return true
   const result = await save({ generate })
-  if (result) regenerate.value = { jwtSecret: false, streamTokenSecret: false }
+  if (result) regenerate.value = { jwtSecret: false, appSecret: false }
   restart.value = result?.restart ?? []
   notice.value = result?.message ?? ''
   return result !== null && restart.value.length === 0

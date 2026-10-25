@@ -6,6 +6,7 @@ import { cancelIndexerTask, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TAS
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
+import { confirmAction } from '../../composables/confirm'
 
 const { t } = useI18n()
 
@@ -47,7 +48,7 @@ async function act(task: IndexerTask, action: 'cancel' | 'retry') {
 }
 
 async function clearFailed() {
-  if (!window.confirm(t('admin.indexer.clearFailedConfirm'))) return
+  if (!(await confirmAction(t('admin.indexer.clearFailedConfirm'), { danger: true }))) return
   clearing.value = true
   try {
     const n = await clearFailedIndexerTasks(queue.value)
@@ -72,10 +73,14 @@ function describeTask(task: IndexerTask) {
   return task.path || task.itemType || task.type
 }
 
-watch([queue, state], () => {
-  page.value = 1
-  void load()
-}, { immediate: true })
+watch(
+  [queue, state],
+  () => {
+    page.value = 1
+    void load()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -117,8 +122,8 @@ watch([queue, state], () => {
     </ul>
 
     <div v-if="page > 1 || tasks.length === PAGE_SIZE" class="mt-3 flex items-center gap-3 text-xs">
-      <button type="button" :disabled="page === 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="page--, load()">{{ t('admin.media.previous') }}</button>
-      <button type="button" :disabled="tasks.length < PAGE_SIZE || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="page++, load()">{{ t('admin.media.next') }}</button>
+      <button type="button" :disabled="page === 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="(page--, load())">{{ t('admin.media.previous') }}</button>
+      <button type="button" :disabled="tasks.length < PAGE_SIZE || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="(page++, load())">{{ t('admin.media.next') }}</button>
     </div>
   </AdminSection>
 </template>

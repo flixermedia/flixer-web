@@ -7,6 +7,7 @@ import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
 import StatusPill from './StatusPill.vue'
+import { confirmAction } from '../../composables/confirm'
 
 const POLL_MS = 3000
 
@@ -117,7 +118,7 @@ async function download(backup: BackupEntry) {
 }
 
 async function remove(backup: BackupEntry) {
-  if (!window.confirm(t('admin.backups.confirmDelete', { name: backup.name }))) return
+  if (!(await confirmAction(t('admin.backups.confirmDelete', { name: backup.name }), { danger: true }))) return
   try {
     await deleteBackup(backup.name)
     await load(true)
@@ -197,7 +198,7 @@ async function savePassphrase() {
 }
 
 async function removePassphrase() {
-  if (!window.confirm(t('admin.backups.encryption.confirmRemove'))) return
+  if (!(await confirmAction(t('admin.backups.encryption.confirmRemove'), { danger: true }))) return
   try {
     await clearBackupPassphrase()
     notify.success(t('admin.backups.encryption.removed'))

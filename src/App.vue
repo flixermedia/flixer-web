@@ -2,10 +2,13 @@
 import { ModalOverlay, ModalTarget } from '@kolirt/vue-modal'
 import OfflineBanner from './components/ui/OfflineBanner.vue'
 import MiniPlayer from './components/player/MiniPlayer.vue'
+import PlayerOverlay from './components/player/PlayerOverlay.vue'
 import LyricsView from './views/LyricsView.vue'
 import { useAudioPlayer } from './composables/useAudioPlayer'
+import { useVideoOverlay } from './composables/useVideoOverlay'
 
 const { lyricsOpen } = useAudioPlayer()
+const { playing, close: closeVideo } = useVideoOverlay()
 </script>
 
 <template>
@@ -15,6 +18,7 @@ const { lyricsOpen } = useAudioPlayer()
     </Transition>
   </RouterView>
   <MiniPlayer />
+  <PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" @close="closeVideo" />
   <LyricsView v-if="lyricsOpen" />
   <OfflineBanner />
 

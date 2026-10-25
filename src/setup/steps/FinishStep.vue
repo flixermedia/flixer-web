@@ -22,7 +22,7 @@ const summary = computed(() => {
     ...(wizard.flow.value === 'advanced'
       ? [
           { label: t('setup.steps.services'), ok: config.indexerUrl?.set === true && config.streamerInternalUrl?.set === true },
-          { label: t('setup.steps.secrets'), ok: config.jwtSecret?.set === true && config.streamTokenSecret?.set === true },
+          { label: t('setup.steps.secrets'), ok: config.jwtSecret?.set === true && config.appSecret?.set === true },
         ]
       : []),
   ]

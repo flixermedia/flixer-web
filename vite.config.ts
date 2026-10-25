@@ -104,6 +104,10 @@ export default defineConfig({
         target: 'http://localhost:8091',
         changeOrigin: true,
       },
+      '/trickplay': {
+        target: 'http://localhost:8091',
+        changeOrigin: true,
+      },
     },
   },
 })
