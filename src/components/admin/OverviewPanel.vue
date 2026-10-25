@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
 import { getAdminOverview, type AdminOverview } from '../../api'
 import { describeRequestError } from '../../composables/useProfile'
+import { useActivityFormat } from '../../composables/useActivityFormat'
 import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import StatusPill from './StatusPill.vue'
@@ -71,34 +72,11 @@ function formatUptime(seconds: number) {
   return `${minutes}m`
 }
 
-const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-  ['day', 86_400],
-  ['hour', 3_600],
-  ['minute', 60],
-]
+const { relativeTime, activityTitle, activityVerb } = useActivityFormat()
 
-function relativeTime(iso: string) {
-  const seconds = (new Date(iso).getTime() - Date.now()) / 1000
-  if (Math.abs(seconds) < 60) return t('admin.overview.justNow')
-  const [unit, size] = UNITS.find(([, s]) => Math.abs(seconds) >= s) ?? UNITS[2]
-  return new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }).format(Math.round(seconds / size), unit)
-}
+const ACTIVITY_PREVIEW = 3
 
-type Activity = AdminOverview['activity'][number]
-
-function activityTitle(entry: Activity) {
-  if (entry.type === 'episode') {
-    const code = entry.seasonNumber != null && entry.episodeNumber != null ? ` S${entry.seasonNumber}E${entry.episodeNumber}` : ''
-    return `${entry.showTitle ?? ''}${code} ${entry.title}`.trim()
-  }
-  return entry.showTitle ? `${entry.showTitle} – ${entry.title}` : entry.title
-}
-
-function activityVerb(entry: Activity) {
-  if (entry.completed) return t('admin.overview.finished')
-  const pct = entry.durationSeconds > 0 ? Math.round((entry.positionSeconds / entry.durationSeconds) * 100) : 0
-  return t('admin.overview.watching', { percent: pct })
-}
+const activityRows = computed(() => (overview.value?.activity ?? []).map((entry) => ({ user: entry.user, verb: activityVerb(entry), title: activityTitle(entry), time: relativeTime(entry.at) })))
 
 async function load() {
   try {
@@ -172,14 +150,15 @@ watch(live.data, (value) => {
 
       <AdminSection :title="t('admin.overview.recentActivityTitle')" :description="t('admin.overview.recentActivityDescription')" class="lg:col-span-1">
         <ul class="grid gap-3 text-sm">
-          <li v-for="(a, i) in overview.activity" :key="i">
+          <li v-for="(row, i) in activityRows.slice(0, ACTIVITY_PREVIEW)" :key="i">
             <p>
-              <span class="font-semibold">{{ a.user }}</span> {{ activityVerb(a) }} <span class="text-flixer-muted">{{ activityTitle(a) }}</span>
+              <span class="font-semibold">{{ row.user }}</span> {{ row.verb }} <span class="text-flixer-muted">{{ row.title }}</span>
             </p>
-            <p class="text-xs text-flixer-muted">{{ relativeTime(a.at) }}</p>
+            <p class="text-xs text-flixer-muted">{{ row.time }}</p>
           </li>
-          <li v-if="overview.activity.length === 0" class="text-flixer-muted">{{ t('admin.overview.noActivity') }}</li>
+          <li v-if="activityRows.length === 0" class="text-flixer-muted">{{ t('admin.overview.noActivity') }}</li>
         </ul>
+        <RouterLink :to="{ name: 'admin-activity' }" class="mt-4 inline-block text-sm font-semibold text-flixer-accent hover:underline focus-visible:outline-2 focus-visible:outline-flixer-accent">{{ t('admin.overview.viewAllActivity') }}</RouterLink>
       </AdminSection>
     </div>
   </div>
