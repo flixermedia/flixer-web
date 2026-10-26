@@ -102,6 +102,19 @@ const notes = computed<Note[]>(() => {
   return result
 })
 
+// Eased stops make the banner dissolve into the page instead of ending in a visible band.
+const fade = `linear-gradient(to bottom, transparent 0%, ${[
+  [0.04, 12],
+  [0.15, 25],
+  [0.3, 42],
+  [0.5, 62],
+  [0.7, 80],
+  [0.87, 93],
+  [1, 100],
+]
+  .map(([stop, pct]) => `color-mix(in srgb, var(--color-flixer-background) ${pct}%, transparent) ${(stop as number) * 100}%`)
+  .join(', ')})`
+
 const sparkles = computed(() => {
   const r = random.value
   return Array.from({ length: 46 }, (_, i) => ({ id: i, x: r() * W, y: r() * H, size: 0.8 + r() * 2.2, opacity: 0.25 + r() * 0.65 }))
@@ -167,6 +180,7 @@ const sparkles = computed(() => {
         </g>
       </g>
     </svg>
+    <div class="absolute inset-x-0 bottom-0 h-full" :style="{ background: fade }"></div>
   </div>
 </template>
 
