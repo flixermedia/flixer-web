@@ -11,6 +11,7 @@ import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import ClampedText from '../components/ui/ClampedText.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
+import MusicBanner from '../components/ui/MusicBanner.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
@@ -150,8 +151,10 @@ watch(
         <button type="button" class="mt-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
       </section>
       <section v-else-if="playlist" class="space-y-6">
-        <header class="rounded border border-white/10 bg-flixer-surface/60">
-          <div class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+        <header class="relative overflow-hidden rounded border border-white/10 bg-flixer-surface/60">
+          <MusicBanner :seed="playlist.id" />
+          <div class="absolute inset-0 bg-gradient-to-t from-flixer-background/80 via-flixer-background/30 to-transparent" aria-hidden="true"></div>
+          <div class="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
             <div class="size-32 shrink-0 overflow-hidden rounded bg-flixer-background shadow-lg shadow-black/40 sm:size-40">
               <AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="320" :alt="playlist.name" />
               <span v-else class="grid size-full place-items-center text-3xl text-flixer-muted" aria-hidden="true">♫</span>
@@ -174,7 +177,7 @@ watch(
               </div>
             </div>
           </div>
-          <dl class="grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
+          <dl class="relative grid grid-cols-2 divide-white/10 border-t border-white/10 bg-black/25 backdrop-blur-sm sm:grid-cols-4 sm:divide-x">
             <div v-for="stat in stats" :key="stat.label" class="px-5 py-3">
               <dd class="text-xl font-bold tabular-nums text-white">{{ stat.value }}</dd>
               <dt class="text-xs uppercase tracking-wide text-flixer-muted">{{ stat.label }}</dt>

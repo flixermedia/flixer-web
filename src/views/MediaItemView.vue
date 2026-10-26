@@ -13,6 +13,7 @@ import MediaRow from '../components/home/MediaRow.vue'
 import { thumbnailAt } from '../composables/trickplay'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
+import MusicBanner from '../components/ui/MusicBanner.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
 import { useParty } from '../composables/useParty'
@@ -94,6 +95,7 @@ const audioPlayer = useAudioPlayer()
 const isAlbum = computed(() => item.value?.type === 'album')
 const isTrack = computed(() => item.value?.type === 'track')
 const isMusic = computed(() => isAlbum.value || isTrack.value)
+const usesBanner = computed(() => isMusic.value && item.value !== null && item.value.backdrop === null)
 const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
 const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
 const party = useParty()
@@ -312,8 +314,9 @@ watch(
           <div v-if="item.backdrop !== null" class="absolute inset-0">
             <AuthImage scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" :width="1600" alt="" img-class="size-full object-cover object-top" />
           </div>
-          <div class="absolute inset-0 bg-gradient-to-t from-flixer-background via-flixer-background/70 to-flixer-background/30"></div>
-          <div class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
+          <MusicBanner v-else-if="isMusic" :seed="item.id" />
+          <div class="absolute inset-0 bg-gradient-to-t from-flixer-background" :class="usesBanner ? 'via-flixer-background/10 to-transparent' : 'via-flixer-background/70 to-flixer-background/30'"></div>
+          <div v-if="!usesBanner" class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
           <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly ? 'bg-flixer-surface/20' : ''">
             <div v-if="isMusic" class="aspect-square w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
