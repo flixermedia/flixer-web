@@ -42,6 +42,8 @@ const composer = ref<HTMLTextAreaElement | null>(null)
 // While typing it follows the visual viewport so the iOS keyboard can't shift the page.
 const typing = ref(false)
 const frame = ref({ top: 0, height: 0 })
+const headerShift = ref(0)
+let headerHeight = 64
 const phone = window.matchMedia('(max-width: 767px)')
 const isPhone = ref(phone.matches)
 const locked = computed(() => isPhone.value)
@@ -55,10 +57,13 @@ function syncViewport() {
   document.documentElement.style.overflow = isPhone.value ? 'hidden' : ''
   if (!isPhone.value) return
   const vv = window.visualViewport
-  const headerBottom = document.querySelector('header.fixed')?.getBoundingClientRect().bottom ?? 0
+  const headerEl = document.querySelector('header.fixed')
+  if (headerEl && !typing.value) headerHeight = headerEl.getBoundingClientRect().height
   const viewTop = vv?.offsetTop ?? 0
   const viewBottom = viewTop + (vv?.height ?? window.innerHeight)
-  const top = typing.value ? viewTop : headerBottom
+  // iOS scrolls the visual viewport when the keyboard opens, so the navbar rides along with it.
+  headerShift.value = typing.value ? viewTop : 0
+  const top = viewTop + headerHeight
   const bottom = typing.value ? viewBottom : window.innerHeight
   frame.value = { top, height: Math.max(0, bottom - top) }
   if (typing.value) window.scrollTo(0, 0)
@@ -367,7 +372,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text md:pb-12">
-    <Header v-if="!typing || !isPhone" :docked="isPhone" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+    <Header :docked="isPhone" :style="headerShift ? { transform: `translateY(${headerShift}px)` } : undefined" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
       <div class="grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-10rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="flex min-h-0 flex-col border-white/10 md:border-r" :class="props.id ? 'hidden md:flex' : 'flex'" :aria-label="t('chat.conversations')">
