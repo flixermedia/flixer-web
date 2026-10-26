@@ -2023,6 +2023,12 @@
     "ended": "The party has ended.",
     "endedTitle": "This party has ended",
     "endedDescription": "The host stopped it or left. Ask them for a new link.",
-    "host": "Host"
+    "host": "Host",
+    "chat": "Chat",
+    "chatPlaceholder": "Say something…",
+    "chatSend": "Send",
+    "chatEmpty": "No messages yet. Say hi!",
+    "chatClose": "Close chat",
+    "chatFrom": "{name} says"
   }
 }

@@ -1909,6 +1909,13 @@ export interface PartyPerson {
   avatarUrl: string | null
 }
 
+export interface PartyChatMessage {
+  id: string
+  from: PartyPerson
+  text: string
+  at: number
+}
+
 export interface PartySnapshot {
   id: string
   kind: 'video' | 'music'

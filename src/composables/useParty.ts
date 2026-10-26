@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef, watch } from 'vue'
-import { createParty, endParty, getAccessToken, type PartySnapshot, type SocialItem } from '../api'
+import { createParty, endParty, getAccessToken, type PartyChatMessage, type PartySnapshot, type SocialItem } from '../api'
 import { i18n } from '../i18n'
 import { notify } from './notify'
 import { expectedPosition, type PartyState } from './partyClock'
@@ -20,6 +20,10 @@ const MUSIC_JUMP_S = 2
 const party = shallowRef<PartySnapshot | null>(null)
 const latest = shallowRef<PartyState | null>(null)
 const status = ref<PartyStatus>('idle')
+const messages = shallowRef<PartyChatMessage[]>([])
+const chatOpen = ref(false)
+const unread = ref(0)
+const MAX_CHAT_KEPT = 200
 
 const audio = useAudioPlayer()
 const videoOverlay = useVideoOverlay()
@@ -65,6 +69,9 @@ function reset() {
   ws?.close()
   party.value = null
   latest.value = null
+  messages.value = []
+  unread.value = 0
+  chatOpen.value = false
   status.value = 'idle'
   appliedItemId = null
   attempts = 0
@@ -142,7 +149,7 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
 
   ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }))
   ws.onmessage = (event) => {
-    let message: { type?: string; party?: PartySnapshot; serverTime?: number; status?: number; message?: string }
+    let message: { type?: string; party?: PartySnapshot; message?: PartyChatMessage | string; messages?: PartyChatMessage[]; serverTime?: number; status?: number; message?: string }
     try {
       message = JSON.parse(String(event.data))
     } catch {
@@ -161,14 +168,20 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
         settled = true
         onFirstState?.(message.party)
       }
+    } else if (message.type === 'chat-history' && Array.isArray(message.messages)) {
+      messages.value = message.messages
+    } else if (message.type === 'chat' && typeof message.message === 'object') {
+      receiveChat(message.message)
     } else if (message.type === 'ended') {
       handleEnded()
     } else if (message.type === 'error') {
       if (!settled) {
-        fail(message.message ?? t('party.joinFailed'))
+        fail(typeof message.message === 'string' ? message.message : t('party.joinFailed'))
         reset()
       } else if (message.status === 404) {
         handleEnded()
+      } else if (message.status === 429 && typeof message.message === 'string') {
+        notify.error(message.message)
       }
     }
   }
@@ -191,6 +204,22 @@ function open(id: string): Promise<PartySnapshot> {
   wantedId = id
   status.value = 'connecting'
   return new Promise((resolve, reject) => connect(resolve, (message) => reject(new Error(message))))
+}
+
+function receiveChat(message: PartyChatMessage) {
+  if (messages.value.some((existing) => existing.id === message.id)) return
+  messages.value = [...messages.value, message].slice(-MAX_CHAT_KEPT)
+  if (!chatOpen.value && message.from.id !== profile.value?.id) unread.value++
+}
+
+function sendChat(text: string) {
+  const trimmed = text.trim()
+  if (trimmed) send({ type: 'chat', text: trimmed })
+}
+
+function setChatOpen(open: boolean) {
+  chatOpen.value = open
+  if (open) unread.value = 0
 }
 
 function sendControl(state: { itemId?: string; playing: boolean; position: number }) {
@@ -273,5 +302,5 @@ export function useParty() {
     return `${location.origin}/party/${id ?? ''}`
   }
 
-  return { party, latest, status, isHost, isGuest, start, join, leave, resume, sendControl, inviteLink, expectedPosition }
+  return { party, latest, status, messages, chatOpen, unread, sendChat, setChatOpen, isHost, isGuest, start, join, leave, resume, sendControl, inviteLink, expectedPosition }
 }

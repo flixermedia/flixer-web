@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { useI18n } from 'vue-i18n'
 import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
 import { useParty } from '../../composables/useParty'
+import PartyChat from '../party/PartyChat.vue'
 import PartyPanel from '../party/PartyPanel.vue'
 import { thumbnailAt } from '../../composables/trickplay'
 import { cueTextAt, languageName, parseVtt, type SubtitleCue } from '../../composables/subtitles'
@@ -87,11 +88,19 @@ const partyState = useParty()
 function togglePartyMenu() {
   partyMenuOpen.value = !partyMenuOpen.value
   menuOpen.value = false
+  partyState.setChatOpen(false)
+}
+
+function toggleChat() {
+  partyState.setChatOpen(!partyState.chatOpen.value)
+  menuOpen.value = false
+  partyMenuOpen.value = false
 }
 
 function toggleSettingsMenu() {
   menuOpen.value = !menuOpen.value
   partyMenuOpen.value = false
+  partyState.setChatOpen(false)
 }
 
 const inVideoParty = computed(() => partyState.party.value?.kind === 'video')
@@ -754,7 +763,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
+  <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown && !(partyState.chatOpen.value && inVideoParty) }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
     <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeked="emitControl" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
@@ -812,6 +821,10 @@ onBeforeUnmount(() => {
       <span class="block truncate">{{ nextLabel }}</span>
     </button>
     <button v-if="activeSegment && !mini" type="button" class="absolute bottom-28 right-4 z-10 rounded-lg border border-white/40 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/50 backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-8" @click="skipSegment">{{ t(`player.skip.${activeSegment.type}`) }}</button>
+
+    <div v-if="partyState.chatOpen.value && inVideoParty && !mini" class="absolute bottom-24 right-3 top-16 z-20 w-80 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-flixer-border bg-flixer-surface/95 text-flixer-text shadow-2xl shadow-black/60 backdrop-blur sm:right-6">
+      <PartyChat @close="partyState.setChatOpen(false)" />
+    </div>
 
     <div v-if="partyMenuOpen && inVideoParty && controlsShown" class="absolute bottom-20 right-3 z-20 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="dialog">
       <PartyPanel @left="partyMenuOpen = false" />
@@ -926,6 +939,11 @@ onBeforeUnmount(() => {
         <span v-if="mode !== 'DirectPlay'" class="hidden rounded-md border border-white/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-flixer-muted sm:inline">
           {{ mode === 'Transcode' ? `${height}p` : t('player.remux') }}
         </span>
+
+        <button v-if="inVideoParty" type="button" class="relative grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': partyState.chatOpen.value }" :aria-label="t('party.chat')" :title="t('party.chat')" :aria-pressed="partyState.chatOpen.value" @click="toggleChat">
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z" /></svg>
+          <span v-if="partyState.unread.value > 0" class="absolute right-1 top-1 rounded-full bg-flixer-accent px-1 text-[9px] font-bold leading-4 text-black">{{ partyState.unread.value > 9 ? '9+' : partyState.unread.value }}</span>
+        </button>
 
         <button v-if="inVideoParty" type="button" class="relative grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': partyMenuOpen }" :aria-label="t('party.title')" :title="t('party.title')" :aria-expanded="partyMenuOpen" @click="togglePartyMenu">
           <svg class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>
