@@ -24,6 +24,7 @@ const Networking = lazy(() => import('./NetworkingSection.vue'))
 const Connections = lazy(() => import('./ConnectionsSection.vue'))
 const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
+const Plugins = lazy(() => import('./PluginsPanel.vue'))
 
 export interface PageBlock {
   component: Component
@@ -50,4 +51,5 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   networking: [{ component: Networking }, { component: Connections }],
   updates: [{ component: Updates }],
   backups: [{ component: Backups }],
+  plugins: [{ component: Plugins }],
 }

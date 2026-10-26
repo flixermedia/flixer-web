@@ -24,6 +24,7 @@ describe('admin navigation', () => {
     expect(resolveAdminLocation('updates')).toEqual({ tab: 'settings', page: 'updates' })
     expect(resolveAdminLocation('backups')).toEqual({ tab: 'settings', page: 'backups' })
     expect(resolveAdminLocation('settings')).toEqual({ tab: 'settings', page: 'server' })
+    expect(resolveAdminLocation('plugins')).toEqual({ tab: 'plugins', page: 'plugins' })
   })
 
   it('places every page in exactly one tab', () => {

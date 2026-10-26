@@ -1398,6 +1398,153 @@ export async function deleteBackup(name: string): Promise<void> {
   await api.delete(`/admin/backups/${encodeURIComponent(name)}`)
 }
 
+export interface PluginInstallation {
+  id: string
+  version: string
+  status: string
+  enabled: boolean
+  approvedPermissions: string[]
+  activationSupported: boolean
+  activationReason: string | null
+  repository: { id: string; name: string; isOfficial: boolean } | null
+  availableUpdate: { version: string; permissions: string[] } | null
+  targetStatus: Record<string, string>
+  lastError: string | null
+  manifest: {
+    name: string
+    description: string
+    author: string
+    targets: Record<string, { entry: string }>
+    settingsSchema?: string
+  }
+  installedAt: string
+  updatedAt: string
+}
+
+export interface PluginUpdateHistoryEntry {
+  id: string
+  pluginId: string
+  action: 'install' | 'update'
+  fromVersion: string | null
+  toVersion: string
+  outcome: 'succeeded' | 'failed'
+  errorMessage: string | null
+  createdAt: string
+}
+
+export interface PluginRepository {
+  id: string
+  name: string
+  url: string
+  isOfficial: boolean
+  enabled: boolean
+  lastCheckedAt: string | null
+  lastError: string | null
+  manifest: {
+    plugins: PluginCatalogEntry[]
+  } | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PluginCatalogEntry {
+  id: string
+  name: string
+  description: string
+  author: string
+  capabilities?: string[]
+  permissions: string[]
+  targets: string[]
+  versions: Array<{ version: string; manifest: string; package: string; sha256: string; size?: number }>
+  repository?: { id: string; name: string; url: string; isOfficial: boolean }
+}
+
+export async function listPluginInstallations(): Promise<PluginInstallation[]> {
+  const response = await api.get<PluginInstallation[]>('/admin/plugins')
+  return response.data
+}
+
+export async function listPluginUpdateHistory(id: string): Promise<PluginUpdateHistoryEntry[]> {
+  const response = await api.get<PluginUpdateHistoryEntry[]>(`/admin/plugins/${encodeURIComponent(id)}/history`)
+  return response.data
+}
+
+export async function listPluginRepositories(): Promise<PluginRepository[]> {
+  const response = await api.get<PluginRepository[]>('/admin/plugins/repositories')
+  return response.data
+}
+
+export async function discoverPlugins(filters: { q?: string; target?: string; capability?: string } = {}): Promise<PluginCatalogEntry[]> {
+  const response = await api.get<PluginCatalogEntry[]>('/admin/plugins/catalog', { params: filters })
+  return response.data
+}
+
+export async function addPluginRepository(name: string, url: string): Promise<PluginRepository> {
+  const response = await api.post<PluginRepository>('/admin/plugins/repositories', { name, url })
+  return response.data
+}
+
+export async function refreshPluginRepository(id: string): Promise<PluginRepository> {
+  const response = await api.post<PluginRepository>(`/admin/plugins/repositories/${encodeURIComponent(id)}/refresh`)
+  return response.data
+}
+
+export async function installPlugin(id: string, request: { repositoryId: string; version: string; approvedPermissions: string[] }): Promise<PluginInstallation> {
+  const response = await api.post<PluginInstallation>(`/admin/plugins/${encodeURIComponent(id)}/install`, request)
+  return response.data
+}
+
+export async function enablePlugin(id: string): Promise<PluginInstallation> {
+  const response = await api.post<PluginInstallation>(`/admin/plugins/${encodeURIComponent(id)}/enable`)
+  return response.data
+}
+
+export async function disablePlugin(id: string): Promise<PluginInstallation> {
+  const response = await api.post<PluginInstallation>(`/admin/plugins/${encodeURIComponent(id)}/disable`)
+  return response.data
+}
+
+export async function uninstallPlugin(id: string): Promise<void> {
+  await api.delete(`/admin/plugins/${encodeURIComponent(id)}`)
+}
+
+export interface PluginSettingsSchema {
+  properties: Record<
+    string,
+    {
+      title?: string
+      description?: string
+      type?: string
+      format?: string
+      enum?: unknown[]
+      default?: unknown
+      writeOnly?: boolean
+      'x-flixer-secret'?: boolean
+      items?: { type?: string }
+    }
+  >
+}
+
+export interface PluginSettingsView {
+  schema: PluginSettingsSchema | null
+  values: Record<string, unknown>
+  secretFields: string[]
+}
+
+export async function getPluginSettings(id: string): Promise<PluginSettingsView> {
+  const response = await api.get<PluginSettingsView>(`/admin/plugins/${encodeURIComponent(id)}/settings`)
+  return response.data
+}
+
+export async function updatePluginSettings(id: string, settings: { values: Record<string, unknown>; secrets: Record<string, string> }): Promise<PluginSettingsView> {
+  const response = await api.put<PluginSettingsView>(`/admin/plugins/${encodeURIComponent(id)}/settings`, settings)
+  return response.data
+}
+
+export async function removePluginRepository(id: string): Promise<void> {
+  await api.delete(`/admin/plugins/repositories/${encodeURIComponent(id)}`)
+}
+
 export async function uploadBackup(file: File, onProgress?: (fraction: number) => void): Promise<BackupEntry> {
   const body = new FormData()
   body.append('backup', file)

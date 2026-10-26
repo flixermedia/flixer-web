@@ -7,6 +7,7 @@ export const ADMIN_TABS = {
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
   settings: ['server', 'users', 'networking', 'updates', 'backups'],
+  plugins: ['plugins'],
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
@@ -38,6 +39,7 @@ const LEGACY: Record<string, AdminLocation> = {
   general: { tab: 'settings', page: 'server' },
   updates: { tab: 'settings', page: 'updates' },
   backups: { tab: 'settings', page: 'backups' },
+  plugins: { tab: 'plugins', page: 'plugins' },
 }
 
 function text(value: unknown): string {
