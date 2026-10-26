@@ -7,6 +7,7 @@ import { describeRequestError, useProfile } from '../composables/useProfile'
 import { notify } from '../composables/notify'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
 import { useSignOut } from '../composables/useSignOut'
+import ClampedText from '../components/ui/ClampedText.vue'
 import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { getNavLinks } from '../composables/homeNav'
@@ -132,7 +133,7 @@ watch(
               <li v-for="genre in detail.genres" :key="genre" class="rounded border border-white/20 bg-white/10 px-3 py-1 text-xs text-white">{{ genre }}</li>
             </ul>
 
-            <p v-if="detail.overview" class="mt-4 text-base leading-relaxed text-flixer-text/90">{{ detail.overview }}</p>
+            <ClampedText v-if="detail.overview" class="mt-4" :text="detail.overview" :title="detail.title" />
             <p v-else class="mt-4 text-sm text-flixer-muted">{{ t('mediaItem.noOverview') }}</p>
 
             <p v-if="detail.cast.length" class="mt-4 text-sm text-flixer-muted">

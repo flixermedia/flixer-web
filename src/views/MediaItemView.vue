@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
+import ClampedText from '../components/ui/ClampedText.vue'
 import Header from '../components/header/Header.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
@@ -321,7 +322,7 @@ watch(
                 <li v-for="genre in item.genres" :key="genre" class="rounded border border-white/20 bg-white/10 px-3 py-1 text-xs text-white">{{ genre }}</li>
               </ul>
 
-              <p v-if="item.overview" class="mt-4 text-base leading-relaxed text-flixer-text/90">{{ item.overview }}</p>
+              <ClampedText v-if="item.overview" class="mt-4" :text="item.overview" :title="item.title" />
               <p v-else class="mt-4 text-sm text-flixer-muted">{{ t('mediaItem.noOverview') }}</p>
 
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
@@ -376,8 +377,8 @@ watch(
           <section v-if="episodes.length > 0" :aria-label="listTitle" class="page-gutter">
             <h2 v-if="!isShow" class="mb-3 text-xl font-semibold text-white">{{ listTitle }}</h2>
             <ul class="divide-y divide-flixer-border overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface/40">
-              <li v-for="episode in episodes" :key="episode.id" class="flex items-center">
-                <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <li v-for="episode in episodes" :key="episode.id" class="flex items-center transition hover:bg-white/5">
+                <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                   <div v-if="episode.type !== 'track'" class="aspect-video w-32 shrink-0 overflow-hidden rounded bg-flixer-surface sm:w-44">
                     <AuthImage v-if="episode.thumb !== null" scope="library" :item-id="episode.id" :index="episode.thumb" :version="episode.updatedAt" :width="320" alt="" />
                   </div>
