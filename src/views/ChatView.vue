@@ -54,7 +54,8 @@ function onPhoneChange() {
 }
 
 function syncViewport() {
-  document.documentElement.style.overflow = isPhone.value ? 'hidden' : ''
+  // The chat scrolls inside its own panes, so the page itself never scrolls at any size.
+  document.documentElement.style.overflow = 'hidden'
   if (!isPhone.value) return
   const vv = window.visualViewport
   const headerEl = document.querySelector('header.fixed')
@@ -371,10 +372,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text md:pb-12">
+  <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text md:pb-0">
     <Header :docked="isPhone" :style="headerShift ? { transform: `translateY(${headerShift}px)` } : undefined" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
-      <div class="grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-10rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
+      <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-11rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-md:absolute max-md:inset-0 md:border-r" :class="props.id ? 'max-md:-translate-x-1/4 max-md:opacity-0 max-md:pointer-events-none' : ''" :inert="isPhone && !!props.id" :aria-label="t('chat.conversations')">
           <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <h1 class="text-lg font-bold text-white">{{ t('chat.title') }}</h1>
@@ -530,6 +531,10 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 768px) {
+  :global(html.has-mini-player) .chat-grid {
+    height: calc(100dvh - 11rem - 3rem);
+  }
+
   .chat-pane {
     transition: none;
   }
