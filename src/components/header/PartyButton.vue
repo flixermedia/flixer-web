@@ -40,7 +40,7 @@ onBeforeUnmount(() => {
       <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7" />
       </svg>
-      <span class="absolute right-1 top-1 grid min-w-4 place-items-center rounded px-1 text-[10px] font-bold leading-4 text-black" :class="reconnecting ? 'bg-amber-400' : 'bg-emerald-400'">{{ current.members.length }}</span>
+      <span class="absolute right-1 top-1 grid min-w-4 place-items-center rounded px-1 text-[10px] font-bold leading-4 text-flixer-background" :class="reconnecting ? 'bg-amber-400' : 'bg-flixer-accent'">{{ current.members.length }}</span>
     </button>
     <Transition name="party-panel">
       <div v-if="open" class="theme-dark absolute right-0 top-12 z-50 w-64 max-w-[calc(100vw-2rem)] origin-top-right rounded-xl border border-flixer-border bg-flixer-surface p-2 text-flixer-text shadow-2xl shadow-black/60">
