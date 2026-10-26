@@ -42,6 +42,12 @@ const favoriteGroups = computed(() =>
     .map((group) => ({ ...group, items: profile.value?.favorites.filter((item) => item.type === group.type) ?? [] }))
     .filter((group) => group.items.length > 0),
 )
+const stats = computed(() => [
+  { label: t('social.recentlyWatched'), value: profile.value?.recentlyWatched.length ?? 0 },
+  { label: t('social.recentlyListened'), value: profile.value?.recentlyListened.length ?? 0 },
+  { label: t('social.favorites'), value: profile.value?.favorites.length ?? 0 },
+  { label: t('social.playlists'), value: profile.value?.playlists.length ?? 0 },
+])
 const visibleGroups = computed(() => (filter.value === 'all' ? favoriteGroups.value : favoriteGroups.value.filter((group) => group.type === filter.value)))
 
 async function load() {
@@ -121,25 +127,29 @@ onBeforeUnmount(() => {
       </section>
       <section v-else-if="failed && !profile" class="text-sm text-red-400" role="alert">{{ t('social.loadError') }}</section>
       <template v-else-if="profile">
-        <header class="flex flex-col items-center gap-6 bg-gradient-to-b from-flixer-accent/25 to-transparent px-6 pb-8 pt-6 text-center sm:flex-row sm:items-end sm:text-left">
-          <UserAvatar :avatar-url="profile.avatarUrl" :name="profile.displayName" class="size-36 shrink-0 overflow-hidden rounded-full shadow-2xl shadow-black/50 sm:size-52" />
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold uppercase tracking-widest text-white/80">{{ t('social.profile') }}</p>
-            <h1 class="mt-2 break-words text-4xl font-extrabold tracking-tight text-white sm:text-7xl">{{ profile.displayName }}</h1>
-            <p class="mt-3 text-sm text-white/80">
-              <span class="font-semibold text-white">@{{ profile.username }}</span>
-              <template v-if="profile.playlists.length"> · {{ t('social.playlistCount', { count: profile.playlists.length }) }}</template>
-              <template v-if="profile.favorites.length"> · {{ t('social.favoriteCount', { count: profile.favorites.length }) }}</template>
-              · {{ t('social.joined', { date: new Date(profile.joinedAt).toLocaleDateString() }) }}
-            </p>
+        <header class="rounded border border-white/10 bg-flixer-surface/60">
+          <div class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+            <UserAvatar :avatar-url="profile.avatarUrl" :name="profile.displayName" class="size-24 shrink-0 overflow-hidden rounded sm:size-32" />
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h1 class="break-words text-2xl font-bold tracking-tight text-white sm:text-4xl">{{ profile.displayName }}</h1>
+                <span v-if="profile.hidden" class="rounded bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-100">{{ t('social.hidden') }}</span>
+              </div>
+              <p class="mt-1 text-sm text-flixer-muted">@{{ profile.username }} · {{ t('social.joined', { date: new Date(profile.joinedAt).toLocaleDateString() }) }}</p>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button v-if="profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85" @click="createPlaylist">{{ t('social.createPlaylist') }}</button>
+                <RouterLink v-if="profile.isSelf" :to="{ name: 'settings' }" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">{{ t('social.editProfile') }}</RouterLink>
+                <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="copyLink">{{ t('social.copyLink') }}</button>
+              </div>
+            </div>
           </div>
+          <dl class="grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
+            <div v-for="stat in stats" :key="stat.label" class="px-5 py-3">
+              <dd class="text-xl font-bold tabular-nums text-white">{{ stat.value }}</dd>
+              <dt class="text-xs uppercase tracking-wide text-flixer-muted">{{ stat.label }}</dt>
+            </div>
+          </dl>
         </header>
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <button v-if="profile.isSelf" type="button" class="rounded bg-white px-5 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85" @click="createPlaylist">{{ t('social.createPlaylist') }}</button>
-          <RouterLink v-if="profile.isSelf" :to="{ name: 'settings' }" class="rounded border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/60">{{ t('social.editProfile') }}</RouterLink>
-          <button type="button" class="rounded border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/60" @click="copyLink">{{ t('social.copyLink') }}</button>
-          <span v-if="profile.hidden" class="rounded bg-amber-300/10 px-2.5 py-1 text-xs font-semibold text-amber-100">{{ t('social.hidden') }}</span>
-        </div>
         <p v-if="failed" class="mt-4 text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
         <section v-if="profile.nowPlaying" class="mt-6 rounded bg-white/5 p-4 sm:p-5" aria-live="polite">
           <h2 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</h2>
