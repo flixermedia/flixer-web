@@ -1754,7 +1754,8 @@
       "next": "Next",
       "range": "{first}–{last} of {total}",
       "search": "Search",
-      "pagination": "Pagination"
+      "pagination": "Pagination",
+      "saved": "Saved."
     }
   }
 }

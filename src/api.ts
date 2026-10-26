@@ -1559,6 +1559,11 @@ export async function callPluginOperation<T = unknown>(pluginId: string, operati
   return (await api.post<T>(`/plugins/${encodeURIComponent(pluginId)}/${encodeURIComponent(operation)}`, body)).data
 }
 
+/** Extra search results contributed by plugins; the shape is validated by `sanitizeSearchSections`. */
+export async function searchPluginSections(q: string, type?: string, signal?: AbortSignal): Promise<unknown> {
+  return (await api.get<unknown>('/plugins/search', { params: { q, type }, signal })).data
+}
+
 export async function listPluginPages(): Promise<PluginPageEntry[]> {
   return (await api.get<PluginPageEntry[]>('/plugins/pages')).data
 }

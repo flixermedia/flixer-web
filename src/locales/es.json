@@ -204,7 +204,8 @@
       "next": "Siguiente",
       "range": "{first}–{last} de {total}",
       "search": "Buscar",
-      "pagination": "Paginación"
+      "pagination": "Paginación",
+      "saved": "Guardado."
     }
   }
 }

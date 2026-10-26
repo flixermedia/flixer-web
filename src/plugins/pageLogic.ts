@@ -40,12 +40,16 @@ export function pagerState(page: number, pageSize: number, total: number) {
   return { pages, current, first, last: Math.min(total, current * pageSize), hasPrev: current > 1, hasNext: current < pages }
 }
 
+export function isBooleanField(field: Pick<PluginField, 'type'>): boolean {
+  return field.type === 'checkbox' || field.type === 'switch'
+}
+
 /** Builds the field values a form submits: numbers are coerced, checkboxes are booleans. */
 export function coerceFormValues(fields: readonly PluginField[], raw: Record<string, unknown>): Record<string, unknown> {
   const values: Record<string, unknown> = {}
   for (const field of fields) {
     const value = raw[field.name]
-    if (field.type === 'checkbox') {
+    if (isBooleanField(field)) {
       values[field.name] = value === true
     } else if (field.type === 'number') {
       const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
@@ -60,9 +64,9 @@ export function coerceFormValues(fields: readonly PluginField[], raw: Record<str
 export function initialFormValues(fields: readonly PluginField[]): Record<string, unknown> {
   const values: Record<string, unknown> = {}
   for (const field of fields) {
-    if (field.type === 'checkbox') values[field.name] = field.value === true
+    if (isBooleanField(field)) values[field.name] = field.value === true
     else if (field.type === 'password') values[field.name] = ''
-    else values[field.name] = field.value ?? (field.type === 'select' ? (field.options?.[0]?.value ?? '') : '')
+    else values[field.name] = field.value ?? (field.type === 'select' && !field.placeholder ? (field.options?.[0]?.value ?? '') : '')
   }
   return values
 }

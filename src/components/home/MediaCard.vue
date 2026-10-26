@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
+import { badgeToneClasses } from '../plugins/classes'
+import type { BadgeTone } from '../../plugins/viewTypes'
 
 const props = withDefaults(
   defineProps<{
@@ -18,6 +20,10 @@ const props = withDefaults(
     to?: RouteLocationRaw
     /** Shows a corner button that marks the item as watched. */
     markable?: boolean
+    /** An https image URL for items that are not in the library. */
+    posterUrl?: string | null
+    /** A small corner label, e.g. a plugin-provided status. */
+    badge?: { text: string; tone: BadgeTone }
   }>(),
   { variant: 'poster' },
 )
@@ -39,7 +45,8 @@ const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.
   >
     <component :is="linkTo ? RouterLink : 'a'" v-bind="linkTo ? { to: linkTo } : { href: '#' }" class="group block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
       <div class="relative overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface transition duration-300 group-hover:-translate-y-1 group-hover:border-white/30 group-hover:shadow-xl group-hover:shadow-black/50" :class="variant === 'poster' ? 'aspect-[2/3]' : variant === 'square' ? 'aspect-square' : 'aspect-video'">
-        <AuthImage v-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library" :item-id="itemId" :index="imageIndex" :version="version" :width="variant === 'landscape' ? 300 : variant === 'library' ? 260 : 200" :alt="variant === 'library' ? '' : title" img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
+        <img v-if="posterUrl" :src="posterUrl" alt="" loading="lazy" referrerpolicy="no-referrer" class="size-full object-cover transition duration-500 group-hover:scale-105" />
+        <AuthImage v-else-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library" :item-id="itemId" :index="imageIndex" :version="version" :width="variant === 'landscape' ? 300 : variant === 'library' ? 260 : 200" :alt="variant === 'library' ? '' : title" img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
         <span v-else-if="variant !== 'library'" class="absolute inset-0 grid place-items-center p-3 text-center text-sm font-medium text-flixer-muted">{{ title }}</span>
 
         <template v-if="variant === 'library'">
@@ -55,6 +62,7 @@ const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.
               <svg class="ml-0.5 size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
             </span>
           </div>
+          <span v-if="badge" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="badgeToneClasses[badge.tone]">{{ badge.text }}</span>
           <div v-if="progress !== undefined" class="absolute inset-x-0 bottom-0 h-1 bg-white/25">
             <div class="h-full bg-flixer-accent" :style="{ width: `${progress}%` }"></div>
           </div>

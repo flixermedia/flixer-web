@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { getSearchGenres, searchMedia, type HomeCard, type SearchFilters } from '../api'
+import { getSearchGenres, searchMedia, searchPluginSections, type HomeCard, type SearchFilters } from '../api'
+import { pluginSearchType, sanitizeSearchSections, searchItemRoute, type PluginSearchSection } from '../plugins/searchSections'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
@@ -17,6 +18,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
+const pluginSections = ref<PluginSearchSection[]>([])
+const pluginItemCount = computed(() => pluginSections.value.reduce((sum, section) => sum + section.items.length, 0))
 const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
@@ -74,6 +77,7 @@ async function run(term: string) {
   controller?.abort()
   if (term.length < MIN_LENGTH && !(term.length === 0 && hasFilters.value)) {
     results.value = []
+    pluginSections.value = []
     isLoading.value = false
     failed.value = false
     return
@@ -82,11 +86,16 @@ async function run(term: string) {
   isLoading.value = true
   failed.value = false
   try {
-    results.value = await searchMedia(term, filters.value, controller.signal)
+    const signal = controller.signal
+    const pluginType = pluginSearchType(type.value)
+    const [local, sections] = await Promise.all([searchMedia(term, filters.value, signal), pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => [])])
+    results.value = local
+    pluginSections.value = sections
   } catch (error) {
     if ((error as { code?: string }).code === 'ERR_CANCELED') return
     failed.value = true
     results.value = []
+    pluginSections.value = []
   }
   isLoading.value = false
 }
@@ -192,15 +201,24 @@ function subtitleOf(item: HomeCard) {
 
       <div class="mx-auto mt-10 max-w-[100rem]" aria-live="polite">
         <p v-if="tooShort" class="text-center text-sm text-flixer-muted">{{ t('search.hint') }}</p>
-        <CardGridSkeleton v-else-if="isLoading && results.length === 0" />
-        <p v-else-if="failed && results.length === 0" class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
-        <p v-if="!tooShort && !isLoading && results.length === 0" class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed }) }}</p>
+        <CardGridSkeleton v-else-if="isLoading && results.length === 0 && pluginItemCount === 0" />
+        <p v-else-if="failed && results.length === 0 && pluginItemCount === 0" class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
+        <p v-if="!tooShort && !isLoading && results.length === 0 && pluginItemCount === 0" class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed }) }}</p>
         <div v-if="results.length" :class="isLoading ? 'opacity-60' : ''" class="transition-opacity duration-200">
           <h2 class="mb-5 text-lg font-semibold text-white">{{ t('search.results', { count: results.length, query: trimmed }) }}</h2>
           <TransitionGroup tag="ul" name="result" class="relative grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
             <MediaCard v-for="(item, index) in results" :key="item.id" class="!w-auto" :style="{ '--i': Math.min(index, 14) }" :variant="item.type === 'album' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" />
           </TransitionGroup>
         </div>
+        <section v-for="section in pluginSections" :key="section.pluginId + section.title" class="mt-9 rounded-2xl border border-flixer-border bg-flixer-surface/35 p-4 sm:mt-12 sm:p-6">
+          <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <h2 class="text-lg font-semibold text-white sm:text-xl">{{ section.title }}</h2>
+            <span class="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-flixer-muted">{{ section.items.length }}</span>
+          </div>
+          <ul class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4">
+            <MediaCard v-for="(item, index) in section.items" :key="index" class="!w-auto" :variant="item.shape" :title="item.title" :subtitle="item.subtitle" :poster-url="item.poster" :badge="item.badge" :to="searchItemRoute(section.pluginId, item)" />
+          </ul>
+        </section>
       </div>
     </main>
 

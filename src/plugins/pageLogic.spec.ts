@@ -43,14 +43,16 @@ describe('form values', () => {
     { name: 'off', type: 'checkbox' },
     { name: 'kind', type: 'select', options: [{ value: 'x', label: 'X' }] },
     { name: 'pw', type: 'password', value: 'ignored' },
+    { name: 'sw', type: 'switch', value: true },
+    { name: 'ph', type: 'select', placeholder: 'Pick', options: [{ value: 'x', label: 'X' }] },
   ]
 
   it('builds initial values', () => {
-    expect(initialFormValues(fields)).toEqual({ name: 'abc', limit: 5, on: true, off: false, kind: 'x', pw: '' })
+    expect(initialFormValues(fields)).toEqual({ name: 'abc', limit: 5, on: true, off: false, kind: 'x', pw: '', sw: true, ph: '' })
   })
 
   it('coerces numbers and checkboxes', () => {
-    expect(coerceFormValues(fields, { name: 'n', limit: '12.5', on: true, off: undefined, kind: 'x', pw: 'p' })).toEqual({ name: 'n', limit: 12.5, on: true, off: false, kind: 'x', pw: 'p' })
+    expect(coerceFormValues(fields, { name: 'n', limit: '12.5', on: true, off: undefined, kind: 'x', pw: 'p' })).toEqual({ name: 'n', limit: 12.5, on: true, off: false, kind: 'x', pw: 'p', sw: false, ph: '' })
     expect(coerceFormValues(fields, { limit: '' })).toMatchObject({ limit: null })
     expect(coerceFormValues(fields, { limit: 'abc' })).toMatchObject({ limit: null })
     expect(coerceFormValues(fields, { limit: 7 })).toMatchObject({ limit: 7 })

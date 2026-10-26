@@ -6,7 +6,7 @@ export type AlertTone = 'info' | 'warning' | 'danger' | 'success'
 export type ImageAspect = 'poster' | 'square' | 'wide'
 export type ButtonVariant = 'primary' | 'quiet' | 'danger'
 export type SubmitVariant = 'primary' | 'quiet'
-export type FieldType = 'text' | 'password' | 'number' | 'checkbox' | 'select' | 'textarea' | 'hidden'
+export type FieldType = 'text' | 'password' | 'number' | 'checkbox' | 'select' | 'textarea' | 'switch' | 'hidden'
 
 export interface PluginNav {
   query: Record<string, string>
@@ -57,6 +57,9 @@ export interface PluginField {
   placeholder?: string
   help?: string
   required?: boolean
+  disabled?: boolean
+  /** A saved secret exists; password fields stay empty and show a hint instead. */
+  hasValue?: boolean
   options?: FieldOption[]
   min?: number
   max?: number
@@ -121,6 +124,13 @@ export interface CardNode {
   to?: PluginNav
   children?: ViewNode[]
   actions?: ViewNode[]
+}
+export interface SectionNode {
+  type: 'section'
+  title?: string
+  description?: string
+  actions?: ViewNode[]
+  children?: ViewNode[]
 }
 export interface TabsNode {
   type: 'tabs'
@@ -195,6 +205,7 @@ export type ViewNode =
   | ImageNode
   | GridNode
   | CardNode
+  | SectionNode
   | TabsNode
   | TableNode
   | FormNode

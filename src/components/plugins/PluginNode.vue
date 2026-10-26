@@ -9,6 +9,7 @@ import { alertToneClasses, aspectClasses, badgeToneClasses, gapClasses, headingC
 import PluginButton from './PluginButton.vue'
 import PluginCard from './PluginCard.vue'
 import PluginForm from './PluginForm.vue'
+import PluginSection from './PluginSection.vue'
 import PluginTable from './PluginTable.vue'
 
 const props = defineProps<{ node: ViewNode }>()
@@ -54,6 +55,8 @@ const activeChip = computed(() => (props.node.type === 'chips' ? (context.query.
   <div v-else-if="node.type === 'grid'" class="grid gap-4" :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${node.minWidth ?? 160}px), 1fr))` }">
     <PluginNode v-for="(child, index) in node.children" :key="index" :node="child" />
   </div>
+
+  <PluginSection v-else-if="node.type === 'section'" :node="node" />
 
   <PluginCard v-else-if="node.type === 'card'" :node="node" />
 

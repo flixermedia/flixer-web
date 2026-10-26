@@ -45,7 +45,7 @@ const ALERT_TONES: readonly AlertTone[] = ['info', 'warning', 'danger', 'success
 const ASPECTS: readonly ImageAspect[] = ['poster', 'square', 'wide']
 const BUTTON_VARIANTS: readonly ButtonVariant[] = ['primary', 'quiet', 'danger']
 const SUBMIT_VARIANTS = ['primary', 'quiet'] as const
-const FIELD_TYPES: readonly FieldType[] = ['text', 'password', 'number', 'checkbox', 'select', 'textarea', 'hidden']
+const FIELD_TYPES: readonly FieldType[] = ['text', 'password', 'number', 'checkbox', 'select', 'textarea', 'switch', 'hidden']
 const ALIGNS = ['start', 'center', 'end', 'between'] as const
 const DIRECTIONS = ['column', 'row'] as const
 const SIZES = ['sm', 'md'] as const
@@ -174,6 +174,7 @@ function sanitizeField(raw: unknown): PluginField | undefined {
     placeholder: str(raw.placeholder, MAX_LABEL),
     help: str(raw.help, MAX_TEXT),
     required: bool(raw.required),
+    disabled: bool(raw.disabled),
     min: num(raw.min),
     max: num(raw.max),
   }
@@ -182,6 +183,7 @@ function sanitizeField(raw: unknown): PluginField | undefined {
     const value = typeof raw.value === 'boolean' ? raw.value : typeof raw.value === 'number' ? num(raw.value) : str(raw.value, type === 'textarea' ? MAX_TEXTAREA : MAX_VALUE)
     if (value !== undefined) field.value = value
   }
+  if (type === 'password' && raw.hasValue === true) field.hasValue = true
   if (type === 'select') field.options = sanitizeOptions(raw.options)
   return field
 }
@@ -273,6 +275,14 @@ function sanitizeNode(raw: unknown, depth: number, budget: Budget): ViewNode | n
         actions: sanitizeChildren(raw.actions, next, budget),
       }
     }
+    case 'section':
+      return {
+        type: 'section',
+        title: str(raw.title, MAX_LABEL * 2),
+        description: str(raw.description, MAX_TEXT),
+        actions: sanitizeChildren(raw.actions, next, budget),
+        children: sanitizeChildren(raw.children, next, budget),
+      }
     case 'tabs': {
       const param = safeKey(raw.param)
       if (!param || !Array.isArray(raw.tabs)) return null

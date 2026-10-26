@@ -190,7 +190,8 @@
       "next": "Weiter",
       "range": "{first}–{last} von {total}",
       "search": "Suchen",
-      "pagination": "Seitennavigation"
+      "pagination": "Seitennavigation",
+      "saved": "Gespeichert."
     }
   }
 }

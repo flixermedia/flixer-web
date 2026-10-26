@@ -128,6 +128,40 @@ describe('sanitizeView', () => {
     expect(sanitizeView({ type: 'form', fields: [] })).toBeNull()
   })
 
+  it('supports switch, disabled and hasValue on fields', () => {
+    const view = sanitizeView({
+      type: 'form',
+      fields: [
+        { name: 'on', type: 'switch', label: 'On', value: true, help: 'h', disabled: true },
+        { name: 'key', type: 'password', hasValue: true, value: 'leak' },
+        { name: 'plain', type: 'text', hasValue: true },
+        { name: 'kind', type: 'select', placeholder: 'Choose…', options: [{ value: 'a', label: 'A' }] },
+      ],
+      submit: { label: 'Save', action: { op: 'save' } },
+    }) as Extract<ViewNode, { type: 'form' }>
+    expect(view.fields[0]).toMatchObject({ type: 'switch', value: true, help: 'h', disabled: true })
+    expect(view.fields[1]).toMatchObject({ type: 'password', hasValue: true })
+    expect(view.fields[1]).not.toHaveProperty('value')
+    expect(view.fields[2]).not.toHaveProperty('hasValue')
+    expect(view.fields[3]).toMatchObject({ placeholder: 'Choose…', options: [{ value: 'a', label: 'A' }] })
+  })
+
+  it('sanitizes sections and counts their children against the limits', () => {
+    expect(sanitizeView({ type: 'section', title: 'T', description: 'D', actions: [{ type: 'button', label: 'Go', action: { op: 'go' } }, { type: 'nope' }], children: [{ type: 'divider' }], class: 'x' })).toEqual({
+      type: 'section',
+      title: 'T',
+      description: 'D',
+      actions: [{ type: 'button', label: 'Go', action: { op: 'go' } }],
+      children: [{ type: 'divider' }],
+    })
+    expect(sanitizeView({ type: 'section' })).toEqual({ type: 'section', actions: [], children: [] })
+    const deep = { type: 'section', children: [nest(MAX_DEPTH)] }
+    const result = sanitizeView(deep) as Extract<ViewNode, { type: 'section' }>
+    let depth = 1
+    for (let node: ViewNode | undefined = result.children?.[0]; node; node = node.type === 'stack' ? node.children[0] : undefined) depth += 1
+    expect(depth).toBe(MAX_DEPTH)
+  })
+
   it('sanitizes tables and nested cell nodes', () => {
     const view = sanitizeView({
       type: 'table',
