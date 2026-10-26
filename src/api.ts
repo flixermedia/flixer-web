@@ -1695,23 +1695,33 @@ export interface RequestUserView {
   quotaDays: number | null
 }
 
+/** Cached TMDB images are served by the API as relative paths; other (absolute) URLs pass through. */
+function withApiBase(url: string | null): string | null {
+  return url?.startsWith('/') ? `${api.defaults.baseURL ?? ''}${url}` : url
+}
+function withPoster<T extends { poster: string | null }>(entry: T): T {
+  return { ...entry, poster: withApiBase(entry.poster) }
+}
+
 export async function getRequestsConfig(): Promise<RequestsConfig> {
   return (await api.get<RequestsConfig>('/requests/config')).data
 }
 export async function searchRequests(query: string, type?: RequestMediaType, signal?: AbortSignal): Promise<ExternalMediaCard[]> {
-  return (await api.get<ExternalMediaCard[]>('/requests/search', { params: { q: query, type }, signal })).data
+  return (await api.get<ExternalMediaCard[]>('/requests/search', { params: { q: query, type }, signal })).data.map(withPoster)
 }
 export async function discoverRequests(section: 'trending' | 'movies' | 'tv' | 'upcoming' | 'music', signal?: AbortSignal): Promise<ExternalMediaCard[]> {
-  return (await api.get<ExternalMediaCard[]>('/requests/discover', { params: { section }, signal })).data
+  return (await api.get<ExternalMediaCard[]>('/requests/discover', { params: { section }, signal })).data.map(withPoster)
 }
 export async function getExternalMediaDetail(type: RequestMediaType, id: string): Promise<ExternalMediaDetail> {
-  return (await api.get<ExternalMediaDetail>(`/requests/details/${type}/${encodeURIComponent(id)}`)).data
+  const detail = (await api.get<ExternalMediaDetail>(`/requests/details/${type}/${encodeURIComponent(id)}`)).data
+  return { ...withPoster(detail), backdrop: withApiBase(detail.backdrop), requests: detail.requests.map(withPoster) }
 }
 export async function createMediaRequest(input: { type: RequestMediaType; externalId: string; seasons?: number[]; serviceId?: string; qualityProfileId?: number; rootFolder?: string }): Promise<MediaRequestView> {
   return (await api.post<MediaRequestView>('/requests', input)).data
 }
 export async function listMediaRequests(params: { scope?: 'mine' | 'all'; status?: RequestStatus; type?: RequestMediaType; offset?: number; limit?: number } = {}): Promise<{ total: number; counts: Record<RequestStatus, number>; items: MediaRequestView[] }> {
-  return (await api.get<{ total: number; counts: Record<RequestStatus, number>; items: MediaRequestView[] }>('/requests', { params })).data
+  const data = (await api.get<{ total: number; counts: Record<RequestStatus, number>; items: MediaRequestView[] }>('/requests', { params })).data
+  return { ...data, items: data.items.map(withPoster) }
 }
 export async function approveMediaRequest(id: string, input: { serviceId?: string; qualityProfileId?: number; rootFolder?: string } = {}): Promise<MediaRequestView> {
   return (await api.post<MediaRequestView>(`/requests/${encodeURIComponent(id)}/approve`, input)).data
