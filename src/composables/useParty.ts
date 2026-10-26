@@ -94,8 +94,8 @@ function applyVideo(state: PartyState) {
 function applyAudio(state: PartyState) {
   const { item, playing } = state.party
   if (videoOverlay.playing.value) videoOverlay.close()
+  // Guests who start something else are pulled back to whatever the host is playing.
   if (audio.current.value?.id !== item.id) {
-    if (appliedItemId === item.id) return
     appliedItemId = item.id
     audio.playQueue([toQueueTrack(item)], 0)
     return
