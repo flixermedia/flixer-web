@@ -11,7 +11,7 @@ import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
-import { conversationTitle, useChatUnread } from '../composables/useChat'
+import { conversationTitle, useChatUnread, viewingChat } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
 
@@ -252,7 +252,10 @@ function onVisible() {
 
 watch(
   () => props.id,
-  (id) => void openThread(id),
+  (id) => {
+    viewingChat.value = id ?? null
+    void openThread(id)
+  },
   { immediate: true },
 )
 
@@ -266,6 +269,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  viewingChat.value = null
   threadToken++
   clearInterval(listTimer)
   clearInterval(threadTimer)
