@@ -25,3 +25,5 @@ dist-ssr
 
 # TLS certificates and keys
 certs/
+
+data/

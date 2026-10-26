@@ -146,6 +146,8 @@ watch([scope, status, type], () => {
 </template>
 
 <style scoped>
+@reference "../tailwind.css";
+
 .btn {
   @apply rounded border border-white/15 px-3 py-1.5 text-xs text-white hover:bg-white/10;
 }
