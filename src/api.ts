@@ -700,7 +700,7 @@ export interface MediaLibraryInput {
 
 export type IndexerScanState = 'scanning' | 'indexing' | 'complete' | 'failed'
 
-export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh', 'trickplay', 'themes'] as const
+export const INDEXER_QUEUES = ['scan', 'identify', 'metadata', 'images', 'probe', 'refresh', 'trickplay', 'themes', 'lyrics'] as const
 export type IndexerQueueName = (typeof INDEXER_QUEUES)[number]
 export const INDEXER_TASK_STATES = ['pending', 'active', 'scheduled', 'retry', 'archived', 'completed'] as const
 export type IndexerTaskState = (typeof INDEXER_TASK_STATES)[number]

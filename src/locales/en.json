@@ -501,7 +501,8 @@
         "probe": "Probe",
         "refresh": "Refresh",
         "trickplay": "Trickplay",
-        "themes": "Theme Songs"
+        "themes": "Theme Songs",
+        "lyrics": "Lyrics"
       },
       "pending": "Pending",
       "active": "Active",
