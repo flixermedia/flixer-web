@@ -33,7 +33,7 @@ function open({ tab, page }: AdminLocation) {
 
     <main class="page-gutter w-full pb-16 pt-28">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="bg-linear-to-r from-white to-flixer-accent bg-clip-text text-3xl font-semibold tracking-tight text-transparent">{{ t('admin.title') }}</h1>
+        <h1 class="text-3xl font-semibold tracking-tight text-white">{{ t('admin.title') }}</h1>
         <div id="admin-header-actions" class="flex items-center"></div>
       </div>
       <p class="mt-2 text-sm text-flixer-muted">{{ t('admin.subtitle') }}</p>
