@@ -6,8 +6,8 @@ export const ADMIN_TABS = {
   requests: ['requests'],
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
-  settings: ['server', 'users', 'networking', 'updates', 'backups'],
   plugins: ['plugins'],
+  settings: ['server', 'users', 'networking', 'updates', 'backups'],
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
