@@ -17,6 +17,7 @@ export const WIDGET_CATALOG = [
   { id: 'updates', category: 'system', w: 2, h: 2, keywords: ['version', 'upgrade', 'release'] },
   { id: 'backups', category: 'system', w: 2, h: 2, keywords: ['restore', 'schedule', 'encryption', 'database'] },
   { id: 'logs', category: 'system', w: 5, h: 6, keywords: ['errors', 'warnings', 'output', 'debug'] },
+  { id: 'requests', category: 'people', w: 2, h: 2, keywords: ['pending', 'approve', 'media', 'queue'] },
   { id: 'users', category: 'people', w: 2, h: 2, keywords: ['accounts', 'admins', 'sessions', 'sign-in'] },
   { id: 'shortcuts', category: 'shortcuts', w: 5, h: 2, keywords: ['links', 'jump', 'navigate', 'quick'] },
 ] as const satisfies readonly { id: string; category: WidgetCategory; w: number; h: number; keywords: readonly string[] }[]

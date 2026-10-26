@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
+import type { ExternalRequestStatus } from '../../api'
+import { requestStatusLabelKey } from '../../composables/requestStatus'
 import { badgeToneClasses } from '../plugins/classes'
 import type { BadgeTone } from '../../plugins/viewTypes'
 
@@ -20,8 +22,8 @@ const props = withDefaults(
     to?: RouteLocationRaw
     /** Shows a corner button that marks the item as watched. */
     markable?: boolean
-    /** An https image URL for items that are not in the library. */
     posterUrl?: string | null
+    requestStatus?: ExternalRequestStatus
     /** A small corner label, e.g. a plugin-provided status. */
     badge?: { text: string; tone: BadgeTone }
   }>(),
@@ -32,6 +34,17 @@ const emit = defineEmits<{ watched: [] }>()
 const { t } = useI18n()
 
 const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.itemId ? { name: 'media-item', params: { id: props.itemId } } : null))
+const statusClass = computed(
+  () =>
+    ({
+      pending: 'border-amber-300/30 bg-amber-300/15 text-amber-100',
+      approved: 'border-flixer-accent/30 bg-flixer-accent/15 text-white',
+      available: 'border-emerald-300/30 bg-emerald-300/15 text-emerald-100',
+      declined: 'border-red-300/30 bg-red-300/15 text-red-100',
+      failed: 'border-red-300/30 bg-red-300/15 text-red-100',
+      none: '',
+    })[props.requestStatus ?? 'none'],
+)
 </script>
 
 <template>
@@ -57,12 +70,14 @@ const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.
         </template>
 
         <template v-else>
-          <div class="theme-dark absolute inset-0 grid place-items-center bg-black/40 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-            <span class="grid size-12 place-items-center rounded-full border border-white/25 bg-black/65 text-white shadow-lg backdrop-blur transition group-hover:scale-105">
-              <svg class="ml-0.5 size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
+          <div class="theme-dark absolute inset-0 grid transition" :class="posterUrl ? 'items-end justify-end bg-gradient-to-t from-black/30 via-transparent to-transparent p-2' : 'place-items-center bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'">
+            <span class="grid place-items-center rounded-full border border-white/25 bg-black/65 text-white shadow-lg backdrop-blur transition group-hover:scale-105" :class="posterUrl ? 'size-9 sm:size-10' : 'size-12'">
+              <svg v-if="posterUrl" class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
+              <svg v-else class="ml-0.5 size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
             </span>
           </div>
-          <span v-if="badge" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="badgeToneClasses[badge.tone]">{{ badge.text }}</span>
+          <span v-if="requestStatus && requestStatus !== 'none'" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="statusClass" :aria-label="t(requestStatusLabelKey(requestStatus))">{{ t(requestStatusLabelKey(requestStatus)) }}</span>
+          <span v-if="badge && (!requestStatus || requestStatus === 'none')" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="badgeToneClasses[badge.tone]">{{ badge.text }}</span>
           <div v-if="progress !== undefined" class="absolute inset-x-0 bottom-0 h-1 bg-white/25">
             <div class="h-full bg-flixer-accent" :style="{ width: `${progress}%` }"></div>
           </div>

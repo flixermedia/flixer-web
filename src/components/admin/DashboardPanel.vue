@@ -12,6 +12,7 @@ import BackupsWidget from './dashboard/BackupsWidget.vue'
 import ContentMixWidget from './dashboard/ContentMixWidget.vue'
 import LibrariesWidget from './dashboard/LibrariesWidget.vue'
 import QueuesWidget from './dashboard/QueuesWidget.vue'
+import RequestsWidget from './dashboard/RequestsWidget.vue'
 import ServicesWidget from './dashboard/ServicesWidget.vue'
 import ShortcutsWidget from './dashboard/ShortcutsWidget.vue'
 import TranscodingWidget from './dashboard/TranscodingWidget.vue'
@@ -63,7 +64,7 @@ const rows = computed(() => rowCount(layout.value) + (editing.value ? EXTRA_ROWS
 const changed = computed(() => !sameGrid(draft.value, saved.value))
 
 const COMPONENTS = { stats: StatsWidget, server: ServerWidget, storage: StorageWidget, activity: ActivityWidget, uptime: UptimeWidget, transcoding: TranscodingWidget, libraries: LibrariesWidget, 'content-mix': ContentMixWidget, services: ServicesWidget } as const
-const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: BackupsWidget, users: UsersWidget, shortcuts: ShortcutsWidget } as const
+const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: BackupsWidget, requests: RequestsWidget, users: UsersWidget, shortcuts: ShortcutsWidget } as const
 const needsOverview = (id: DashboardWidgetId): id is keyof typeof COMPONENTS => id in COMPONENTS
 const standalone = (id: DashboardWidgetId): id is keyof typeof STANDALONE => id in STANDALONE
 

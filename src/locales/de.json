@@ -6,7 +6,9 @@
     }
   },
   "admin": {
-    "groups": {},
+    "groups": {
+      "requests": "Anfragen"
+    },
     "themes": {
       "title": "Titelsongs",
       "description": "Hintergrundmusik für Filme und Serien verwalten.",
@@ -51,7 +53,8 @@
       "networking": "Netzwerk",
       "updates": "Updates",
       "backups": "Sicherungen",
-      "smtp": "SMTP"
+      "smtp": "SMTP",
+      "requests": "Anfragen"
     },
     "pagesOf": "Weitere Seiten in {tab}",
     "dashboard": {
@@ -78,7 +81,8 @@
         "updates": "Updates",
         "backups": "Backups",
         "users": "Benutzer",
-        "shortcuts": "Verknüpfungen"
+        "shortcuts": "Verknüpfungen",
+        "requests": "Medienanfragen"
       },
       "descriptions": {
         "stats": "Movie, series, episode, music and user totals.",
@@ -96,7 +100,8 @@
         "backups": "Backup schedule, count and the latest backup.",
         "logs": "Live server log output.",
         "users": "Accounts, admins and who is signed in.",
-        "shortcuts": "Quick links to common admin pages."
+        "shortcuts": "Quick links to common admin pages.",
+        "requests": "Pending media requests and totals."
       },
       "categoryNames": {
         "all": "Alle Panels",
@@ -104,7 +109,7 @@
         "streaming": "Streaming",
         "libraries": "Bibliotheken",
         "system": "System",
-        "people": "Personen",
+        "people": "Personen & Anfragen",
         "shortcuts": "Verknüpfungen"
       },
       "addPanel": "Panel hinzufügen",
@@ -166,13 +171,77 @@
         "tasks": "Aufgaben",
         "users": "Benutzer",
         "updates": "Updates",
-        "backups": "Backups"
+        "backups": "Backups",
+        "requests": "Anfragen"
       },
       "dragToResize": "Zum Ändern der Größe ziehen",
       "smallScreen": "Panels lassen sich auf größeren Bildschirmen anordnen.",
       "keyboardHint": "Mit den Pfeiltasten verschieben, mit Umschalt und Pfeiltasten die Größe ändern.",
       "dragHandle": "{widget} verschieben",
-      "placed": "{widget}: Spalte {column}, Zeile {row}, {width} Spalten breit, {height} Halbzeilen hoch."
+      "placed": "{widget}: Spalte {column}, Zeile {row}, {width} Spalten breit, {height} Halbzeilen hoch.",
+      "requestTotals": "{approved} genehmigt · {available} verfügbar · {failed} fehlgeschlagen"
+    },
+    "requests": {
+      "generalTitle": "Anfrageeinstellungen",
+      "generalDescription": "Verfügbarkeit, Kontingente und Benachrichtigungen verwalten.",
+      "enabled": "Medienanfragen aktivieren",
+      "enabledHint": "Anfragen sind standardmäßig deaktiviert.",
+      "tmdbWarning": "TMDB ist nicht konfiguriert. Hinterlege unter Anbieter einen TMDB-Schlüssel für Film- und Serienanfragen.",
+      "discogsWarning": "Discogs ist nicht konfiguriert. Hinterlege unter Anbieter ein Discogs-Token für Musikanfragen.",
+      "autoApprove": "Automatisch genehmigen",
+      "requests_movies_enabled": "Film-Anfragen aktivieren",
+      "requests_tv_enabled": "Serienanfragen aktivieren",
+      "requests_music_enabled": "Musikanfragen aktivieren",
+      "defaultCanRequest": "Anfragen für Benutzer standardmäßig erlauben",
+      "notifyAdmins": "Admins über Anfragen benachrichtigen",
+      "notifyUsers": "Benutzer über Änderungen benachrichtigen",
+      "quotaLimit": "Anfragelimit (0 = unbegrenzt)",
+      "quotaDays": "Kontingentzeitraum in Tagen",
+      "servicesTitle": "Anfragedienste",
+      "servicesDescription": "Sonarr-, Radarr- und Lidarr-Ziele konfigurieren.",
+      "addService": "Dienst hinzufügen",
+      "editService": "Dienst bearbeiten",
+      "noServices": "Keine Anfragedienste konfiguriert.",
+      "usersTitle": "Benutzerüberschreibungen",
+      "usersDescription": "Anfragerechte und Kontingente pro Benutzer festlegen.",
+      "user": "Benutzer",
+      "canRequest": "Darf anfragen",
+      "inherit": "Übernehmen",
+      "allow": "Erlauben",
+      "deny": "Verweigern",
+      "name": "Name",
+      "url": "URL",
+      "serviceKind": "Diensttyp",
+      "apiKey": "API-Schlüssel",
+      "qualityProfile": "Qualitätsprofil",
+      "metadataProfile": "Metadatenprofil",
+      "languageProfile": "Sprachprofil",
+      "minimumAvailability": "Mindestverfügbarkeit",
+      "seasonFolders": "Staffelordner verwenden",
+      "defaultService": "Standarddienst",
+      "serviceEnabled": "Aktiviert",
+      "testConnection": "Verbindung testen",
+      "testFailed": "Verbindung zu diesem Dienst fehlgeschlagen.",
+      "connectionOk": "Verbunden, Version {version}.",
+      "confirmDeleteService": "Diesen Dienst löschen?",
+      "loadError": "Anfrageeinstellungen konnten nicht geladen werden.",
+      "saved": "Anfrageeinstellungen gespeichert.",
+      "saveError": "Anfrageeinstellungen konnten nicht gespeichert werden.",
+      "removeService": "Dienst entfernen",
+      "rootFolder": "Stammordner",
+      "mediaTypes": "Medientypen und Genehmigung",
+      "quotaTitle": "Anfragekontingent",
+      "quotaHint": "Für unbegrenzte Anfragen 0 festlegen.",
+      "accessNotifications": "Zugriff und Benachrichtigungen",
+      "serviceDisabled": "Deaktiviert",
+      "noUsers": "Keine Benutzer zum Konfigurieren.",
+      "library": "Bibliothek",
+      "selectLibrary": "Bibliothek auswählen",
+      "mixedLibrary": "Gemischte Bibliothek",
+      "libraryHint": "Verknüpfe diesen Server mit einer passenden Flixer-Bibliothek.",
+      "noCompatibleLibrary": "Für diesen Servertyp gibt es keine passende Bibliothek.",
+      "goToLibraries": "Bibliotheken konfigurieren",
+      "notLinkedLibrary": "Keine Bibliothek verknüpft"
     }
   },
   "mediaItem": {
@@ -192,6 +261,74 @@
       "search": "Suchen",
       "pagination": "Seitennavigation",
       "saved": "Gespeichert."
+    }
+  },
+  "requests": {
+    "nav": {
+      "discover": "Entdecken",
+      "requests": "Anfragen"
+    },
+    "notInLibrary": "Nicht in deiner Bibliothek — anfragen",
+    "discover": "Entdecken",
+    "discoverDescription": "Entdecke Filme, Serien und Alben, die du anfragen kannst.",
+    "sections": {
+      "trending": "Im Trend",
+      "movies": "Beliebte Filme",
+      "tv": "Beliebte Serien",
+      "upcoming": "Demnächst",
+      "music": "Beliebte Alben"
+    },
+    "noDiscover": "Zurzeit gibt es nichts zu entdecken.",
+    "title": "Anfragen",
+    "allStatuses": "Alle Status",
+    "allTypes": "Alle Typen",
+    "scope": {
+      "all": "Alle Anfragen",
+      "mine": "Meine Anfragen"
+    },
+    "status": {
+      "none": "Nicht angefragt",
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "declined": "Abgelehnt",
+      "failed": "Fehlgeschlagen",
+      "available": "Verfügbar"
+    },
+    "actions": {
+      "approve": "Genehmigen",
+      "decline": "Ablehnen",
+      "retry": "Erneut versuchen",
+      "delete": "Löschen"
+    },
+    "loadMore": "Mehr laden",
+    "empty": "Keine Anfragen gefunden.",
+    "loadError": "Anfragen konnten nicht geladen werden.",
+    "actionError": "Diese Aktion konnte nicht ausgeführt werden.",
+    "declineReason": "Optionaler Ablehnungsgrund",
+    "noService": "Kein Dienst zugewiesen",
+    "detailError": "Dieser Titel konnte nicht geladen werden.",
+    "requested": "Anfrage gesendet.",
+    "request": "Anfragen",
+    "play": "Ansehen oder anhören",
+    "cast": "Besetzung",
+    "tracklist": "Titelliste",
+    "seasons": "Staffeln",
+    "selectAllSeasons": "Alle verfügbaren Staffeln auswählen",
+    "episodes": "Folgen",
+    "advanced": "Erweiterte Optionen",
+    "server": "Server",
+    "defaultServer": "Standardserver verwenden",
+    "rootFolder": "Stammordner",
+    "quotaHint": "Du hast noch {remaining} Anfragen in deinem Kontingent.",
+    "quotaReached": "Dein Anfragekontingent ist aufgebraucht.",
+    "notAllowed": "Anfragen sind für dein Konto nicht aktiviert.",
+    "cancelRequest": "Anfrage abbrechen",
+    "cardStatus": {
+      "pending": "Angefragt",
+      "approved": "Genehmigt",
+      "available": "Verfügbar",
+      "declined": "Abgelehnt",
+      "failed": "Fehlgeschlagen"
     }
   }
 }

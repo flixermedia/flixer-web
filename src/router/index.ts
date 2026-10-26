@@ -54,6 +54,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/discover',
+      name: 'discover',
+      component: () => import('../views/DiscoverView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/requests',
+      name: 'requests',
+      component: () => import('../views/RequestsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/request/:type/:id',
+      name: 'request-item',
+      component: () => import('../views/RequestItemView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/plugins/:pluginId/:pageId',
       name: 'plugin-page',
       component: () => import('../views/PluginPageView.vue'),
