@@ -151,6 +151,9 @@ watch(
                 <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
                 {{ submitting ? t('common.loading') : t('requests.request') }}
               </button>
+              <button v-else type="button" disabled aria-disabled="true" class="inline-flex cursor-default items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white/80">
+                {{ t(`requests.status.${activeStatus}`) }}
+              </button>
               <button v-if="ownRequest?.status === 'pending'" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="cancelRequest">{{ t('requests.cancelRequest') }}</button>
             </div>
           </div>
