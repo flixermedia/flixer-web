@@ -40,6 +40,29 @@ const renameDraft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 const composer = ref<HTMLTextAreaElement | null>(null)
 
+// iOS shifts the page when the keyboard opens, so on small screens the open thread is pinned to the visual viewport while typing.
+const typing = ref(false)
+const viewport = ref({ top: 0, height: 0 })
+const pinned = computed(() => typing.value && !!props.id && window.matchMedia('(max-width: 767px)').matches)
+
+function syncViewport() {
+  const vv = window.visualViewport
+  if (!vv) return
+  viewport.value = { top: vv.offsetTop, height: vv.height }
+  if (pinned.value) window.scrollTo(0, 0)
+}
+
+function onComposerFocus() {
+  typing.value = true
+  syncViewport()
+  setTimeout(syncViewport, 300)
+  scrollToEnd()
+}
+
+function onComposerBlur() {
+  typing.value = false
+}
+
 let stopEvents: (() => void) | undefined
 let threadToken = 0
 
@@ -306,6 +329,8 @@ onMounted(() => {
   void loadProfile()
   void refreshList(false)
   stopEvents = onChatEvent(onEvent)
+  window.visualViewport?.addEventListener('resize', syncViewport)
+  window.visualViewport?.addEventListener('scroll', syncViewport)
   document.addEventListener('visibilitychange', onVisible)
 })
 
@@ -313,6 +338,8 @@ onBeforeUnmount(() => {
   viewingChat.value = null
   threadToken++
   stopEvents?.()
+  window.visualViewport?.removeEventListener('resize', syncViewport)
+  window.visualViewport?.removeEventListener('scroll', syncViewport)
   document.removeEventListener('visibilitychange', onVisible)
 })
 </script>
@@ -321,7 +348,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
-      <div class="grid h-[calc(100dvh-13rem)] min-h-[28rem] overflow-hidden rounded border border-white/10 md:grid-cols-[20rem_minmax(0,1fr)] md:h-[calc(100dvh-10rem)]">
+      <div class="grid overflow-hidden rounded border border-white/10 md:grid-cols-[20rem_minmax(0,1fr)]" :class="pinned ? 'fixed inset-x-0 z-40 bg-flixer-background' : 'h-[calc(100dvh-13rem)] min-h-[28rem] md:h-[calc(100dvh-10rem)]'" :style="pinned ? { top: `${viewport.top}px`, height: `${viewport.height}px` } : undefined">
         <aside class="flex min-h-0 flex-col border-white/10 md:border-r" :class="props.id ? 'hidden md:flex' : 'flex'" :aria-label="t('chat.conversations')">
           <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <h1 class="text-lg font-bold text-white">{{ t('chat.title') }}</h1>
@@ -445,7 +472,7 @@ onBeforeUnmount(() => {
             <form class="border-t border-white/10 p-3" @submit.prevent="send">
               <p v-if="sendError" class="mb-2 text-xs text-red-400" role="alert">{{ sendError }}</p>
               <div class="flex items-end gap-2">
-                <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey"></textarea>
+                <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
                 <button type="submit" class="h-10 shrink-0 rounded-lg bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending">{{ t('chat.send') }}</button>
               </div>
             </form>
@@ -453,6 +480,6 @@ onBeforeUnmount(() => {
         </section>
       </div>
     </main>
-    <MobileTabBar :tabs="mobileTabs" />
+    <MobileTabBar v-if="!pinned" :tabs="mobileTabs" />
   </div>
 </template>
