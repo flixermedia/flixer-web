@@ -239,10 +239,6 @@ watch(live.data, (value) => {
     <Teleport defer to="#admin-header-actions">
     <div class="hidden flex-wrap items-center justify-end gap-2 lg:flex">
       <template v-if="editing">
-        <p class="mr-auto text-xs text-flixer-muted">
-          <span class="hidden lg:inline">{{ t('admin.dashboard.editHint') }}</span>
-          <span class="lg:hidden">{{ t('admin.dashboard.smallScreen') }}</span>
-        </p>
         <button type="button" :class="primaryButton" :disabled="isSaving" @click="addPanel">{{ t('admin.dashboard.addPanel') }}</button>
         <button type="button" :class="quietButton" :disabled="isSaving || (isDefaultGrid(draft) && isDefaultGrid(saved))" @click="reset">{{ t('admin.dashboard.reset') }}</button>
         <button type="button" :class="quietButton" :disabled="isSaving" @click="cancel">{{ t('admin.dashboard.cancel') }}</button>
