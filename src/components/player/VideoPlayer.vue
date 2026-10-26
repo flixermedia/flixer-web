@@ -817,7 +817,7 @@ onBeforeUnmount(() => {
       <PartyPanel @left="partyMenuOpen = false" />
     </div>
 
-    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
+    <div v-if="menuOpen && controlsShown" class="absolute bottom-20 right-3 z-20 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
       <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.subtitles') }}</p>
       <p v-if="subtitleTracks.length === 0" class="px-3 pb-2 text-sm text-flixer-muted">{{ t('player.subtitlesNone') }}</p>
       <template v-else>
