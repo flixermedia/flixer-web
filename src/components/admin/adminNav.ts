@@ -3,7 +3,6 @@ export const ADMIN_TABS = {
   dashboard: ['overview'],
   library: ['libraries', 'tasks', 'media', 'transcoding'],
   providers: ['metadata', 'subtitles', 'themes'],
-  requests: ['requests'],
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
   settings: ['server', 'users', 'networking', 'updates', 'backups'],

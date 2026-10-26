@@ -19,140 +19,8 @@
       "help": "¿Traducciones perdidas o incorrectas? Ayuda a mejorarlos en Weblate."
     }
   },
-  "requests": {
-    "nav": {
-      "discover": "Descubrir",
-      "requests": "Solicitudes"
-    },
-    "notInLibrary": "No está en tu biblioteca — solicitar",
-    "discover": "Descubrir",
-    "discoverDescription": "Explora películas, series y álbumes que puedes solicitar.",
-    "sections": {
-      "trending": "Tendencias",
-      "movies": "Películas populares",
-      "tv": "Series populares",
-      "upcoming": "Próximos estrenos",
-      "music": "Álbumes populares"
-    },
-    "noDiscover": "No hay contenido para descubrir ahora.",
-    "title": "Solicitudes",
-    "allStatuses": "Todos los estados",
-    "allTypes": "Todos los tipos",
-    "scope": {
-      "all": "Todas las solicitudes",
-      "mine": "Mis solicitudes"
-    },
-    "status": {
-      "none": "No solicitada",
-      "pending": "Pendiente",
-      "approved": "Aprobada",
-      "declined": "Rechazada",
-      "failed": "Fallida",
-      "available": "Disponible"
-    },
-    "actions": {
-      "approve": "Aprobar",
-      "decline": "Rechazar",
-      "retry": "Reintentar",
-      "delete": "Eliminar"
-    },
-    "loadMore": "Cargar más",
-    "empty": "No se encontraron solicitudes.",
-    "loadError": "No se pudieron cargar las solicitudes.",
-    "actionError": "No se pudo completar esta acción.",
-    "declineReason": "Motivo opcional del rechazo",
-    "noService": "Sin servicio asignado",
-    "detailError": "No se pudo cargar este título.",
-    "requested": "Solicitud enviada.",
-    "request": "Solicitar",
-    "play": "Ver o escuchar",
-    "cast": "Reparto",
-    "tracklist": "Lista de canciones",
-    "seasons": "Temporadas",
-    "selectAllSeasons": "Seleccionar todas las temporadas disponibles",
-    "episodes": "episodios",
-    "advanced": "Opciones avanzadas",
-    "server": "Servidor",
-    "defaultServer": "Usar servidor predeterminado",
-    "rootFolder": "Carpeta raíz",
-    "quotaHint": "Te quedan {remaining} solicitudes en tu cuota.",
-    "quotaReached": "Has agotado tu cuota de solicitudes.",
-    "notAllowed": "Las solicitudes no están habilitadas para tu cuenta.",
-    "cancelRequest": "Cancelar solicitud",
-    "cardStatus": {
-      "pending": "Solicitada",
-      "approved": "Aprobada",
-      "available": "Disponible",
-      "declined": "Rechazada",
-      "failed": "Fallida"
-    }
-  },
   "admin": {
-    "groups": {
-      "requests": "Solicitudes"
-    },
-    "requests": {
-      "generalTitle": "Configuración de solicitudes",
-      "generalDescription": "Controla la disponibilidad, las cuotas y las notificaciones.",
-      "enabled": "Habilitar solicitudes de medios",
-      "enabledHint": "Las solicitudes están desactivadas de forma predeterminada.",
-      "tmdbWarning": "TMDB no está configurado. Añade una clave de TMDB en Proveedores para solicitudes de películas y series.",
-      "discogsWarning": "Discogs no está configurado. Añade un token de Discogs en Proveedores para solicitudes de música.",
-      "autoApprove": "Aprobación automática",
-      "requests_movies_enabled": "Habilitar solicitudes de películas",
-      "requests_tv_enabled": "Habilitar solicitudes de series",
-      "requests_music_enabled": "Habilitar solicitudes de música",
-      "defaultCanRequest": "Permitir solicitudes a usuarios de forma predeterminada",
-      "notifyAdmins": "Notificar a administradores sobre solicitudes",
-      "notifyUsers": "Notificar a usuarios sobre cambios",
-      "quotaLimit": "Límite de solicitudes (0 = ilimitado)",
-      "quotaDays": "Días del periodo de cuota",
-      "servicesTitle": "Servicios de solicitudes",
-      "servicesDescription": "Configura destinos de Sonarr, Radarr y Lidarr.",
-      "addService": "Añadir servicio",
-      "editService": "Editar servicio",
-      "noServices": "No hay servicios de solicitudes configurados.",
-      "usersTitle": "Excepciones por usuario",
-      "usersDescription": "Configura permisos y cuotas para cada usuario.",
-      "user": "Usuario",
-      "canRequest": "Puede solicitar",
-      "inherit": "Heredar",
-      "allow": "Permitir",
-      "deny": "Denegar",
-      "name": "Nombre",
-      "url": "URL",
-      "serviceKind": "Tipo de servicio",
-      "apiKey": "Clave API",
-      "qualityProfile": "Perfil de calidad",
-      "metadataProfile": "Perfil de metadatos",
-      "languageProfile": "Perfil de idioma",
-      "minimumAvailability": "Disponibilidad mínima",
-      "seasonFolders": "Usar carpetas por temporada",
-      "defaultService": "Servicio predeterminado",
-      "serviceEnabled": "Habilitado",
-      "testConnection": "Probar conexión",
-      "testFailed": "No se pudo conectar con este servicio.",
-      "connectionOk": "Conectado, versión {version}.",
-      "confirmDeleteService": "¿Eliminar este servicio?",
-      "loadError": "No se pudo cargar la configuración de solicitudes.",
-      "saved": "Configuración de solicitudes guardada.",
-      "saveError": "No se pudo guardar la configuración de solicitudes.",
-      "removeService": "Eliminar servicio",
-      "rootFolder": "Carpeta raíz",
-      "mediaTypes": "Tipos de contenido y aprobación",
-      "quotaTitle": "Cuota de solicitudes",
-      "quotaHint": "Establece 0 para solicitudes ilimitadas.",
-      "accessNotifications": "Acceso y notificaciones",
-      "serviceDisabled": "Deshabilitado",
-      "noUsers": "No hay usuarios para configurar.",
-      "library": "Biblioteca",
-      "selectLibrary": "Selecciona una biblioteca",
-      "mixedLibrary": "Biblioteca mixta",
-      "libraryHint": "Vincula este servidor a una biblioteca Flixer compatible.",
-      "noCompatibleLibrary": "No hay bibliotecas compatibles con este tipo de servidor.",
-      "goToLibraries": "Configurar bibliotecas",
-      "notLinkedLibrary": "Sin biblioteca vinculada"
-    },
+    "groups": {},
     "themes": {
       "title": "Temas musicales",
       "description": "Administra la música de fondo de películas y series.",
@@ -190,7 +58,6 @@
       "metadata": "Proveedores de metadatos",
       "subtitles": "Subtítulos",
       "themes": "Temas musicales",
-      "requests": "Solicitudes",
       "notifications": "Notificaciones",
       "apikeys": "Claves API",
       "server": "Servidor",
@@ -224,7 +91,6 @@
         "services": "Estado de servicios",
         "updates": "Actualizaciones",
         "backups": "Copias de seguridad",
-        "requests": "Solicitudes",
         "users": "Usuarios",
         "shortcuts": "Accesos directos"
       },
@@ -243,7 +109,6 @@
         "updates": "Whether updates are available for Flixer components.",
         "backups": "Backup schedule, count and the latest backup.",
         "logs": "Live server log output.",
-        "requests": "Pending media requests and totals.",
         "users": "Accounts, admins and who is signed in.",
         "shortcuts": "Quick links to common admin pages."
       },
@@ -253,7 +118,7 @@
         "streaming": "Streaming",
         "libraries": "Bibliotecas",
         "system": "Sistema",
-        "people": "Personas y solicitudes",
+        "people": "Personas",
         "shortcuts": "Accesos directos"
       },
       "addPanel": "Añadir panel",
@@ -304,7 +169,6 @@
         "weekly": "Semanal"
       },
       "pending": "pendientes",
-      "requestTotals": "{approved} aprobadas · {available} disponibles · {failed} fallidas",
       "userStats": {
         "total": "Total",
         "admins": "Admins",
@@ -315,7 +179,6 @@
         "libraries": "Bibliotecas",
         "tasks": "Tareas",
         "users": "Usuarios",
-        "requests": "Solicitudes",
         "updates": "Actualizaciones",
         "backups": "Copias"
       },
@@ -329,5 +192,19 @@
   "mediaItem": {
     "themeMusicPlay": "Reproducir tema musical",
     "themeMusicStop": "Silenciar tema musical"
+  },
+  "plugins": {
+    "view": {
+      "loading": "Cargando…",
+      "loadError": "No se pudo cargar esta página.",
+      "invalid": "Esta página del plugin devolvió una respuesta no válida.",
+      "retry": "Reintentar",
+      "empty": "Nada que mostrar.",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "range": "{first}–{last} de {total}",
+      "search": "Buscar",
+      "pagination": "Paginación"
+    }
   }
 }

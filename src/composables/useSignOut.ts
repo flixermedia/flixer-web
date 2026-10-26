@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { logout } from '../api'
 import { i18n } from '../i18n'
 import { notify } from './notify'
+import { clearPluginPages } from './usePluginPages'
 import { useProfile } from './useProfile'
 
 export function useSignOut() {
@@ -16,6 +17,7 @@ export function useSignOut() {
     try {
       await logout()
       useProfile().clear()
+      clearPluginPages()
       await router.replace({ name: 'login' })
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.status !== 401) {

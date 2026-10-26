@@ -173,7 +173,6 @@
       "apikeys": "API Keys",
       "notifications": "Notifications",
       "settings": "Settings",
-      "requests": "Requests",
       "plugins": "Plugins"
     },
     "plugins": {
@@ -1112,68 +1111,6 @@
         "help": "Restore with pg_restore from the backups folder in your data directory."
       }
     },
-    "requests": {
-      "generalTitle": "Request Settings",
-      "generalDescription": "Control request availability, quotas and notifications.",
-      "enabled": "Enable media requests",
-      "enabledHint": "Requests are off by default.",
-      "tmdbWarning": "TMDB is not configured. Add a TMDB key under Providers for movie and TV requests.",
-      "discogsWarning": "Discogs is not configured. Add a Discogs token under Providers for music requests.",
-      "autoApprove": "Auto-approve",
-      "requests_movies_enabled": "Enable movie requests",
-      "requests_tv_enabled": "Enable TV requests",
-      "requests_music_enabled": "Enable music requests",
-      "defaultCanRequest": "Allow requests by default for users",
-      "notifyAdmins": "Notify admins about requests",
-      "notifyUsers": "Notify users about request updates",
-      "quotaLimit": "Request quota limit (0 is unlimited)",
-      "quotaDays": "Quota window in days",
-      "servicesTitle": "Request Services",
-      "servicesDescription": "Configure Sonarr, Radarr and Lidarr destinations.",
-      "addService": "Add Service",
-      "editService": "Edit Service",
-      "noServices": "No request services configured.",
-      "usersTitle": "User Overrides",
-      "usersDescription": "Set per-user request permissions and quota overrides.",
-      "user": "User",
-      "canRequest": "Can Request",
-      "inherit": "Inherit",
-      "allow": "Allow",
-      "deny": "Deny",
-      "name": "Name",
-      "url": "URL",
-      "serviceKind": "Service Type",
-      "apiKey": "API Key",
-      "qualityProfile": "Quality Profile",
-      "metadataProfile": "Metadata Profile",
-      "languageProfile": "Language Profile",
-      "minimumAvailability": "Minimum Availability",
-      "seasonFolders": "Use season folders",
-      "defaultService": "Default Service",
-      "serviceEnabled": "Enabled",
-      "testConnection": "Test Connection",
-      "testFailed": "Could not connect to this service.",
-      "connectionOk": "Connected, version {version}.",
-      "confirmDeleteService": "Delete this service?",
-      "loadError": "Could not load request settings.",
-      "saved": "Request settings saved.",
-      "saveError": "Could not save request settings.",
-      "removeService": "Remove Service",
-      "rootFolder": "Root Folder",
-      "mediaTypes": "Media types and approval",
-      "quotaTitle": "Request Quota",
-      "quotaHint": "Set 0 for unlimited requests.",
-      "accessNotifications": "Access and notifications",
-      "serviceDisabled": "Disabled",
-      "noUsers": "No users to configure.",
-      "library": "Library",
-      "selectLibrary": "Choose a library",
-      "mixedLibrary": "Mixed Library",
-      "libraryHint": "Link this server to a Flixer library of a compatible type.",
-      "noCompatibleLibrary": "No compatible libraries exist for this server type.",
-      "goToLibraries": "Configure Libraries",
-      "notLinkedLibrary": "Not linked to a library"
-    },
     "themes": {
       "title": "Theme Songs",
       "description": "Manage background theme music for movies and series.",
@@ -1199,7 +1136,6 @@
       "metadata": "Metadata Providers",
       "subtitles": "Subtitles",
       "themes": "Theme Songs",
-      "requests": "Requests",
       "notifications": "Notifications",
       "apikeys": "API Keys",
       "server": "Server",
@@ -1234,7 +1170,6 @@
         "services": "Service Health",
         "updates": "Updates",
         "backups": "Backups",
-        "requests": "Media Requests",
         "users": "Users",
         "shortcuts": "Shortcuts"
       },
@@ -1253,7 +1188,6 @@
         "updates": "Whether updates are available for Flixer components.",
         "backups": "Backup schedule, count and the latest backup.",
         "logs": "Live server log output.",
-        "requests": "Pending media requests and totals.",
         "users": "Accounts, admins and who is signed in.",
         "shortcuts": "Quick links to common admin pages."
       },
@@ -1263,7 +1197,7 @@
         "streaming": "Streaming",
         "libraries": "Libraries",
         "system": "System",
-        "people": "People & requests",
+        "people": "People",
         "shortcuts": "Shortcuts"
       },
       "addPanel": "Add Panel",
@@ -1314,7 +1248,6 @@
         "weekly": "Weekly"
       },
       "pending": "Pending",
-      "requestTotals": "{approved} approved · {available} available · {failed} failed",
       "userStats": {
         "total": "Total",
         "admins": "Admins",
@@ -1325,7 +1258,6 @@
         "libraries": "Libraries",
         "tasks": "Tasks",
         "users": "Users",
-        "requests": "Requests",
         "updates": "Updates",
         "backups": "Backups"
       },
@@ -1544,8 +1476,7 @@
       "tvShows": "TV Shows",
       "tv": "TV",
       "music": "Music",
-      "search": "Search",
-      "requestContent": "Request Content"
+      "search": "Search"
     }
   },
   "browse": {
@@ -1812,72 +1743,18 @@
     "pushToggle": "Push notifications on this device",
     "pushBlocked": "Blocked in your browser settings."
   },
-  "requests": {
-    "nav": {
-      "discover": "Discover",
-      "requests": "Requests"
-    },
-    "notInLibrary": "Not in your library — request it",
-    "discover": "Discover",
-    "discoverDescription": "Explore movies, series and albums you can request.",
-    "sections": {
-      "trending": "Trending",
-      "movies": "Popular Movies",
-      "tv": "Popular TV",
-      "upcoming": "Upcoming Movies",
-      "music": "Popular Albums"
-    },
-    "noDiscover": "Nothing to discover right now.",
-    "title": "Requests",
-    "allStatuses": "All Statuses",
-    "allTypes": "All Types",
-    "scope": {
-      "all": "All Requests",
-      "mine": "My Requests"
-    },
-    "status": {
-      "none": "Not Requested",
-      "pending": "Pending",
-      "approved": "Approved",
-      "declined": "Declined",
-      "failed": "Failed",
-      "available": "Available"
-    },
-    "actions": {
-      "approve": "Approve",
-      "decline": "Decline",
-      "retry": "Retry",
-      "delete": "Delete"
-    },
-    "loadMore": "Load More",
-    "empty": "No requests found.",
-    "loadError": "Could not load requests.",
-    "actionError": "Could not complete this request action.",
-    "declineReason": "Optional reason for declining",
-    "noService": "No service assigned",
-    "detailError": "Could not load this title.",
-    "requested": "Request submitted.",
-    "request": "Request",
-    "play": "Watch or listen",
-    "cast": "Cast",
-    "tracklist": "Tracklist",
-    "seasons": "Seasons",
-    "selectAllSeasons": "Select all available seasons",
-    "episodes": "Episodes",
-    "advanced": "Advanced Options",
-    "server": "Server",
-    "defaultServer": "Use default server",
-    "rootFolder": "Root Folder",
-    "quotaHint": "You have {remaining} requests remaining in your quota window.",
-    "quotaReached": "Your request quota is exhausted.",
-    "notAllowed": "Requests are not enabled for your account.",
-    "cancelRequest": "Cancel Request",
-    "cardStatus": {
-      "pending": "Requested",
-      "approved": "Approved",
-      "available": "Available",
-      "declined": "Declined",
-      "failed": "Failed"
+  "plugins": {
+    "view": {
+      "loading": "Loading…",
+      "loadError": "Couldn't load this page.",
+      "invalid": "This plugin page returned an invalid response.",
+      "retry": "Try again",
+      "empty": "Nothing to show.",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{first}–{last} of {total}",
+      "search": "Search",
+      "pagination": "Pagination"
     }
   }
 }

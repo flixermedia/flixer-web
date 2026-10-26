@@ -13,7 +13,6 @@ const Transcoding = lazy(() => import('./TranscodingPanel.vue'))
 const Providers = lazy(() => import('./IndexerProvidersSection.vue'))
 const Subtitles = lazy(() => import('./IndexerSubtitlesSection.vue'))
 const ThemeSongs = lazy(() => import('./ThemeSongsSection.vue'))
-const Requests = lazy(() => import('./RequestsPanel.vue'))
 const Notifications = lazy(() => import('./NotificationsPanel.vue'))
 const EmailSettings = lazy(() => import('./EmailSettingsSection.vue'))
 const Devices = lazy(() => import('./DevicesPanel.vue'))
@@ -40,7 +39,6 @@ export const ADMIN_PAGE_BLOCKS: Record<StaticAdminPageId, PageBlock[]> = {
   metadata: [{ component: Providers }],
   subtitles: [{ component: Subtitles }],
   themes: [{ component: ThemeSongs }],
-  requests: [{ component: Requests }],
   notifications: [{ component: Notifications }],
   smtp: [{ component: EmailSettings }],
   apikeys: [{ component: Devices, props: { part: 'keys' } }],

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, refreshPluginRepository, removePluginRepository, uninstallPlugin, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginUpdateHistoryEntry } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
+import { refreshPluginPages } from '../../composables/usePluginPages'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
 
@@ -76,6 +77,7 @@ async function install(plugin: PluginCatalogEntry, version: string) {
   try {
     await installPluginRequest(plugin.id, { repositoryId, version, approvedPermissions: permissions })
     await load()
+    void refreshPluginPages()
     notify.success(t('admin.plugins.installedSuccess', { name: plugin.name }))
   } catch (error) {
     notify.error(describeRequestError(error))
@@ -111,6 +113,7 @@ async function updateInstalled(plugin: PluginInstallation) {
       approvedPermissions: [...new Set([...plugin.approvedPermissions, ...update.permissions])],
     })
     await load()
+    void refreshPluginPages()
     notify.success(t('admin.plugins.updatedSuccess', { name: plugin.manifest.name }))
   } catch (error) {
     notify.error(describeRequestError(error))
@@ -125,6 +128,7 @@ async function setEnabled(plugin: PluginInstallation, enabled: boolean) {
     if (enabled) await enablePlugin(plugin.id)
     else await disablePlugin(plugin.id)
     await load()
+    void refreshPluginPages()
   } catch (error) {
     notify.error(describeRequestError(error))
   }
@@ -135,6 +139,7 @@ async function uninstall(plugin: PluginInstallation) {
   try {
     await uninstallPlugin(plugin.id)
     await load()
+    void refreshPluginPages()
   } catch (error) {
     notify.error(describeRequestError(error))
   }
