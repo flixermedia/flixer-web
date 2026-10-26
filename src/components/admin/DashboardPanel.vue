@@ -236,6 +236,7 @@ watch(live.data, (value) => {
 
 <template>
   <div class="flex flex-col gap-5">
+    <Teleport defer to="#admin-header-actions">
     <div class="flex flex-wrap items-center justify-end gap-2">
       <template v-if="editing">
         <p class="mr-auto text-xs text-flixer-muted">
@@ -249,6 +250,7 @@ watch(live.data, (value) => {
       </template>
       <button v-else type="button" :class="quietButton" @click="startEditing">{{ t('admin.dashboard.customize') }}</button>
     </div>
+    </Teleport>
 
     <p class="sr-only" role="status" aria-live="polite">{{ announcement }}</p>
     <p id="dashboard-keys" class="sr-only">{{ t('admin.dashboard.keyboardHint') }}</p>
