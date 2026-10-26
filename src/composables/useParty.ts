@@ -213,6 +213,14 @@ function scheduleMusic() {
 }
 
 watch([() => audio.current.value?.id, audio.isPlaying], scheduleMusic)
+// Closing the player as host ends the listen party for everyone.
+watch(
+  () => audio.current.value,
+  (track, previous) => {
+    if (track || !previous || !isHost.value || party.value?.kind !== 'music') return
+    void leaveParty()
+  },
+)
 // A seek shows up as the clock jumping away from where playback would have been.
 watch(audio.currentTime, (time) => {
   if (!isHost.value || party.value?.kind !== 'music') return
@@ -227,6 +235,15 @@ watch(
     heartbeat = id ? setInterval(sendMusic, HEARTBEAT_MS) : undefined
   },
 )
+
+/** Guests leave the party; the host ends it for everyone. */
+async function leaveParty() {
+  const current = party.value
+  const hosting = isHost.value
+  if (!hosting) send({ type: 'leave' })
+  reset()
+  if (current && hosting) await endParty(current.id).catch(() => undefined)
+}
 
 export function useParty() {
   async function start(itemId: string): Promise<PartySnapshot> {
@@ -243,14 +260,7 @@ export function useParty() {
     return open(id)
   }
 
-  /** Guests leave the party; the host ends it for everyone. */
-  async function leave() {
-    const current = party.value
-    const hosting = isHost.value
-    if (!hosting) send({ type: 'leave' })
-    reset()
-    if (current && hosting) await endParty(current.id).catch(() => undefined)
-  }
+  const leave = leaveParty
 
   async function resume() {
     const id = sessionStorage.getItem(STORAGE_KEY)
