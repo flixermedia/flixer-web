@@ -1812,6 +1812,7 @@ export interface Profile {
   isSelf: boolean
   hidden: boolean
   nowPlaying: { kind: 'watching' | 'listening'; item: SocialItem; positionSeconds: number; durationSeconds: number | null } | null
+  party?: PartySummary | null
   recentlyWatched: SocialItem[]
   recentlyListened: SocialItem[]
   favorites: SocialItem[]
@@ -1899,4 +1900,43 @@ export async function updateMySocialProfile(changes: { hidden: boolean }): Promi
 
 export async function reportListening(itemId: string, state: 'playing' | 'stopped'): Promise<void> {
   await api.post('/profiles/me/listening', { itemId, state })
+}
+
+export interface PartyPerson {
+  id: string
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export interface PartySnapshot {
+  id: string
+  kind: 'video' | 'music'
+  host: PartyPerson
+  item: SocialItem
+  playing: boolean
+  /** Position in seconds as of `at`. */
+  position: number
+  /** Server clock (ms since epoch) when `position` was recorded. */
+  at: number
+  members: PartyPerson[]
+}
+
+export interface PartySummary {
+  id: string
+  kind: 'video' | 'music'
+  title: string
+  memberCount: number
+}
+
+export async function createParty(itemId: string): Promise<PartySnapshot> {
+  return (await api.post<PartySnapshot>('/parties', { itemId })).data
+}
+
+export async function getParty(id: string): Promise<PartySnapshot> {
+  return (await api.get<PartySnapshot>(`/parties/${encodeURIComponent(id)}`)).data
+}
+
+export async function endParty(id: string): Promise<void> {
+  await api.delete(`/parties/${encodeURIComponent(id)}`)
 }

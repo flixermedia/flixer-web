@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getItemPlaybackInfo, getStreamInfo, getWatchProgress, saveWatchProgress, type PlaybackInfo, type StreamInfo } from '../../api'
+import { expectedPosition, useParty } from '../../composables/useParty'
 import { useVideoOverlay } from '../../composables/useVideoOverlay'
 import VideoPlayer from './VideoPlayer.vue'
 import Skeleton from '../ui/Skeleton.vue'
@@ -15,6 +16,11 @@ const info = ref<StreamInfo | null>(null)
 const error = ref('')
 const startAt = ref(0)
 const mini = ref(false)
+const party = useParty()
+const videoPlayer = ref<InstanceType<typeof VideoPlayer>>()
+const videoParty = computed(() => party.party.value?.kind === 'video')
+// Guests follow the host, so their own controls are disabled.
+const locked = computed(() => videoParty.value && party.isGuest.value)
 const { play } = useVideoOverlay()
 const chapters = computed(() => playback.value?.chapters ?? [])
 const segments = computed(() => playback.value?.segments ?? [])
@@ -31,6 +37,18 @@ function playNext() {
   const next = nextEpisode.value
   if (next) play({ id: next.id, title: next.title })
 }
+
+function onControl(state: { playing: boolean; position: number }) {
+  if (videoParty.value && party.isHost.value) party.sendControl({ itemId: props.itemId, ...state })
+}
+
+watch([() => party.latest.value, videoPlayer], () => {
+  const state = party.latest.value
+  if (!locked.value || !state || !videoPlayer.value) return
+  videoPlayer.value.applyRemote({ playing: state.party.playing, position: expectedPosition(state) })
+})
+
+let partyBeat: ReturnType<typeof setInterval> | undefined
 
 function onProgress(position: number, duration: number) {
   void saveWatchProgress(props.itemId, position, duration).catch(() => {})
@@ -90,17 +108,24 @@ onMounted(() => {
   document.body.style.overflow = mini.value ? '' : 'hidden'
   window.addEventListener('keydown', onKeydown)
   void load(props.itemId)
+  partyBeat = setInterval(() => {
+    const state = videoPlayer.value?.getState()
+    if (state) onControl(state)
+  }, 5_000)
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
+  clearInterval(partyBeat)
+  const last = videoPlayer.value?.getState()
+  if (last) onControl({ ...last, playing: false })
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
 <template>
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded-lg shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="title">
-    <VideoPlayer v-if="playback && info" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="emit('close')" @error="error = $event" @progress="onProgress" @next="playNext" />
+    <VideoPlayer v-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="emit('close')" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <div v-else class="grid size-full place-items-center p-6 text-center">
       <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
       <div v-else class="w-full max-w-3xl" role="status" :aria-label="t('mediaItem.loading')">

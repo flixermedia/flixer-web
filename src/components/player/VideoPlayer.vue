@@ -23,6 +23,8 @@ const props = withDefaults(
     segments?: PlayerSegment[]
     /** Label of the episode that follows; enables the countdown button and auto-advance. */
     nextLabel?: string
+    /** Party guests follow the host, so their own play, pause and seek controls do nothing. */
+    locked?: boolean
   }>(),
   { autoplay: true, showBack: false, allowMini: false, mini: false, startAt: 0, chapters: () => [], segments: () => [] },
 )
@@ -33,6 +35,8 @@ const emit = defineEmits<{
   next: []
   error: [message: string]
   progress: [position: number, duration: number]
+  /** Playback changed (play, pause or seek); used to keep a watch party in sync. */
+  control: [state: { playing: boolean; position: number }]
 }>()
 
 const METHOD_LABELS: Record<PlayMethod, string> = {
@@ -43,6 +47,8 @@ const METHOD_LABELS: Record<PlayMethod, string> = {
 
 const { t, locale } = useI18n()
 const SKIP_SECONDS = 10
+// A guest further than this from the host is moved back to it.
+const REMOTE_DRIFT_S = 2
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
@@ -282,9 +288,11 @@ function isBuffered(el: HTMLVideoElement, time: number) {
   return false
 }
 
+let remoteChange = false
+
 function seekTo(target: number) {
   const el = video.value
-  if (!el) return
+  if (!el || (props.locked && !remoteChange)) return
   const max = duration.value > 0 ? Math.max(0, duration.value - 0.5) : target
   const time = clamp(target, 0, max)
   const resume = !el.paused || ended.value
@@ -318,7 +326,7 @@ function setQuality(next: number) {
 
 function togglePlay() {
   const el = video.value
-  if (!el) return
+  if (!el || (props.locked && !remoteChange)) return
   if (ended.value) {
     seekTo(0)
     tryPlay()
@@ -424,12 +432,38 @@ function stopLoop() {
   frame = 0
 }
 
+function emitControl() {
+  emit('control', { playing: !paused.value, position: position.value })
+}
+
+function getState() {
+  return { playing: !paused.value && !ended.value, position: position.value }
+}
+
+/** Moves this player to where the host is. Small drifts are left alone so playback doesn't stutter. */
+function applyRemote(state: { playing: boolean; position: number }) {
+  const el = video.value
+  if (!el) return
+  remoteChange = true
+  try {
+    const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
+    if (Math.abs(position.value - target) > REMOTE_DRIFT_S) seekTo(target)
+    if (state.playing && el.paused) tryPlay()
+    else if (!state.playing && !el.paused) el.pause()
+  } finally {
+    remoteChange = false
+  }
+}
+
+defineExpose({ getState, applyRemote })
+
 function onPlay() {
   paused.value = false
   ended.value = false
   startLoop()
   scheduleHide()
   progressTimer ??= setInterval(reportProgress, PROGRESS_INTERVAL_MS)
+  emitControl()
 }
 
 function stopProgressTimer() {
@@ -450,6 +484,7 @@ function onPause() {
   showControls()
   stopProgressTimer()
   reportProgress()
+  emitControl()
 }
 
 const NEXT_COUNTDOWN_SECONDS = 15
@@ -691,7 +726,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
-    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
+    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeked="emitControl" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
       <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>

@@ -1998,5 +1998,30 @@
     "artists": "Artists",
     "albumAdded": "Added {count} songs",
     "nobodyActive": "Nobody is watching or listening right now."
+  },
+  "party": {
+    "title": "Party",
+    "watchingTogether": "Watching together",
+    "listeningTogether": "Listening together",
+    "startWatch": "Start watch party",
+    "startListen": "Start listen party",
+    "startFailed": "Could not start the party.",
+    "join": "Join party",
+    "joinFailed": "Could not join the party.",
+    "signIn": "Sign in to join a party.",
+    "leave": "Leave party",
+    "end": "End party",
+    "copyLink": "Copy invite link",
+    "linkCopied": "Invite link copied.",
+    "copyFailed": "Could not copy the link.",
+    "reconnecting": "Reconnecting…",
+    "youAreHost": "You are hosting",
+    "hostedBy": "Hosted by {name}",
+    "members": "People in this party",
+    "inThisParty": "{count} in this party",
+    "guestHint": "The host controls playback. Everyone stays in sync.",
+    "ended": "The party has ended.",
+    "endedTitle": "This party has ended",
+    "endedDescription": "The host stopped it or left. Ask them for a new link."
   }
 }

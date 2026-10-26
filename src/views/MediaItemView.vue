@@ -15,6 +15,8 @@ import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import AuthImage from '../components/ui/AuthImage.vue'
 import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
+import { useParty } from '../composables/useParty'
+import { notify } from '../composables/notify'
 import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
@@ -94,6 +96,23 @@ const isTrack = computed(() => item.value?.type === 'track')
 const isMusic = computed(() => isAlbum.value || isTrack.value)
 const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
 const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
+const party = useParty()
+const partyItemId = computed(() => (isTrack.value ? (item.value?.id ?? null) : (playTarget.value?.id ?? null)))
+const partyBusy = ref(false)
+async function startParty() {
+  const id = partyItemId.value
+  if (!id || partyBusy.value) return
+  partyBusy.value = true
+  try {
+    await party.start(id)
+    if (isTrack.value) await playTrackPage()
+    else if (playTarget.value) play(playTarget.value)
+  } catch {
+    notify.error(t('party.startFailed'))
+  } finally {
+    partyBusy.value = false
+  }
+}
 function addToPlaylist(id: string, title: string, album = false) {
   void openModal(AddToPlaylistModal, { props: { itemId: id, title, album } }).catch(() => undefined)
 }
@@ -348,6 +367,7 @@ watch(
                   {{ t('mediaItem.play') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
+                <button v-if="partyItemId" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15 disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
                 <button v-if="isMusic" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
                 <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
                   {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}

@@ -90,6 +90,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/party/:id',
+      name: 'party',
+      component: () => import('../views/PartyJoinView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/playlists/:id',
       name: 'playlist',
       component: () => import('../views/PlaylistView.vue'),

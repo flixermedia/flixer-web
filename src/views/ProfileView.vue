@@ -14,6 +14,7 @@ import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
+import { useParty } from '../composables/useParty'
 import { useSignOut } from '../composables/useSignOut'
 
 const { t } = useI18n()
@@ -80,6 +81,19 @@ async function copyLink() {
 function asQueueTrack(item: SocialItem): QueueTrack {
   return { id: item.id, title: item.title, artist: item.subtitle, artistId: null, album: null, albumId: null, art: item.imageIndex === null ? null : { itemId: item.imageItemId, index: item.imageIndex, version: item.imageUpdatedAt } }
 }
+const party = useParty()
+const joiningParty = ref(false)
+async function joinParty(id: string) {
+  joiningParty.value = true
+  try {
+    await party.join(id)
+  } catch (cause) {
+    notify.error(cause instanceof Error ? cause.message : t('party.joinFailed'))
+    await load()
+  } finally {
+    joiningParty.value = false
+  }
+}
 function playListened(index: number) {
   if (!profile.value) return
   player.playQueue(profile.value.recentlyListened.map(asQueueTrack), index)
@@ -142,16 +156,26 @@ onBeforeUnmount(() => {
                 <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="copyLink">{{ t('social.copyLink') }}</button>
               </div>
             </div>
-            <RouterLink v-if="profile.nowPlaying" :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="flex w-full min-w-0 items-center gap-3 rounded bg-white/5 p-3 transition hover:bg-white/10 sm:ml-auto sm:w-72 sm:shrink-0 sm:self-start" aria-live="polite">
-              <div class="relative size-14 shrink-0 overflow-hidden rounded bg-flixer-surface">
-                <AuthImage v-if="profile.nowPlaying.item.imageIndex !== null" scope="library" :item-id="profile.nowPlaying.item.imageItemId" :index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :width="120" :alt="profile.nowPlaying.item.title" />
+            <div v-if="profile.party || profile.nowPlaying" class="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-72 sm:shrink-0 sm:self-start">
+              <div v-if="profile.party" class="flex w-full min-w-0 items-center gap-3 rounded border border-emerald-400/30 bg-emerald-400/10 p-3">
+                <div class="min-w-0 flex-1">
+                  <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 shrink-0 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ t(profile.party.kind === 'music' ? 'party.listeningTogether' : 'party.watchingTogether') }}</p>
+                  <p class="mt-1 truncate text-sm font-semibold text-white">{{ profile.party.title }}</p>
+                  <p class="text-xs text-flixer-muted">{{ t('party.inThisParty', { count: profile.party.memberCount }) }}</p>
+                </div>
+                <button v-if="!profile.isSelf && party.party.value?.id !== profile.party.id" type="button" class="shrink-0 rounded bg-white px-3 py-2 text-xs font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="joiningParty" @click="joinParty(profile.party.id)">{{ t('party.join') }}</button>
               </div>
-              <div class="min-w-0">
-                <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 shrink-0 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</p>
-                <p class="mt-1 truncate text-sm font-semibold text-white">{{ profile.nowPlaying.item.title }}</p>
-                <p v-if="profile.nowPlaying.item.subtitle" class="truncate text-xs text-flixer-muted">{{ profile.nowPlaying.item.subtitle }}</p>
-              </div>
-            </RouterLink>
+              <RouterLink v-if="profile.nowPlaying" :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="flex w-full min-w-0 items-center gap-3 rounded bg-white/5 p-3 transition hover:bg-white/10" aria-live="polite">
+                <div class="relative size-14 shrink-0 overflow-hidden rounded bg-flixer-surface">
+                  <AuthImage v-if="profile.nowPlaying.item.imageIndex !== null" scope="library" :item-id="profile.nowPlaying.item.imageItemId" :index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :width="120" :alt="profile.nowPlaying.item.title" />
+                </div>
+                <div class="min-w-0">
+                  <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 shrink-0 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</p>
+                  <p class="mt-1 truncate text-sm font-semibold text-white">{{ profile.nowPlaying.item.title }}</p>
+                  <p v-if="profile.nowPlaying.item.subtitle" class="truncate text-xs text-flixer-muted">{{ profile.nowPlaying.item.subtitle }}</p>
+                </div>
+              </RouterLink>
+            </div>
           </div>
           <dl class="grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
             <div v-for="stat in stats" :key="stat.label" class="px-5 py-3">
