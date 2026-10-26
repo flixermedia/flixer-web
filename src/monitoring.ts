@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/vue'
 import type { App } from 'vue'
+import { getApiBaseUrl } from './platform/serverConnection'
 
 const FETCH_TIMEOUT_MS = 60_000
 const RETRY_DELAY_MS = 2_000
@@ -11,7 +12,7 @@ interface SentryConfig {
 }
 
 async function fetchConfig(): Promise<SentryConfig | null> {
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
+  const baseUrl = getApiBaseUrl().replace(/\/+$/, '')
   const deadline = Date.now() + FETCH_TIMEOUT_MS
   const attempt = async (): Promise<SentryConfig | null> => {
     try {

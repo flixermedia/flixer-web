@@ -8,6 +8,18 @@
     "confirmTitle": "Are you sure?",
     "close": "Close"
   },
+  "native": {
+    "connectTitle": "Connect to your Flixer server",
+    "connectDescription": "Enter the HTTPS address you use to open your Flixer server. This address is saved on this device.",
+    "serverUrlLabel": "Flixer server address",
+    "serverUrlHelp": "Use the server's public HTTPS address, with or without a trailing /api path.",
+    "invalidServerUrl": "Enter a valid HTTPS server address without a username, password, or query string.",
+    "serverUnreachable": "Could not reach Flixer at that address. Check the URL and try again.",
+    "connecting": "Connecting…",
+    "connectButton": "Connect",
+    "changeServer": "Change Flixer server",
+    "forgetServer": "Forget this server"
+  },
   "subtitles": {
     "title": "Subtitles",
     "manage": "Subtitles",

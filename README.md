@@ -83,6 +83,21 @@ Ensure you have the following installed on your local machine:
 
 5. Open your browser and navigate to `http://localhost:5173`.
 
+### iOS and Android
+
+Flixer Web also includes Capacitor projects for iOS and Android. Web deployment remains the primary build and continues
+to use the same-origin `/api` endpoint. On first launch, a native app asks for the Flixer server's HTTPS address and
+saves it on that device. The API and streamer must allow the native WebView origin `https://localhost`.
+
+```sh
+npm run cap:sync
+npm run cap:android
+npm run cap:ios
+```
+
+Android builds require Android Studio and the Android SDK. iOS builds require macOS and Xcode. Passkeys and web push
+notifications are browser/PWA features and are not yet integrated with native platform APIs.
+
 ---
 
 ## 📁 Project Structure

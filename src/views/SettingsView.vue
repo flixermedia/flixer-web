@@ -9,6 +9,7 @@ import ProfileSection from '../components/settings/ProfileSection.vue'
 import ServerSection from '../components/settings/ServerSection.vue'
 import SettingsTabs, { type SettingsTab } from '../components/settings/SettingsTabs.vue'
 import { useSignOut } from '../composables/useSignOut'
+import { isNativeApp } from '../platform/serverConnection'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,11 +17,7 @@ const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 
 const tabs = computed<SettingsTab[]>(() => {
-  return [
-    { id: 'profile', label: t('settings.tabs.profile') },
-    { id: 'passkeys', label: t('settings.tabs.passkeys') },
-    { id: 'language', label: t('settings.tabs.language') },
-  ]
+  return [{ id: 'profile', label: t('settings.tabs.profile') }, ...(!isNativeApp() ? [{ id: 'passkeys' as const, label: t('settings.tabs.passkeys') }] : []), { id: 'language', label: t('settings.tabs.language') }]
 })
 
 const activeTab = computed({
@@ -41,6 +38,9 @@ const activeTab = computed({
     <main class="page-gutter w-full pb-16 pt-28">
       <h1 class="text-3xl font-semibold tracking-tight">{{ t('settings.title') }}</h1>
       <p class="mt-2 text-sm text-flixer-muted">{{ t('settings.subtitle') }}</p>
+      <button v-if="isNativeApp()" type="button" class="mt-4 rounded-lg border border-flixer-border px-4 py-2 text-sm text-flixer-muted transition hover:text-flixer-text" @click="router.push({ name: 'connect' })">
+        {{ t('native.changeServer') }}
+      </button>
 
       <nav class="mt-3" :aria-label="t('settings.title')">
         <SettingsTabs v-model="activeTab" :tabs="tabs" class="w-fit max-w-full" />

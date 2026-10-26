@@ -1,5 +1,6 @@
 import { startAuthentication, startRegistration, type PublicKeyCredentialCreationOptionsJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import axios from 'axios'
+import { forgetNativeServerUrl, getApiBaseUrl, resolveServerResourceUrl, saveNativeServerUrl } from './platform/serverConnection'
 
 export const ACCESS_TOKEN_KEY = 'flixer.accessToken'
 export const AUTH_INVALID_EVENT = 'flixer:auth-invalid'
@@ -35,12 +36,25 @@ export interface RegistrationStatus {
 }
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 15_000,
 })
+
+export function configureNativeServer(serverUrl: string): boolean {
+  const changed = saveNativeServerUrl(serverUrl)
+  api.defaults.baseURL = getApiBaseUrl()
+  if (changed) clearAccessToken()
+  return changed
+}
+
+export function disconnectNativeServer(): void {
+  forgetNativeServerUrl()
+  api.defaults.baseURL = getApiBaseUrl()
+  clearAccessToken()
+}
 
 export function getAccessToken(): string | null {
   // sessionStorage is wiped when the PWA is force-closed, so the token is persisted in localStorage.
@@ -374,12 +388,12 @@ export async function listSampleVideos(): Promise<SampleVideo[]> {
 
 export async function getSamplePlaybackInfo(id: string): Promise<PlaybackInfo> {
   const response = await api.post<PlaybackInfo>(`/playback/samples/${encodeURIComponent(id)}/playback-info`)
-  return response.data
+  return { ...response.data, mediaSource: { ...response.data.mediaSource, streamUrl: resolveServerResourceUrl(response.data.mediaSource.streamUrl) } }
 }
 
 export async function getItemPlaybackInfo(id: string): Promise<PlaybackInfo> {
   const response = await api.post<PlaybackInfo>(`/playback/items/${encodeURIComponent(id)}/playback-info`)
-  return response.data
+  return { ...response.data, mediaSource: { ...response.data.mediaSource, streamUrl: resolveServerResourceUrl(response.data.mediaSource.streamUrl) } }
 }
 
 export interface PlayerSubtitle {

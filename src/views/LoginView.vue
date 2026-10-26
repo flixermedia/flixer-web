@@ -12,6 +12,7 @@ import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
+import { isNativeApp } from '../platform/serverConnection'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -248,6 +249,9 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
         <span class="text-flixer-accent">·</span>
         <span>{{ t('auth.madeForMovieNights') }}</span>
       </footer>
+      <RouterLink v-if="isNativeApp()" :to="{ name: 'connect' }" class="mt-5 text-sm text-flixer-muted underline hover:text-flixer-text">
+        {{ t('native.changeServer') }}
+      </RouterLink>
     </section>
   </main>
 </template>

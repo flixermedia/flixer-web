@@ -1,9 +1,11 @@
 import axios from 'axios'
+import { Capacitor } from '@capacitor/core'
 import { createRouter, createWebHistory } from 'vue-router'
 import { clearAccessToken, getAccessToken, validateAccessToken } from '../api'
 import { useProfile } from '../composables/useProfile'
 import { i18n } from '../i18n'
 import { setupGuard } from '../setup/setupGate'
+import { getNativeServerUrl } from '../platform/serverConnection'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -22,6 +24,11 @@ const router = createRouter({
     return { top: 0, behavior: 'smooth' }
   },
   routes: [
+    {
+      path: '/connect',
+      name: 'connect',
+      component: () => import('../views/ConnectServerView.vue'),
+    },
     {
       path: '/setup',
       name: 'setup',
@@ -184,6 +191,9 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (to.name === 'connect') return Capacitor.isNativePlatform() ? true : { name: 'login' }
+  if (Capacitor.isNativePlatform() && !getNativeServerUrl()) return { name: 'connect' }
+
   const setupRedirect = await setupGuard(to)
   if (setupRedirect !== true) return setupRedirect
 

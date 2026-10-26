@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { getAccessToken, getChatUnread, type ChatConversation, type ChatMessage } from '../api'
+import { buildApiWebSocketUrl } from '../platform/serverConnection'
 import { useNotifications } from './useNotifications'
 import { useProfile } from './useProfile'
 
@@ -25,10 +26,7 @@ export function onChatEvent(handler: (event: ChatEvent) => void): () => void {
 }
 
 function buildUrl(): string {
-  const base: string = import.meta.env.VITE_API_BASE_URL || '/api'
-  const path = `${base.replace(/\/$/, '')}/chat/live`
-  if (/^https?:\/\//.test(path)) return path.replace(/^http/, 'ws')
-  return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`
+  return buildApiWebSocketUrl('/chat/live')
 }
 
 function unlockAudio() {

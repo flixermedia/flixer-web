@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { getAccessToken } from '../api'
+import { buildApiWebSocketUrl } from '../platform/serverConnection'
 
 export interface LiveLogEntry {
   id: number
@@ -16,10 +17,7 @@ export type LiveLogStatus = 'connecting' | 'live' | 'disconnected' | 'unauthoriz
 const MAX_ENTRIES = 1000
 
 function buildUrl(): string {
-  const base: string = import.meta.env.VITE_API_BASE_URL || '/api'
-  const path = `${base.replace(/\/$/, '')}/logs/stream`
-  if (/^https?:\/\//.test(path)) return path.replace(/^http/, 'ws')
-  return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`
+  return buildApiWebSocketUrl('/logs/stream')
 }
 
 /** Streams backend logs over a WebSocket, reconnecting with backoff. */

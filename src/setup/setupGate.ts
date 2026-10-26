@@ -17,6 +17,12 @@ export function markSetupComplete(): void {
   localStorage.setItem(COMPLETED_HINT_KEY, '1')
 }
 
+export function resetSetupGate(): void {
+  confirmedReady = false
+  last = null
+  localStorage.removeItem(COMPLETED_HINT_KEY)
+}
+
 /** Router guard. Setup is only demanded when the server clearly says so; failing to find out is "unavailable", never "setup required". */
 export async function setupGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
   if (to.name === 'unavailable') return true

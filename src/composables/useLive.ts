@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import { getAccessToken } from '../api'
+import { buildApiWebSocketUrl } from '../platform/serverConnection'
 
 export type LiveTopic = 'overview' | 'streams' | 'devices' | 'indexer' | 'shares'
 export type LiveStatus = 'connecting' | 'live' | 'disconnected' | 'unauthorized'
@@ -10,10 +11,7 @@ const IDLE_CLOSE_MS = 5_000
 const MAX_BACKOFF_MS = 30_000
 
 function buildUrl(): string {
-  const base: string = import.meta.env.VITE_API_BASE_URL || '/api'
-  const path = `${base.replace(/\/$/, '')}/live`
-  if (/^https?:\/\//.test(path)) return path.replace(/^http/, 'ws')
-  return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`
+  return buildApiWebSocketUrl('/live')
 }
 
 type Listener = (data: unknown) => void

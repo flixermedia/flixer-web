@@ -2,9 +2,10 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { isNativeApp } from '../../platform/serverConnection'
 import AuthField from './AuthField.vue'
 
-const passkeysSupported = browserSupportsWebAuthn()
+const passkeysSupported = !isNativeApp() && browserSupportsWebAuthn()
 const { t } = useI18n()
 
 defineProps<{

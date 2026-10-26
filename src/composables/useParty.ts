@@ -6,6 +6,7 @@ import { expectedPosition, type PartyState } from './partyClock'
 import { useAudioPlayer, type QueueTrack } from './useAudioPlayer'
 import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
+import { buildApiWebSocketUrl } from '../platform/serverConnection'
 
 export { expectedPosition }
 export type PartyStatus = 'idle' | 'connecting' | 'live' | 'reconnecting'
@@ -43,10 +44,7 @@ let lastSent = { position: 0, at: 0 }
 let appliedItemId: string | null = null
 
 function buildUrl(): string {
-  const base: string = import.meta.env.VITE_API_BASE_URL || '/api'
-  const path = `${base.replace(/\/$/, '')}/party`
-  if (/^https?:\/\//.test(path)) return path.replace(/^http/, 'ws')
-  return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`
+  return buildApiWebSocketUrl('/party')
 }
 
 function t(key: string, values?: Record<string, unknown>): string {

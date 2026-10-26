@@ -1,16 +1,6 @@
 import { computed, ref } from 'vue'
-import {
-  deleteNotification,
-  getAccessToken,
-  getNotificationConfig,
-  getPushPublicKey,
-  getPushStatus,
-  listNotifications,
-  markNotificationsRead,
-  removePushSubscription,
-  savePushSubscription,
-  type AppNotification,
-} from '../api'
+import { deleteNotification, getAccessToken, getNotificationConfig, getPushPublicKey, getPushStatus, listNotifications, markNotificationsRead, removePushSubscription, savePushSubscription, type AppNotification } from '../api'
+import { isNativeApp } from '../platform/serverConnection'
 
 const items = ref<AppNotification[]>([])
 const unread = ref(0)
@@ -22,10 +12,13 @@ const promptMode = ref<'button' | 'load'>('button')
 let promptedThisSession = false
 const permission = ref<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission)
 
-const pushSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined'
+const pushSupported = !isNativeApp() && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined'
 
 function keyBytes(base64Url: string): Uint8Array<ArrayBuffer> {
-  const padded = base64Url.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(base64Url.length / 4) * 4, '=')
+  const padded = base64Url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(Math.ceil(base64Url.length / 4) * 4, '=')
   const raw = atob(padded)
   const bytes = new Uint8Array(new ArrayBuffer(raw.length))
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)

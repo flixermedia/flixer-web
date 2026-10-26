@@ -1,4 +1,5 @@
 import { createModal, type DefineGroups } from '@kolirt/vue-modal'
+import { Capacitor } from '@capacitor/core'
 import { createApp } from 'vue'
 import { registerSW } from 'virtual:pwa-register'
 import Vue3Toastify from 'vue3-toastify'
@@ -35,4 +36,4 @@ app.mount('#app')
 void initMonitoring(app)
 void syncLocaleFromAccount()
 
-void registerSW({ immediate: true })
+if (!Capacitor.isNativePlatform()) void registerSW({ immediate: true })
