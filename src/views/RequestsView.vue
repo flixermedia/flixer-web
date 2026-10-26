@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { approveMediaRequest, declineMediaRequest, deleteMediaRequest, listMediaRequests, retryMediaRequest, type MediaRequestView, type RequestMediaType, type RequestStatus } from '../api'
@@ -7,6 +8,7 @@ import { describeRequestError } from '../composables/useProfile'
 import { useProfile } from '../composables/useProfile'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
 import { useSignOut } from '../composables/useSignOut'
+import DeclineRequestModal from '../components/DeclineRequestModal.vue'
 import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
@@ -43,8 +45,14 @@ async function load(append = false) {
 }
 async function action(row: MediaRequestView, kind: 'approve' | 'decline' | 'retry' | 'delete') {
   try {
+    let reason: string | undefined
+    if (kind === 'decline') {
+      const answer = await openModal<string>(DeclineRequestModal, { props: { title: row.title } }).catch(() => null)
+      if (answer === null) return
+      reason = answer || undefined
+    }
     if (kind === 'approve') await approveMediaRequest(row.id)
-    if (kind === 'decline') await declineMediaRequest(row.id, window.prompt(t('requests.declineReason')) || undefined)
+    if (kind === 'decline') await declineMediaRequest(row.id, reason)
     if (kind === 'retry') await retryMediaRequest(row.id)
     if (kind === 'delete') await deleteMediaRequest(row.id)
     await load()
