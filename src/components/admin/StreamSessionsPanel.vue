@@ -98,7 +98,7 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section aria-labelledby="streams-heading" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-5">
+  <section aria-labelledby="streams-heading" class="admin-card p-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 id="streams-heading" class="text-lg font-semibold">{{ t('admin.streams.title') }}</h2>
