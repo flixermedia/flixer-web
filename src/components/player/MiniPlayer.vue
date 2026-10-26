@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useAudioPlayer } from '../../composables/useAudioPlayer'
+import { notify } from '../../composables/notify'
+import { useParty } from '../../composables/useParty'
 import AuthImage from '../ui/AuthImage.vue'
 import { openModal } from '@kolirt/vue-modal'
 import AddToPlaylistModal from '../AddToPlaylistModal.vue'
@@ -10,6 +12,11 @@ import { formatTime } from './formatTime'
 
 const { t } = useI18n()
 const player = useAudioPlayer()
+const party = useParty()
+const partyBusy = ref(false)
+const hostingListen = computed(() => party.isHost.value && party.party.value?.kind === 'music')
+// Guests follow the host, and a video party can't run alongside the music player.
+const canParty = computed(() => !party.party.value || hostingListen.value)
 const { current, isPlaying, isLoading, currentTime, duration, volume, shuffle, repeat, lyricsOpen } = player
 
 const visible = computed(() => current.value !== null && !lyricsOpen.value)
@@ -18,6 +25,22 @@ const progress = computed(() => (duration.value > 0 ? (currentTime.value / durat
 // Lets pages reserve room so the bar never covers their last content.
 watch(visible, (value) => document.documentElement.classList.toggle('has-mini-player', value), { immediate: true })
 
+async function onParty() {
+  if (partyBusy.value || !current.value) return
+  partyBusy.value = true
+  try {
+    if (hostingListen.value) {
+      await navigator.clipboard.writeText(party.inviteLink())
+      notify.success(t('party.linkCopied'))
+    } else {
+      await party.start(current.value.id)
+    }
+  } catch {
+    notify.error(t(hostingListen.value ? 'party.copyFailed' : 'party.startFailed'))
+  } finally {
+    partyBusy.value = false
+  }
+}
 function onSeek(event: Event) {
   player.seek((Number((event.target as HTMLInputElement).value) / 100) * duration.value)
 }
@@ -78,6 +101,9 @@ function onVolume(event: Event) {
         <div class="flex items-center justify-end gap-1 md:w-1/4">
           <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('social.addToPlaylistFor', { title: current.title })" :title="t('social.addToPlaylist')" @click="addCurrentToPlaylist">
             <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <button v-if="canParty" type="button" class="grid size-9 place-items-center rounded transition hover:bg-white/10 disabled:opacity-60" :class="hostingListen ? 'text-flixer-accent' : 'text-white'" :disabled="partyBusy" :aria-label="hostingListen ? t('party.copyLink') : t('party.startListen')" :title="hostingListen ? t('party.copyLink') : t('party.startListen')" @click="onParty">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7" /></svg>
           </button>
           <button type="button" class="grid h-9 place-items-center rounded px-3 text-sm font-semibold text-white transition hover:bg-white/10" :aria-label="t('music.lyrics')" @click="lyricsOpen = true">
             <svg class="size-5 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h16" /></svg>
