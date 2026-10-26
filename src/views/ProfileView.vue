@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
       <p v-if="loading && !profile" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
-      <section v-else-if="notFound" class="mx-auto max-w-2xl rounded-xl border border-flixer-border bg-flixer-surface p-8 text-center">
+      <section v-else-if="notFound" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-8 text-center">
         <h1 class="text-xl font-semibold text-white">{{ t('social.profilePrivate') }}</h1>
         <p class="mt-2 text-sm text-flixer-muted">{{ t('social.profilePrivateDescription') }}</p>
         <RouterLink to="/people" class="mt-4 inline-block text-sm text-flixer-accent hover:underline">{{ t('social.people') }}</RouterLink>
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
           <span v-if="profile.hidden" class="rounded bg-amber-300/10 px-2.5 py-1 text-xs font-semibold text-amber-100">{{ t('social.hidden') }}</span>
         </div>
         <p v-if="failed" class="mt-4 text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
-        <section v-if="profile.nowPlaying" class="mt-6 rounded-md bg-white/5 p-4 sm:p-5" aria-live="polite">
+        <section v-if="profile.nowPlaying" class="mt-6 rounded bg-white/5 p-4 sm:p-5" aria-live="polite">
           <h2 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</h2>
           <div class="mt-3 flex items-center gap-4">
             <MediaCard class="!w-16 sm:!w-20" variant="square" :title="profile.nowPlaying.item.title" :item-id="profile.nowPlaying.item.imageItemId" :image-index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" />
@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
           <ol>
             <li v-for="(item, index) in profile.recentlyListened" :key="item.id" class="group flex items-center gap-3 rounded px-2 py-2 transition motion-reduce:transition-none hover:bg-white/10">
               <span class="w-5 shrink-0 text-center text-sm tabular-nums text-flixer-muted">{{ index + 1 }}</span>
-              <button type="button" class="relative size-11 shrink-0 overflow-hidden rounded-sm bg-flixer-surface" :aria-label="t('social.playTrackFrom', { title: item.title })" @click="playListened(index)">
+              <button type="button" class="relative size-11 shrink-0 overflow-hidden rounded bg-flixer-surface" :aria-label="t('social.playTrackFrom', { title: item.title })" @click="playListened(index)">
                 <AuthImage v-if="item.imageIndex !== null" scope="library" :item-id="item.imageItemId" :index="item.imageIndex" :version="item.imageUpdatedAt" :width="96" :alt="item.title" />
                 <span class="absolute inset-0 grid place-items-center bg-black/55 text-white opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
                   ><svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg
@@ -191,9 +191,9 @@ onBeforeUnmount(() => {
         <section v-if="profile.playlists.length" class="mt-10">
           <h2 class="mb-4 text-xl font-bold tracking-tight text-white">{{ sectionTitle('playlists') }}</h2>
           <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <li v-for="playlist in profile.playlists" :key="playlist.id" class="rounded-md bg-white/5 transition hover:bg-white/10">
+            <li v-for="playlist in profile.playlists" :key="playlist.id" class="rounded bg-white/5 transition hover:bg-white/10">
               <RouterLink :to="{ name: 'playlist', params: { id: playlist.id } }" class="flex items-center gap-4 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
-                ><div class="size-16 shrink-0 overflow-hidden rounded-sm bg-flixer-background shadow-lg"><AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="160" :alt="playlist.name" /><span v-else class="grid size-full place-items-center text-xs text-flixer-muted">♫</span></div>
+                ><div class="size-16 shrink-0 overflow-hidden rounded bg-flixer-background shadow-lg"><AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="160" :alt="playlist.name" /><span v-else class="grid size-full place-items-center text-xs text-flixer-muted">♫</span></div>
                 <span class="min-w-0"
                   ><span class="block truncate text-sm font-semibold text-white">{{ playlist.name }}</span
                   ><span class="block text-xs text-flixer-muted">{{ t('social.trackCount', { count: playlist.trackCount }) }} · {{ playlist.isPublic ? t('social.public') : t('social.private') }}</span></span

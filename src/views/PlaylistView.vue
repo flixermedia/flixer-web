@@ -117,17 +117,17 @@ watch(
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
       <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
-      <section v-else-if="missing" class="mx-auto max-w-2xl rounded-xl border border-flixer-border bg-flixer-surface p-6 text-center">
+      <section v-else-if="missing" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-6 text-center">
         <h1 class="text-xl font-semibold text-white">{{ t('social.playlistNotFound') }}</h1>
         <RouterLink to="/" class="mt-4 inline-block text-sm text-flixer-accent hover:underline">{{ t('mediaItem.backHome') }}</RouterLink>
       </section>
-      <section v-else-if="failed && !playlist" class="mx-auto max-w-2xl rounded-xl border border-flixer-border bg-flixer-surface p-6 text-center">
+      <section v-else-if="failed && !playlist" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-6 text-center">
         <p class="text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
-        <button type="button" class="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
+        <button type="button" class="mt-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
       </section>
       <section v-else-if="playlist" class="space-y-8">
         <div class="relative flex flex-col gap-6 overflow-hidden bg-gradient-to-b from-flixer-accent/25 to-transparent p-6 sm:flex-row sm:items-end sm:p-10">
-          <div class="aspect-square w-40 shrink-0 overflow-hidden rounded-md bg-flixer-surface shadow-2xl ring-1 ring-white/10 sm:w-52">
+          <div class="aspect-square w-40 shrink-0 overflow-hidden rounded bg-flixer-surface shadow-2xl ring-1 ring-white/10 sm:w-52">
             <AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="320" :alt="playlist.name" />
             <span v-else class="grid size-full place-items-center p-5 text-center text-flixer-muted">{{ t('social.noCover') }}</span>
           </div>
@@ -151,8 +151,8 @@ watch(
         <p v-if="failed" class="text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         <section :aria-label="t('social.tracks')">
           <h2 class="mb-4 text-xl font-bold tracking-tight text-white">{{ t('social.tracks') }}</h2>
-          <p v-if="!tracks.length" class="rounded-lg border border-flixer-border p-5 text-sm text-flixer-muted">{{ t('social.emptyPlaylist') }}</p>
-          <ol v-else class="divide-y divide-white/5 overflow-hidden rounded-md border border-white/10 bg-white/5">
+          <p v-if="!tracks.length" class="rounded border border-flixer-border p-5 text-sm text-flixer-muted">{{ t('social.emptyPlaylist') }}</p>
+          <ol v-else class="divide-y divide-white/5 overflow-hidden rounded border border-white/10 bg-white/5">
             <li v-for="(track, index) in tracks" :key="track.id" class="group flex items-center gap-2 px-3 py-2 transition motion-reduce:transition-none hover:bg-white/10 sm:gap-3">
               <span class="w-6 shrink-0 text-center text-xs tabular-nums text-flixer-muted">{{ index + 1 }}</span>
               <button type="button" class="grid size-9 shrink-0 place-items-center rounded bg-white/10 text-white transition group-hover:bg-white group-hover:text-flixer-background" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
