@@ -215,6 +215,7 @@
       "confirmUninstall": "Uninstall {name}? Its package will be removed, but its settings and plugin data will be retained.",
       "settings": "Settings",
       "settingsTitle": "{name} settings",
+      "backToPlugins": "Back to plugins",
       "saveSettings": "Save settings",
       "savingSettings": "Saving…",
       "settingsSaved": "Plugin settings saved.",

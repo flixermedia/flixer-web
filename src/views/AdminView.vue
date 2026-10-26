@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AdminTabs from '../components/admin/AdminTabs.vue'
-import { adminQuery, resolveAdminLocation, type AdminLocation, type StaticAdminPageId } from '../components/admin/adminNav'
+import { adminQuery, resolveAdminLocation, type AdminLocation } from '../components/admin/adminNav'
 import { ADMIN_PAGE_BLOCKS } from '../components/admin/adminPages'
+import PluginSettingsPage from '../components/admin/PluginSettingsPage.vue'
 import Header from '../components/header/Header.vue'
-import PluginSettingsForm from '../components/admin/PluginSettingsForm.vue'
-import { refreshPluginAdminPages, useAdminTabs, usePluginAdminPages } from '../composables/useAdminTabs'
+import { useAdminTabs } from '../composables/useAdminTabs'
 import { useSignOut } from '../composables/useSignOut'
 
 const route = useRoute()
@@ -16,16 +16,9 @@ const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 
 const tabs = useAdminTabs()
-const pluginPages = usePluginAdminPages()
-const location = computed(() => resolveAdminLocation(route.query.tab, route.query.page, pluginPages.value.map((page) => page.key)))
-const blocks = computed(() => {
-  const page = location.value.page
-  const plugin = pluginPages.value.find((entry) => entry.key === page)
-  if (plugin) return [{ component: PluginSettingsForm, props: { pluginId: plugin.pluginId, title: plugin.title, description: plugin.description } }]
-  return ADMIN_PAGE_BLOCKS[page as StaticAdminPageId] ?? []
-})
-
-onMounted(refreshPluginAdminPages)
+const location = computed(() => resolveAdminLocation(route.query.tab, route.query.page))
+const blocks = computed(() => ADMIN_PAGE_BLOCKS[location.value.page])
+const pluginId = computed(() => (location.value.tab === 'plugins' && typeof route.query.plugin === 'string' ? route.query.plugin : ''))
 
 function open({ tab, page }: AdminLocation) {
   // Filters such as the media search belong to the page that set them, so they do not follow to the next one.
@@ -46,7 +39,10 @@ function open({ tab, page }: AdminLocation) {
         <AdminTabs :tabs="tabs" :active="location" class="w-fit max-w-full" @select="open" />
       </nav>
 
-      <div class="mt-8 flex flex-col gap-10">
+      <div v-if="pluginId" class="mt-8">
+        <PluginSettingsPage :key="pluginId" :plugin-id="pluginId" />
+      </div>
+      <div v-else class="mt-8 flex flex-col gap-10">
         <component :is="block.component" v-for="(block, index) in blocks" :key="`${location.page}-${index}`" v-bind="block.props" />
       </div>
     </main>

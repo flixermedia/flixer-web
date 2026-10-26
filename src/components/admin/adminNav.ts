@@ -11,14 +11,7 @@ export const ADMIN_TABS = {
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
-export type StaticAdminPageId = (typeof ADMIN_TABS)[AdminTabId][number]
-/** A settings page contributed by a plugin: `plugin:<pluginId>:<pageId>`. */
-export type PluginAdminPageId = `plugin:${string}`
-export type AdminPageId = StaticAdminPageId | PluginAdminPageId
-
-export function pluginPageId(pluginId: string, pageId: string): PluginAdminPageId {
-  return `plugin:${pluginId}:${pageId}`
-}
+export type AdminPageId = (typeof ADMIN_TABS)[AdminTabId][number]
 
 export interface AdminLocation {
   tab: AdminTabId
@@ -54,12 +47,12 @@ function text(value: unknown): string {
 }
 
 /** Works out the tab and page from the `tab` and `page` query values, falling back to the dashboard. */
-export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown, pluginPages: readonly string[] = []): AdminLocation {
+export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): AdminLocation {
   const tab = text(tabQuery)
   const page = text(pageQuery)
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
-    const pages = [...(pagesOf(id) as readonly string[]), ...(id === 'providers' ? pluginPages : [])]
+    const pages = pagesOf(id) as readonly string[]
     return { tab: id, page: (pages.includes(page) ? page : pages[0]) as AdminPageId }
   }
   return LEGACY[tab] ?? { tab: 'dashboard', page: 'overview' }

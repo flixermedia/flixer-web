@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, refreshPluginRepository, removePluginRepository, uninstallPlugin, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginUpdateHistoryEntry } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
-import PluginSettingsForm from './PluginSettingsForm.vue'
-import { refreshPluginAdminPages } from '../../composables/useAdminTabs'
 
 const { t } = useI18n()
+const router = useRouter()
 const installations = ref<PluginInstallation[]>([])
 const repositories = ref<PluginRepository[]>([])
 const catalog = ref<PluginCatalogEntry[]>([])
@@ -26,7 +26,6 @@ const isSaving = ref(false)
 const refreshing = ref<string | null>(null)
 const installing = ref<string | null>(null)
 const updating = ref<string | null>(null)
-const settingsPlugin = ref<PluginInstallation | null>(null)
 const loadError = ref('')
 
 const inputClass = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none focus:border-flixer-accent'
@@ -42,7 +41,6 @@ async function load() {
     loadError.value = describeRequestError(error)
   } finally {
     isLoading.value = false
-    void refreshPluginAdminPages()
   }
 }
 
@@ -160,11 +158,7 @@ async function toggleHistory(plugin: PluginInstallation) {
 }
 
 function openSettings(plugin: PluginInstallation) {
-  settingsPlugin.value = plugin
-}
-
-function closeSettings() {
-  settingsPlugin.value = null
+  void router.push({ query: { tab: 'plugins', plugin: plugin.id } })
 }
 
 async function addRepository() {
@@ -266,8 +260,6 @@ onMounted(load)
         </li>
       </ul>
     </AdminSection>
-
-    <PluginSettingsForm v-if="settingsPlugin" :key="settingsPlugin.id" :plugin-id="settingsPlugin.id" :title="t('admin.plugins.settingsTitle', { name: settingsPlugin.manifest.name })" closable @close="closeSettings" />
 
     <AdminSection :title="t('admin.plugins.repositories')" :description="t('admin.plugins.repositoriesDescription')">
       <form class="grid gap-3 sm:grid-cols-[minmax(10rem,0.7fr)_minmax(16rem,1.3fr)_auto] sm:items-end" @submit.prevent="addRepository">
