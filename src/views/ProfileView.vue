@@ -142,6 +142,16 @@ onBeforeUnmount(() => {
                 <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="copyLink">{{ t('social.copyLink') }}</button>
               </div>
             </div>
+            <RouterLink v-if="profile.nowPlaying" :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="flex w-full min-w-0 items-center gap-3 rounded bg-white/5 p-3 transition hover:bg-white/10 sm:ml-auto sm:w-72 sm:shrink-0 sm:self-start" aria-live="polite">
+              <div class="relative size-14 shrink-0 overflow-hidden rounded bg-flixer-surface">
+                <AuthImage v-if="profile.nowPlaying.item.imageIndex !== null" scope="library" :item-id="profile.nowPlaying.item.imageItemId" :index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :width="120" :alt="profile.nowPlaying.item.title" />
+              </div>
+              <div class="min-w-0">
+                <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 shrink-0 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</p>
+                <p class="mt-1 truncate text-sm font-semibold text-white">{{ profile.nowPlaying.item.title }}</p>
+                <p v-if="profile.nowPlaying.item.subtitle" class="truncate text-xs text-flixer-muted">{{ profile.nowPlaying.item.subtitle }}</p>
+              </div>
+            </RouterLink>
           </div>
           <dl class="grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
             <div v-for="stat in stats" :key="stat.label" class="px-5 py-3">
@@ -151,18 +161,6 @@ onBeforeUnmount(() => {
           </dl>
         </header>
         <p v-if="failed" class="mt-4 text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
-        <section v-if="profile.nowPlaying" class="mt-6 rounded bg-white/5 p-4 sm:p-5" aria-live="polite">
-          <h2 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</h2>
-          <div class="mt-3 flex items-center gap-4">
-            <RouterLink :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="relative size-16 shrink-0 overflow-hidden rounded bg-flixer-surface sm:size-20" :aria-label="profile.nowPlaying.item.title">
-              <AuthImage v-if="profile.nowPlaying.item.imageIndex !== null" scope="library" :item-id="profile.nowPlaying.item.imageItemId" :index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :width="160" :alt="profile.nowPlaying.item.title" />
-            </RouterLink>
-            <div class="min-w-0">
-              <RouterLink :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="text-base font-semibold text-white hover:underline">{{ profile.nowPlaying.item.title }}</RouterLink>
-              <p v-if="profile.nowPlaying.item.subtitle" class="mt-1 text-sm text-flixer-muted">{{ profile.nowPlaying.item.subtitle }}</p>
-            </div>
-          </div>
-        </section>
         <section v-if="profile.recentlyWatched.length" class="mt-10">
           <h2 class="mb-4 text-xl font-bold tracking-tight text-white">{{ sectionTitle('recentlyWatched') }}</h2>
           <ul class="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-4 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
