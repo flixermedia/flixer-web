@@ -49,6 +49,10 @@ const { t, locale } = useI18n()
 const SKIP_SECONDS = 10
 // A guest further than this from the host is moved back to it.
 const REMOTE_DRIFT_S = 2
+// A transcoded stream restarts on every seek, so it gets a looser limit and a cooldown to avoid reload loops.
+const REMOTE_DRIFT_RELOAD_S = 6
+const REMOTE_RELOAD_COOLDOWN_MS = 10_000
+let lastRemoteReload = 0
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
@@ -447,7 +451,17 @@ function applyRemote(state: { playing: boolean; position: number }) {
   remoteChange = true
   try {
     const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
-    if (Math.abs(position.value - target) > REMOTE_DRIFT_S) seekTo(target)
+    const drift = Math.abs(position.value - target)
+    if (isNative.value) {
+      if (drift > REMOTE_DRIFT_S) seekTo(target)
+    } else if (!waiting.value && drift > REMOTE_DRIFT_RELOAD_S && Date.now() - lastRemoteReload > REMOTE_RELOAD_COOLDOWN_MS) {
+      const local = target - offset.value
+      if (!(local >= 0 && isBuffered(el, local))) lastRemoteReload = Date.now()
+      seekTo(target)
+    } else if (!waiting.value && drift > REMOTE_DRIFT_S && isBuffered(el, target - offset.value)) {
+      seekTo(target)
+    }
+    if (waiting.value) return
     if (state.playing && el.paused) tryPlay()
     else if (!state.playing && !el.paused) el.pause()
   } finally {
