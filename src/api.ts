@@ -1865,8 +1865,8 @@ export async function deletePlaylist(id: string): Promise<void> {
   await api.delete(`/playlists/${encodeURIComponent(id)}`)
 }
 
-export async function addPlaylistItem(id: string, itemId: string): Promise<void> {
-  await api.post(`/playlists/${encodeURIComponent(id)}/items`, { itemId })
+export async function addPlaylistItem(id: string, itemId: string): Promise<{ added: number }> {
+  return (await api.post<{ added: number }>(`/playlists/${encodeURIComponent(id)}/items`, { itemId })).data
 }
 
 export async function removePlaylistItem(id: string, itemId: string): Promise<void> {

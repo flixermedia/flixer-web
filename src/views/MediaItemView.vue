@@ -94,8 +94,8 @@ const isTrack = computed(() => item.value?.type === 'track')
 const isMusic = computed(() => isAlbum.value || isTrack.value)
 const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
 const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
-function addToPlaylist(id: string, title: string) {
-  void openModal(AddToPlaylistModal, { props: { itemId: id, title } }).catch(() => undefined)
+function addToPlaylist(id: string, title: string, album = false) {
+  void openModal(AddToPlaylistModal, { props: { itemId: id, title, album } }).catch(() => undefined)
 }
 // Tracks have no artwork of their own, so they show their album's cover.
 const trackAlbumArt = ref<{ itemId: string; index: number; version: string } | null>(null)
@@ -348,7 +348,7 @@ watch(
                   {{ t('mediaItem.play') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
-                <button v-if="isTrack" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="addToPlaylist(item.id, item.title)">{{ t('social.addToPlaylist') }}</button>
+                <button v-if="isMusic" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
                 <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
                   {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}
                 </button>

@@ -5,9 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { addPlaylistItem, createPlaylist, getPlaylists, getPlaylistsContaining, removePlaylistItem, type PlaylistSummary } from '../api'
 
 defineOptions({ modalGroup: 'default' })
-const props = defineProps<{ itemId: string; title: string }>()
+const props = defineProps<{ itemId: string; title: string; album?: boolean }>()
 const { close } = useModalContext<void>()
 const { t } = useI18n()
+const added = ref(new Map<string, number>())
 const playlists = ref<PlaylistSummary[]>([])
 const selected = ref(new Set<string>())
 const name = ref('')
@@ -16,11 +17,29 @@ const error = ref(false)
 
 async function load() {
   try {
+    if (props.album) {
+      playlists.value = (await getPlaylists()).playlists
+      return
+    }
     const [{ playlists: own }, { playlistIds }] = await Promise.all([getPlaylists(), getPlaylistsContaining(props.itemId)])
     playlists.value = own
     selected.value = new Set(playlistIds)
   } catch {
     error.value = true
+  }
+}
+async function addAlbum(playlist: PlaylistSummary) {
+  if (busy.value) return
+  busy.value = true
+  error.value = false
+  try {
+    const { added: count } = await addPlaylistItem(playlist.id, props.itemId)
+    added.value = new Map(added.value).set(playlist.id, count)
+    playlist.trackCount += count
+  } catch {
+    error.value = true
+  } finally {
+    busy.value = false
   }
 }
 async function toggle(playlist: PlaylistSummary) {
@@ -48,8 +67,10 @@ async function create() {
   try {
     const playlist = await createPlaylist({ name: name.value.trim() })
     playlists.value = [playlist, ...playlists.value]
-    await addPlaylistItem(playlist.id, props.itemId)
-    selected.value = new Set([...selected.value, playlist.id])
+    const { added: count } = await addPlaylistItem(playlist.id, props.itemId)
+    if (props.album) added.value = new Map(added.value).set(playlist.id, count)
+    else selected.value = new Set([...selected.value, playlist.id])
+    playlist.trackCount += count
     name.value = ''
   } catch {
     error.value = true
@@ -68,7 +89,14 @@ onMounted(() => void load())
       <div class="mt-4 min-h-0 space-y-1 overflow-y-auto p-1 -mx-1">
         <p v-if="error" class="mb-2 text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         <p v-if="!playlists.length" class="px-2 py-3 text-sm text-flixer-muted">{{ t('social.noPlaylists') }}</p>
-        <label v-for="playlist in playlists" :key="playlist.id" class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm text-white transition motion-reduce:transition-none hover:bg-white/10">
+        <template v-if="album">
+          <button v-for="playlist in playlists" :key="playlist.id" type="button" class="flex w-full items-center gap-3 rounded px-3 py-3 text-left text-sm text-white transition motion-reduce:transition-none hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="addAlbum(playlist)">
+            <span class="min-w-0 flex-1 truncate">{{ playlist.name }}</span>
+            <span v-if="added.has(playlist.id)" class="text-xs font-semibold text-emerald-300">{{ t('social.albumAdded', { count: added.get(playlist.id) ?? 0 }) }}</span>
+            <span v-else class="text-xs text-flixer-muted">{{ playlist.trackCount }}</span>
+          </button>
+        </template>
+        <label v-for="playlist in album ? [] : playlists" :key="playlist.id" class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm text-white transition motion-reduce:transition-none hover:bg-white/10">
           <input type="checkbox" class="size-4 accent-flixer-accent" :checked="selected.has(playlist.id)" :disabled="busy" @change="toggle(playlist)" />
           <span class="min-w-0 flex-1 truncate">{{ playlist.name }}</span
           ><span class="text-xs text-flixer-muted">{{ playlist.trackCount }}</span>

@@ -1995,6 +1995,7 @@
     "title": "Title",
     "album": "Album",
     "duration": "Duration",
-    "artists": "Artists"
+    "artists": "Artists",
+    "albumAdded": "Added {count} songs"
   }
 }
