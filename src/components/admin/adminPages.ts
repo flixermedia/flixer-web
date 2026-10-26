@@ -1,5 +1,5 @@
 import { defineAsyncComponent, type Component } from 'vue'
-import type { StaticAdminPageId } from './adminNav'
+import type { AdminPageId } from './adminNav'
 
 const lazy = (load: () => Promise<{ default: Component }>) => defineAsyncComponent(load)
 
@@ -31,7 +31,7 @@ export interface PageBlock {
 }
 
 /** What each page shows, top to bottom. */
-export const ADMIN_PAGE_BLOCKS: Record<StaticAdminPageId, PageBlock[]> = {
+export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   overview: [{ component: Dashboard }],
   libraries: [{ component: Libraries }],
   tasks: [{ component: IndexerQueues }, { component: IndexerTasks }, { component: Tasks }],

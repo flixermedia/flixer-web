@@ -45,8 +45,9 @@ function sanitizeItem(raw: unknown): PluginSearchItem | null {
     }
   }
   const poster = typeof raw.poster === 'string' && raw.poster.startsWith('https://') ? safeImageSrc(raw.poster) : undefined
-  const badgeText = isObj(raw.badge) ? text(raw.badge.text, 40) : undefined
-  const badgeTone = isObj(raw.badge) ? TONES.find((tone) => tone === raw.badge.tone) : undefined
+  const badge = isObj(raw.badge) ? raw.badge : undefined
+  const badgeText = badge ? text(badge.text, 40) : undefined
+  const badgeTone = badge ? TONES.find((tone) => tone === badge.tone) : undefined
   return {
     title,
     subtitle: text(raw.subtitle, 200),

@@ -149,7 +149,7 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
 
   ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }))
   ws.onmessage = (event) => {
-    let message: { type?: string; party?: PartySnapshot; message?: PartyChatMessage | string; messages?: PartyChatMessage[]; serverTime?: number; status?: number; message?: string }
+    let message: { type?: string; party?: PartySnapshot; message?: PartyChatMessage | string; messages?: PartyChatMessage[]; serverTime?: number; status?: number }
     try {
       message = JSON.parse(String(event.data))
     } catch {
