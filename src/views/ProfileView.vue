@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
                 <h1 class="break-words text-2xl font-bold tracking-tight text-white sm:text-4xl">{{ profile.displayName }}</h1>
                 <span v-if="profile.hidden" class="rounded bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-100">{{ t('social.hidden') }}</span>
               </div>
-              <p class="mt-1 text-sm text-flixer-muted">@{{ profile.username }} · {{ t('social.joined', { date: new Date(profile.joinedAt).toLocaleDateString() }) }}</p>
+              <p class="mt-1 text-sm text-flixer-muted">{{ profile.username }} · {{ t('social.joined', { date: new Date(profile.joinedAt).toLocaleDateString() }) }}</p>
               <div class="mt-4 flex flex-wrap gap-2">
                 <button v-if="profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85" @click="createPlaylist">{{ t('social.createPlaylist') }}</button>
                 <RouterLink v-if="profile.isSelf" :to="{ name: 'settings' }" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">{{ t('social.editProfile') }}</RouterLink>

@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
           <RouterLink :to="{ name: 'profile', params: { username: person.username } }" class="flex items-center gap-4 p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
             ><UserAvatar :avatar-url="person.avatarUrl" :name="person.displayName" class="size-14 shrink-0 overflow-hidden rounded-full ring-2 ring-white/10" /><span class="min-w-0"
               ><span class="block truncate text-sm font-semibold text-white">{{ person.displayName }}</span
-              ><span class="block truncate text-xs text-flixer-muted">@{{ person.username }}</span></span
+              ><span class="block truncate text-xs text-flixer-muted">{{ person.username }}</span></span
             ></RouterLink
           >
         </li>
