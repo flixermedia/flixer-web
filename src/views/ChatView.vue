@@ -11,7 +11,7 @@ import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
-import { conversationTitle, useChatUnread, viewingChat } from '../composables/useChat'
+import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
 
@@ -40,8 +40,7 @@ const renameDraft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 const composer = ref<HTMLTextAreaElement | null>(null)
 
-let listTimer: ReturnType<typeof setInterval> | undefined
-let threadTimer: ReturnType<typeof setInterval> | undefined
+let stopEvents: (() => void) | undefined
 let threadToken = 0
 
 const self = computed(() => profile.value?.username)
@@ -106,7 +105,6 @@ function merge(incoming: ChatMessage[]) {
 
 async function openThread(id: string | undefined) {
   const token = ++threadToken
-  clearInterval(threadTimer)
   active.value = null
   messages.value = []
   hasMore.value = false
@@ -125,7 +123,6 @@ async function openThread(id: string | undefined) {
     conversations.value = conversations.value.map((entry) => (entry.id === id ? { ...entry, unread: 0 } : entry))
     unread.set(conversations.value.reduce((total, entry) => total + entry.unread, 0))
     scrollToEnd()
-    threadTimer = setInterval(() => void pollThread(id, token), 3_000)
   } catch {
     if (token === threadToken) threadMissing.value = true
   } finally {
@@ -134,7 +131,7 @@ async function openThread(id: string | undefined) {
 }
 
 async function pollThread(id: string, token: number) {
-  if (document.hidden || token !== threadToken) return
+  if (token !== threadToken) return
   try {
     const last = messages.value[messages.value.length - 1]
     const stick = nearBottom()
@@ -146,6 +143,37 @@ async function pollThread(id: string, token: number) {
     }
   } catch {
     // The next tick retries.
+  }
+}
+
+function onEvent(event: ChatEvent) {
+  const id = props.id
+  if (event.type === 'resync') {
+    void refreshList()
+    if (id) void pollThread(id, threadToken)
+    return
+  }
+  if (event.type === 'message' && id && event.conversationId === id) {
+    const stick = nearBottom()
+    if (merge([event.message]) && stick) scrollToEnd()
+    if (!document.hidden && event.message.kind === 'text') void markChatRead(id).catch(() => undefined)
+    void refreshList()
+    return
+  }
+  void refreshList()
+  if (event.type === 'changed' && id && event.conversationId === id) void syncThread(id)
+}
+
+async function syncThread(id: string) {
+  const token = threadToken
+  try {
+    const conversation = await getChatConversation(id)
+    if (token !== threadToken) return
+    active.value = conversation
+    renameDraft.value = conversation.name ?? ''
+    await pollThread(id, token)
+  } catch {
+    if (token === threadToken) threadMissing.value = true
   }
 }
 
@@ -262,17 +290,14 @@ watch(
 onMounted(() => {
   void loadProfile()
   void refreshList(false)
-  listTimer = setInterval(() => {
-    if (!document.hidden) void refreshList()
-  }, 10_000)
+  stopEvents = onChatEvent(onEvent)
   document.addEventListener('visibilitychange', onVisible)
 })
 
 onBeforeUnmount(() => {
   viewingChat.value = null
   threadToken++
-  clearInterval(listTimer)
-  clearInterval(threadTimer)
+  stopEvents?.()
   document.removeEventListener('visibilitychange', onVisible)
 })
 </script>
