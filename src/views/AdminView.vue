@@ -33,10 +33,10 @@ function open({ tab, page }: AdminLocation) {
 
     <main class="page-gutter w-full pb-16 pt-28">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-3xl font-semibold tracking-tight text-white">{{ t('admin.title') }}</h1>
+        <h1 class="text-3xl font-semibold tracking-tight text-white">{{ location.page === 'overview' ? t('admin.title') : t(`admin.pages.${location.page}`) }}</h1>
         <div id="admin-header-actions" class="flex items-center"></div>
       </div>
-      <p class="mt-2 text-sm text-flixer-muted">{{ t('admin.subtitle') }}</p>
+      <p class="mt-2 text-sm text-flixer-muted">{{ t(`admin.subtitles.${location.page}`) }}</p>
 
       <nav class="mt-3" :aria-label="t('admin.adminNavigation')">
         <AdminTabs :tabs="tabs" :active="location" class="w-fit max-w-full" @select="open" />

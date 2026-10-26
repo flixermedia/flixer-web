@@ -167,6 +167,26 @@
   "admin": {
     "title": "Admin Dashboard",
     "subtitle": "Monitor and manage this Flixer server.",
+    "subtitles": {
+      "overview": "Monitor and manage this Flixer server.",
+      "libraries": "Add, scan and organise your media libraries.",
+      "tasks": "Run and schedule background jobs and indexing.",
+      "media": "Browse and manage everything in your libraries.",
+      "transcoding": "Control how Flixer converts media for playback.",
+      "metadata": "Choose where titles, artwork and details come from.",
+      "subtitles": "Configure subtitle providers and languages.",
+      "themes": "Manage theme songs for shows and movies.",
+      "requests": "Manage media requests and the services that fulfil them.",
+      "notifications": "Choose which events notify you and how.",
+      "smtp": "Set up the email server used to send messages.",
+      "apikeys": "Create and revoke keys for apps and integrations.",
+      "plugins": "Install and manage extensions for this server.",
+      "server": "General settings for this Flixer server.",
+      "users": "Manage accounts, devices and access.",
+      "networking": "Configure addresses, ports and remote access.",
+      "updates": "Check for and install Flixer updates.",
+      "backups": "Create and restore backups of your server data."
+    },
     "groups": {
       "dashboard": "Dashboard",
       "library": "Libraries",
