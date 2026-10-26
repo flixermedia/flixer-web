@@ -87,6 +87,8 @@ api.interceptors.response.use(
 
 export interface UserPreferences {
   language?: string
+  /** Order of the admin dashboard panels. */
+  adminDashboardGrid?: Array<{ id: string; x: number; y: number; w: number; h: number }>
 }
 
 export async function getPreferences(): Promise<UserPreferences> {
