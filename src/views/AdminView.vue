@@ -2,40 +2,27 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import DevicesPanel from '../components/admin/DevicesPanel.vue'
-import GeneralPanel from '../components/admin/GeneralPanel.vue'
-import LibrariesPanel from '../components/admin/LibrariesPanel.vue'
-import IndexerPanel from '../components/admin/IndexerPanel.vue'
-import ProvidersPanel from '../components/admin/ProvidersPanel.vue'
-import MediaPanel from '../components/admin/MediaPanel.vue'
-import LogsPanel from '../components/admin/LogsPanel.vue'
-import BackupsPanel from '../components/admin/BackupsPanel.vue'
-import UpdatesPanel from '../components/admin/UpdatesPanel.vue'
-import NotificationsPanel from '../components/admin/NotificationsPanel.vue'
-import OverviewPanel from '../components/admin/OverviewPanel.vue'
-import StreamSessionsPanel from '../components/admin/StreamSessionsPanel.vue'
-import TasksPanel from '../components/admin/TasksPanel.vue'
-import RequestsPanel from '../components/admin/RequestsPanel.vue'
-import TranscodingPanel from '../components/admin/TranscodingPanel.vue'
-import UsersPanel from '../components/admin/UsersPanel.vue'
+import AdminTabs from '../components/admin/AdminTabs.vue'
+import { adminQuery, resolveAdminLocation, type AdminLocation } from '../components/admin/adminNav'
+import { ADMIN_PAGE_BLOCKS } from '../components/admin/adminPages'
 import Header from '../components/header/Header.vue'
-import SettingsTabs, { type SettingsTab } from '../components/settings/SettingsTabs.vue'
+import { useAdminTabs } from '../composables/useAdminTabs'
 import { useSignOut } from '../composables/useSignOut'
-import { ADMIN_GROUPS, resolveAdminGroup, type AdminGroupId } from '../components/admin/adminNav'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 
-const tabs = computed<SettingsTab[]>(() => (Object.keys(ADMIN_GROUPS) as AdminGroupId[]).map((id) => ({ id, label: t(`admin.groups.${id}`) })))
-const activeTab = computed({
-  get: () => resolveAdminGroup(route.query.tab),
-  set: (id: string) => {
-    const query = Object.fromEntries(Object.entries(route.query).filter(([key]) => !key.startsWith('m')))
-    void router.replace({ query: { ...query, tab: id } })
-  },
-})
+const tabs = useAdminTabs()
+const location = computed(() => resolveAdminLocation(route.query.tab, route.query.page))
+const blocks = computed(() => ADMIN_PAGE_BLOCKS[location.value.page])
+
+function open({ tab, page }: AdminLocation) {
+  // Filters such as the media search belong to the page that set them, so they do not follow to the next one.
+  const query = Object.fromEntries(Object.entries(route.query).filter(([key]) => !key.startsWith('m') && key !== 'tab' && key !== 'page'))
+  void router.replace({ query: { ...query, ...adminQuery(tab, page) } })
+}
 </script>
 
 <template>
@@ -43,39 +30,15 @@ const activeTab = computed({
     <Header :links="[]" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter w-full pb-16 pt-28">
-      <h1 class="text-3xl font-semibold tracking-tight">{{ t('admin.title') }}</h1>
+      <h1 class="bg-linear-to-r from-white to-flixer-accent bg-clip-text text-3xl font-semibold tracking-tight text-transparent">{{ t('admin.title') }}</h1>
       <p class="mt-2 text-sm text-flixer-muted">{{ t('admin.subtitle') }}</p>
 
       <nav class="mt-3" :aria-label="t('admin.adminNavigation')">
-        <SettingsTabs v-model="activeTab" :tabs="tabs" class="w-fit max-w-full" />
+        <AdminTabs :tabs="tabs" :active="location" class="w-fit max-w-full" @select="open" />
       </nav>
 
       <div class="mt-8 flex flex-col gap-10">
-        <template v-if="activeTab === 'dashboard'">
-          <OverviewPanel />
-          <StreamSessionsPanel />
-          <LogsPanel />
-        </template>
-        <template v-else-if="activeTab === 'library'">
-          <LibrariesPanel />
-          <IndexerPanel />
-        </template>
-        <MediaPanel v-else-if="activeTab === 'media'" />
-        <ProvidersPanel v-else-if="activeTab === 'providers'" />
-        <TranscodingPanel v-else-if="activeTab === 'transcoding'" />
-        <DevicesPanel v-else-if="activeTab === 'apikeys'" part="keys" />
-        <template v-else-if="activeTab === 'users'">
-          <UsersPanel />
-          <DevicesPanel part="devices" />
-        </template>
-        <RequestsPanel v-else-if="activeTab === 'requests'" />
-        <NotificationsPanel v-else-if="activeTab === 'notifications'" />
-        <UpdatesPanel v-else-if="activeTab === 'updates'" />
-        <BackupsPanel v-else-if="activeTab === 'backups'" />
-        <template v-else>
-          <GeneralPanel />
-          <TasksPanel />
-        </template>
+        <component :is="block.component" v-for="(block, index) in blocks" :key="`${location.page}-${index}`" v-bind="block.props" />
       </div>
     </main>
   </div>

@@ -110,7 +110,7 @@ const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
 <template>
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-5">
+      <div v-for="card in summaryCards" :key="card.label" class="admin-card p-5">
         <p class="text-xs text-flixer-muted">{{ card.label }}</p>
         <p class="mt-1 text-3xl font-semibold transition-opacity" :class="loading ? 'opacity-50' : ''">{{ card.value.toLocaleString(locale) }}</p>
       </div>
