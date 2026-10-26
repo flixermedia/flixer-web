@@ -237,7 +237,7 @@ watch(live.data, (value) => {
 <template>
   <div class="flex flex-col gap-5">
     <Teleport defer to="#admin-header-actions">
-    <div class="flex flex-wrap items-center justify-end gap-2">
+    <div class="hidden flex-wrap items-center justify-end gap-2 lg:flex">
       <template v-if="editing">
         <p class="mr-auto text-xs text-flixer-muted">
           <span class="hidden lg:inline">{{ t('admin.dashboard.editHint') }}</span>
