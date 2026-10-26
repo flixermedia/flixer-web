@@ -3,10 +3,7 @@ import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
-import ConnectionsSection from './ConnectionsSection.vue'
-import EmailSettingsSection from './EmailSettingsSection.vue'
 import ErrorMonitoringSection from './ErrorMonitoringSection.vue'
-import NetworkingSection from './NetworkingSection.vue'
 import ServerSettingsSection from './ServerSettingsSection.vue'
 
 const { t } = useI18n()
@@ -21,12 +18,6 @@ const form = reactive({
 <template>
   <div class="flex flex-col gap-6">
     <ServerSettingsSection />
-
-    <NetworkingSection />
-
-    <ConnectionsSection />
-
-    <EmailSettingsSection />
 
     <AdminSection :title="t('admin.general.notificationsTitle')" :description="t('admin.general.notificationsDescription')">
       <AdminToggle v-model="form.notifyNewUser" :label="t('admin.general.newUserAwaitingApproval')" />
