@@ -3,7 +3,7 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
-import { getChatConversation, getChatConversations, getChatMessages, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessage } from '../api'
+import { getChatConversation, getChatConversations, getChatMessages, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessage } from '../api'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
@@ -272,6 +272,21 @@ async function leaveOrRemove(username: string) {
   }
 }
 
+async function deleteActive() {
+  const conversation = active.value
+  if (!conversation) return
+  const group = conversation.kind === 'group'
+  const ok = await confirmAction(group ? t('chat.deleteGroupConfirm') : t('chat.deleteChatConfirm'), { title: group ? t('chat.deleteGroup') : t('chat.deleteChat'), confirmLabel: t('chat.delete'), danger: true })
+  if (!ok) return
+  try {
+    await deleteChatConversation(conversation.id)
+    await refreshList()
+    void router.push({ name: 'chat' })
+  } catch (error) {
+    sendError.value = describeRequestError(error, t('chat.createError'))
+  }
+}
+
 function onVisible() {
   if (document.hidden) return
   void refreshList()
@@ -376,6 +391,9 @@ onBeforeUnmount(() => {
                   <h2 v-else class="truncate text-sm font-semibold text-white">{{ title(active) }}</h2>
                   <p v-if="active.kind === 'group'" class="truncate text-xs text-flixer-muted">{{ t('chat.memberCount', { count: active.members.length }, active.members.length) }}</p>
                 </div>
+                <button v-if="active.kind === 'direct' || isOwner" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v6m4-6v6" /></svg>
+                </button>
                 <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
                   <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />

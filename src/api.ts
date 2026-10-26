@@ -2017,6 +2017,10 @@ export async function addChatMembers(id: string, usernames: string[]): Promise<C
   return (await api.post<ChatConversation>(`/chat/conversations/${encodeURIComponent(id)}/members`, { usernames })).data
 }
 
+export async function deleteChatConversation(id: string): Promise<void> {
+  await api.delete(`/chat/conversations/${encodeURIComponent(id)}`)
+}
+
 export async function removeChatMember(id: string, username: string): Promise<void> {
   await api.delete(`/chat/conversations/${encodeURIComponent(id)}/members/${encodeURIComponent(username)}`)
 }
