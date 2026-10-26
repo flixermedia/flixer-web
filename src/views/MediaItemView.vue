@@ -318,7 +318,7 @@ watch(
           <div class="absolute inset-0 bg-gradient-to-t from-flixer-background" :class="usesBanner ? 'via-flixer-background/10 to-transparent' : 'via-flixer-background/70 to-flixer-background/30'"></div>
           <div v-if="!usesBanner" class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
-          <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly ? 'bg-flixer-surface/20' : ''">
+          <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly && !usesBanner ? 'bg-flixer-surface/20' : ''">
             <div v-if="isMusic" class="aspect-square w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
               <AuthImage v-if="cover" scope="library" :item-id="cover.itemId" :index="cover.index" :version="cover.version" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
