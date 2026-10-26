@@ -14,6 +14,8 @@ import { thumbnailAt } from '../composables/trickplay'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import AuthImage from '../components/ui/AuthImage.vue'
+import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
+import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
@@ -90,6 +92,11 @@ const audioPlayer = useAudioPlayer()
 const isAlbum = computed(() => item.value?.type === 'album')
 const isTrack = computed(() => item.value?.type === 'track')
 const isMusic = computed(() => isAlbum.value || isTrack.value)
+const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
+const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
+function addToPlaylist(id: string, title: string) {
+  void openModal(AddToPlaylistModal, { props: { itemId: id, title } }).catch(() => undefined)
+}
 // Tracks have no artwork of their own, so they show their album's cover.
 const trackAlbumArt = ref<{ itemId: string; index: number; version: string } | null>(null)
 const cover = computed(() => {
@@ -276,8 +283,8 @@ watch(
       <div v-else-if="failure" class="page-gutter pt-32">
         <h1 class="text-2xl font-semibold text-white">{{ failure === 'missing' ? t('mediaItem.notFound') : t('mediaItem.loadError') }}</h1>
         <div class="mt-4 flex gap-3">
-          <RouterLink to="/" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">{{ t('mediaItem.backHome') }}</RouterLink>
-          <button v-if="failure === 'error'" type="button" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15" @click="load(String(route.params.id))">{{ t('home.retry') }}</button>
+          <RouterLink to="/" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15">{{ t('mediaItem.backHome') }}</RouterLink>
+          <button v-if="failure === 'error'" type="button" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="load(String(route.params.id))">{{ t('home.retry') }}</button>
         </div>
       </div>
 
@@ -303,7 +310,7 @@ watch(
               <RouterLink v-if="item.parent" :to="{ name: 'media-item', params: { id: item.parent.id } }" class="text-sm font-medium text-flixer-accent hover:underline">{{ item.parent.title }}</RouterLink>
               <div class="flex flex-wrap items-center gap-3">
                 <h1 class="mt-1 break-words text-4xl font-bold text-white drop-shadow-lg sm:text-5xl">{{ item.title }}</h1>
-                <button v-if="themeMusic.available.value" type="button" class="mt-1 grid size-10 shrink-0 place-items-center rounded-full border border-white/20 bg-black/35 text-white/80 backdrop-blur transition hover:border-white/40 hover:bg-black/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" :aria-pressed="themeMusic.playing.value" :title="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" @click="themeMusic.toggle">
+                <button v-if="themeMusic.available.value" type="button" class="mt-1 grid size-10 shrink-0 place-items-center rounded-full border border-white/20 bg-black/35 text-white/80 backdrop-blur transition motion-reduce:transition-none hover:border-white/40 hover:bg-black/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" :aria-pressed="themeMusic.playing.value" :title="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" @click="themeMusic.toggle">
                   <svg v-if="themeMusic.playing.value" class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg><svg v-else class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" /></svg>
                 </button>
               </div>
@@ -328,22 +335,24 @@ watch(
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
 
               <div class="mt-6 flex flex-wrap items-center gap-3">
-                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
+                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                   {{ t('music.playAlbum') }}
                 </button>
-                <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
+                <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                   {{ t('mediaItem.play') }}
                 </button>
-                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
+                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                   {{ t('mediaItem.play') }}
                 </button>
-                <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
+                <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
+                <button v-if="isTrack" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="addToPlaylist(item.id, item.title)">{{ t('social.addToPlaylist') }}</button>
+                <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
                   {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}
                 </button>
-                <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
+                <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zM4 12h4v2H4zm10 6H4v-2h10zm6 0h-4v-2h4zm0-4H10v-2h10z" /></svg>
                   {{ t('subtitles.manage') }}
                 </button>
@@ -377,7 +386,7 @@ watch(
           <section v-if="episodes.length > 0" :aria-label="listTitle" class="page-gutter">
             <h2 v-if="!isShow" class="mb-3 text-xl font-semibold text-white">{{ listTitle }}</h2>
             <ul class="divide-y divide-flixer-border overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface/40">
-              <li v-for="episode in episodes" :key="episode.id" class="flex items-center transition hover:bg-white/5">
+              <li v-for="episode in episodes" :key="episode.id" class="flex items-center transition motion-reduce:transition-none hover:bg-white/5">
                 <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                   <div v-if="episode.type !== 'track'" class="aspect-video w-32 shrink-0 overflow-hidden rounded bg-flixer-surface sm:w-44">
                     <AuthImage v-if="episode.thumb !== null" scope="library" :item-id="episode.id" :index="episode.thumb" :version="episode.updatedAt" :width="320" alt="" />
@@ -388,13 +397,17 @@ watch(
                     <p v-if="episode.overview" class="mt-1 line-clamp-2 text-xs text-flixer-text/80">{{ episode.overview }}</p>
                   </div>
                 </RouterLink>
-                <button v-if="WATCHABLE.includes(episode.type)" type="button" class="mr-2 grid size-10 shrink-0 place-items-center rounded transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="episode.watched ? 'text-flixer-accent' : 'text-white/50'" :aria-pressed="episode.watched" :aria-label="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" :title="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" @click="toggleWatched(episode.id, !episode.watched)">
+                <button v-if="WATCHABLE.includes(episode.type)" type="button" class="mr-2 grid size-10 shrink-0 place-items-center rounded transition motion-reduce:transition-none hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="episode.watched ? 'text-flixer-accent' : 'text-white/50'" :aria-pressed="episode.watched" :aria-label="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" :title="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" @click="toggleWatched(episode.id, !episode.watched)">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
                 </button>
-                <button v-if="episode.type === 'track'" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('music.playTrack', { title: episode.title })" @click="playAlbum(episode.id)">
+                <FavoriteToggle v-if="episode.type === 'track'" :item-id="episode.id" class="mr-1" />
+                <button v-if="episode.type === 'track'" type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('social.addToPlaylistFor', { title: episode.title })" :title="t('social.addToPlaylist')" @click="addToPlaylist(episode.id, episode.title)">
+                  <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+                <button v-if="episode.type === 'track'" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('music.playTrack', { title: episode.title })" @click="playAlbum(episode.id)">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                 </button>
-                <button v-else-if="PLAYABLE.includes(episode.type)" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`${t('mediaItem.play')} ${episode.title}`" @click="play({ id: episode.id, title: playerTitle(episode, episode.seasonNumber ?? item.seasonNumber ?? seasons[activeSeason]?.seasonNumber ?? null) })">
+                <button v-else-if="PLAYABLE.includes(episode.type)" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`${t('mediaItem.play')} ${episode.title}`" @click="play({ id: episode.id, title: playerTitle(episode, episode.seasonNumber ?? item.seasonNumber ?? seasons[activeSeason]?.seasonNumber ?? null) })">
                   <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                 </button>
               </li>

@@ -115,6 +115,8 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
                 <p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
               </div>
               <div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
+              <RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.profile') }}</RouterLink>
+              <RouterLink to="/people" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.people') }}</RouterLink>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t('header.language') }}</button>
               <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t('header.theme') }}</button>
               <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.administration') }}</RouterLink>

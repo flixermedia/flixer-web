@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useAudioPlayer } from '../../composables/useAudioPlayer'
 import AuthImage from '../ui/AuthImage.vue'
+import { openModal } from '@kolirt/vue-modal'
+import AddToPlaylistModal from '../AddToPlaylistModal.vue'
 import { formatTime } from './formatTime'
 
 const { t } = useI18n()
@@ -18,6 +20,9 @@ watch(visible, (value) => document.documentElement.classList.toggle('has-mini-pl
 
 function onSeek(event: Event) {
   player.seek((Number((event.target as HTMLInputElement).value) / 100) * duration.value)
+}
+function addCurrentToPlaylist() {
+  if (current.value) void openModal(AddToPlaylistModal, { props: { itemId: current.value.id, title: current.value.title } }).catch(() => undefined)
 }
 function onVolume(event: Event) {
   player.setVolume(Number((event.target as HTMLInputElement).value))
@@ -71,6 +76,9 @@ function onVolume(event: Event) {
         </div>
 
         <div class="flex items-center justify-end gap-1 md:w-1/4">
+          <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('social.addToPlaylistFor', { title: current.title })" :title="t('social.addToPlaylist')" @click="addCurrentToPlaylist">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
           <button type="button" class="grid h-9 place-items-center rounded px-3 text-sm font-semibold text-white transition hover:bg-white/10" :aria-label="t('music.lyrics')" @click="lyricsOpen = true">
             <svg class="size-5 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h16" /></svg>
             <span class="hidden md:inline">{{ t('music.lyrics') }}</span>

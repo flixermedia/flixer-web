@@ -1767,3 +1767,131 @@ export async function getItemTheme(id: string): Promise<Blob | null> {
 export async function syncThemes(): Promise<{ eligible: number; queued: number }> {
   return (await api.post<{ eligible: number; queued: number }>('/themes/sync')).data
 }
+
+export type SocialItemType = 'movie' | 'series' | 'album' | 'track' | 'video' | 'episode'
+
+export interface SocialItem {
+  id: string
+  type: SocialItemType
+  title: string
+  subtitle: string | null
+  year: number | null
+  imageItemId: string
+  imageIndex: number | null
+  imageUpdatedAt: string
+  updatedAt: string
+  at?: string
+}
+
+export interface PlaylistSummary {
+  id: string
+  name: string
+  description: string | null
+  isPublic: boolean
+  trackCount: number
+  durationSeconds: number
+  cover: { itemId: string; index: number; updatedAt: string } | null
+  owner: { username: string; displayName: string; avatarUrl: string | null }
+  updatedAt: string
+}
+
+export interface PlaylistTrack extends SocialItem {
+  type: 'track'
+  artist: string | null
+  album: string | null
+  albumId: string | null
+  durationSeconds: number | null
+  position: number
+}
+
+export interface Profile {
+  username: string
+  displayName: string
+  avatarUrl: string | null
+  joinedAt: string
+  isSelf: boolean
+  hidden: boolean
+  nowPlaying: { kind: 'watching' | 'listening'; item: SocialItem; positionSeconds: number; durationSeconds: number | null } | null
+  recentlyWatched: SocialItem[]
+  recentlyListened: SocialItem[]
+  favorites: SocialItem[]
+  playlists: PlaylistSummary[]
+}
+
+export interface PublicProfileSummary {
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export async function getFavorites(): Promise<{ items: SocialItem[] }> {
+  return (await api.get<{ items: SocialItem[] }>('/favorites')).data
+}
+
+export async function getFavoriteIds(): Promise<{ ids: string[] }> {
+  return (await api.get<{ ids: string[] }>('/favorites/ids')).data
+}
+
+export async function addFavorite(itemId: string): Promise<void> {
+  await api.put(`/favorites/${encodeURIComponent(itemId)}`)
+}
+
+export async function removeFavorite(itemId: string): Promise<void> {
+  await api.delete(`/favorites/${encodeURIComponent(itemId)}`)
+}
+
+export async function getPlaylists(): Promise<{ playlists: PlaylistSummary[] }> {
+  return (await api.get<{ playlists: PlaylistSummary[] }>('/playlists')).data
+}
+
+export async function createPlaylist(input: { name: string; description?: string; isPublic?: boolean }): Promise<PlaylistSummary> {
+  return (await api.post<PlaylistSummary>('/playlists', input)).data
+}
+
+export async function getPlaylist(id: string): Promise<PlaylistSummary & { isOwner: boolean; tracks: PlaylistTrack[] }> {
+  return (await api.get<PlaylistSummary & { isOwner: boolean; tracks: PlaylistTrack[] }>(`/playlists/${encodeURIComponent(id)}`)).data
+}
+
+export async function updatePlaylist(id: string, changes: { name?: string; description?: string; isPublic?: boolean }): Promise<PlaylistSummary> {
+  return (await api.patch<PlaylistSummary>(`/playlists/${encodeURIComponent(id)}`, changes)).data
+}
+
+export async function deletePlaylist(id: string): Promise<void> {
+  await api.delete(`/playlists/${encodeURIComponent(id)}`)
+}
+
+export async function addPlaylistItem(id: string, itemId: string): Promise<void> {
+  await api.post(`/playlists/${encodeURIComponent(id)}/items`, { itemId })
+}
+
+export async function removePlaylistItem(id: string, itemId: string): Promise<void> {
+  await api.delete(`/playlists/${encodeURIComponent(id)}/items/${encodeURIComponent(itemId)}`)
+}
+
+export async function reorderPlaylist(id: string, itemIds: string[]): Promise<void> {
+  await api.put(`/playlists/${encodeURIComponent(id)}/order`, { itemIds })
+}
+
+export async function getPlaylistsContaining(itemId: string): Promise<{ playlistIds: string[] }> {
+  return (await api.get<{ playlistIds: string[] }>(`/playlists/containing/${encodeURIComponent(itemId)}`)).data
+}
+
+export async function getProfiles(q?: string): Promise<{ profiles: PublicProfileSummary[] }> {
+  return (await api.get<{ profiles: PublicProfileSummary[] }>('/profiles', { params: q ? { q } : undefined })).data
+}
+
+export async function getMySocialProfile(): Promise<Profile> {
+  return (await api.get<Profile>('/profiles/me')).data
+}
+
+export async function getSocialProfile(username: string): Promise<Profile> {
+  return (await api.get<Profile>(`/profiles/${encodeURIComponent(username)}`)).data
+}
+
+export async function updateMySocialProfile(changes: { hidden: boolean }): Promise<{ hidden: boolean }> {
+  return (await api.put<{ hidden: boolean }>('/profiles/me', changes)).data
+}
+
+export async function reportListening(itemId: string, state: 'playing' | 'stopped'): Promise<void> {
+  await api.post('/profiles/me/listening', { itemId, state })
+}

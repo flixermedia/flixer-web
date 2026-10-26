@@ -78,6 +78,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/u/:username',
+      name: 'profile',
+      component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/people',
+      name: 'people',
+      component: () => import('../views/PeopleView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/playlists/:id',
+      name: 'playlist',
+      component: () => import('../views/PlaylistView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/media/:id',
       name: 'media-item',
       component: () => import('../views/MediaItemView.vue'),

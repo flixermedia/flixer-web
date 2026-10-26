@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics } from '../api'
+import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics, reportListening } from '../api'
 import { parseLrc, type ParsedLyrics } from './lrc'
 
 export interface QueueTrack {
@@ -35,6 +35,27 @@ const lyricsLoading = ref(false)
 const lyricsOpen = ref(false)
 
 let loadToken = 0
+let listeningTrackId: string | null = null
+let listeningInterval: ReturnType<typeof setInterval> | undefined
+
+function reportPlaying(itemId: string) {
+  if (listeningTrackId !== itemId) reportStopped()
+  listeningTrackId = itemId
+  void reportListening(itemId, 'playing').catch(() => undefined)
+  if (listeningInterval) clearInterval(listeningInterval)
+  listeningInterval = setInterval(() => {
+    if (listeningTrackId === itemId && isPlaying.value) void reportListening(itemId, 'playing').catch(() => undefined)
+  }, 60_000)
+}
+
+function reportStopped() {
+  if (!listeningTrackId) return
+  const itemId = listeningTrackId
+  listeningTrackId = null
+  if (listeningInterval) clearInterval(listeningInterval)
+  listeningInterval = undefined
+  void reportListening(itemId, 'stopped').catch(() => undefined)
+}
 
 const current = computed<QueueTrack | null>(() => {
   const index = order.value[position.value]
@@ -247,6 +268,7 @@ function cycleRepeat() {
 
 function stop() {
   loadToken++
+  reportStopped()
   audio?.pause()
   if (audio) audio.removeAttribute('src')
   queue.value = []
@@ -265,6 +287,8 @@ if (audio) {
   audio.volume = Math.max(0, Math.min(1, volume.value))
   audio.addEventListener('play', () => {
     isPlaying.value = true
+    const track = current.value
+    if (track) reportPlaying(track.id)
     if ('mediaSession' in navigator) {
       registerMediaSessionHandlers()
       navigator.mediaSession.playbackState = 'playing'
@@ -272,6 +296,7 @@ if (audio) {
   })
   audio.addEventListener('pause', () => {
     isPlaying.value = false
+    reportStopped()
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
   })
   audio.addEventListener('timeupdate', () => (currentTime.value = audio.currentTime))
@@ -280,7 +305,10 @@ if (audio) {
     updatePositionState()
   })
   audio.addEventListener('seeked', updatePositionState)
-  audio.addEventListener('ended', () => next(true))
+  audio.addEventListener('ended', () => {
+    reportStopped()
+    next(true)
+  })
   audio.addEventListener('error', () => {
     if (audio.getAttribute('src')) error.value = 'error'
   })
