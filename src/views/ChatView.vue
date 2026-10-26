@@ -40,22 +40,31 @@ const renameDraft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 const composer = ref<HTMLTextAreaElement | null>(null)
 
-// On phones an open thread takes over the whole screen. While typing it follows the visual viewport so the iOS keyboard can't shift the page.
+// On phones the chat is locked between the header and the tab bar and the page itself never scrolls.
+// While typing it follows the visual viewport so the iOS keyboard can't shift the page.
 const typing = ref(false)
-const viewport = ref({ top: 0, height: 0 })
+const frame = ref({ top: 0, height: 0 })
 const phone = window.matchMedia('(max-width: 767px)')
 const isPhone = ref(phone.matches)
-const pinned = computed(() => isPhone.value && !!props.id)
+const locked = computed(() => isPhone.value)
 
 function onPhoneChange() {
   isPhone.value = phone.matches
+  syncViewport()
 }
 
 function syncViewport() {
+  document.documentElement.style.overflow = isPhone.value ? 'hidden' : ''
+  if (!isPhone.value) return
   const vv = window.visualViewport
-  if (!vv) return
-  viewport.value = { top: vv.offsetTop, height: vv.height }
-  if (pinned.value && typing.value) window.scrollTo(0, 0)
+  const headerBottom = document.querySelector('header.fixed')?.getBoundingClientRect().bottom ?? 0
+  const tabBar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tabbar-height')) || 0
+  const viewTop = vv?.offsetTop ?? 0
+  const viewBottom = viewTop + (vv?.height ?? window.innerHeight)
+  const top = typing.value && viewTop > 0 ? viewTop : headerBottom
+  const bottom = typing.value ? viewBottom : window.innerHeight - tabBar
+  frame.value = { top, height: Math.max(0, bottom - top) }
+  if (typing.value) window.scrollTo(0, 0)
 }
 
 function onComposerFocus() {
@@ -67,6 +76,8 @@ function onComposerFocus() {
 
 function onComposerBlur() {
   typing.value = false
+  syncViewport()
+  setTimeout(syncViewport, 300)
 }
 
 let stopEvents: (() => void) | undefined
@@ -336,6 +347,9 @@ onMounted(() => {
   void refreshList(false)
   stopEvents = onChatEvent(onEvent)
   phone.addEventListener('change', onPhoneChange)
+  window.addEventListener('resize', syncViewport)
+  syncViewport()
+  setTimeout(syncViewport, 300)
   window.visualViewport?.addEventListener('resize', syncViewport)
   window.visualViewport?.addEventListener('scroll', syncViewport)
   document.addEventListener('visibilitychange', onVisible)
@@ -346,6 +360,8 @@ onBeforeUnmount(() => {
   threadToken++
   stopEvents?.()
   phone.removeEventListener('change', onPhoneChange)
+  window.removeEventListener('resize', syncViewport)
+  document.documentElement.style.overflow = ''
   window.visualViewport?.removeEventListener('resize', syncViewport)
   window.visualViewport?.removeEventListener('scroll', syncViewport)
   document.removeEventListener('visibilitychange', onVisible)
@@ -354,9 +370,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header v-if="!pinned" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
-    <main :class="pinned ? '' : 'page-gutter pt-28 sm:pt-32'">
-      <div class="grid overflow-hidden md:grid-cols-[20rem_minmax(0,1fr)]" :class="pinned ? 'fixed inset-x-0 z-50 bg-flixer-background' : 'h-[calc(100dvh-13rem)] min-h-[28rem] rounded border border-white/10 md:h-[calc(100dvh-10rem)]'" :style="pinned ? (typing ? { top: `${viewport.top}px`, height: `${viewport.height}px` } : { top: 0, bottom: 0, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }) : undefined">
+    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+    <main class="page-gutter pt-28 sm:pt-32">
+      <div class="grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-10rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="flex min-h-0 flex-col border-white/10 md:border-r" :class="props.id ? 'hidden md:flex' : 'flex'" :aria-label="t('chat.conversations')">
           <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <h1 class="text-lg font-bold text-white">{{ t('chat.title') }}</h1>
@@ -488,6 +504,6 @@ onBeforeUnmount(() => {
         </section>
       </div>
     </main>
-    <MobileTabBar v-if="!pinned" :tabs="mobileTabs" />
+    <MobileTabBar v-if="!typing" :tabs="mobileTabs" />
   </div>
 </template>
