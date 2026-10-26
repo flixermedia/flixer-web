@@ -67,6 +67,10 @@ interface Note {
   opacity: number
   kind: 'single' | 'pair' | 'triple'
   ghost: boolean
+  drift: number
+  delay: number
+  dx: number
+  dy: number
 }
 
 const notes = computed<Note[]>(() => {
@@ -85,9 +89,13 @@ const notes = computed<Note[]>(() => {
         y: y(wave, x) + 18 + (r() - 0.5) * 36,
         rotate: (Math.atan(slope(wave, x)) * 180) / Math.PI + (r() - 0.5) * 18,
         scale: 0.7 + r() * 1.1,
-        opacity: ghost ? 0.18 : 0.45 + edge * 0.5,
+        opacity: ghost ? 0.12 : 0.3 + edge * 0.4,
         kind: r() < 0.4 ? 'single' : r() < 0.75 ? 'pair' : 'triple',
         ghost,
+        drift: 7 + r() * 8,
+        delay: -r() * 15,
+        dx: (r() - 0.5) * 30,
+        dy: 8 + r() * 14,
       })
     }
   })
@@ -101,13 +109,13 @@ const sparkles = computed(() => {
 </script>
 
 <template>
-  <div class="absolute inset-0 overflow-hidden bg-[#12062e]" aria-hidden="true" :style="{ filter: `hue-rotate(${hue}deg)` }">
-    <div class="absolute inset-0 bg-[linear-gradient(135deg,#1a0845_0%,#3a128a_45%,#5b1fb0_75%,#8a2ec0_100%)]"></div>
-    <div class="absolute -left-24 bottom-[-30%] size-[34rem] rounded-full bg-[radial-gradient(circle,rgba(236,100,200,0.55),transparent_65%)] blur-2xl"></div>
-    <div class="absolute -right-20 -top-1/3 size-[36rem] rounded-full bg-[radial-gradient(circle,rgba(255,170,120,0.45),transparent_65%)] blur-2xl"></div>
-    <div class="absolute left-1/3 top-1/4 size-[28rem] rounded-full bg-[radial-gradient(circle,rgba(110,80,255,0.4),transparent_70%)] blur-3xl"></div>
+  <div class="absolute inset-0 overflow-hidden bg-[#12062e]" aria-hidden="true" :style="{ filter: `hue-rotate(${hue}deg) saturate(0.8)` }">
+    <div class="absolute inset-0 bg-[linear-gradient(135deg,#140636_0%,#2a0f66_45%,#3f1580_75%,#5a1f90_100%)]"></div>
+    <div class="absolute -left-24 bottom-[-30%] size-[34rem] rounded-full bg-[radial-gradient(circle,rgba(236,100,200,0.3),transparent_65%)] blur-2xl"></div>
+    <div class="absolute -right-20 -top-1/3 size-[36rem] rounded-full bg-[radial-gradient(circle,rgba(255,170,120,0.22),transparent_65%)] blur-2xl"></div>
+    <div class="absolute left-1/3 top-1/4 size-[28rem] rounded-full bg-[radial-gradient(circle,rgba(110,80,255,0.22),transparent_70%)] blur-3xl"></div>
 
-    <svg class="absolute inset-0 size-full" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid slice">
+    <svg class="absolute inset-0 size-full opacity-70" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid slice">
       <defs>
         <linearGradient :id="`${uid}-note`" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#ffd7a8" />
@@ -115,7 +123,7 @@ const sparkles = computed(() => {
           <stop offset="1" stop-color="#b97bff" />
         </linearGradient>
         <filter :id="`${uid}-glow`" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
+          <feGaussianBlur stdDeviation="1.2" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -154,8 +162,31 @@ const sparkles = computed(() => {
       </g>
 
       <g v-for="note in notes" :key="note.id" :transform="`translate(${note.x.toFixed(1)} ${note.y.toFixed(1)}) rotate(${note.rotate.toFixed(1)}) scale(${note.scale.toFixed(2)})`" :opacity="note.opacity" :filter="note.ghost ? undefined : `url(#${uid}-glow)`" :fill="note.ghost ? '#7a4fd6' : `url(#${uid}-note)`">
-        <use :href="`#${uid}-${note.kind}`" />
+        <g class="note-float" :style="{ '--dx': `${note.dx}px`, '--dy': `${note.dy}px`, animationDuration: `${note.drift}s`, animationDelay: `${note.delay}s` }">
+          <use :href="`#${uid}-${note.kind}`" />
+        </g>
       </g>
     </svg>
   </div>
 </template>
+
+<style scoped>
+.note-float {
+  animation: note-float ease-in-out infinite alternate;
+}
+
+@keyframes note-float {
+  from {
+    transform: translate(0, 0) rotate(-4deg);
+  }
+  to {
+    transform: translate(var(--dx), calc(var(--dy) * -1)) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-float {
+    animation: none;
+  }
+}
+</style>
