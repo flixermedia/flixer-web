@@ -2,7 +2,7 @@
 export const ADMIN_TABS = {
   dashboard: ['overview'],
   library: ['libraries', 'tasks', 'media', 'transcoding'],
-  providers: ['metadata', 'subtitles', 'skipme', 'themes'],
+  providers: ['metadata', 'subtitles', 'themes'],
   requests: ['requests'],
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
@@ -11,7 +11,14 @@ export const ADMIN_TABS = {
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
-export type AdminPageId = (typeof ADMIN_TABS)[AdminTabId][number]
+export type StaticAdminPageId = (typeof ADMIN_TABS)[AdminTabId][number]
+/** A settings page contributed by a plugin: `plugin:<pluginId>:<pageId>`. */
+export type PluginAdminPageId = `plugin:${string}`
+export type AdminPageId = StaticAdminPageId | PluginAdminPageId
+
+export function pluginPageId(pluginId: string, pageId: string): PluginAdminPageId {
+  return `plugin:${pluginId}:${pageId}`
+}
 
 export interface AdminLocation {
   tab: AdminTabId
@@ -47,12 +54,12 @@ function text(value: unknown): string {
 }
 
 /** Works out the tab and page from the `tab` and `page` query values, falling back to the dashboard. */
-export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): AdminLocation {
+export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown, pluginPages: readonly string[] = []): AdminLocation {
   const tab = text(tabQuery)
   const page = text(pageQuery)
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
-    const pages = pagesOf(id) as readonly string[]
+    const pages = [...(pagesOf(id) as readonly string[]), ...(id === 'providers' ? pluginPages : [])]
     return { tab: id, page: (pages.includes(page) ? page : pages[0]) as AdminPageId }
   }
   return LEGACY[tab] ?? { tab: 'dashboard', page: 'overview' }

@@ -544,12 +544,6 @@
       "language": "Metadata Language",
       "languageHint": "A language code such as en or pt-BR.",
       "saveProviders": "Save Providers",
-      "skipmeTitle": "SkipMe.db",
-      "skipmeSave": "Save SkipMe.db",
-      "skipmeSaved": "SkipMe.db settings saved.",
-      "skipmeError": "Could not save SkipMe.db settings.",
-      "skipmeUrl": "SkipMe.db URL",
-      "skipmeHint": "Where intro, recap and credits timestamps are looked up. Leave empty to turn lookups off.",
       "providersSaved": "Provider settings saved.",
       "providersError": "Could not save provider settings.",
       "subtitles": {
@@ -1203,7 +1197,6 @@
       "transcoding": "Transcoding",
       "metadata": "Metadata Providers",
       "subtitles": "Subtitles",
-      "skipme": "SkipMe.db",
       "themes": "Theme Songs",
       "requests": "Requests",
       "notifications": "Notifications",
@@ -1213,7 +1206,8 @@
       "networking": "Networking",
       "updates": "Updates",
       "backups": "Backups",
-      "smtp": "SMTP"
+      "smtp": "SMTP",
+      "plugins": "Plugins"
     },
     "pagesOf": "More pages in {tab}",
     "dashboard": {

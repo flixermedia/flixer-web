@@ -38,4 +38,11 @@ describe('admin navigation', () => {
     expect(adminQuery('library', 'libraries')).toEqual({ tab: 'library' })
     expect(adminQuery('library', 'media')).toEqual({ tab: 'library', page: 'media' })
   })
+
+  it('opens plugin pages only inside the providers tab and only once they are known', () => {
+    const page = 'plugin:flixer.skipmedb:skipmedb'
+    expect(resolveAdminLocation('providers', page, [page])).toEqual({ tab: 'providers', page })
+    expect(resolveAdminLocation('providers', page)).toEqual({ tab: 'providers', page: 'metadata' })
+    expect(resolveAdminLocation('library', page, [page])).toEqual({ tab: 'library', page: 'libraries' })
+  })
 })

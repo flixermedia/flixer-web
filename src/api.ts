@@ -1525,6 +1525,20 @@ export interface PluginSettingsSchema {
   >
 }
 
+export interface PluginAdminPageEntry {
+  pluginId: string
+  pluginName: string
+  id: string
+  title: string
+  description?: string
+  section: 'providers'
+}
+
+export async function listPluginAdminPages(): Promise<PluginAdminPageEntry[]> {
+  const response = await api.get<PluginAdminPageEntry[]>('/admin/plugins/admin-pages')
+  return response.data
+}
+
 export interface PluginSettingsView {
   schema: PluginSettingsSchema | null
   values: Record<string, unknown>

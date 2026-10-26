@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, getPluginSettings, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, refreshPluginRepository, removePluginRepository, uninstallPlugin, updatePluginSettings, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginSettingsSchema, type PluginUpdateHistoryEntry } from '../../api'
+import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, refreshPluginRepository, removePluginRepository, uninstallPlugin, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginUpdateHistoryEntry } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import AdminSection from './AdminSection.vue'
+import PluginSettingsForm from './PluginSettingsForm.vue'
+import { refreshPluginAdminPages } from '../../composables/useAdminTabs'
 
 const { t } = useI18n()
 const installations = ref<PluginInstallation[]>([])
@@ -25,11 +27,6 @@ const refreshing = ref<string | null>(null)
 const installing = ref<string | null>(null)
 const updating = ref<string | null>(null)
 const settingsPlugin = ref<PluginInstallation | null>(null)
-const settingsSchema = ref<PluginSettingsSchema | null>(null)
-const settingsValues = ref<Record<string, unknown>>({})
-const settingsArrayText = ref<Record<string, string>>({})
-const isLoadingSettings = ref(false)
-const isSavingSettings = ref(false)
 const loadError = ref('')
 
 const inputClass = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none focus:border-flixer-accent'
@@ -45,6 +42,7 @@ async function load() {
     loadError.value = describeRequestError(error)
   } finally {
     isLoading.value = false
+    void refreshPluginAdminPages()
   }
 }
 
@@ -161,63 +159,12 @@ async function toggleHistory(plugin: PluginInstallation) {
   }
 }
 
-async function openSettings(plugin: PluginInstallation) {
-  isLoadingSettings.value = true
-  try {
-    const result = await getPluginSettings(plugin.id)
-    settingsPlugin.value = plugin
-    settingsSchema.value = result.schema
-    settingsValues.value = { ...result.values }
-    settingsArrayText.value = {}
-    for (const [name, property] of Object.entries(result.schema?.properties ?? {})) {
-      if (!(name in settingsValues.value) && property.default !== undefined) settingsValues.value[name] = property.default
-      if (property.type === 'array') {
-        const value = settingsValues.value[name]
-        settingsArrayText.value[name] = Array.isArray(value) ? value.join(', ') : ''
-      }
-    }
-  } catch (error) {
-    notify.error(describeRequestError(error))
-  } finally {
-    isLoadingSettings.value = false
-  }
-}
-
-async function saveSettings() {
-  const plugin = settingsPlugin.value
-  const schema = settingsSchema.value
-  if (!plugin || !schema) return
-  const values: Record<string, unknown> = {}
-  const secrets: Record<string, string> = {}
-  for (const [name, property] of Object.entries(schema.properties)) {
-    const secret = property.writeOnly === true || property['x-flixer-secret'] === true
-    const value = settingsValues.value[name]
-    if (secret) secrets[name] = typeof value === 'string' ? value : ''
-    else if (property.type === 'array') {
-      const items = (settingsArrayText.value[name] ?? '')
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-      values[name] = property.items?.type === 'string' ? items : items.map(Number)
-    } else if (property.type === 'integer' || property.type === 'number') values[name] = value === '' ? undefined : Number(value)
-    else values[name] = value
-  }
-
-  isSavingSettings.value = true
-  try {
-    const result = await updatePluginSettings(plugin.id, { values, secrets })
-    settingsValues.value = { ...result.values }
-    notify.success(t('admin.plugins.settingsSaved'))
-  } catch (error) {
-    notify.error(describeRequestError(error))
-  } finally {
-    isSavingSettings.value = false
-  }
+function openSettings(plugin: PluginInstallation) {
+  settingsPlugin.value = plugin
 }
 
 function closeSettings() {
   settingsPlugin.value = null
-  settingsSchema.value = null
 }
 
 async function addRepository() {
@@ -295,7 +242,7 @@ onMounted(load)
             <button v-if="plugin.availableUpdate" :class="quietButtonClass" type="button" :disabled="updating === plugin.id || plugin.enabled" @click="updateInstalled(plugin)">
               {{ updating === plugin.id ? t('admin.plugins.updating') : `${t('admin.plugins.update')} ${plugin.availableUpdate.version}` }}
             </button>
-            <button v-if="plugin.manifest.settingsSchema" :class="quietButtonClass" type="button" :disabled="isLoadingSettings" @click="openSettings(plugin)">
+            <button v-if="plugin.manifest.settingsSchema" :class="quietButtonClass" type="button" @click="openSettings(plugin)">
               {{ t('admin.plugins.settings') }}
             </button>
             <button :class="quietButtonClass" type="button" :aria-expanded="historyOpen.includes(plugin.id)" @click="toggleHistory(plugin)">
@@ -320,26 +267,7 @@ onMounted(load)
       </ul>
     </AdminSection>
 
-    <AdminSection v-if="settingsPlugin && settingsSchema" :title="t('admin.plugins.settingsTitle', { name: settingsPlugin.manifest.name })">
-      <form class="grid gap-4 md:grid-cols-2" @submit.prevent="saveSettings">
-        <label v-for="(property, name) in settingsSchema.properties" :key="name" class="grid content-start gap-1 text-sm">
-          <span>{{ property.title || name }}</span>
-          <span v-if="property.description" class="text-xs text-flixer-muted">{{ property.description }}</span>
-          <select v-if="property.enum" v-model="settingsValues[name]" :class="inputClass">
-            <option v-for="option in property.enum" :key="String(option)" :value="option">{{ option }}</option>
-          </select>
-          <input v-else-if="property.type === 'boolean'" v-model="settingsValues[name]" type="checkbox" class="h-4 w-4 accent-flixer-accent" />
-          <textarea v-else-if="property.type === 'array'" v-model="settingsArrayText[name]" :class="inputClass" rows="2" :placeholder="t('admin.plugins.listPlaceholder')" />
-          <input v-else v-model="settingsValues[name]" :class="inputClass" :type="property.writeOnly || property['x-flixer-secret'] ? 'password' : property.type === 'integer' || property.type === 'number' ? 'number' : property.format === 'uri' ? 'url' : 'text'" :autocomplete="property.writeOnly || property['x-flixer-secret'] ? 'new-password' : 'off'" />
-        </label>
-        <div class="flex items-center gap-2 md:col-span-2">
-          <button :class="buttonClass" type="submit" :disabled="isSavingSettings">{{ isSavingSettings ? t('admin.plugins.savingSettings') : t('admin.plugins.saveSettings') }}</button>
-          <button :class="quietButtonClass" type="button" @click="closeSettings">
-            {{ t('common.cancel') }}
-          </button>
-        </div>
-      </form>
-    </AdminSection>
+    <PluginSettingsForm v-if="settingsPlugin" :key="settingsPlugin.id" :plugin-id="settingsPlugin.id" :title="t('admin.plugins.settingsTitle', { name: settingsPlugin.manifest.name })" closable @close="closeSettings" />
 
     <AdminSection :title="t('admin.plugins.repositories')" :description="t('admin.plugins.repositoriesDescription')">
       <form class="grid gap-3 sm:grid-cols-[minmax(10rem,0.7fr)_minmax(16rem,1.3fr)_auto] sm:items-end" @submit.prevent="addRepository">

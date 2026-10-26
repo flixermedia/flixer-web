@@ -1,5 +1,5 @@
 import { defineAsyncComponent, type Component } from 'vue'
-import type { AdminPageId } from './adminNav'
+import type { StaticAdminPageId } from './adminNav'
 
 const lazy = (load: () => Promise<{ default: Component }>) => defineAsyncComponent(load)
 
@@ -12,7 +12,6 @@ const Media = lazy(() => import('./MediaPanel.vue'))
 const Transcoding = lazy(() => import('./TranscodingPanel.vue'))
 const Providers = lazy(() => import('./IndexerProvidersSection.vue'))
 const Subtitles = lazy(() => import('./IndexerSubtitlesSection.vue'))
-const SkipMe = lazy(() => import('./SkipMeSection.vue'))
 const ThemeSongs = lazy(() => import('./ThemeSongsSection.vue'))
 const Requests = lazy(() => import('./RequestsPanel.vue'))
 const Notifications = lazy(() => import('./NotificationsPanel.vue'))
@@ -32,7 +31,7 @@ export interface PageBlock {
 }
 
 /** What each page shows, top to bottom. */
-export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
+export const ADMIN_PAGE_BLOCKS: Record<StaticAdminPageId, PageBlock[]> = {
   overview: [{ component: Dashboard }],
   libraries: [{ component: Libraries }],
   tasks: [{ component: IndexerQueues }, { component: IndexerTasks }, { component: Tasks }],
@@ -40,7 +39,6 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   transcoding: [{ component: Transcoding }],
   metadata: [{ component: Providers }],
   subtitles: [{ component: Subtitles }],
-  skipme: [{ component: SkipMe }],
   themes: [{ component: ThemeSongs }],
   requests: [{ component: Requests }],
   notifications: [{ component: Notifications }],
