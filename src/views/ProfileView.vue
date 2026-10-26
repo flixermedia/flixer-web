@@ -154,7 +154,9 @@ onBeforeUnmount(() => {
         <section v-if="profile.nowPlaying" class="mt-6 rounded bg-white/5 p-4 sm:p-5" aria-live="polite">
           <h2 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-300"><span class="size-2 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" aria-hidden="true" />{{ profile.nowPlaying.kind === 'watching' ? t('social.nowWatching') : t('social.nowListening') }}</h2>
           <div class="mt-3 flex items-center gap-4">
-            <MediaCard class="!w-16 sm:!w-20" variant="square" :title="profile.nowPlaying.item.title" :item-id="profile.nowPlaying.item.imageItemId" :image-index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" />
+            <RouterLink :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="relative size-16 shrink-0 overflow-hidden rounded bg-flixer-surface sm:size-20" :aria-label="profile.nowPlaying.item.title">
+              <AuthImage v-if="profile.nowPlaying.item.imageIndex !== null" scope="library" :item-id="profile.nowPlaying.item.imageItemId" :index="profile.nowPlaying.item.imageIndex" :version="profile.nowPlaying.item.imageUpdatedAt" :width="160" :alt="profile.nowPlaying.item.title" />
+            </RouterLink>
             <div class="min-w-0">
               <RouterLink :to="{ name: 'media-item', params: { id: profile.nowPlaying.item.id } }" class="text-base font-semibold text-white hover:underline">{{ profile.nowPlaying.item.title }}</RouterLink>
               <p v-if="profile.nowPlaying.item.subtitle" class="mt-1 text-sm text-flixer-muted">{{ profile.nowPlaying.item.subtitle }}</p>
