@@ -66,8 +66,45 @@ function releaseArtwork() {
   artworkUrl = ''
 }
 
+type MediaSessionAction = Parameters<MediaSession['setActionHandler']>[0]
+
+function setHandler(action: MediaSessionAction, handler: MediaSessionActionHandler | null) {
+  try {
+    navigator.mediaSession.setActionHandler(action, handler)
+  } catch {
+    // The browser does not support this action.
+  }
+}
+
+// iOS only shows previous/next on the lock screen when those handlers exist while the session is active, and it
+// prefers seek buttons whenever seekbackward/seekforward handlers are set, so register again on every track and play.
+function registerMediaSessionHandlers() {
+  if (!('mediaSession' in navigator)) return
+  setHandler('play', () => {
+    if (audio?.paused) void audio.play()
+  })
+  setHandler('pause', () => audio?.pause())
+  setHandler('previoustrack', () => previous())
+  setHandler('nexttrack', () => next())
+  setHandler('seekbackward', null)
+  setHandler('seekforward', null)
+  setHandler('seekto', (details) => {
+    if (details.seekTime !== undefined && details.seekTime !== null) seek(details.seekTime)
+  })
+}
+
+function updatePositionState() {
+  if (!audio || !('mediaSession' in navigator) || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+  try {
+    navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate || 1, position: Math.min(audio.currentTime, audio.duration) })
+  } catch {
+    // Position state is optional.
+  }
+}
+
 function updateMediaSession(track: QueueTrack | null) {
   if (!('mediaSession' in navigator)) return
+  registerMediaSessionHandlers()
   const token = ++artworkToken
   navigator.mediaSession.metadata = track ? new MediaMetadata({ title: track.title, artist: track.artist ?? '', album: track.album ?? '' }) : null
   if (!track?.art) return
@@ -228,24 +265,26 @@ if (audio) {
   audio.volume = Math.max(0, Math.min(1, volume.value))
   audio.addEventListener('play', () => {
     isPlaying.value = true
-    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
+    if ('mediaSession' in navigator) {
+      registerMediaSessionHandlers()
+      navigator.mediaSession.playbackState = 'playing'
+    }
   })
   audio.addEventListener('pause', () => {
     isPlaying.value = false
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
   })
   audio.addEventListener('timeupdate', () => (currentTime.value = audio.currentTime))
-  audio.addEventListener('durationchange', () => (duration.value = Number.isFinite(audio.duration) ? audio.duration : 0))
+  audio.addEventListener('durationchange', () => {
+    duration.value = Number.isFinite(audio.duration) ? audio.duration : 0
+    updatePositionState()
+  })
+  audio.addEventListener('seeked', updatePositionState)
   audio.addEventListener('ended', () => next(true))
   audio.addEventListener('error', () => {
     if (audio.getAttribute('src')) error.value = 'error'
   })
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', toggle)
-    navigator.mediaSession.setActionHandler('pause', toggle)
-    navigator.mediaSession.setActionHandler('previoustrack', previous)
-    navigator.mediaSession.setActionHandler('nexttrack', () => next())
-  }
+  registerMediaSessionHandlers()
 }
 
 export function useAudioPlayer() {
