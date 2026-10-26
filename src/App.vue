@@ -3,7 +3,6 @@ import { ModalOverlay, ModalTarget } from '@kolirt/vue-modal'
 import OfflineBanner from './components/ui/OfflineBanner.vue'
 import MiniPlayer from './components/player/MiniPlayer.vue'
 import PlayerOverlay from './components/player/PlayerOverlay.vue'
-import PartyBar from './components/party/PartyBar.vue'
 import LyricsView from './views/LyricsView.vue'
 import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useParty } from './composables/useParty'
@@ -26,7 +25,6 @@ if (getAccessToken()) void useParty().resume()
   <Transition name="lyrics">
     <LyricsView v-if="lyricsOpen" />
   </Transition>
-  <PartyBar />
   <OfflineBanner />
 
   <ModalTarget group="default" class="z-50">

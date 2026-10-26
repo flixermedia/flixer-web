@@ -8,6 +8,7 @@ import { isActivePath } from '../../composables/homeNav'
 import { useProfile } from '../../composables/useProfile'
 import type { NavLink } from '../../types/media'
 import NotificationBell from './NotificationBell.vue'
+import PartyButton from './PartyButton.vue'
 import LanguageModal from '../ui/LanguageModal.vue'
 import ThemeModal from '../ui/ThemeModal.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
@@ -98,6 +99,8 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
             <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
           </svg>
         </RouterLink>
+
+        <PartyButton :button-class="`relative ${iconButton}`" />
 
         <NotificationBell :button-class="`relative ${iconButton}`" />
 
