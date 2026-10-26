@@ -6,10 +6,9 @@ import { RouterLink, useRouter } from 'vue-router'
 import { getChatConversation, getChatConversations, getChatMessages, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessage } from '../api'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import Header from '../components/header/Header.vue'
-import MobileTabBar from '../components/home/MobileTabBar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
@@ -20,7 +19,6 @@ const { t } = useI18n()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
 const navLinks = computed(getNavLinks)
-const mobileTabs = computed(getMobileTabs)
 const { profile, load: loadProfile } = useProfile()
 const unread = useChatUnread()
 
@@ -40,7 +38,7 @@ const renameDraft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 const composer = ref<HTMLTextAreaElement | null>(null)
 
-// On phones the chat is locked between the header and the tab bar and the page itself never scrolls.
+// On phones the chat is locked below the header (the tab bar is hidden on this page) and the page itself never scrolls.
 // While typing it follows the visual viewport so the iOS keyboard can't shift the page.
 const typing = ref(false)
 const frame = ref({ top: 0, height: 0 })
@@ -58,11 +56,10 @@ function syncViewport() {
   if (!isPhone.value) return
   const vv = window.visualViewport
   const headerBottom = document.querySelector('header.fixed')?.getBoundingClientRect().bottom ?? 0
-  const tabBar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tabbar-height')) || 0
   const viewTop = vv?.offsetTop ?? 0
   const viewBottom = viewTop + (vv?.height ?? window.innerHeight)
   const top = typing.value ? viewTop : headerBottom
-  const bottom = typing.value ? viewBottom : window.innerHeight - tabBar
+  const bottom = typing.value ? viewBottom : window.innerHeight
   frame.value = { top, height: Math.max(0, bottom - top) }
   if (typing.value) window.scrollTo(0, 0)
 }
@@ -369,8 +366,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header v-if="!typing || !isPhone" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+  <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text md:pb-12">
+    <Header v-if="!typing || !isPhone" :docked="isPhone" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="page-gutter pt-28 sm:pt-32">
       <div class="grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-10rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="flex min-h-0 flex-col border-white/10 md:border-r" :class="props.id ? 'hidden md:flex' : 'flex'" :aria-label="t('chat.conversations')">
@@ -504,6 +501,5 @@ onBeforeUnmount(() => {
         </section>
       </div>
     </main>
-    <MobileTabBar v-if="!typing" :tabs="mobileTabs" />
   </div>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import logoUrl from '../../../resources/logo/flixer-logo.svg'
@@ -20,8 +20,9 @@ const props = withDefaults(
     isSigningOut: boolean
     navPosition?: 'center' | 'start'
     navBackground?: boolean
+    docked?: boolean
   }>(),
-  { navPosition: 'center', navBackground: true },
+  { navPosition: 'center', navBackground: true, docked: false },
 )
 
 const emit = defineEmits<{ logout: [] }>()
@@ -29,7 +30,8 @@ const emit = defineEmits<{ logout: [] }>()
 const { t } = useI18n()
 const { profile, load: loadProfile } = useProfile()
 const menuOpen = ref(false)
-const scrolled = ref(false)
+const scrolledPast = ref(false)
+const scrolled = computed(() => props.docked || scrolledPast.value)
 const menuRoot = ref<HTMLElement | null>(null)
 const route = useRoute()
 
@@ -44,7 +46,7 @@ function openTheme() {
 }
 
 function onScroll() {
-  scrolled.value = window.scrollY > 24
+  scrolledPast.value = window.scrollY > 24
 }
 
 function onPointerDown(event: PointerEvent) {
