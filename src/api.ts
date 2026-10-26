@@ -1822,6 +1822,11 @@ export interface PublicProfileSummary {
   username: string
   displayName: string
   avatarUrl: string | null
+  joinedAt: string
+  favoriteCount: number
+  playlistCount: number
+  playCount: number
+  nowPlaying: Profile['nowPlaying']
 }
 
 export async function getFavorites(): Promise<{ items: SocialItem[] }> {

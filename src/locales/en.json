@@ -1982,6 +1982,14 @@
     "favoriteCount": "{count} favourites",
     "privacyTitle": "Profile privacy",
     "privacyDescription": "Choose whether other people on this server can find and view your profile.",
-    "privacyLoadError": "Could not load your privacy setting."
+    "privacyLoadError": "Could not load your privacy setting.",
+    "person": "Person",
+    "activity": "Activity",
+    "plays": "Plays",
+    "memberSince": "Joined",
+    "activeNow": "Active now ({count})",
+    "watchingItem": "Watching {title}",
+    "listeningItem": "Listening to {title}",
+    "statsInline": "{playlists} playlists · {favorites} favourites · {plays} plays"
   }
 }
