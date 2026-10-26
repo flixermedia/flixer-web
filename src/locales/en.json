@@ -1972,6 +1972,16 @@
     "removeTrack": "Remove track",
     "removeTrackConfirm": "Remove “{title}” from this playlist?",
     "deletePlaylist": "Delete playlist",
-    "deletePlaylistConfirm": "Delete “{name}”? This cannot be undone."
+    "deletePlaylistConfirm": "Delete “{name}”? This cannot be undone.",
+    "profile": "Profile",
+    "all": "All",
+    "copyLink": "Copy link",
+    "linkCopied": "Profile link copied.",
+    "editProfile": "Edit profile",
+    "playlistCount": "{count} playlists",
+    "favoriteCount": "{count} favourites",
+    "privacyTitle": "Profile privacy",
+    "privacyDescription": "Choose whether other people on this server can find and view your profile.",
+    "privacyLoadError": "Could not load your privacy setting."
   }
 }

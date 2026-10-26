@@ -55,7 +55,7 @@ onBeforeUnmount(() => {
           <h1 class="text-3xl font-bold tracking-tight text-white">{{ t('social.people') }}</h1>
           <p class="mt-1 text-sm text-flixer-muted">{{ t('social.peopleDescription') }}</p>
         </div>
-        <input v-model="query" type="search" class="w-full rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent sm:max-w-sm" :placeholder="t('social.searchPeople')" :aria-label="t('social.searchPeople')" />
+        <input v-model="query" type="search" class="w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent sm:max-w-sm" :placeholder="t('social.searchPeople')" :aria-label="t('social.searchPeople')" />
       </div>
       <p v-if="failed" class="mt-6 text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
       <ul v-else-if="loading" class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -63,7 +63,7 @@ onBeforeUnmount(() => {
       </ul>
       <p v-else-if="!profiles.length" class="mt-8 text-sm text-flixer-muted">{{ t('social.noPeople') }}</p>
       <ul v-else class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <li v-for="person in profiles" :key="person.username" class="rounded-2xl border border-white/10 bg-white/5 transition motion-reduce:transition-none hover:border-white/20 hover:bg-white/10">
+        <li v-for="person in profiles" :key="person.username" class="rounded-md border border-white/10 bg-white/5 transition motion-reduce:transition-none hover:border-white/20 hover:bg-white/10">
           <RouterLink :to="{ name: 'profile', params: { username: person.username } }" class="flex items-center gap-4 p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
             ><UserAvatar :avatar-url="person.avatarUrl" :name="person.displayName" class="size-14 shrink-0 overflow-hidden rounded-full ring-2 ring-white/10" /><span class="min-w-0"
               ><span class="block truncate text-sm font-semibold text-white">{{ person.displayName }}</span

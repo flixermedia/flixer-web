@@ -126,8 +126,8 @@ watch(
         <button type="button" class="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
       </section>
       <section v-else-if="playlist" class="space-y-8">
-        <div class="relative flex flex-col gap-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-flixer-accent/25 via-flixer-surface to-flixer-background p-6 sm:flex-row sm:items-end sm:p-10">
-          <div class="aspect-square w-40 shrink-0 overflow-hidden rounded-2xl bg-flixer-surface shadow-2xl ring-1 ring-white/10 sm:w-52">
+        <div class="relative flex flex-col gap-6 overflow-hidden bg-gradient-to-b from-flixer-accent/25 to-transparent p-6 sm:flex-row sm:items-end sm:p-10">
+          <div class="aspect-square w-40 shrink-0 overflow-hidden rounded-md bg-flixer-surface shadow-2xl ring-1 ring-white/10 sm:w-52">
             <AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="320" :alt="playlist.name" />
             <span v-else class="grid size-full place-items-center p-5 text-center text-flixer-muted">{{ t('social.noCover') }}</span>
           </div>
@@ -142,9 +142,9 @@ watch(
               <span>{{ t('social.trackCount', { count: playlist.trackCount }) }}</span>
             </div>
             <div class="mt-5 flex flex-wrap gap-2">
-              <button type="button" class="rounded-full bg-white px-6 py-2.5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!tracks.length" @click="playFrom()">{{ t('social.playAll') }}</button>
-              <button v-if="owner" type="button" class="rounded-full bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20" @click="edit">{{ t('social.editPlaylist') }}</button>
-              <button v-if="owner" type="button" class="rounded-full bg-red-500/15 px-5 py-2.5 text-sm font-semibold text-red-200 hover:bg-red-500/25" @click="removePlaylist">{{ t('social.deletePlaylist') }}</button>
+              <button type="button" class="rounded bg-white px-6 py-2.5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!tracks.length" @click="playFrom()">{{ t('social.playAll') }}</button>
+              <button v-if="owner" type="button" class="rounded bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20" @click="edit">{{ t('social.editPlaylist') }}</button>
+              <button v-if="owner" type="button" class="rounded bg-red-500/15 px-5 py-2.5 text-sm font-semibold text-red-200 hover:bg-red-500/25" @click="removePlaylist">{{ t('social.deletePlaylist') }}</button>
             </div>
           </div>
         </div>
@@ -152,10 +152,10 @@ watch(
         <section :aria-label="t('social.tracks')">
           <h2 class="mb-4 text-xl font-bold tracking-tight text-white">{{ t('social.tracks') }}</h2>
           <p v-if="!tracks.length" class="rounded-lg border border-flixer-border p-5 text-sm text-flixer-muted">{{ t('social.emptyPlaylist') }}</p>
-          <ol v-else class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <ol v-else class="divide-y divide-white/5 overflow-hidden rounded-md border border-white/10 bg-white/5">
             <li v-for="(track, index) in tracks" :key="track.id" class="group flex items-center gap-2 px-3 py-2 transition motion-reduce:transition-none hover:bg-white/10 sm:gap-3">
               <span class="w-6 shrink-0 text-center text-xs tabular-nums text-flixer-muted">{{ index + 1 }}</span>
-              <button type="button" class="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-white transition group-hover:bg-white group-hover:text-flixer-background" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
+              <button type="button" class="grid size-9 shrink-0 place-items-center rounded bg-white/10 text-white transition group-hover:bg-white group-hover:text-flixer-background" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
                 <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
               </button>
               <RouterLink :to="{ name: 'media-item', params: { id: track.id } }" class="min-w-0 flex-1 py-1"

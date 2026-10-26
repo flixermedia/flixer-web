@@ -11,6 +11,7 @@ import TextInput from '../ui/TextInput.vue'
 import AvatarUploader from './AvatarUploader.vue'
 import DeleteAccountModal from './DeleteAccountModal.vue'
 import PasswordSection from './PasswordSection.vue'
+import PrivacySection from './PrivacySection.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -87,6 +88,8 @@ async function save() {
     </section>
 
     <PasswordSection />
+
+    <PrivacySection />
 
     <section class="rounded-lg border border-rose-400/20 bg-rose-400/5 p-5 lg:col-span-2" aria-labelledby="danger-heading">
       <h2 id="danger-heading" class="text-lg font-semibold text-rose-200">{{ t('settings.profile.deleteAccountTitle') }}</h2>
