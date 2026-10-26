@@ -115,7 +115,7 @@ const sparkles = computed(() => {
     <div class="absolute -right-20 -top-1/3 size-[36rem] rounded-full bg-[radial-gradient(circle,rgba(255,170,120,0.22),transparent_65%)] blur-2xl"></div>
     <div class="absolute left-1/3 top-1/4 size-[28rem] rounded-full bg-[radial-gradient(circle,rgba(110,80,255,0.22),transparent_70%)] blur-3xl"></div>
 
-    <svg class="absolute inset-0 size-full opacity-70" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid slice">
+    <svg class="absolute inset-0 size-full opacity-70 blur-[1.5px]" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid slice">
       <defs>
         <linearGradient :id="`${uid}-note`" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#ffd7a8" />
