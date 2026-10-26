@@ -33,6 +33,11 @@ export function createIdleTimer(options: { timeoutMs: number; suppressed: () => 
       }
       arm()
     },
+    show() {
+      if (idle) return
+      idle = true
+      options.onChange(true)
+    },
     stop() {
       clearTimeout(timer)
     },
@@ -71,7 +76,11 @@ export function useIdleSplash(suppressed: () => boolean, timeoutMs = IDLE_MS) {
     if (!document.hidden) timer.activity()
   }
 
+  const show = () => timer.show()
+
   onMounted(() => {
+    // Console: window.dispatchEvent(new Event('flixer:splash'))
+    window.addEventListener('flixer:splash', show)
     for (const name of ACTIVITY_EVENTS) window.addEventListener(name, activity, { passive: true })
     window.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('visibilitychange', onVisible)
@@ -80,6 +89,7 @@ export function useIdleSplash(suppressed: () => boolean, timeoutMs = IDLE_MS) {
 
   onBeforeUnmount(() => {
     timer.stop()
+    window.removeEventListener('flixer:splash', show)
     for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, activity)
     window.removeEventListener('pointermove', onMove)
     document.removeEventListener('visibilitychange', onVisible)
