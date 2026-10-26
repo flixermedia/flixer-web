@@ -7,6 +7,7 @@ import logoUrl from '../../../resources/logo/flixer-logo.svg'
 import { isActivePath } from '../../composables/homeNav'
 import { useProfile } from '../../composables/useProfile'
 import type { NavLink } from '../../types/media'
+import ChatButton from './ChatButton.vue'
 import NotificationBell from './NotificationBell.vue'
 import PartyButton from './PartyButton.vue'
 import LanguageModal from '../ui/LanguageModal.vue'
@@ -99,6 +100,8 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
             <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
           </svg>
         </RouterLink>
+
+        <ChatButton :button-class="`relative ${iconButton}`" />
 
         <PartyButton :button-class="`relative ${iconButton}`" />
 

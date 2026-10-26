@@ -1947,3 +1947,76 @@ export async function getParty(id: string): Promise<PartySnapshot> {
 export async function endParty(id: string): Promise<void> {
   await api.delete(`/parties/${encodeURIComponent(id)}`)
 }
+
+export interface ChatPerson {
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export interface ChatMember extends ChatPerson {
+  role: 'owner' | 'member'
+}
+
+export interface ChatMessage {
+  id: string
+  conversationId: string
+  kind: 'text' | 'system'
+  body: string
+  sender: ChatPerson | null
+  createdAt: string
+}
+
+export interface ChatConversation {
+  id: string
+  kind: 'direct' | 'group'
+  name: string | null
+  members: ChatMember[]
+  lastMessage: ChatMessage | null
+  unread: number
+  updatedAt: string
+}
+
+export async function getChatConversations(): Promise<{ conversations: ChatConversation[]; unread: number }> {
+  return (await api.get<{ conversations: ChatConversation[]; unread: number }>('/chat/conversations')).data
+}
+
+export async function getChatUnread(): Promise<number> {
+  return (await api.get<{ count: number }>('/chat/unread')).data.count
+}
+
+export async function startDirectChat(username: string): Promise<ChatConversation> {
+  return (await api.post<ChatConversation>('/chat/conversations', { username })).data
+}
+
+export async function createChatGroup(name: string, usernames: string[]): Promise<ChatConversation> {
+  return (await api.post<ChatConversation>('/chat/conversations', { name, usernames })).data
+}
+
+export async function getChatConversation(id: string): Promise<ChatConversation> {
+  return (await api.get<ChatConversation>(`/chat/conversations/${encodeURIComponent(id)}`)).data
+}
+
+export async function getChatMessages(id: string, options: { before?: string; after?: string } = {}): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+  return (await api.get<{ messages: ChatMessage[]; hasMore: boolean }>(`/chat/conversations/${encodeURIComponent(id)}/messages`, { params: options })).data
+}
+
+export async function sendChatMessage(id: string, body: string): Promise<ChatMessage> {
+  return (await api.post<ChatMessage>(`/chat/conversations/${encodeURIComponent(id)}/messages`, { body })).data
+}
+
+export async function markChatRead(id: string): Promise<void> {
+  await api.post(`/chat/conversations/${encodeURIComponent(id)}/read`)
+}
+
+export async function renameChatGroup(id: string, name: string): Promise<ChatConversation> {
+  return (await api.patch<ChatConversation>(`/chat/conversations/${encodeURIComponent(id)}`, { name })).data
+}
+
+export async function addChatMembers(id: string, usernames: string[]): Promise<ChatConversation> {
+  return (await api.post<ChatConversation>(`/chat/conversations/${encodeURIComponent(id)}/members`, { usernames })).data
+}
+
+export async function removeChatMember(id: string, username: string): Promise<void> {
+  await api.delete(`/chat/conversations/${encodeURIComponent(id)}/members/${encodeURIComponent(username)}`)
+}

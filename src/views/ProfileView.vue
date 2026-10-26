@@ -4,7 +4,7 @@ import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getSocialProfile, type PlaylistSummary, type Profile, type SocialItem } from '../api'
+import { getSocialProfile, startDirectChat, type PlaylistSummary, type Profile, type SocialItem } from '../api'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
@@ -18,6 +18,7 @@ import { useParty } from '../composables/useParty'
 import { useSignOut } from '../composables/useSignOut'
 
 const { t } = useI18n()
+const openingChat = ref(false)
 const route = useRoute()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
@@ -83,6 +84,18 @@ function asQueueTrack(item: SocialItem): QueueTrack {
 }
 const party = useParty()
 const joiningParty = ref(false)
+async function messageUser() {
+  if (!profile.value || openingChat.value) return
+  openingChat.value = true
+  try {
+    const conversation = await startDirectChat(profile.value.username)
+    await router.push({ name: 'chat', params: { id: conversation.id } })
+  } catch {
+    notify.error(t('chat.messageFailed'))
+  } finally {
+    openingChat.value = false
+  }
+}
 async function joinParty(id: string) {
   joiningParty.value = true
   try {
@@ -153,6 +166,7 @@ onBeforeUnmount(() => {
               <div class="mt-4 flex flex-wrap gap-2">
                 <button v-if="profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85" @click="createPlaylist">{{ t('social.createPlaylist') }}</button>
                 <RouterLink v-if="profile.isSelf" :to="{ name: 'settings' }" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">{{ t('social.editProfile') }}</RouterLink>
+                <button v-if="!profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="openingChat" @click="messageUser">{{ t('chat.message') }}</button>
                 <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="copyLink">{{ t('social.copyLink') }}</button>
               </div>
             </div>

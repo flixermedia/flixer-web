@@ -90,6 +90,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/chat/:id?',
+      name: 'chat',
+      component: () => import('../views/ChatView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/party/:id',
       name: 'party',
       component: () => import('../views/PartyJoinView.vue'),
