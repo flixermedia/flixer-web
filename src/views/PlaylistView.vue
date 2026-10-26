@@ -9,6 +9,7 @@ import ConfirmModal from '../components/ui/ConfirmModal.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
+import ClampedText from '../components/ui/ClampedText.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
@@ -28,6 +29,29 @@ const missing = ref(false)
 const failed = ref(false)
 const busy = ref<string | null>(null)
 const tracks = computed(() => playlist.value?.tracks ?? [])
+const totalSeconds = computed(() => tracks.value.reduce((sum, track) => sum + (track.durationSeconds ?? 0), 0))
+const stats = computed(() => [
+  { label: t('social.tracks'), value: tracks.value.length },
+  { label: t('social.duration'), value: formatTotal(totalSeconds.value) },
+  { label: t('social.artists'), value: new Set(tracks.value.map((track) => track.artist ?? track.subtitle).filter(Boolean)).size },
+  { label: t('social.albums'), value: new Set(tracks.value.map((track) => track.album).filter(Boolean)).size },
+])
+function formatDuration(seconds: number | null | undefined) {
+  if (!seconds) return ''
+  return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
+}
+function formatTotal(seconds: number) {
+  const minutes = Math.round(seconds / 60)
+  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`
+}
+function shuffle() {
+  const queue = tracks.value.map(asQueueTrack)
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[queue[i], queue[j]] = [queue[j], queue[i]]
+  }
+  player.playQueue(queue, 0)
+}
 const owner = computed(() => playlist.value?.isOwner ?? false)
 
 async function load() {
@@ -125,48 +149,70 @@ watch(
         <p class="text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
         <button type="button" class="mt-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
       </section>
-      <section v-else-if="playlist" class="space-y-8">
-        <div class="relative flex flex-col gap-6 overflow-hidden bg-gradient-to-b from-flixer-accent/25 to-transparent p-6 sm:flex-row sm:items-end sm:p-10">
-          <div class="aspect-square w-40 shrink-0 overflow-hidden rounded bg-flixer-surface shadow-2xl ring-1 ring-white/10 sm:w-52">
-            <AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="320" :alt="playlist.name" />
-            <span v-else class="grid size-full place-items-center p-5 text-center text-flixer-muted">{{ t('social.noCover') }}</span>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('social.playlist') }}</p>
-            <h1 class="mt-1 break-words text-3xl font-bold tracking-tight text-white sm:text-5xl">{{ playlist.name }}</h1>
-            <p v-if="playlist.description" class="mt-3 max-w-2xl whitespace-pre-line text-sm text-flixer-text/90">{{ playlist.description }}</p>
-            <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-flixer-muted">
-              <UserAvatar :avatar-url="playlist.owner.avatarUrl" :name="playlist.owner.displayName" class="size-7 overflow-hidden rounded-full" />
-              <RouterLink :to="{ name: 'profile', params: { username: playlist.owner.username } }" class="font-medium text-white hover:underline">{{ playlist.owner.displayName }}</RouterLink>
-              <span class="rounded-full border border-white/15 px-2 py-0.5 text-xs">{{ playlist.isPublic ? t('social.public') : t('social.private') }}</span>
-              <span>{{ t('social.trackCount', { count: playlist.trackCount }) }}</span>
+      <section v-else-if="playlist" class="space-y-6">
+        <header class="rounded border border-white/10 bg-flixer-surface/60">
+          <div class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+            <div class="size-32 shrink-0 overflow-hidden rounded bg-flixer-background shadow-lg shadow-black/40 sm:size-40">
+              <AuthImage v-if="playlist.cover" scope="library" :item-id="playlist.cover.itemId" :index="playlist.cover.index" :version="playlist.cover.updatedAt" :width="320" :alt="playlist.name" />
+              <span v-else class="grid size-full place-items-center text-3xl text-flixer-muted" aria-hidden="true">♫</span>
             </div>
-            <div class="mt-5 flex flex-wrap gap-2">
-              <button type="button" class="rounded bg-white px-6 py-2.5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!tracks.length" @click="playFrom()">{{ t('social.playAll') }}</button>
-              <button v-if="owner" type="button" class="rounded bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20" @click="edit">{{ t('social.editPlaylist') }}</button>
-              <button v-if="owner" type="button" class="rounded bg-red-500/15 px-5 py-2.5 text-sm font-semibold text-red-200 hover:bg-red-500/25" @click="removePlaylist">{{ t('social.deletePlaylist') }}</button>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h1 class="break-words text-2xl font-bold tracking-tight text-white sm:text-4xl">{{ playlist.name }}</h1>
+                <span class="rounded bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/80">{{ playlist.isPublic ? t('social.public') : t('social.private') }}</span>
+              </div>
+              <RouterLink :to="{ name: 'profile', params: { username: playlist.owner.username } }" class="mt-2 inline-flex items-center gap-2 text-sm text-flixer-muted hover:text-white">
+                <span class="block size-6 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="playlist.owner.avatarUrl" :name="playlist.owner.displayName" class="text-xs" /></span>
+                <span class="font-medium text-white">{{ playlist.owner.displayName }}</span>
+              </RouterLink>
+              <ClampedText v-if="playlist.description" :text="playlist.description" :title="playlist.name" class="mt-3 max-w-2xl text-sm text-flixer-text/90" />
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!tracks.length" @click="playFrom()">{{ t('social.playAll') }}</button>
+                <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="tracks.length < 2" @click="shuffle">{{ t('social.shuffle') }}</button>
+                <button v-if="owner" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="edit">{{ t('social.editPlaylist') }}</button>
+                <button v-if="owner" type="button" class="rounded bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/25" @click="removePlaylist">{{ t('social.deletePlaylist') }}</button>
+              </div>
             </div>
           </div>
-        </div>
+          <dl class="grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
+            <div v-for="stat in stats" :key="stat.label" class="px-5 py-3">
+              <dd class="text-xl font-bold tabular-nums text-white">{{ stat.value }}</dd>
+              <dt class="text-xs uppercase tracking-wide text-flixer-muted">{{ stat.label }}</dt>
+            </div>
+          </dl>
+        </header>
         <p v-if="failed" class="text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         <section :aria-label="t('social.tracks')">
-          <h2 class="mb-4 text-xl font-bold tracking-tight text-white">{{ t('social.tracks') }}</h2>
-          <p v-if="!tracks.length" class="rounded border border-flixer-border p-5 text-sm text-flixer-muted">{{ t('social.emptyPlaylist') }}</p>
-          <ol v-else class="divide-y divide-white/5 overflow-hidden rounded border border-white/10 bg-white/5">
-            <li v-for="(track, index) in tracks" :key="track.id" class="group flex items-center gap-2 px-3 py-2 transition motion-reduce:transition-none hover:bg-white/10 sm:gap-3">
-              <span class="w-6 shrink-0 text-center text-xs tabular-nums text-flixer-muted">{{ index + 1 }}</span>
-              <button type="button" class="grid size-9 shrink-0 place-items-center rounded bg-white/10 text-white transition group-hover:bg-white group-hover:text-flixer-background" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
-                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-              </button>
-              <RouterLink :to="{ name: 'media-item', params: { id: track.id } }" class="min-w-0 flex-1 py-1"
-                ><p class="truncate text-sm font-semibold text-white">{{ track.title }}</p>
-                <p class="truncate text-xs text-flixer-muted">{{ [track.artist, track.album].filter(Boolean).join(' · ') }}</p></RouterLink
-              >
-              <button v-if="owner" type="button" class="grid size-8 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-40" :disabled="index === 0 || busy === 'order'" :aria-label="t('social.moveUp')" @click="move(index, -1)">↑</button>
-              <button v-if="owner" type="button" class="grid size-8 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-40" :disabled="index === tracks.length - 1 || busy === 'order'" :aria-label="t('social.moveDown')" @click="move(index, 1)">↓</button>
-              <button v-if="owner" type="button" class="grid size-8 shrink-0 place-items-center rounded text-flixer-muted hover:bg-red-500/15 hover:text-red-200" :disabled="busy === track.id" :aria-label="t('social.removeTrack')" @click="removeTrack(track)">×</button>
-            </li>
-          </ol>
+          <p v-if="!tracks.length" class="rounded border border-white/10 bg-white/5 p-6 text-center text-sm text-flixer-muted">{{ t('social.emptyPlaylist') }}</p>
+          <div v-else class="overflow-hidden rounded border border-white/10">
+            <div class="grid grid-cols-[2rem_minmax(0,1fr)_3rem] gap-3 border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted md:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.5fr)_3rem_auto]">
+              <span class="text-center">#</span><span>{{ t('social.title') }}</span
+              ><span class="hidden md:block">{{ t('social.album') }}</span
+              ><span class="text-right">{{ t('social.duration') }}</span
+              ><span v-if="owner" class="hidden w-24 md:block" />
+            </div>
+            <ol class="divide-y divide-white/5">
+              <li v-for="(track, index) in tracks" :key="track.id" class="group grid grid-cols-[2rem_minmax(0,1fr)_3rem] items-center gap-3 px-3 py-2 transition motion-reduce:transition-none hover:bg-white/10 md:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.5fr)_3rem_auto]">
+                <button type="button" class="grid size-8 place-items-center rounded text-xs tabular-nums text-flixer-muted hover:text-white" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
+                  <span class="group-hover:hidden">{{ index + 1 }}</span>
+                  <svg class="hidden size-4 text-white group-hover:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                </button>
+                <RouterLink :to="{ name: 'media-item', params: { id: track.id } }" class="flex min-w-0 items-center gap-3">
+                  <span class="block size-10 shrink-0 overflow-hidden rounded bg-flixer-surface"><AuthImage v-if="track.imageIndex !== null" scope="library" :item-id="track.imageItemId" :index="track.imageIndex" :version="track.imageUpdatedAt" :width="80" :alt="track.title" /></span>
+                  <span class="min-w-0"
+                    ><span class="block truncate text-sm font-semibold text-white">{{ track.title }}</span> <span class="block truncate text-xs text-flixer-muted">{{ track.artist ?? track.subtitle }}</span></span
+                  >
+                </RouterLink>
+                <span class="hidden truncate text-sm text-flixer-muted md:block">{{ track.album }}</span>
+                <span class="text-right text-xs tabular-nums text-flixer-muted">{{ formatDuration(track.durationSeconds) }}</span>
+                <span v-if="owner" class="flex w-24 justify-end gap-1 md:opacity-0 md:transition md:group-hover:opacity-100 md:focus-within:opacity-100">
+                  <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-40" :disabled="index === 0 || busy === 'order'" :aria-label="t('social.moveUp')" @click="move(index, -1)">↑</button>
+                  <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-40" :disabled="index === tracks.length - 1 || busy === 'order'" :aria-label="t('social.moveDown')" @click="move(index, 1)">↓</button>
+                  <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted hover:bg-red-500/15 hover:text-red-200" :disabled="busy === track.id" :aria-label="t('social.removeTrack')" @click="removeTrack(track)">×</button>
+                </span>
+              </li>
+            </ol>
+          </div>
         </section>
       </section>
     </main>

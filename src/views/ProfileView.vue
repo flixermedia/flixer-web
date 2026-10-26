@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
       <template v-else-if="profile">
         <header class="rounded border border-white/10 bg-flixer-surface/60">
           <div class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-            <UserAvatar :avatar-url="profile.avatarUrl" :name="profile.displayName" class="size-24 shrink-0 overflow-hidden rounded sm:size-32" />
+            <div class="size-24 shrink-0 overflow-hidden rounded shadow-lg shadow-black/40 sm:size-32"><UserAvatar :avatar-url="profile.avatarUrl" :name="profile.displayName" class="text-3xl" /></div>
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h1 class="break-words text-2xl font-bold tracking-tight text-white sm:text-4xl">{{ profile.displayName }}</h1>

@@ -1990,6 +1990,11 @@
     "activeNow": "Active now ({count})",
     "watchingItem": "Watching {title}",
     "listeningItem": "Listening to {title}",
-    "statsInline": "{playlists} playlists · {favorites} favourites · {plays} plays"
+    "statsInline": "{playlists} playlists · {favorites} favourites · {plays} plays",
+    "shuffle": "Shuffle",
+    "title": "Title",
+    "album": "Album",
+    "duration": "Duration",
+    "artists": "Artists"
   }
 }
