@@ -80,7 +80,7 @@ async function save() {
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ editingId ? t('admin.requests.editService') : t('admin.requests.addService') }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.requests.servicesDescription') }}</ModalDescription>
 
-      <form class="mt-5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" @submit.prevent="save">
+      <form class="-mx-1 mt-5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" @submit.prevent="save">
         <div class="grid gap-4 sm:grid-cols-2">
           <label :class="labelClass"
             >{{ t('admin.requests.serviceKind') }}
