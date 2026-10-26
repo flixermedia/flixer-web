@@ -22,6 +22,12 @@ const videoParty = computed(() => party.party.value?.kind === 'video')
 // Guests follow the host, so their own controls are disabled.
 const locked = computed(() => videoParty.value && party.isGuest.value)
 const { play } = useVideoOverlay()
+
+/** Closing the player as host ends the party for everyone. */
+function closeOverlay() {
+  if (videoParty.value && party.isHost.value) void party.leave()
+  emit('close')
+}
 const chapters = computed(() => playback.value?.chapters ?? [])
 const segments = computed(() => playback.value?.segments ?? [])
 const nextEpisode = computed(() => playback.value?.nextEpisode ?? null)
@@ -72,7 +78,7 @@ function setMini(value: boolean) {
 function onKeydown(event: KeyboardEvent) {
   // While in browser fullscreen, Escape only leaves fullscreen.
   if (event.key !== 'Escape' || document.fullscreenElement) return
-  if (mini.value) emit('close')
+  if (mini.value) closeOverlay()
   else setMini(true)
 }
 
@@ -125,13 +131,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded-lg shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="title">
-    <VideoPlayer v-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="emit('close')" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <VideoPlayer v-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <div v-else class="grid size-full place-items-center p-6 text-center">
       <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
       <div v-else class="w-full max-w-3xl" role="status" :aria-label="t('mediaItem.loading')">
         <Skeleton class="aspect-video w-full rounded-lg" />
       </div>
     </div>
-    <button v-if="!(playback && info) && !mini" type="button" class="absolute left-4 top-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="emit('close')">{{ t('mediaItem.close') }}</button>
+    <button v-if="!(playback && info) && !mini" type="button" class="absolute left-4 top-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
   </div>
 </template>

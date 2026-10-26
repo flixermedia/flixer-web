@@ -116,8 +116,13 @@ function applyState() {
 function handleEnded() {
   if (!wantedId) return
   const wasHost = isHost.value
+  const kind = party.value?.kind
   reset()
-  if (!wasHost) notify.info(t('party.ended'))
+  if (wasHost) return
+  // Guests only watch or listen because of the party, so ending it takes them out of the player.
+  if (kind === 'video') videoOverlay.close()
+  else if (kind === 'music') audio.stop()
+  notify.info(t('party.ended'))
 }
 
 function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (message: string) => void) {
