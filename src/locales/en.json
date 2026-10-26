@@ -2022,6 +2022,7 @@
     "guestHint": "The host controls playback. Everyone stays in sync.",
     "ended": "The party has ended.",
     "endedTitle": "This party has ended",
-    "endedDescription": "The host stopped it or left. Ask them for a new link."
+    "endedDescription": "The host stopped it or left. Ask them for a new link.",
+    "host": "Host"
   }
 }

@@ -813,7 +813,7 @@ onBeforeUnmount(() => {
     </button>
     <button v-if="activeSegment && !mini" type="button" class="absolute bottom-28 right-4 z-10 rounded-lg border border-white/40 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/50 backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-8" @click="skipSegment">{{ t(`player.skip.${activeSegment.type}`) }}</button>
 
-    <div v-if="partyMenuOpen && inVideoParty && controlsShown" class="theme-dark absolute bottom-24 right-3 z-20 max-h-[70%] w-72 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-4 text-white shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="dialog">
+    <div v-if="partyMenuOpen && inVideoParty && controlsShown" class="absolute bottom-20 right-3 z-20 max-h-[70%] w-64 overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="dialog">
       <PartyPanel @left="partyMenuOpen = false" />
     </div>
 

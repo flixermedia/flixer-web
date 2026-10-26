@@ -32,20 +32,29 @@ async function leave() {
 
 <template>
   <section v-if="party.party.value" :aria-label="t('party.title')">
-    <p class="truncate text-sm font-semibold">{{ party.party.value.item.title }}</p>
-    <p class="truncate text-xs text-white/60">{{ party.isHost.value ? t('party.youAreHost') : t('party.hostedBy', { name: party.party.value.host.displayName }) }}</p>
-    <ul class="mt-3 flex flex-wrap gap-2" :aria-label="t('party.members')">
+    <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.title') }}</p>
+    <div class="px-3 pb-2">
+      <p class="truncate text-sm text-flixer-text">{{ party.party.value.item.title }}</p>
+      <p class="truncate text-xs text-flixer-muted">{{ party.isHost.value ? t('party.youAreHost') : t('party.hostedBy', { name: party.party.value.host.displayName }) }}</p>
+    </div>
+
+    <div class="my-2 border-t border-flixer-border"></div>
+
+    <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.members') }} · {{ party.party.value.members.length }}</p>
+    <ul :aria-label="t('party.members')">
       <li v-for="member in party.party.value.members" :key="member.id">
-        <RouterLink :to="{ name: 'profile', params: { username: member.username } }" class="flex items-center gap-2 rounded bg-white/10 py-1 pl-1 pr-2 text-xs hover:bg-white/20">
-          <span class="block size-5 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="member.avatarUrl" :name="member.displayName" class="text-[10px]" /></span>
-          <span class="max-w-24 truncate">{{ member.displayName }}</span>
+        <RouterLink :to="{ name: 'profile', params: { username: member.username } }" class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10">
+          <span class="block size-6 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="member.avatarUrl" :name="member.displayName" class="text-[10px]" /></span>
+          <span class="truncate">{{ member.displayName }}</span>
+          <span v-if="member.id === party.party.value.host.id" class="ml-auto text-xs text-flixer-accent">{{ t('party.host') }}</span>
         </RouterLink>
       </li>
     </ul>
-    <p v-if="party.isGuest.value" class="mt-3 text-xs text-white/50">{{ t('party.guestHint') }}</p>
-    <div class="mt-4 flex gap-2">
-      <button type="button" class="flex-1 rounded bg-white px-3 py-2 text-xs font-bold text-black transition hover:bg-white/85" @click="copyLink">{{ t('party.copyLink') }}</button>
-      <button type="button" class="flex-1 rounded bg-white/10 px-3 py-2 text-xs font-semibold transition hover:bg-white/20 disabled:opacity-60" :disabled="busy" @click="leave">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</button>
-    </div>
+
+    <div class="my-2 border-t border-flixer-border"></div>
+
+    <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10" @click="copyLink">{{ t('party.copyLink') }}</button>
+    <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="leave">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</button>
+    <p v-if="party.isGuest.value" class="px-3 pb-2 pt-2 text-xs text-flixer-muted">{{ t('party.guestHint') }}</p>
   </section>
 </template>
