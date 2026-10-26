@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ModalOverlay, ModalTarget } from '@kolirt/vue-modal'
+import IdleSplash from './components/ui/IdleSplash.vue'
 import OfflineBanner from './components/ui/OfflineBanner.vue'
 import MiniPlayer from './components/player/MiniPlayer.vue'
 import PlayerOverlay from './components/player/PlayerOverlay.vue'
 import LyricsView from './views/LyricsView.vue'
 import { useAudioPlayer } from './composables/useAudioPlayer'
+import { useIdleSplash } from './composables/useIdleSplash'
 import { useParty } from './composables/useParty'
 import { useVideoOverlay } from './composables/useVideoOverlay'
 import { getAccessToken } from './api'
 
 const { lyricsOpen } = useAudioPlayer()
 const { playing, close: closeVideo } = useVideoOverlay()
+const idle = useIdleSplash(() => playing.value !== null)
 if (getAccessToken()) void useParty().resume()
 </script>
 
@@ -24,6 +27,9 @@ if (getAccessToken()) void useParty().resume()
   <PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" @close="closeVideo" />
   <Transition name="lyrics">
     <LyricsView v-if="lyricsOpen" />
+  </Transition>
+  <Transition name="idle">
+    <IdleSplash v-if="idle.active.value" />
   </Transition>
   <OfflineBanner />
 
@@ -56,6 +62,23 @@ if (getAccessToken()) void useParty().resume()
   .lyrics-enter-from,
   .lyrics-leave-to {
     transform: none;
+  }
+}
+
+.idle-enter-active {
+  transition: opacity 1.2s ease-out;
+}
+.idle-leave-active {
+  transition: opacity 0.3s ease-in;
+}
+.idle-enter-from,
+.idle-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .idle-enter-active,
+  .idle-leave-active {
+    transition: none;
   }
 }
 

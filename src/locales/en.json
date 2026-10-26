@@ -2082,5 +2082,9 @@
     "leaveConfirm": "You will stop receiving messages from this group.",
     "message": "Message",
     "messageFailed": "Could not open the chat."
+  },
+  "idle": {
+    "title": "Screensaver",
+    "hint": "Move the mouse or tap to continue"
   }
 }
