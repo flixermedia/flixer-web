@@ -1996,6 +1996,7 @@
     "album": "Album",
     "duration": "Duration",
     "artists": "Artists",
-    "albumAdded": "Added {count} songs"
+    "albumAdded": "Added {count} songs",
+    "nobodyActive": "Nobody is watching or listening right now."
   }
 }

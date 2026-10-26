@@ -22,9 +22,9 @@ const activeCount = computed(() => profiles.value.filter((person) => person.nowP
 const failed = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
 let searchId = 0
-async function search() {
+async function search(silent = false) {
   const current = ++searchId
-  loading.value = true
+  if (!silent) loading.value = true
   failed.value = false
   try {
     const result = await getProfiles(query.value.trim() || undefined)
@@ -43,7 +43,16 @@ watch(
   },
   { immediate: true },
 )
+const refreshTimer = setInterval(() => {
+  if (!document.hidden) void search(true)
+}, 15_000)
+function refreshOnFocus() {
+  if (!document.hidden) void search(true)
+}
+document.addEventListener('visibilitychange', refreshOnFocus)
 onBeforeUnmount(() => {
+  clearInterval(refreshTimer)
+  document.removeEventListener('visibilitychange', refreshOnFocus)
   searchId++
   if (timer) clearTimeout(timer)
 })
@@ -73,7 +82,7 @@ onBeforeUnmount(() => {
       <ul v-else-if="loading" class="mt-8 divide-y divide-white/5 rounded border border-white/10">
         <li v-for="n in 6" :key="n" class="flex items-center gap-4 p-4"><Skeleton class="size-12 rounded" /><Skeleton class="h-4 w-40" /></li>
       </ul>
-      <p v-else-if="!visible.length" class="mt-8 rounded border border-white/10 bg-white/5 p-6 text-center text-sm text-flixer-muted">{{ t('social.noPeople') }}</p>
+      <p v-else-if="!visible.length" class="mt-8 rounded border border-white/10 bg-white/5 p-6 text-center text-sm text-flixer-muted">{{ activeOnly && profiles.length ? t('social.nobodyActive') : t('social.noPeople') }}</p>
       <div v-else class="mt-8 overflow-hidden rounded border border-white/10">
         <div class="hidden grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem_5rem_5rem_7rem] gap-4 border-b border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted lg:grid">
           <span>{{ t('social.person') }}</span
