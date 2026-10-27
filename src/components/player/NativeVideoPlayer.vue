@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { VideoPlayer, type VideoSubtitle, type capVideoPlayerResult } from '@capgo/capacitor-video-player'
-import { buildStreamUrl, getStreamInfo, getSubtitleTracks, type StreamInfo } from '../../api'
+import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleTracks, type StreamInfo } from '../../api'
 
 const props = withDefaults(
   defineProps<{
     streamUrl: string
+    container: string
     info: StreamInfo
     title?: string
     autoplay?: boolean
@@ -206,7 +208,17 @@ async function loadPlayer() {
   const start = props.locked ? 0 : Math.max(0, props.startAt)
   let url: string
 
-  if (props.info.playMethod === 'DirectPlay') {
+  const container = props.container.toLowerCase()
+  const videoCodec = props.info.source.videoCodec.toLowerCase()
+  const audioCodec = props.info.source.audioCodec?.toLowerCase()
+  const isKnownIosCompatibleSource = (container === 'mp4' || container === 'm4v') && videoCodec === 'h264' && (!audioCodec || audioCodec === 'aac')
+  const useIosHls = Capacitor.getPlatform() === 'ios' && !isKnownIosCompatibleSource
+
+  if (useIosHls) {
+    // Use the streamer's H.264/AAC rendition unless the source is known to be AVPlayer-compatible.
+    url = buildHlsUrl(props.streamUrl)
+    seekOnReady = start
+  } else if (props.info.playMethod === 'DirectPlay') {
     url = props.streamUrl
     seekOnReady = start
   } else {

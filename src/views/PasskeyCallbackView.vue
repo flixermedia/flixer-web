@@ -56,7 +56,7 @@ async function completeHandoff() {
 </script>
 
 <template>
-  <main class="grid min-h-[100dvh] place-items-center bg-flixer-background p-6 text-flixer-text">
+  <main class="passkey-main grid min-h-[100dvh] place-items-center bg-flixer-background p-6 text-flixer-text">
     <section class="w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-center">
       <p v-if="isCompleting" class="text-sm text-flixer-muted" role="status">{{ t('auth.passkeyHandoffCompleting') }}</p>
       <template v-else>
@@ -66,3 +66,9 @@ async function completeHandoff() {
     </section>
   </main>
 </template>
+
+<style scoped>
+html.capacitor .passkey-main {
+  top: max(env(safe-area-inset-top), 3.5rem);
+}
+</style>

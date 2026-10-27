@@ -5,7 +5,7 @@ import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { isNativeApp } from '../../platform/serverConnection'
 import AuthField from './AuthField.vue'
 
-const passkeysSupported = !isNativeApp() && browserSupportsWebAuthn()
+const passkeysSupported = isNativeApp() || browserSupportsWebAuthn()
 const { t } = useI18n()
 
 defineProps<{
@@ -76,7 +76,7 @@ function handleSubmit() {
         <button type="button" class="font-semibold text-flixer-accent underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-60" :disabled="isResending" @click="emit('resend')">{{ isResending ? t('auth.sending') : t('auth.resendVerification') }}</button>
       </div>
 
-      <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:[&>*:only-child]:col-span-2">
+      <div class="mt-6 flex flex-col gap-3">
         <button class="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting">
           <span>
             {{ isSubmitting ? t('auth.signingIn') : t('auth.signInToFlixer') }}
