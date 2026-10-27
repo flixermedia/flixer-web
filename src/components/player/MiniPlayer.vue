@@ -53,7 +53,7 @@ function onVolume(event: Event) {
 </script>
 
 <template>
-  <div v-if="visible && current" class="fixed inset-x-0 bottom-[calc(var(--tabbar-height,0px)+0.5rem)] z-40 px-2 md:bottom-0 md:px-0" role="region" :aria-label="t('music.player')">
+  <div v-if="visible && current" data-haptic class="fixed inset-x-0 bottom-[calc(var(--tabbar-height,0px)+0.5rem)] z-40 px-2 md:bottom-0 md:px-0" role="region" :aria-label="t('music.player')">
     <div class="rounded-lg border border-white/10 bg-flixer-surface/95 shadow-2xl shadow-black/60 backdrop-blur-xl md:rounded-none md:border-x-0 md:border-b-0">
       <div class="mx-auto flex max-w-[110rem] items-center gap-3 p-2 md:gap-6 md:px-6">
         <div class="flex min-w-0 flex-1 items-center gap-3 md:w-1/4 md:flex-none">

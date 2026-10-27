@@ -34,7 +34,7 @@ function handleSubmit() {
 </script>
 
 <template>
-  <div class="w-full">
+  <div data-haptic class="w-full">
     <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('auth.loginEyebrow') }}</span>
     <h1 id="login-title" class="mt-3 text-3xl font-semibold tracking-tight text-flixer-text sm:text-4xl">
       {{ t('auth.welcomeBack') }}

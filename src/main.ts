@@ -7,6 +7,7 @@ import Vue3Toastify from 'vue3-toastify'
 import { AUTH_INVALID_EVENT } from './api'
 import { toastContainerOptions } from './composables/notify'
 import { initTheme } from './composables/useTheme'
+import { initButtonHaptics } from './platform/haptics'
 import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
 import { initMonitoring } from './monitoring'
 import router from './router'
@@ -21,6 +22,7 @@ declare module '@kolirt/vue-modal' {
 
 const app = createApp(App)
 document.documentElement.classList.toggle('capacitor', Capacitor.isNativePlatform())
+initButtonHaptics()
 initTheme()
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
