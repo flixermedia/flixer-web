@@ -45,6 +45,20 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
     },
     {
+      path: '/passkey/callback',
+      name: 'passkey-callback',
+      component: () => import('../views/PasskeyCallbackView.vue'),
+    },
+    {
+      path: '/passkey/handoff/:handoffId',
+      name: 'passkey-handoff',
+      component: () => import('../components/auth/NativePasskeyHandoff.vue'),
+      props: (route) => ({
+        handoffId: String(route.params.handoffId),
+        state: typeof route.query.state === 'string' ? route.query.state : '',
+      }),
+    },
+    {
       path: '/register',
       name: 'register',
       component: () => import('../views/LoginView.vue'),
@@ -193,6 +207,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.name === 'connect') return Capacitor.isNativePlatform() ? true : { name: 'login' }
   if (Capacitor.isNativePlatform() && !getNativeServerUrl()) return { name: 'connect' }
+  if (to.name === 'passkey-callback' || to.name === 'passkey-handoff') return true
 
   const setupRedirect = await setupGuard(to)
   if (setupRedirect !== true) return setupRedirect

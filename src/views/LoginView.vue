@@ -13,6 +13,7 @@ import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
+import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -28,6 +29,11 @@ const registrationStatusError = ref('')
 const loginBanner = ref('')
 const isRegistration = computed(() => route.name === 'register')
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
+
+function getPostLoginDestination(): string | undefined {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : undefined
+}
 
 onMounted(() => {
   void loadRegistrationStatus()
@@ -88,6 +94,11 @@ async function handleSecondFactor() {
   isSubmitting.value = true
 
   try {
+    if (isNativeApp()) {
+      await beginNativePasskeyHandoff(passkeyTicket.value, getPostLoginDestination())
+      return
+    }
+
     const result = await loginWithPasskeySecondFactor(passkeyTicket.value)
     passkeyTicket.value = ''
     await completeAuthentication(result.accessToken)
@@ -134,6 +145,11 @@ async function handlePasskeyLogin() {
   isSubmitting.value = true
 
   try {
+    if (isNativeApp()) {
+      await beginNativePasskeyHandoff(undefined, getPostLoginDestination())
+      return
+    }
+
     const result = await loginWithPasskey()
     await completeAuthentication(result.accessToken)
   } catch (error: unknown) {
@@ -185,7 +201,6 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
 <template>
   <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text lg:grid lg:grid-cols-2">
-
     <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" :aria-label="t('auth.welcomeToFlixer')">
       <!-- Decorative background elements -->
       <div class="pointer-events-none absolute -left-24 top-1/3 -z-10 hidden size-80 rounded-full bg-flixer-primary/20 blur-3xl lg:block" aria-hidden="true"></div>
@@ -255,10 +270,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 :global(html:has(.login-background)),
 :global(body:has(.login-background)),
 .login-background {
-  background:
-    radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent),
-    radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent),
-    var(--color-flixer-background);
+  background: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
 }
 
 .auth-slide-left-enter-active,

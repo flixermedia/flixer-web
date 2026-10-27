@@ -89,7 +89,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     const url = axios.isAxiosError(error) ? error.config?.url : undefined
-    if (axios.isAxiosError(error) && error.response?.status === 401 && !url?.includes('/auth/login') && !url?.includes('/auth/me/password') && !url?.includes('/auth/me/delete') && !url?.includes('/second-factor/') && !/\/passkeys\/[^/]+\/delete$/.test(url ?? '') && !url?.includes('/passkeys/register/options') && !url?.includes('/passkeys/register/verify') && !(url?.includes('/auth/me/passkey-required') && error.config?.method === 'patch')) {
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !url?.includes('/auth/login') && !url?.includes('/auth/me/password') && !url?.includes('/auth/me/delete') && !url?.includes('/second-factor/') && !url?.includes('/native-handoff/') && !/\/passkeys\/[^/]+\/delete$/.test(url ?? '') && !url?.includes('/passkeys/register/options') && !url?.includes('/passkeys/register/verify') && !(url?.includes('/auth/me/passkey-required') && error.config?.method === 'patch')) {
       clearAccessToken()
       if (!error.config?.url?.includes('/auth/sessions')) {
         window.dispatchEvent(new Event(AUTH_INVALID_EVENT))
@@ -287,6 +287,26 @@ export async function loginWithPasskeySecondFactor(ticket: string): Promise<Auth
   const options = await api.post<PublicKeyCredentialRequestOptionsJSON>('/auth/passkeys/second-factor/options', { ticket })
   const assertion = await startAuthentication({ optionsJSON: options.data })
   const response = await api.post<AuthResult>('/auth/passkeys/second-factor/verify', { ticket, response: assertion })
+  return response.data
+}
+
+export async function startNativePasskeyHandoff(input: { codeChallenge: string; state: string; ticket?: string }): Promise<{ handoffId: string; appUrl: string }> {
+  const response = await api.post<{ handoffId: string; appUrl: string }>('/auth/passkeys/native-handoff/start', input)
+  return response.data
+}
+
+export async function getNativePasskeyHandoffOptions(handoffId: string): Promise<PublicKeyCredentialRequestOptionsJSON> {
+  const response = await api.post<PublicKeyCredentialRequestOptionsJSON>('/auth/passkeys/native-handoff/options', { handoffId })
+  return response.data
+}
+
+export async function verifyNativePasskeyHandoff(handoffId: string, assertion: unknown): Promise<{ code: string; state: string }> {
+  const response = await api.post<{ code: string; state: string }>('/auth/passkeys/native-handoff/verify', { handoffId, response: assertion })
+  return response.data
+}
+
+export async function exchangeNativePasskeyHandoff(input: { code: string; codeVerifier: string; state: string }): Promise<AuthResult> {
+  const response = await api.post<AuthResult>('/auth/passkeys/native-handoff/exchange', input)
   return response.data
 }
 

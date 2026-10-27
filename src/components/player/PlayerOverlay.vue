@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getItemPlaybackInfo, getStreamInfo, getWatchProgress, saveWatchProgress, type PlaybackInfo, type StreamInfo } from '../../api'
 import { expectedPosition, useParty } from '../../composables/useParty'
 import { useVideoOverlay } from '../../composables/useVideoOverlay'
 import VideoPlayer from './VideoPlayer.vue'
 import Skeleton from '../ui/Skeleton.vue'
+import { isNativeApp } from '../../platform/serverConnection'
+
+const NativeVideoPlayer = defineAsyncComponent(() => import('./NativeVideoPlayer.vue'))
 
 const props = defineProps<{ itemId: string; title: string; startAtSeconds?: number }>()
 const emit = defineEmits<{ close: [] }>()
@@ -17,7 +20,8 @@ const error = ref('')
 const startAt = ref(0)
 const mini = ref(false)
 const party = useParty()
-const videoPlayer = ref<InstanceType<typeof VideoPlayer>>()
+const nativePlayback = isNativeApp()
+const videoPlayer = ref<{ getState: () => { playing: boolean; position: number }; applyRemote: (state: { playing: boolean; position: number }) => void }>()
 const videoParty = computed(() => party.party.value?.kind === 'video')
 // Guests follow the host, so their own controls are disabled.
 const locked = computed(() => videoParty.value && party.isGuest.value)
@@ -77,7 +81,7 @@ function setMini(value: boolean) {
 
 function onKeydown(event: KeyboardEvent) {
   // While in browser fullscreen, Escape only leaves fullscreen.
-  if (event.key !== 'Escape' || document.fullscreenElement) return
+  if (nativePlayback || event.key !== 'Escape' || document.fullscreenElement) return
   if (mini.value) closeOverlay()
   else setMini(true)
 }
@@ -131,13 +135,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded-lg shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="title">
-    <VideoPlayer v-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <NativeVideoPlayer v-if="playback && info && nativePlayback" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <div v-else class="grid size-full place-items-center p-6 text-center">
       <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
       <div v-else class="w-full max-w-3xl" role="status" :aria-label="t('mediaItem.loading')">
         <Skeleton class="aspect-video w-full rounded-lg" />
       </div>
     </div>
-    <button v-if="!(playback && info) && !mini" type="button" class="absolute left-4 top-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
+    <p v-if="error && playback && info && nativePlayback" class="absolute inset-x-4 bottom-4 rounded-lg bg-red-950/90 p-3 text-center text-sm text-red-100" role="alert">{{ error }}</p>
+    <button v-if="(!(playback && info) || (error && nativePlayback)) && !mini" type="button" class="absolute left-4 top-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
   </div>
 </template>
