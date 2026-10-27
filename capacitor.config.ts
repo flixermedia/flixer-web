@@ -7,6 +7,9 @@ const config: CapacitorConfig = {
   iosScheme: 'https',
   androidScheme: 'https',
   plugins: {
+    TextInteraction: {
+      enabled: false,
+    },
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 3000,

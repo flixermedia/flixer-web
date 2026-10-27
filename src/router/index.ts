@@ -105,6 +105,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/friend-invite/:token',
+      name: 'friend-invite',
+      component: () => import('../views/FriendInviteView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/people',
       name: 'people',
       component: () => import('../views/PeopleView.vue'),

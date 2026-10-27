@@ -10,10 +10,12 @@ import { AUTH_INVALID_EVENT } from './api'
 import { toastContainerOptions } from './composables/notify'
 import { initTheme } from './composables/useTheme'
 import { initButtonHaptics } from './platform/haptics'
+import { initNativeTextInteraction } from './platform/textInteraction'
 import { NATIVE_PASSKEY_CALLBACK_SCHEME } from './platform/passkeyHandoff'
 import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
 import { initMonitoring } from './monitoring'
 import router from './router'
+import { restoreNativeAccount } from './platform/nativeAccount'
 import './tailwind.css'
 import './toast.css'
 import './modal.css'
@@ -27,6 +29,7 @@ const app = createApp(App)
 let lastPasskeyCallbackUrl = ''
 document.documentElement.classList.toggle('capacitor', Capacitor.isNativePlatform())
 initButtonHaptics()
+initNativeTextInteraction()
 initTheme()
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
@@ -75,6 +78,13 @@ if (Capacitor.isNativePlatform()) {
 }
 
 await initLocale()
+if (Capacitor.isNativePlatform()) {
+  try {
+    await restoreNativeAccount()
+  } catch (error) {
+    console.warn('[native-account] Could not restore the saved account', error)
+  }
+}
 app.mount('#app')
 if (Capacitor.isNativePlatform()) {
   await router.isReady()

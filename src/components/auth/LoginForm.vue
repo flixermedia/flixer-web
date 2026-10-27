@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { isNativeApp } from '../../platform/serverConnection'
@@ -8,28 +8,41 @@ import AuthField from './AuthField.vue'
 const passkeysSupported = isNativeApp() || browserSupportsWebAuthn()
 const { t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   isSubmitting: boolean
   sessionCheckUnavailable: boolean
   registrationEnabled: boolean | null
   registrationStatusError: string
   canResend?: boolean
   isResending?: boolean
+  initialUsername?: string
+  biometricAvailable?: boolean
+  biometricLoginAvailable?: boolean
 }>()
 
 const emit = defineEmits<{
-  submit: [credentials: { username: string; password: string }]
+  submit: [credentials: { username: string; password: string; rememberBiometric: boolean }]
   switchMode: []
   passkey: []
+  biometric: []
+  forgetBiometric: []
   resend: []
 }>()
 
-const username = ref('')
+const username = ref(props.initialUsername ?? '')
 const password = ref('')
 const isPasswordVisible = ref(false)
+const rememberBiometric = ref(false)
+
+watch(
+  () => props.initialUsername,
+  (value) => {
+    if (!username.value && value) username.value = value
+  },
+)
 
 function handleSubmit() {
-  emit('submit', { username: username.value, password: password.value })
+  emit('submit', { username: username.value, password: password.value, rememberBiometric: rememberBiometric.value })
 }
 </script>
 
@@ -76,6 +89,11 @@ function handleSubmit() {
         <button type="button" class="font-semibold text-flixer-accent underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-60" :disabled="isResending" @click="emit('resend')">{{ isResending ? t('auth.sending') : t('auth.resendVerification') }}</button>
       </div>
 
+      <label v-if="biometricAvailable" class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-flixer-muted">
+        <input v-model="rememberBiometric" type="checkbox" class="mt-0.5 size-4 accent-flixer-accent" />
+        <span>{{ t('auth.enableBiometricLogin') }}</span>
+      </label>
+
       <div class="mt-6 flex flex-col gap-3">
         <button class="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting">
           <span>
@@ -86,12 +104,18 @@ function handleSubmit() {
           </svg>
           <span v-else class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
         </button>
+        <button v-if="biometricLoginAvailable" class="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('biometric')">
+          {{ t('auth.signInWithBiometrics') }}
+        </button>
         <button v-if="passkeysSupported" class="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('passkey')">
           <svg class="size-[17px] fill-none stroke-current" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="9" cy="9" r="4" />
             <path d="M12 12l8 8M17 17l2-2M15 15l2-2" />
           </svg>
           {{ t('auth.signInWithPasskey') }}
+        </button>
+        <button v-if="biometricLoginAvailable" class="self-center text-xs text-flixer-muted underline underline-offset-4 hover:text-flixer-text" type="button" :disabled="isSubmitting" @click="emit('forgetBiometric')">
+          {{ t('auth.forgetBiometricLogin') }}
         </button>
       </div>
     </form>

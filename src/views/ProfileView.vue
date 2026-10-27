@@ -4,12 +4,13 @@ import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getSocialProfile, startDirectChat, type PlaylistSummary, type Profile, type SocialItem } from '../api'
+import { acceptFriend, getSocialProfile, removeFriend, requestFriend, startDirectChat, type PlaylistSummary, type Profile, type SocialItem } from '../api'
 import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
+import FriendInviteModal from '../components/social/FriendInviteModal.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
@@ -19,6 +20,7 @@ import { useSignOut } from '../composables/useSignOut'
 
 const { t } = useI18n()
 const openingChat = ref(false)
+const friendBusy = ref(false)
 const route = useRoute()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
@@ -71,13 +73,8 @@ async function load() {
     if (current === generation) loading.value = false
   }
 }
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(window.location.href)
-    notify.success(t('social.linkCopied'))
-  } catch {
-    notify.error(t('social.saveError'))
-  }
+async function shareProfile() {
+  await openModal<void>(FriendInviteModal, { props: { username: username.value } }).catch(() => undefined)
 }
 function asQueueTrack(item: SocialItem): QueueTrack {
   return { id: item.id, title: item.title, artist: item.subtitle, artistId: null, album: null, albumId: null, art: item.imageIndex === null ? null : { itemId: item.imageItemId, index: item.imageIndex, version: item.imageUpdatedAt } }
@@ -94,6 +91,21 @@ async function messageUser() {
     notify.error(t('chat.messageFailed'))
   } finally {
     openingChat.value = false
+  }
+}
+async function changeFriendship() {
+  const person = profile.value
+  if (!person || person.isSelf || friendBusy.value) return
+  friendBusy.value = true
+  try {
+    if (person.friendship === 'incoming') await acceptFriend(person.username)
+    else if (person.friendship === 'none') await requestFriend(person.username)
+    else await removeFriend(person.username)
+    await load()
+  } catch {
+    notify.error(t('social.friendActionFailed'))
+  } finally {
+    friendBusy.value = false
   }
 }
 async function joinParty(id: string) {
@@ -167,7 +179,8 @@ onBeforeUnmount(() => {
                 <button v-if="profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85" @click="createPlaylist">{{ t('social.createPlaylist') }}</button>
                 <RouterLink v-if="profile.isSelf" :to="{ name: 'settings' }" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">{{ t('social.editProfile') }}</RouterLink>
                 <button v-if="!profile.isSelf" type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="openingChat" @click="messageUser">{{ t('chat.message') }}</button>
-                <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="copyLink">{{ t('social.copyLink') }}</button>
+                <button v-if="!profile.isSelf" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60" :disabled="friendBusy" @click="changeFriendship">{{ t(`social.friendActions.${profile.friendship}`) }}</button>
+                <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="shareProfile">{{ t('social.shareProfile') }}</button>
               </div>
             </div>
             <div v-if="profile.party || profile.nowPlaying" class="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-72 sm:shrink-0 sm:self-start">

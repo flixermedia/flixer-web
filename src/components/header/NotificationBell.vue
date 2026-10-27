@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { acceptFriend } from '../../api'
+import { notify } from '../../composables/notify'
 import { useNotifications } from '../../composables/useNotifications'
 
 const POLL_MS = 60_000
@@ -13,6 +15,7 @@ const router = useRouter()
 const { enabled, loadConfig, maybePromptOnLoad, items, unread, hasUnread, isLoading, pushSupported, pushEnabled, pushBusy, permission, refresh, refreshPushState, enablePush, disablePush, markAllRead, markRead, dismiss } = useNotifications()
 
 const open = ref(false)
+const acceptingFriendRequest = ref('')
 const root = ref<HTMLElement | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -59,7 +62,11 @@ onBeforeUnmount(() => {
 function ago(iso: string) {
   const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
   const formatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
-  for (const [unit, size] of [['day', 86400], ['hour', 3600], ['minute', 60]] as const) {
+  for (const [unit, size] of [
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+  ] as const) {
     if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit)
   }
   return formatter.format(0, 'minute')
@@ -70,6 +77,31 @@ function openItem(id: string, url: string | null) {
   if (url && url.startsWith('/') && !url.startsWith('//')) {
     open.value = false
     void router.push(url)
+  }
+}
+
+function friendUsername(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const match = /^\/u\/([^/]+)\/?$/.exec(new URL(url, window.location.origin).pathname)
+    if (!match) return null
+    return decodeURIComponent(match[1])
+  } catch {
+    return null
+  }
+}
+
+async function acceptRequest(notificationId: string, url: string | null) {
+  const username = friendUsername(url)
+  if (!username || acceptingFriendRequest.value) return
+  acceptingFriendRequest.value = notificationId
+  try {
+    await acceptFriend(username)
+    await dismiss(notificationId)
+  } catch {
+    notify.error(t('notifications.friendRequestAcceptError'))
+  } finally {
+    acceptingFriendRequest.value = ''
   }
 }
 
@@ -99,11 +131,16 @@ function togglePush() {
         <ul v-if="items.length > 0" class="max-h-96 overflow-y-auto">
           <li v-for="item in items" :key="item.id" class="group flex items-start gap-3 border-b border-white/5 px-4 py-3 transition last:border-b-0 hover:bg-white/5">
             <span class="mt-1.5 size-2 shrink-0 rounded-full" :class="item.read ? 'bg-transparent' : 'bg-flixer-accent'" aria-hidden="true"></span>
-            <button type="button" class="min-w-0 flex-1 text-left" @click="openItem(item.id, item.url)">
-              <span class="block truncate text-sm font-semibold text-white">{{ item.title }}</span>
-              <span class="mt-0.5 line-clamp-2 block text-xs text-flixer-text/80">{{ item.body }}</span>
-              <span class="mt-1 block text-[11px] text-flixer-muted">{{ ago(item.createdAt) }}</span>
-            </button>
+            <div class="min-w-0 flex-1">
+              <button type="button" class="w-full text-left" @click="openItem(item.id, item.url)">
+                <span class="block truncate text-sm font-semibold text-white">{{ item.title }}</span>
+                <span class="mt-0.5 line-clamp-2 block text-xs text-flixer-text/80">{{ item.body }}</span>
+                <span class="mt-1 block text-[11px] text-flixer-muted">{{ ago(item.createdAt) }}</span>
+              </button>
+              <button v-if="item.kind === 'friend_request' && friendUsername(item.url)" type="button" class="mt-2 rounded bg-white px-3 py-1.5 text-xs font-semibold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="!!acceptingFriendRequest" @click="acceptRequest(item.id, item.url)">
+                {{ acceptingFriendRequest === item.id ? t('notifications.acceptingFriendRequest') : t('notifications.acceptFriendRequest') }}
+              </button>
+            </div>
             <button type="button" class="grid size-6 shrink-0 place-items-center rounded text-flixer-muted opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100" :aria-label="t('notifications.dismiss')" @click="dismiss(item.id)">
               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>

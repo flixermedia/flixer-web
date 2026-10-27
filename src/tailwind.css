@@ -16,7 +16,9 @@
   border-radius: 0.25rem;
   border: 1px solid color-mix(in srgb, var(--color-flixer-border) 80%, transparent);
   background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 85%, transparent), color-mix(in srgb, var(--color-flixer-surface) 45%, transparent));
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-white) 5%, transparent) inset, 0 8px 24px -16px rgb(0 0 0 / 0.5);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-white) 5%, transparent) inset,
+    0 8px 24px -16px rgb(0 0 0 / 0.5);
   transition: border-color 150ms ease;
 
   &:hover {
@@ -86,6 +88,21 @@ html.light {
     overflow-y: scroll;
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
+  }
+
+  html.capacitor,
+  html.capacitor body,
+  html.capacitor body * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  html.capacitor :is(input, textarea, select, [contenteditable='true'], [contenteditable=''], [role='textbox']),
+  html.capacitor :is([contenteditable='true'], [contenteditable=''], [role='textbox']) * {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 
   /* Scrollbars are hidden everywhere; scrolling still works. */

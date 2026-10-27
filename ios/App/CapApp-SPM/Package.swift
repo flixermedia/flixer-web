@@ -17,7 +17,11 @@ let package = Package(
         .package(name: "CapacitorClipboard", path: "../../../node_modules/@capacitor/clipboard"),
         .package(name: "CapacitorHaptics", path: "../../../node_modules/@capacitor/haptics"),
         .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications"),
+        .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
+        .package(name: "CapgoCapacitorNativeBiometric", path: "../../../node_modules/@capgo/capacitor-native-biometric"),
+        .package(name: "CapgoCapacitorPersistentAccount", path: "../../../node_modules/@capgo/capacitor-persistent-account"),
+        .package(name: "CapgoCapacitorTextinteraction", path: "../../../node_modules/@capgo/capacitor-textinteraction"),
         .package(name: "CapgoCapacitorVideoPlayer", path: "../../../node_modules/@capgo/capacitor-video-player")
     ],
     targets: [
@@ -31,7 +35,11 @@ let package = Package(
                 .product(name: "CapacitorClipboard", package: "CapacitorClipboard"),
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
+                .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
+                .product(name: "CapgoCapacitorNativeBiometric", package: "CapgoCapacitorNativeBiometric"),
+                .product(name: "CapgoCapacitorPersistentAccount", package: "CapgoCapacitorPersistentAccount"),
+                .product(name: "CapgoCapacitorTextinteraction", package: "CapgoCapacitorTextinteraction"),
                 .product(name: "CapgoCapacitorVideoPlayer", package: "CapgoCapacitorVideoPlayer")
             ]
         )

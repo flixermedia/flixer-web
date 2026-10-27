@@ -3,6 +3,7 @@ import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
 import logo from '../../resources/logo/flixer-logo.svg'
 import LoginForm from '../components/auth/LoginForm.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
@@ -10,9 +11,10 @@ import VerificationNotice from '../components/auth/VerificationNotice.vue'
 import { notify } from '../composables/notify'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
-import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken } from '../api'
+import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, type AuthResult } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
+import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
 import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
 
 const { t } = useI18n()
@@ -27,6 +29,10 @@ let lastCredentials: { username: string; password: string } | null = null
 const registrationEnabled = ref<boolean | null>(null)
 const registrationStatusError = ref('')
 const loginBanner = ref('')
+const nativeUsername = ref('')
+const biometricAvailable = ref(false)
+const biometricLoginAvailable = ref(false)
+const biometricCredentialsForSecondFactor = ref<{ username: string; password: string } | null>(null)
 const isRegistration = computed(() => route.name === 'register')
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
 
@@ -37,7 +43,19 @@ function getPostLoginDestination(): string | undefined {
 
 onMounted(() => {
   void loadRegistrationStatus()
+  if (isNativeApp()) void loadNativeSignInOptions()
 })
+
+async function loadNativeSignInOptions() {
+  try {
+    nativeUsername.value = (await restoreNativeAccount()) ?? ''
+    const status = await getNativeBiometricLoginStatus()
+    biometricAvailable.value = status.available
+    biometricLoginAvailable.value = status.saved
+  } catch (error) {
+    console.warn('[native-auth] Could not load native sign-in options', error)
+  }
+}
 
 async function loadRegistrationStatus() {
   registrationStatusError.value = ''
@@ -57,9 +75,42 @@ function switchAuthMode() {
   })
 }
 
-async function completeAuthentication(accessToken: string) {
+async function completeAuthentication(result: AuthResult, biometricCredentials?: { username: string; password: string }) {
   useProfile().clear()
-  saveAccessToken(accessToken)
+  saveAccessToken(result.accessToken)
+  if (isNativeApp()) {
+    if (!nativeUsername.value) {
+      try {
+        nativeUsername.value = (await restoreNativeAccount()) ?? ''
+      } catch (error) {
+        console.warn('[native-account] Could not check the previously saved account', error)
+      }
+    }
+    const accountChanged = nativeUsername.value && nativeUsername.value.toLowerCase() !== result.user.username.toLowerCase()
+    try {
+      await saveNativeAccount(result.user.username)
+      nativeUsername.value = result.user.username
+    } catch (error) {
+      console.warn('[native-account] Could not save the account for reinstall recovery', error)
+      notify.error(t('auth.rememberAccountFailed'))
+    }
+    if (biometricCredentials) {
+      try {
+        await saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password)
+      } catch (error) {
+        console.warn('[native-auth] Could not enable biometric sign-in', error)
+        notify.error(t('auth.biometricSetupFailed'))
+      }
+    } else if (accountChanged) {
+      try {
+        await removeNativeBiometricCredentials()
+        biometricLoginAvailable.value = false
+      } catch (error) {
+        console.warn('[native-auth] Could not remove credentials for the previous account', error)
+        notify.error(t('auth.biometricRemoveFailed'))
+      }
+    }
+  }
   await syncLocaleFromAccount()
 
   const redirect = route.query.redirect
@@ -68,7 +119,7 @@ async function completeAuthentication(accessToken: string) {
   await router.replace(destination)
 }
 
-async function handleLogin(credentials: { username: string; password: string }) {
+async function handleLogin(credentials: { username: string; password: string; rememberBiometric: boolean }) {
   needsVerification.value = false
   lastCredentials = credentials
   isSubmitting.value = true
@@ -77,9 +128,10 @@ async function handleLogin(credentials: { username: string; password: string }) 
     const result = await login(credentials.username, credentials.password)
     if ('passkeyRequired' in result) {
       passkeyTicket.value = result.ticket
+      biometricCredentialsForSecondFactor.value = credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : null
       return
     }
-    await completeAuthentication(result.accessToken)
+    await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined)
   } catch (error: unknown) {
     const message = axios.isAxiosError(error) ? String((error.response?.data as { message?: unknown } | undefined)?.message ?? '') : ''
     // Disabled accounts also answer 403, but resending verification can't help them.
@@ -95,13 +147,24 @@ async function handleSecondFactor() {
 
   try {
     if (isNativeApp()) {
+      const biometricCredentials = biometricCredentialsForSecondFactor.value
+      if (biometricCredentials) {
+        try {
+          await saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password)
+          biometricLoginAvailable.value = true
+        } catch (error) {
+          console.warn('[native-auth] Could not enable biometric sign-in', error)
+          notify.error(t('auth.biometricSetupFailed'))
+        }
+      }
       await beginNativePasskeyHandoff(passkeyTicket.value, getPostLoginDestination())
       return
     }
 
     const result = await loginWithPasskeySecondFactor(passkeyTicket.value)
     passkeyTicket.value = ''
-    await completeAuthentication(result.accessToken)
+    await completeAuthentication(result, biometricCredentialsForSecondFactor.value ?? undefined)
+    biometricCredentialsForSecondFactor.value = null
   } catch (error: unknown) {
     console.error('[passkey] second factor failed', error)
     if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -151,12 +214,54 @@ async function handlePasskeyLogin() {
     }
 
     const result = await loginWithPasskey()
-    await completeAuthentication(result.accessToken)
+    await completeAuthentication(result)
   } catch (error: unknown) {
     console.error('[passkey] login failed', error)
     notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: error.message }) : getRequestErrorMessage(error, false))
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function handleBiometricLogin() {
+  isSubmitting.value = true
+  try {
+    const credentials = await getNativeBiometricCredentials()
+    lastCredentials = credentials
+    const result = await login(credentials.username, credentials.password)
+    if ('passkeyRequired' in result) {
+      biometricCredentialsForSecondFactor.value = credentials
+      passkeyTicket.value = result.ticket
+      return
+    }
+    await completeAuthentication(result)
+  } catch (error: unknown) {
+    const errorCode = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'number' ? error.code : undefined
+    if (errorCode === BiometricAuthError.USER_CANCEL || errorCode === BiometricAuthError.SYSTEM_CANCEL || errorCode === BiometricAuthError.APP_CANCEL) return
+    console.error('[native-auth] Biometric sign-in failed', error)
+    if (errorCode === BiometricAuthError.NO_PROTECTED_CREDENTIALS_FOUND) {
+      biometricLoginAvailable.value = false
+      try {
+        await removeNativeBiometricCredentials()
+      } catch (removeError) {
+        console.warn('[native-auth] Could not remove stale biometric credentials', removeError)
+      }
+      notify.error(t('auth.biometricCredentialsUnavailable'))
+      return
+    }
+    notify.error(getRequestErrorMessage(error, false))
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+async function handleForgetBiometricLogin() {
+  try {
+    await removeNativeBiometricCredentials()
+    biometricLoginAvailable.value = false
+  } catch (error) {
+    console.error('[native-auth] Could not remove biometric sign-in', error)
+    notify.error(t('auth.biometricRemoveFailed'))
   }
 }
 
@@ -173,7 +278,7 @@ async function handleRegistration(credentials: { username: string; password: str
       pendingVerificationEmail.value = result.email
       return
     }
-    await completeAuthentication(result.accessToken)
+    await completeAuthentication(result)
   } catch (error: unknown) {
     notify.error(getRequestErrorMessage(error, true))
   } finally {
@@ -248,7 +353,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
           <div :key="pendingVerificationEmail ? 'verification' : passkeyTicket ? 'second-factor' : isRegistration ? 'registration' : 'login'">
             <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />
             <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor" @back="cancelSecondFactor" />
-            <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :can-resend="needsVerification" :is-resending="isResending" @submit="handleLogin" @passkey="handlePasskeyLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" />
+            <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" />
             <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" @submit="handleRegistration" @switch-mode="switchAuthMode" />
           </div>
         </Transition>

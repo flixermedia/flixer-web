@@ -5,6 +5,7 @@ import { expectedPosition } from './partyClock'
 const snapshot = (playing: boolean): PartySnapshot => ({
   id: 'abc12345',
   kind: 'video',
+  visibility: 'public',
   host: { id: 'h', username: 'host', displayName: 'Host', avatarUrl: null },
   item: {} as PartySnapshot['item'],
   playing,

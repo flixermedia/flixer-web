@@ -1291,7 +1291,7 @@ export async function deleteNetworkShare(id: string): Promise<void> {
 }
 export interface AppNotification {
   id: string
-  kind: 'new_media' | 'admin' | 'request'
+  kind: 'new_media' | 'admin' | 'request' | 'message' | 'friend_request'
   title: string
   body: string
   url: string | null
@@ -1845,6 +1845,9 @@ export interface Profile {
   joinedAt: string
   isSelf: boolean
   hidden: boolean
+  visibility: 'public' | 'hidden' | 'friends'
+  friendship: 'self' | 'none' | 'incoming' | 'outgoing' | 'friends'
+  isFriend: boolean
   nowPlaying: { kind: 'watching' | 'listening'; item: SocialItem; positionSeconds: number; durationSeconds: number | null } | null
   party?: PartySummary | null
   recentlyWatched: SocialItem[]
@@ -1928,8 +1931,58 @@ export async function getSocialProfile(username: string): Promise<Profile> {
   return (await api.get<Profile>(`/profiles/${encodeURIComponent(username)}`)).data
 }
 
-export async function updateMySocialProfile(changes: { hidden: boolean }): Promise<{ hidden: boolean }> {
-  return (await api.put<{ hidden: boolean }>('/profiles/me', changes)).data
+export async function updateMySocialProfile(changes: { visibility: Profile['visibility'] }): Promise<{ visibility: Profile['visibility'] }> {
+  return (await api.put<{ visibility: Profile['visibility'] }>('/profiles/me', changes)).data
+}
+
+export interface FriendPerson {
+  id: string
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export interface FriendLists {
+  friends: FriendPerson[]
+  incoming: FriendPerson[]
+  outgoing: FriendPerson[]
+}
+
+export async function getFriends(): Promise<FriendLists> {
+  return (await api.get<FriendLists>('/friends')).data
+}
+
+export async function requestFriend(username: string): Promise<{ status: 'outgoing' | 'incoming' | 'friends' }> {
+  return (await api.post<{ status: 'outgoing' | 'incoming' | 'friends' }>(`/friends/${encodeURIComponent(username)}`)).data
+}
+
+export async function acceptFriend(username: string): Promise<void> {
+  await api.post(`/friends/${encodeURIComponent(username)}/accept`)
+}
+
+export async function removeFriend(username: string): Promise<void> {
+  await api.delete(`/friends/${encodeURIComponent(username)}`)
+}
+
+export interface FriendInvite {
+  username: string
+  displayName: string
+  avatarUrl: string | null
+  friendship: Profile['friendship']
+}
+
+export type FriendInviteMode = 'once' | 'unlimited' | 'expires'
+
+export async function createFriendInvite(username: string, options: { mode: FriendInviteMode; expiresInHours?: number }): Promise<{ token: string; expiresAt: string | null }> {
+  return (await api.post<{ token: string; expiresAt: string | null }>(`/friends/invites/${encodeURIComponent(username)}`, options)).data
+}
+
+export async function getFriendInvite(token: string): Promise<FriendInvite> {
+  return (await api.get<FriendInvite>(`/friends/invites/${encodeURIComponent(token)}`)).data
+}
+
+export async function acceptFriendInvite(token: string): Promise<{ status: 'friends' }> {
+  return (await api.post<{ status: 'friends' }>(`/friends/invites/${encodeURIComponent(token)}/accept`)).data
 }
 
 export async function reportListening(itemId: string, state: 'playing' | 'stopped'): Promise<void> {
@@ -1953,6 +2006,7 @@ export interface PartyChatMessage {
 export interface PartySnapshot {
   id: string
   kind: 'video' | 'music'
+  visibility: 'public' | 'friends' | 'private'
   host: PartyPerson
   item: SocialItem
   playing: boolean
@@ -1970,8 +2024,8 @@ export interface PartySummary {
   memberCount: number
 }
 
-export async function createParty(itemId: string): Promise<PartySnapshot> {
-  return (await api.post<PartySnapshot>('/parties', { itemId })).data
+export async function createParty(itemId: string, visibility: PartySnapshot['visibility']): Promise<PartySnapshot> {
+  return (await api.post<PartySnapshot>('/parties', { itemId, visibility })).data
 }
 
 export async function getParty(id: string): Promise<PartySnapshot> {

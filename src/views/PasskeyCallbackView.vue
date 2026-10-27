@@ -6,6 +6,8 @@ import { exchangeNativePasskeyHandoff, saveAccessToken } from '../api'
 import { clearPendingNativePasskeyHandoff, getPendingNativePasskeyHandoff } from '../platform/passkeyHandoff'
 import { syncLocaleFromAccount } from '../i18n'
 import { useProfile } from '../composables/useProfile'
+import { saveNativeAccount } from '../platform/nativeAccount'
+import { notify } from '../composables/notify'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +45,12 @@ async function completeHandoff() {
     clearPendingNativePasskeyHandoff()
     useProfile().clear()
     saveAccessToken(result.accessToken)
+    try {
+      await saveNativeAccount(result.user.username)
+    } catch (saveError) {
+      console.warn('[native-account] Could not save the account for reinstall recovery', saveError)
+      notify.error(t('auth.rememberAccountFailed'))
+    }
     await syncLocaleFromAccount()
     const redirect = pending.redirect
     const destination = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'

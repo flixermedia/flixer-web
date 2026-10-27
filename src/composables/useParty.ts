@@ -1,5 +1,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
+import { openModal } from '@kolirt/vue-modal'
 import { createParty, endParty, getAccessToken, type PartyChatMessage, type PartySnapshot, type SocialItem } from '../api'
+import PartyVisibilityModal from '../components/party/PartyVisibilityModal.vue'
 import { i18n } from '../i18n'
 import { notify } from './notify'
 import { expectedPosition, type PartyState } from './partyClock'
@@ -273,10 +275,12 @@ async function leaveParty() {
 }
 
 export function useParty() {
-  async function start(itemId: string): Promise<PartySnapshot> {
+  async function start(itemId: string): Promise<PartySnapshot | null> {
+    const visibility = await openModal<PartySnapshot['visibility']>(PartyVisibilityModal).catch(() => null)
+    if (!visibility) return null
     await loadProfile()
     if (wantedId) await leave()
-    const created = await createParty(itemId)
+    const created = await createParty(itemId, visibility)
     return open(created.id)
   }
 

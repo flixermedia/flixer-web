@@ -17,8 +17,20 @@ project(':capacitor-haptics').projectDir = new File('../node_modules/@capacitor/
 include ':capacitor-push-notifications'
 project(':capacitor-push-notifications').projectDir = new File('../node_modules/@capacitor/push-notifications/android')
 
+include ':capacitor-share'
+project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/share/android')
+
 include ':capacitor-splash-screen'
 project(':capacitor-splash-screen').projectDir = new File('../node_modules/@capacitor/splash-screen/android')
+
+include ':capgo-capacitor-native-biometric'
+project(':capgo-capacitor-native-biometric').projectDir = new File('../node_modules/@capgo/capacitor-native-biometric/android')
+
+include ':capgo-capacitor-persistent-account'
+project(':capgo-capacitor-persistent-account').projectDir = new File('../node_modules/@capgo/capacitor-persistent-account/android')
+
+include ':capgo-capacitor-textinteraction'
+project(':capgo-capacitor-textinteraction').projectDir = new File('../node_modules/@capgo/capacitor-textinteraction/android')
 
 include ':capgo-capacitor-video-player'
 project(':capgo-capacitor-video-player').projectDir = new File('../node_modules/@capgo/capacitor-video-player/android')

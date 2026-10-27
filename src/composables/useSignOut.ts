@@ -4,8 +4,11 @@ import { useRouter } from 'vue-router'
 import { logout } from '../api'
 import { i18n } from '../i18n'
 import { notify } from './notify'
+import { useAudioPlayer } from './useAudioPlayer'
+import { useParty } from './useParty'
 import { clearPluginPages } from './usePluginPages'
 import { useProfile } from './useProfile'
+import { useVideoOverlay } from './useVideoOverlay'
 
 export function useSignOut() {
   const router = useRouter()
@@ -15,6 +18,9 @@ export function useSignOut() {
     isSigningOut.value = true
 
     try {
+      useAudioPlayer().stop()
+      useVideoOverlay().close()
+      await useParty().leave()
       await logout()
       useProfile().clear()
       clearPluginPages()

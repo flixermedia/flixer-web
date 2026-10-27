@@ -14,7 +14,11 @@ dependencies {
     implementation project(':capacitor-clipboard')
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-push-notifications')
+    implementation project(':capacitor-share')
     implementation project(':capacitor-splash-screen')
+    implementation project(':capgo-capacitor-native-biometric')
+    implementation project(':capgo-capacitor-persistent-account')
+    implementation project(':capgo-capacitor-textinteraction')
     implementation project(':capgo-capacitor-video-player')
 
 }

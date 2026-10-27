@@ -106,7 +106,8 @@ async function startParty() {
   if (!id || partyBusy.value) return
   partyBusy.value = true
   try {
-    await party.start(id)
+    const started = await party.start(id)
+    if (!started) return
     if (isTrack.value) await playTrackPage()
     else if (playTarget.value) play(playTarget.value)
   } catch {

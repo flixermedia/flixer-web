@@ -33,7 +33,8 @@ async function onParty() {
       await navigator.clipboard.writeText(party.inviteLink())
       notify.success(t('party.linkCopied'))
     } else {
-      await party.start(current.value.id)
+      const started = await party.start(current.value.id)
+      if (!started) return
     }
   } catch {
     notify.error(t(hostingListen.value ? 'party.copyFailed' : 'party.startFailed'))
