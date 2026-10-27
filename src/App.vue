@@ -18,27 +18,44 @@ if (getAccessToken()) void useParty().resume()
 </script>
 
 <template>
+  <!-- Main application view -->
   <RouterView v-slot="{ Component, route }">
     <Transition name="page" mode="out-in">
       <component :is="Component" :key="route.path" />
     </Transition>
   </RouterView>
+
+  <!-- Player components -->
   <MiniPlayer />
   <PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" @close="closeVideo" />
+  
+  <!-- Lyrics view -->
   <Transition name="lyrics">
     <LyricsView v-if="lyricsOpen" />
   </Transition>
+
+  <!-- Idle splash -->
   <Transition name="idle">
     <IdleSplash v-if="idle.active.value" />
   </Transition>
+
+  <!-- Offline banner -->
   <OfflineBanner />
 
+  <!-- Modal target -->
   <ModalTarget group="default" class="z-50">
     <ModalOverlay class="flixer-modal-overlay" />
   </ModalTarget>
 </template>
 
 <style>
+
+html.capacitor main.page-gutter {
+  padding-top: max(env(safe-area-inset-top, 0px), 10.5rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+}
+
+
 .lyrics-enter-active {
   transition:
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),

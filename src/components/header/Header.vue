@@ -79,7 +79,7 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
 </script>
 
 <template>
-  <header class="fixed inset-x-0 top-0 z-40 transition-[padding] duration-300 ease-out" :class="scrolled ? 'p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
+  <header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="scrolled ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
     <nav class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'md:grid-cols-[auto_auto_1fr]' : 'md:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded-lg border-white/10 bg-flixer-background/30']" :aria-label="t('header.mainNavigation')">
       <RouterLink class="flex items-center gap-2.5 justify-self-start rounded-lg pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
         <img :src="logoUrl" alt="" class="size-10" />
@@ -140,3 +140,19 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
     </nav>
   </header>
 </template>
+
+<style scoped>
+html.capacitor .app-header {
+  top: max(env(safe-area-inset-top, 0px), 3.5rem);
+}
+
+html.capacitor .app-header.is-scrolled {
+  top: 0;
+  padding-top: max(env(safe-area-inset-top, 0px), 3.5rem);
+  background: var(--color-flixer-background);
+}
+
+html.capacitor .app-header.is-scrolled nav {
+  padding-bottom: 10px;
+}
+</style>

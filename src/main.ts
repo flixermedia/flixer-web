@@ -19,6 +19,7 @@ declare module '@kolirt/vue-modal' {
 }
 
 const app = createApp(App)
+document.documentElement.classList.toggle('capacitor', Capacitor.isNativePlatform())
 initTheme()
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {

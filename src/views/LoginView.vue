@@ -184,12 +184,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </script>
 
 <template>
-  <main class="relative isolate min-h-screen overflow-hidden bg-flixer-background font-sans text-flixer-text lg:grid lg:grid-cols-2">
-    <!-- Full-page decorative background on mobile and tablet -->
-    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden lg:hidden" aria-hidden="true">
-      <div class="absolute -left-24 top-1/3 size-80 rounded-full bg-flixer-primary/20 blur-3xl"></div>
-      <div class="absolute -right-20 top-0 size-72 rounded-full bg-flixer-cyan/10 blur-3xl"></div>
-    </div>
+  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text lg:grid lg:grid-cols-2">
 
     <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" :aria-label="t('auth.welcomeToFlixer')">
       <!-- Decorative background elements -->
@@ -198,7 +193,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
       <!-- Logo and navigation -->
       <RouterLink class="mx-auto lg:mx-0 relative z-10 inline-flex w-fit items-center lg:gap-3 text-flixer-text no-underline" to="/" :aria-label="t('auth.flixerHome')">
-        <img :src="logo" alt="" class="size-20 mt-4 lg:mt-0 lg:size-10 rounded-xl shadow-lg" aria-hidden="true" />
+        <img :src="logo" alt="" class="size-20 mt-15 lg:mt-0 lg:size-10 rounded-xl shadow-lg" aria-hidden="true" />
         <span class="hidden lg:inline text-2xl font-bold tracking-tight">{{ t('auth.brandName') }}</span>
       </RouterLink>
 
@@ -257,6 +252,15 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </template>
 
 <style scoped>
+:global(html:has(.login-background)),
+:global(body:has(.login-background)),
+.login-background {
+  background:
+    radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent),
+    radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent),
+    var(--color-flixer-background);
+}
+
 .auth-slide-left-enter-active,
 .auth-slide-left-leave-active,
 .auth-slide-right-enter-active,

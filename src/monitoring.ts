@@ -40,6 +40,6 @@ export async function initMonitoring(app: App): Promise<void> {
     dsn: config.dsn,
     environment: import.meta.env.MODE,
     // Errors the app catches and only logs would otherwise never reach Sentry.
-    // integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
+    integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
   })
 }
