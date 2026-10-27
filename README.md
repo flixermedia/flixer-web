@@ -88,6 +88,7 @@ Ensure you have the following installed on your local machine:
 Flixer Web also includes Capacitor projects for iOS and Android. Web deployment remains the primary build and continues
 to use the same-origin `/api` endpoint. On first launch, a native app asks for the Flixer server's HTTPS address and
 saves it on that device. The API and streamer must allow the native WebView origin `https://localhost`.
+The native launch splash uses Flixer's dark violet-and-indigo branding, hides when the initial app route is ready, and automatically hides after three seconds as a fallback.
 
 ```sh
 npm run cap:sync

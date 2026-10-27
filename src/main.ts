@@ -1,5 +1,6 @@
 import { createModal, type DefineGroups } from '@kolirt/vue-modal'
 import { Capacitor } from '@capacitor/core'
+import { SplashScreen } from '@capacitor/splash-screen'
 import { createApp } from 'vue'
 import { registerSW } from 'virtual:pwa-register'
 import Vue3Toastify from 'vue3-toastify'
@@ -34,6 +35,10 @@ app.use(Vue3Toastify, toastContainerOptions)
 app.use(createModal({ groups: { default: {} } }))
 await initLocale()
 app.mount('#app')
+if (Capacitor.isNativePlatform()) {
+  await router.isReady()
+  await SplashScreen.hide()
+}
 void initMonitoring(app)
 void syncLocaleFromAccount()
 

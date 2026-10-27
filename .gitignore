@@ -27,3 +27,4 @@ dist-ssr
 certs/
 
 data/
+.DS_Store

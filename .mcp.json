@@ -1,0 +1,15 @@
+{
+	"mcpServers": {
+		"mirroir": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"mirroir-mcp"
+			],
+			"tools": [
+				"*"
+			]
+		}
+	}
+}

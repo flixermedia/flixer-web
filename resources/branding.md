@@ -2,6 +2,9 @@
 
 Flixer uses a dark, cinematic interface with translucent charcoal surfaces, a violet-to-indigo brand gradient, and restrained cyan-teal highlights. The theme is defined in [`src/tailwind.css`](../src/tailwind.css) and applied with Tailwind CSS utilities; use the existing tokens rather than introducing one-off colors or component styles.
 
+The native launch-screen artwork is maintained in [`splash/flixer-splash.svg`](splash/flixer-splash.svg) and rasterized into the iOS and Android asset catalogs.
+The homescreen app icon uses [`logo/flixer-app-icon.svg`](logo/flixer-app-icon.svg) as its opaque, square source artwork.
+
 ## Visual direction
 
 - **Cinematic and focused:** near-black page backgrounds keep attention on media and account tasks.
