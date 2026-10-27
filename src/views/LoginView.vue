@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
+import { SavePassword } from '@capgo/capacitor-autofill-save-password'
 import logo from '../../resources/logo/flixer-logo.svg'
 import LoginForm from '../components/auth/LoginForm.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
@@ -75,6 +76,21 @@ function switchAuthMode() {
   })
 }
 
+async function promptNativePasswordSave(username: string, password: string) {
+  if (!isNativeApp()) return
+
+  try {
+    await SavePassword.promptDialog({
+      username,
+      password,
+      url: window.location.hostname,
+      title: 'Flixer',
+    })
+  } catch (error) {
+    console.warn('[native-auth] Password manager save prompt failed', error)
+  }
+}
+
 async function completeAuthentication(result: AuthResult, biometricCredentials?: { username: string; password: string }) {
   useProfile().clear()
   saveAccessToken(result.accessToken)
@@ -131,6 +147,7 @@ async function handleLogin(credentials: { username: string; password: string; re
       biometricCredentialsForSecondFactor.value = credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : null
       return
     }
+    await promptNativePasswordSave(credentials.username, credentials.password)
     await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined)
   } catch (error: unknown) {
     const message = axios.isAxiosError(error) ? String((error.response?.data as { message?: unknown } | undefined)?.message ?? '') : ''

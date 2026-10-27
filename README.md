@@ -97,7 +97,10 @@ npm run cap:ios
 ```
 
 Android builds require Android Studio and the Android SDK. iOS builds require macOS and Xcode. Passkeys and web push
-notifications are browser/PWA features and are not yet integrated with native platform APIs.
+notifications are browser/PWA features and are not yet integrated with native platform APIs. After a successful
+native username-and-password sign-in, Flixer asks the device password manager to offer saving the credentials;
+dismissing or failing that prompt does not interrupt sign-in. For password saving to work, configure iOS
+`webcredentials` associated domains and Android Digital Asset Links for the hostname serving the app.
 
 ---
 
