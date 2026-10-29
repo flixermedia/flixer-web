@@ -107,7 +107,7 @@ async function runCommand(operation: string, command: () => Promise<capVideoPlay
 
 function subtitleUrl(streamUrl: string, id: string) {
   const url = new URL(streamUrl, window.location.origin)
-  url.pathname = url.pathname.replace('/stream/', '/subtitles/')
+  url.pathname = url.pathname.replace('/streamer/stream/', '/streamer/subtitles/')
   url.searchParams.set('file', id)
   return url.toString()
 }

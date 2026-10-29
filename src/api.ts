@@ -383,7 +383,7 @@ export function buildStreamUrl(streamUrl: string, options: { height?: number; st
 }
 
 export function buildHlsUrl(streamUrl: string, options: { height?: number } = {}): string {
-  const base = `${streamUrl.replace('/stream/', '/hls/')}/index.m3u8`
+  const base = `${streamUrl.replace('/streamer/stream/', '/streamer/hls/')}/index.m3u8`
   return options.height ? `${base}?height=${options.height}` : base
 }
 
@@ -394,9 +394,9 @@ export function supportsNativeHls(): boolean {
   return canPlay !== '' && !/Chrome|Chromium|Edg\//.test(navigator.userAgent)
 }
 
-// The streamer is reached through the same-origin proxy (/stream, /info), not the Flixer API; the token in the URL is the credential.
+// The streamer is reached through the same-origin proxy (/streamer), not the Flixer API; the token in the URL is the credential.
 export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number } = {}): Promise<StreamInfo> {
-  const url = buildStreamUrl(streamUrl.replace('/stream/', '/info/'), options)
+  const url = buildStreamUrl(streamUrl.replace('/streamer/stream/', '/streamer/info/'), options)
   const response = await axios.get<StreamInfo>(url, { timeout: 20_000 })
   return response.data
 }
@@ -425,7 +425,7 @@ export interface PlayerSubtitle {
 /** Subtitle files beside the video, listed by the streamer for a stream token. Empty when there are none. */
 export async function getSubtitleTracks(streamUrl: string): Promise<PlayerSubtitle[]> {
   try {
-    const response = await axios.get<{ tracks: PlayerSubtitle[] }>(streamUrl.replace('/stream/', '/subtitles/'), { timeout: 20_000 })
+    const response = await axios.get<{ tracks: PlayerSubtitle[] }>(streamUrl.replace('/streamer/stream/', '/streamer/subtitles/'), { timeout: 20_000 })
     return response.data.tracks ?? []
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) return []
@@ -433,7 +433,7 @@ export async function getSubtitleTracks(streamUrl: string): Promise<PlayerSubtit
   }
 }
 
-/** How the streamer's hover-preview sheets are laid out; see `/trickplay/{token}/index.json`. */
+/** How the streamer's hover-preview sheets are laid out; see `/streamer/trickplay/{token}/index.json`. */
 export interface TrickplayManifest {
   intervalMs: number
   thumbWidth: number
@@ -451,7 +451,7 @@ export interface Trickplay {
 
 /** Hover-preview thumbnails for a video, or null when none have been generated for it yet. */
 export async function getTrickplay(streamUrl: string): Promise<Trickplay | null> {
-  const base = streamUrl.replace('/stream/', '/trickplay/')
+  const base = streamUrl.replace('/streamer/stream/', '/streamer/trickplay/')
   try {
     const response = await axios.get<TrickplayManifest>(`${base}/index.json`, { timeout: 10_000 })
     const manifest = response.data
@@ -464,7 +464,7 @@ export async function getTrickplay(streamUrl: string): Promise<Trickplay | null>
 
 /** WebVTT text for one subtitle file. */
 export async function getSubtitleText(streamUrl: string, id: string): Promise<string> {
-  const response = await axios.get<string>(streamUrl.replace('/stream/', '/subtitles/'), {
+  const response = await axios.get<string>(streamUrl.replace('/streamer/stream/', '/streamer/subtitles/'), {
     params: { file: id },
     responseType: 'text',
     transformResponse: (data: string) => data,
@@ -476,7 +476,7 @@ export async function getSubtitleText(streamUrl: string, id: string): Promise<st
 /** Raw LRC text for a track's stream token, or null when the track has no lyrics file. */
 export async function getTrackLyrics(streamUrl: string): Promise<string | null> {
   try {
-    const requestUrl = streamUrl.replace('/stream/', '/lyrics/')
+    const requestUrl = streamUrl.replace('/streamer/stream/', '/streamer/lyrics/')
     const response = await axios.get<string>(requestUrl, { responseType: 'text', transformResponse: (data: string) => data, timeout: 20_000 })
     return response.data
   } catch (error) {

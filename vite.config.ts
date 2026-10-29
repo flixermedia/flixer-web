@@ -8,6 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 const certPath = 'certs/origin.pem'
 const keyPath = 'certs/origin.key'
 const hasOriginCert = existsSync(certPath) && existsSync(keyPath)
+
 const env = loadEnv('development', process.cwd(), 'VITE_')
 const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8083'
 const streamerProxyTarget = env.VITE_STREAMER_PROXY_TARGET || 'http://localhost:8091'
@@ -82,34 +83,30 @@ export default defineConfig({
     allowedHosts: true,
     ...(hasOriginCert ? { https: { cert: readFileSync(certPath), key: readFileSync(keyPath) } } : {}),
     proxy: {
+      '/api/socket.io': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+        ws: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'))
+          proxy.on('proxyReqWs', (proxyReq) => proxyReq.removeHeader('origin'))
+        },
+      },
       '/api': {
         target: apiProxyTarget,
         changeOrigin: true,
         ws: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'))
+          proxy.on('proxyReqWs', (proxyReq) => proxyReq.removeHeader('origin'))
+        },
       },
-      '/stream': {
+      '/streamer': {
         target: streamerProxyTarget,
         changeOrigin: true,
-      },
-      '/info': {
-        target: streamerProxyTarget,
-        changeOrigin: true,
-      },
-      '/hls': {
-        target: streamerProxyTarget,
-        changeOrigin: true,
-      },
-      '/lyrics': {
-        target: streamerProxyTarget,
-        changeOrigin: true,
-      },
-      '/subtitles': {
-        target: streamerProxyTarget,
-        changeOrigin: true,
-      },
-      '/trickplay': {
-        target: streamerProxyTarget,
-        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'))
+        },
       },
     },
   },

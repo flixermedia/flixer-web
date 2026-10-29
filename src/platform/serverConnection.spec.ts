@@ -51,7 +51,7 @@ describe('native server URL', () => {
     const { buildApiWebSocketUrl, getApiBaseUrl, resolveServerResourceUrl, saveNativeServerUrl } = await import('./serverConnection')
     saveNativeServerUrl('https://flixer.example.com')
     expect(getApiBaseUrl()).toBe('https://flixer.example.com/api')
-    expect(resolveServerResourceUrl('/stream/token')).toBe('https://flixer.example.com/stream/token')
+    expect(resolveServerResourceUrl('/streamer/stream/token')).toBe('https://flixer.example.com/streamer/stream/token')
     expect(buildApiWebSocketUrl('/live')).toBe('wss://flixer.example.com/api/live')
   })
 
@@ -60,14 +60,14 @@ describe('native server URL', () => {
     platform.native = true
     const { getApiBaseUrl, resolveServerResourceUrl } = await import('./serverConnection')
     expect(getApiBaseUrl()).toBe('/api')
-    const streamUrl = new URL(resolveServerResourceUrl('https://flixer.example.com/stream/token?quality=high'))
+    const streamUrl = new URL(resolveServerResourceUrl('https://flixer.example.com/streamer/stream/token?quality=high'))
     expect(streamUrl.origin).toBe(window.location.origin)
-    expect(`${streamUrl.pathname}${streamUrl.search}`).toBe('/stream/token?quality=high')
+    expect(`${streamUrl.pathname}${streamUrl.search}`).toBe('/streamer/stream/token?quality=high')
   })
 
   it('uses relative streamer paths for browser development', async () => {
     vi.stubEnv('DEV', true)
     const { resolveServerResourceUrl } = await import('./serverConnection')
-    expect(resolveServerResourceUrl('https://flixer.example.com/stream/token')).toBe('/stream/token')
+    expect(resolveServerResourceUrl('https://flixer.example.com/streamer/stream/token')).toBe('/streamer/stream/token')
   })
 })
