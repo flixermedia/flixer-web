@@ -37,6 +37,7 @@ export function forgetNativeServerUrl(): void {
 }
 
 export function getApiBaseUrl(): string {
+  if (import.meta.env.DEV) return '/api'
   if (isNativeApp()) {
     const serverUrl = getNativeServerUrl()
     return serverUrl ? `${serverUrl}/api` : '/api'
@@ -45,6 +46,11 @@ export function getApiBaseUrl(): string {
 }
 
 export function resolveServerResourceUrl(path: string): string {
+  if (import.meta.env.DEV) {
+    const url = new URL(path, window.location.origin)
+    const proxiedPath = `${url.pathname}${url.search}`
+    return isNativeApp() ? new URL(proxiedPath, window.location.origin).toString() : proxiedPath
+  }
   if (!isNativeApp() || /^https?:\/\//i.test(path)) return path
   const serverUrl = getNativeServerUrl()
   if (!serverUrl) return path

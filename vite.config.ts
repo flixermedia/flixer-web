@@ -2,12 +2,15 @@ import tailwindcss from '@tailwindcss/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import vue from '@vitejs/plugin-vue'
 import { existsSync, readFileSync } from 'node:fs'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const certPath = 'certs/origin.pem'
 const keyPath = 'certs/origin.key'
 const hasOriginCert = existsSync(certPath) && existsSync(keyPath)
+const env = loadEnv('development', process.cwd(), 'VITE_')
+const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8083'
+const streamerProxyTarget = env.VITE_STREAMER_PROXY_TARGET || 'http://localhost:8091'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -80,32 +83,32 @@ export default defineConfig({
     ...(hasOriginCert ? { https: { cert: readFileSync(certPath), key: readFileSync(keyPath) } } : {}),
     proxy: {
       '/api': {
-        target: 'http://localhost:8083',
+        target: apiProxyTarget,
         changeOrigin: true,
         ws: true,
       },
       '/stream': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
       '/info': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
       '/hls': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
       '/lyrics': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
       '/subtitles': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
       '/trickplay': {
-        target: 'http://localhost:8091',
+        target: streamerProxyTarget,
         changeOrigin: true,
       },
     },

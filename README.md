@@ -47,7 +47,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. `VITE_API_BASE_URL` defaults to `/api` and the Vite development proxy targets `http://localhost:8083`. Change your API configuration only if the backend is elsewhere.
+Open `http://localhost:5173`. Development API and streamer requests use same-origin Vite proxies, targeting `http://localhost:8083` and `http://localhost:8091` by default. Override those targets with `VITE_API_PROXY_TARGET` and `VITE_STREAMER_PROXY_TARGET` when the services are elsewhere.
 
 ### Native projects
 
@@ -63,11 +63,12 @@ Android requires Android Studio/SDK; iOS requires macOS/Xcode. Native app setup 
 
 | Setting | Role |
 | --- | --- |
-| `VITE_API_BASE_URL` | API prefix; defaults to `/api`. |
-| Vite proxy | Routes `/api` to `http://localhost:8083` during local development. |
+| `VITE_API_BASE_URL` | API prefix for non-development web builds; defaults to `/api`. |
+| `VITE_API_PROXY_TARGET` | API target for the development proxy; defaults to `http://localhost:8083`. |
+| `VITE_STREAMER_PROXY_TARGET` | Streamer target for development proxies; defaults to `http://localhost:8091`. |
 | Native server address | HTTPS backend address saved by the mobile app after first launch. |
 
-Browser sessions are checked against the API, with access tokens kept in session-scoped storage. The native WebView origin (`https://localhost`) must be permitted by applicable API and streamer origin configuration.
+Browser sessions are checked against the API, with access tokens kept in session-scoped storage. Vite handles development proxying; the production Nginx proxy handles CORS for native WebView origins.
 
 ## 🧱 Technology
 

@@ -476,7 +476,8 @@ export async function getSubtitleText(streamUrl: string, id: string): Promise<st
 /** Raw LRC text for a track's stream token, or null when the track has no lyrics file. */
 export async function getTrackLyrics(streamUrl: string): Promise<string | null> {
   try {
-    const response = await axios.get<string>(streamUrl.replace('/stream/', '/lyrics/'), { responseType: 'text', transformResponse: (data: string) => data, timeout: 20_000 })
+    const requestUrl = streamUrl.replace('/stream/', '/lyrics/')
+    const response = await axios.get<string>(requestUrl, { responseType: 'text', transformResponse: (data: string) => data, timeout: 20_000 })
     return response.data
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) return null
