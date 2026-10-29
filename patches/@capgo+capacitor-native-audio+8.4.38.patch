@@ -1,0 +1,44 @@
+diff --git a/node_modules/@capgo/capacitor-native-audio/ios/Sources/NativeAudioPlugin/Plugin.swift b/node_modules/@capgo/capacitor-native-audio/ios/Sources/NativeAudioPlugin/Plugin.swift
+index b6ccd3c..3c87d05 100644
+--- a/node_modules/@capgo/capacitor-native-audio/ios/Sources/NativeAudioPlugin/Plugin.swift
++++ b/node_modules/@capgo/capacitor-native-audio/ios/Sources/NativeAudioPlugin/Plugin.swift
+@@ -373,22 +373,25 @@ public class NativeAudio: CAPPlugin, AVAudioPlayerDelegate, CAPBridgedPlugin {
+             return .success
+         }
+ 
+-        // Skip forward command
+-        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: 15)]
+-        commandCenter.skipForwardCommand.isEnabled = true
+-        commandCenter.skipForwardCommand.addTarget { [weak self] event in
+-            guard let self else { return .commandFailed }
+-            guard let skipEvent = event as? MPSkipIntervalCommandEvent else { return .commandFailed }
+-            return self.handleSeekCommand(delta: skipEvent.interval)
++        commandCenter.skipForwardCommand.isEnabled = false
++        commandCenter.skipBackwardCommand.isEnabled = false
++
++        commandCenter.nextTrackCommand.isEnabled = true
++        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
++            guard let self, let assetId = self.currentlyPlayingAssetId else {
++                return .noSuchContent
++            }
++            self.notifyPlaybackState(assetId: assetId, reason: "remoteNextTrack")
++            return .success
+         }
+ 
+-        // Skip backward command
+-        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: 15)]
+-        commandCenter.skipBackwardCommand.isEnabled = true
+-        commandCenter.skipBackwardCommand.addTarget { [weak self] event in
+-            guard let self else { return .commandFailed }
+-            guard let skipEvent = event as? MPSkipIntervalCommandEvent else { return .commandFailed }
+-            return self.handleSeekCommand(delta: -skipEvent.interval)
++        commandCenter.previousTrackCommand.isEnabled = true
++        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
++            guard let self, let assetId = self.currentlyPlayingAssetId else {
++                return .noSuchContent
++            }
++            self.notifyPlaybackState(assetId: assetId, reason: "remotePreviousTrack")
++            return .success
+         }
+ 
+         // Scrub / change position command

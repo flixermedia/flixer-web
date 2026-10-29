@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
 import { NativeAudio } from '@capgo/capacitor-native-audio'
 import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics, reportListening } from '../api'
 import { parseLrc, type ParsedLyrics } from './lrc'
@@ -28,6 +29,10 @@ interface AudioForegroundPlugin {
 }
 const androidAudioForeground = Capacitor.getPlatform() === 'android' ? registerPlugin<AudioForegroundPlugin>('AudioForeground') : null
 const NATIVE_NOTIFICATION_ASSET_PREFIX = 'flixer-track-'
+
+function usingNativeAsset() {
+  return nativePlayback && nativeAssetId !== null
+}
 
 const queue = ref<QueueTrack[]>([])
 const order = ref<number[]>([])
@@ -61,11 +66,41 @@ function reportNativeError(operation: string, cause: unknown) {
 }
 
 function startAndroidAudioForegroundService() {
-  return androidAudioForeground?.start() ?? Promise.resolve()
+  return (
+    androidAudioForeground?.start().catch((cause: unknown) => {
+      console.warn('Android audio foreground service is unavailable; background playback may be limited', cause)
+    }) ?? Promise.resolve()
+  )
 }
 
 function stopAndroidAudioForegroundService() {
-  return androidAudioForeground?.stop() ?? Promise.resolve()
+  return (
+    androidAudioForeground?.stop().catch((cause: unknown) => {
+      console.warn('Could not stop the Android audio foreground service', cause)
+    }) ?? Promise.resolve()
+  )
+}
+
+async function cacheNativeArtwork(track: QueueTrack): Promise<string | undefined> {
+  if (!track.art) return undefined
+  const { itemId, index, version } = track.art
+  const path = `flixer-art-${encodeURIComponent(itemId)}-${index}-${encodeURIComponent(version ?? 'current')}.jpg`
+  const blob = await fetchHomeImage(itemId, index, 512, version)
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Could not encode album artwork'))
+        return
+      }
+      resolve(reader.result.slice(reader.result.indexOf(',') + 1))
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read album artwork'))
+    reader.readAsDataURL(blob)
+  })
+  await Filesystem.writeFile({ path, data: base64, directory: Directory.Cache })
+  const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
+  return uri
 }
 
 function initializeNativeAudio(): Promise<void> {
@@ -97,6 +132,8 @@ function initializeNativeAudio(): Promise<void> {
 
         if (event.reason === 'remotePlay') requestPartyControl({ action: 'play' })
         else if (event.reason === 'remotePause' || event.reason === 'remoteStop') requestPartyControl({ action: 'pause' })
+        else if (event.reason === 'remoteNextTrack') next()
+        else if (event.reason === 'remotePreviousTrack') previous()
       })
       await NativeAudio.addListener('complete', (event) => {
         if (event.assetId !== nativeAssetId) return
@@ -162,38 +199,63 @@ function setNativeRate(rate: number) {
 }
 
 async function loadNativeTrack(streamUrl: string, track: QueueTrack, token: number, autoplay: boolean) {
-  await initializeNativeAudio()
-  await stopAndroidAudioForegroundService()
-  await unloadNativeAsset()
-  if (token !== loadToken) return
-  const assetId = `${NATIVE_NOTIFICATION_ASSET_PREFIX}${token}`
-  nativeAssetId = assetId
-  await NativeAudio.preload({
-    assetId,
-    assetPath: streamUrl,
-    isUrl: true,
-    volume: volume.value,
-    notificationMetadata: {
-      title: track.title,
-      artist: track.artist ?? '',
-      album: track.album ?? '',
-    },
-  })
-  if (token !== loadToken) {
+  let assetId: string | null = null
+  try {
+    await initializeNativeAudio()
+    await stopAndroidAudioForegroundService()
     await unloadNativeAsset()
-    return
-  }
-  const metadata = await NativeAudio.getDuration({ assetId })
-  if (Number.isFinite(metadata.duration)) duration.value = metadata.duration
-  prefetchNext()
-  void loadLyrics(streamUrl, token)
-  if (autoplay) {
-    await startAndroidAudioForegroundService()
-    await NativeAudio.play({ assetId })
-    isPlaying.value = true
-    reportPlaying(track.id)
-  } else {
-    isPlaying.value = false
+    if (token !== loadToken) return
+    assetId = `${NATIVE_NOTIFICATION_ASSET_PREFIX}${token}`
+    const artworkUrl = await cacheNativeArtwork(track).catch((cause: unknown) => {
+      console.warn('Could not prepare lock-screen album artwork', cause)
+      return undefined
+    })
+    if (token !== loadToken) return
+    nativeAssetId = assetId
+    await NativeAudio.preload({
+      assetId,
+      assetPath: streamUrl,
+      isUrl: true,
+      volume: volume.value,
+      notificationMetadata: {
+        title: track.title,
+        artist: track.artist ?? '',
+        album: track.album ?? '',
+        ...(artworkUrl ? { artworkUrl } : {}),
+      },
+    })
+    if (token !== loadToken) {
+      await unloadNativeAsset()
+      return
+    }
+    const metadata = await NativeAudio.getDuration({ assetId })
+    if (Number.isFinite(metadata.duration) && metadata.duration > 0) duration.value = metadata.duration
+    prefetchNext()
+    void loadLyrics(streamUrl, token)
+    if (autoplay) {
+      await startAndroidAudioForegroundService()
+      await NativeAudio.play({ assetId })
+      isPlaying.value = true
+      reportPlaying(track.id)
+    } else {
+      isPlaying.value = false
+    }
+  } catch (cause) {
+    if (token !== loadToken) return
+    console.error('Native audio playback failed; falling back to web audio', cause)
+    if (assetId) {
+      nativeAssetId = null
+      await NativeAudio.unload({ assetId }).catch((unloadError: unknown) => {
+        console.warn('Could not unload the failed native audio asset', unloadError)
+      })
+    }
+    await stopAndroidAudioForegroundService()
+    if (!audio) throw cause
+    audio.src = streamUrl
+    prefetchNext()
+    void loadLyrics(streamUrl, token)
+    if (autoplay) await audio.play()
+    else audio.pause()
   }
 }
 
@@ -415,7 +477,7 @@ async function applyPartyPlayback(track: QueueTrack, targetPosition: number, sho
   }
   if (current.value?.id !== track.id) return
   const boundedPosition = Math.max(0, Math.min(targetPosition, duration.value || targetPosition))
-  if (nativePlayback) {
+  if (usingNativeAsset()) {
     if (!nativeAssetId) return
     if (Math.abs(currentTime.value - boundedPosition) > 0.15) {
       await NativeAudio.setCurrentTime({ assetId: nativeAssetId, time: boundedPosition })
@@ -443,7 +505,7 @@ async function applyPartyPlayback(track: QueueTrack, targetPosition: number, sho
 
 function correctPartyDrift(position: number) {
   if (!Number.isFinite(position)) return
-  if (nativePlayback) {
+  if (usingNativeAsset()) {
     const drift = position - currentTime.value
     if (Math.abs(drift) >= 1) {
       setNativeRate(1)
@@ -485,7 +547,7 @@ function next(auto = false) {
   const nextTrack = order.value[nextIndex] === undefined ? null : queue.value[order.value[nextIndex]]
   if (nextTrack && requestPartyControl({ action: 'change-item', itemId: nextTrack.id })) return
   if (auto && !nextTrack && current.value && requestPartyControl({ action: 'pause' })) return
-  if (auto && repeat.value === 'one' && nativePlayback) {
+  if (auto && repeat.value === 'one' && usingNativeAsset()) {
     seekNative(0)
     playNative()
     return
@@ -502,9 +564,9 @@ function next(auto = false) {
 
 function previous() {
   if (!audio && !nativePlayback) return
-  if ((nativePlayback ? currentTime.value : (audio?.currentTime ?? 0)) > 3 || position.value === 0) {
+  if ((usingNativeAsset() ? currentTime.value : (audio?.currentTime ?? 0)) > 3 || position.value === 0) {
     if (requestPartyControl({ action: 'seek', position: 0 })) return
-    if (nativePlayback) seekNative(0)
+    if (usingNativeAsset()) seekNative(0)
     else if (audio) audio.currentTime = 0
     return
   }
@@ -516,7 +578,7 @@ function previous() {
 function toggle() {
   if ((!audio && !nativePlayback) || !current.value) return
   if (requestPartyControl({ action: isPlaying.value ? 'pause' : 'play' })) return
-  if (nativePlayback) {
+  if (usingNativeAsset()) {
     if (isPlaying.value) pauseNative()
     else playNative()
     return
@@ -530,7 +592,7 @@ function seek(seconds: number) {
   if ((!audio && !nativePlayback) || !Number.isFinite(seconds)) return
   const position = Math.max(0, Math.min(seconds, duration.value || seconds))
   if (requestPartyControl({ action: 'seek', position })) return
-  if (nativePlayback) {
+  if (usingNativeAsset()) {
     seekNative(position)
     return
   }
@@ -562,7 +624,7 @@ function stop() {
   if (requestPartyControl({ action: 'pause' })) return
   loadToken++
   reportStopped()
-  if (nativePlayback) {
+  if (usingNativeAsset()) {
     void (async () => {
       await unloadNativeAsset()
       await stopAndroidAudioForegroundService()
