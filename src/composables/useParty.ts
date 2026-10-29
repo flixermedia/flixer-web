@@ -5,7 +5,7 @@ import PartyVisibilityModal from '../components/party/PartyVisibilityModal.vue'
 import { i18n } from '../i18n'
 import { notify } from './notify'
 import { expectedPosition, type PartyState } from './partyClock'
-import { useAudioPlayer, type QueueTrack } from './useAudioPlayer'
+import { useAudioPlayer, type PartyAudioCommand, type QueueTrack } from './useAudioPlayer'
 import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
@@ -15,10 +15,8 @@ export type PartyStatus = 'idle' | 'connecting' | 'live' | 'reconnecting'
 
 const STORAGE_KEY = 'flixer.party'
 const CLOSE_UNAUTHORIZED = 4401
-const HEARTBEAT_MS = 5_000
+const CLOCK_SYNC_MS = 5_000
 const MAX_BACKOFF_MS = 15_000
-const MUSIC_DRIFT_S = 1.5
-const MUSIC_JUMP_S = 2
 
 const party = shallowRef<PartySnapshot | null>(null)
 const latest = shallowRef<PartyState | null>(null)
@@ -39,11 +37,14 @@ let socket: WebSocket | null = null
 let wantedId: string | null = null
 let retryTimer: ReturnType<typeof setTimeout> | undefined
 let attempts = 0
-let heartbeat: ReturnType<typeof setInterval> | undefined
-let sendTimer: ReturnType<typeof setTimeout> | undefined
-let lastSent = { position: 0, at: 0 }
+let clockSyncTimer: ReturnType<typeof setInterval> | undefined
+let clockOffset = 0
+let bestClockRtt = Number.POSITIVE_INFINITY
+let nextPingId = 0
+const pendingPings = new Map<string, { wallTime: number; monotonicTime: number }>()
 // The guest only reopens the player when the host moves to something new, so closing it is respected.
 let appliedItemId: string | null = null
+let applyingAudioItemId: string | null = null
 
 function buildUrl(): string {
   return buildApiWebSocketUrl('/party')
@@ -60,9 +61,9 @@ function send(message: unknown) {
 function reset() {
   wantedId = null
   clearTimeout(retryTimer)
-  clearTimeout(sendTimer)
-  clearInterval(heartbeat)
-  heartbeat = undefined
+  clearInterval(clockSyncTimer)
+  clockSyncTimer = undefined
+  pendingPings.clear()
   retryTimer = undefined
   const ws = socket
   socket = null
@@ -74,6 +75,8 @@ function reset() {
   chatOpen.value = false
   status.value = 'idle'
   appliedItemId = null
+  applyingAudioItemId = null
+  audio.correctPartyDrift(audio.currentTime.value)
   attempts = 0
   sessionStorage.removeItem(STORAGE_KEY)
 }
@@ -95,27 +98,40 @@ function applyVideo(state: PartyState) {
   if (audio.queue.value.length > 0) audio.stop()
   if (appliedItemId === item.id) return
   appliedItemId = item.id
-  videoOverlay.play({ id: item.id, title: item.subtitle ? `${item.title} · ${item.subtitle}` : item.title, startAt: expectedPosition(state) })
+  videoOverlay.play({
+    id: item.id,
+    title: item.subtitle ? `${item.title} · ${item.subtitle}` : item.title,
+    startAt: expectedPosition(state),
+    autoplay: state.party.playing,
+  })
 }
 
 function applyAudio(state: PartyState) {
   const { item, playing } = state.party
   if (videoOverlay.playing.value) videoOverlay.close()
-  // Guests who start something else are pulled back to whatever the host is playing.
   if (audio.current.value?.id !== item.id) {
+    if (applyingAudioItemId === item.id) return
     appliedItemId = item.id
-    audio.playQueue([toQueueTrack(item)], 0)
+    applyingAudioItemId = item.id
+    void audio
+      .applyPartyPlayback(toQueueTrack(item), expectedPosition(state), playing)
+      .catch((error: unknown) => notify.error(error instanceof Error ? error.message : t('party.joinFailed')))
+      .finally(() => {
+        if (applyingAudioItemId === item.id) applyingAudioItemId = null
+      })
     return
   }
   appliedItemId = item.id
   if (audio.isLoading.value) return
-  if (Math.abs(audio.currentTime.value - expectedPosition(state)) > MUSIC_DRIFT_S) audio.seek(expectedPosition(state))
-  if (playing !== audio.isPlaying.value) audio.toggle()
+  audio.correctPartyDrift(expectedPosition(state))
+  if (playing !== audio.isPlaying.value) {
+    void audio.applyPartyPlayback(toQueueTrack(item), expectedPosition(state), playing).catch((error: unknown) => notify.error(error instanceof Error ? error.message : t('party.joinFailed')))
+  }
 }
 
 function applyState() {
   const state = latest.value
-  if (!state || !isGuest.value) return
+  if (!state || !party.value) return
   if (state.party.kind === 'video') applyVideo(state)
   else applyAudio(state)
 }
@@ -140,6 +156,8 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
   }
   const ws = new WebSocket(buildUrl())
   socket = ws
+  pendingPings.clear()
+  bestClockRtt = Number.POSITIVE_INFINITY
   let settled = !onFirstState
   const fail = (message: string) => {
     if (settled) return
@@ -147,9 +165,22 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
     onFailure?.(message)
   }
 
-  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }))
+  ws.onopen = () => {
+    if (socket === ws) ws.send(JSON.stringify({ type: 'auth', token }))
+  }
   ws.onmessage = (event) => {
-    let message: { type?: string; party?: PartySnapshot; message?: PartyChatMessage | string; messages?: PartyChatMessage[]; serverTime?: number; status?: number }
+    if (socket !== ws) return
+    let message: {
+      type?: string
+      party?: PartySnapshot
+      message?: PartyChatMessage | string
+      messages?: PartyChatMessage[]
+      serverTime?: number
+      serverReceivedAt?: number
+      serverSentAt?: number
+      requestId?: string
+      status?: number
+    }
     try {
       message = JSON.parse(String(event.data))
     } catch {
@@ -157,11 +188,19 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
     }
     if (message.type === 'ready') {
       ws.send(JSON.stringify({ type: 'join', partyId: wantedId }))
+      sendTimePing()
     } else if (message.type === 'state' && message.party && typeof message.serverTime === 'number') {
+      if (party.value?.id === message.party.id && message.party.version < party.value.version) return
       status.value = 'live'
       attempts = 0
       party.value = message.party
-      latest.value = { party: message.party, offset: message.serverTime - Date.now() }
+      if (!Number.isFinite(bestClockRtt)) clockOffset = message.serverTime - Date.now()
+      latest.value = {
+        party: message.party,
+        offset: clockOffset,
+        serverTimeAtReceipt: Date.now() + clockOffset,
+        localMonotonicAtReceipt: performance.now(),
+      }
       if (wantedId) sessionStorage.setItem(STORAGE_KEY, wantedId)
       applyState()
       if (!settled) {
@@ -172,6 +211,26 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
       messages.value = message.messages
     } else if (message.type === 'chat' && typeof message.message === 'object') {
       receiveChat(message.message)
+    } else if (message.type === 'time-pong' && typeof message.requestId === 'string' && typeof message.serverReceivedAt === 'number' && typeof message.serverSentAt === 'number') {
+      const sample = pendingPings.get(message.requestId)
+      pendingPings.delete(message.requestId)
+      if (!sample) return
+      const rtt = performance.now() - sample.monotonicTime
+      if (rtt < bestClockRtt) {
+        bestClockRtt = rtt
+        const serverMidpoint = (message.serverReceivedAt + message.serverSentAt) / 2
+        const localMidpoint = sample.wallTime + rtt / 2
+        clockOffset = serverMidpoint - localMidpoint
+        if (latest.value) {
+          latest.value = {
+            ...latest.value,
+            offset: clockOffset,
+            serverTimeAtReceipt: Date.now() + clockOffset,
+            localMonotonicAtReceipt: performance.now(),
+          }
+          applyState()
+        }
+      }
     } else if (message.type === 'ended') {
       handleEnded()
     } else if (message.type === 'error') {
@@ -183,6 +242,7 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
       } else if (message.status === 429 && typeof message.message === 'string') {
         notify.error(message.message)
       }
+      if (latest.value) applyState()
     }
   }
   ws.onclose = (event) => {
@@ -222,46 +282,64 @@ function setChatOpen(open: boolean) {
   if (open) unread.value = 0
 }
 
-function sendControl(state: { itemId?: string; playing: boolean; position: number }) {
-  if (!isHost.value) return
-  lastSent = { position: state.position, at: Date.now() }
-  send({ type: 'control', ...state })
+function sendCommand(action: PartyAudioCommand['action'], values: { itemId?: string; position?: number } = {}): boolean {
+  if (!isHost.value) return false
+  if (socket?.readyState !== WebSocket.OPEN) {
+    notify.info(t('party.reconnecting'))
+    return false
+  }
+  send({ type: 'command', commandId: crypto.randomUUID(), action, ...values })
+  return true
 }
 
-function sendMusic() {
-  if (!isHost.value || party.value?.kind !== 'music') return
-  const track = audio.current.value
-  if (!track) return
-  sendControl({ itemId: track.id, playing: audio.isPlaying.value, position: audio.currentTime.value })
+function sendVideoCommand(state: { action: 'play' | 'pause' | 'seek'; position: number }, itemId: string): boolean {
+  return sendCommand(state.action, { itemId, ...(state.action === 'seek' ? { position: state.position } : {}) })
 }
 
-function scheduleMusic() {
-  if (!isHost.value || party.value?.kind !== 'music') return
-  clearTimeout(sendTimer)
-  sendTimer = setTimeout(sendMusic, 120)
+function sendTimePing() {
+  if (socket?.readyState !== WebSocket.OPEN) return
+  const requestId = `${++nextPingId}`
+  const wallTime = Date.now()
+  pendingPings.set(requestId, { wallTime, monotonicTime: performance.now() })
+  send({ type: 'time-ping', requestId })
 }
 
-watch([() => audio.current.value?.id, audio.isPlaying], scheduleMusic)
-// Closing the player as host ends the listen party for everyone.
+audio.setPartyControlHandler((command: PartyAudioCommand) => {
+  if (party.value?.kind !== 'music') return false
+  if (!isHost.value) {
+    const state = latest.value
+    if (state?.party.kind === 'music') {
+      void audio.applyPartyPlayback(toQueueTrack(state.party.item), expectedPosition(state), state.party.playing).catch((error: unknown) => notify.error(error instanceof Error ? error.message : t('party.joinFailed')))
+    }
+    return true
+  }
+  sendCommand(command.action, {
+    ...(command.action === 'change-item' ? { itemId: command.itemId } : {}),
+    ...(command.action === 'seek' ? { position: command.position } : {}),
+  })
+  return true
+})
+
+watch([audio.isLoading, audio.duration], applyState)
+watch(
+  () => party.value?.id,
+  (id) => {
+    clearInterval(clockSyncTimer)
+    pendingPings.clear()
+    bestClockRtt = Number.POSITIVE_INFINITY
+    if (!id) {
+      clockSyncTimer = undefined
+      return
+    }
+    sendTimePing()
+    clockSyncTimer = setInterval(sendTimePing, CLOCK_SYNC_MS)
+  },
+)
 watch(
   () => audio.current.value,
   (track, previous) => {
     if (track || !previous || !isHost.value || party.value?.kind !== 'music') return
     void leaveParty()
-  },
-)
-// A seek shows up as the clock jumping away from where playback would have been.
-watch(audio.currentTime, (time) => {
-  if (!isHost.value || party.value?.kind !== 'music') return
-  const expected = lastSent.position + (audio.isPlaying.value ? (Date.now() - lastSent.at) / 1000 : 0)
-  if (Math.abs(time - expected) > MUSIC_JUMP_S) scheduleMusic()
-})
-watch([audio.isLoading, audio.duration, audio.isPlaying], applyState)
-watch(
-  () => party.value?.id,
-  (id) => {
-    clearInterval(heartbeat)
-    heartbeat = id ? setInterval(sendMusic, HEARTBEAT_MS) : undefined
   },
 )
 
@@ -271,7 +349,11 @@ async function leaveParty() {
   const hosting = isHost.value
   if (!hosting) send({ type: 'leave' })
   reset()
-  if (current && hosting) await endParty(current.id).catch(() => undefined)
+  if (current && hosting) {
+    await endParty(current.id).catch((error: unknown) => {
+      notify.error(error instanceof Error ? error.message : t('party.joinFailed'))
+    })
+  }
 }
 
 export function useParty() {
@@ -280,8 +362,15 @@ export function useParty() {
     if (!visibility) return null
     await loadProfile()
     if (wantedId) await leave()
+    const activeTrack = audio.current.value?.id === itemId ? audio.current.value : null
+    const initialMusic = activeTrack ? { position: audio.currentTime.value, playing: audio.isPlaying.value } : null
     const created = await createParty(itemId, visibility)
-    return open(created.id)
+    const joined = await open(created.id)
+    if (created.kind === 'music' && activeTrack && initialMusic) {
+      sendCommand('seek', { itemId: activeTrack.id, position: initialMusic.position })
+      if (initialMusic.playing) sendCommand('play', { itemId: activeTrack.id })
+    }
+    return joined
   }
 
   async function join(id: string): Promise<PartySnapshot> {
@@ -300,9 +389,23 @@ export function useParty() {
     await open(id).catch(() => undefined)
   }
 
+  function reconnect() {
+    if (!wantedId) {
+      void resume()
+      return
+    }
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+    const previousSocket = socket
+    socket = null
+    previousSocket?.close()
+    status.value = 'reconnecting'
+    connect()
+  }
+
   function inviteLink(id = party.value?.id): string {
     return `${location.origin}/party/${id ?? ''}`
   }
 
-  return { party, latest, status, messages, chatOpen, unread, sendChat, setChatOpen, isHost, isGuest, start, join, leave, resume, sendControl, inviteLink, expectedPosition }
+  return { party, latest, status, messages, chatOpen, unread, sendChat, setChatOpen, isHost, isGuest, start, join, leave, resume, reconnect, sendVideoCommand, inviteLink, expectedPosition }
 }

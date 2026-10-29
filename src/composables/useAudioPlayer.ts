@@ -1,4 +1,6 @@
 import { computed, ref } from 'vue'
+import { Capacitor, registerPlugin } from '@capacitor/core'
+import { NativeAudio } from '@capgo/capacitor-native-audio'
 import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics, reportListening } from '../api'
 import { parseLrc, type ParsedLyrics } from './lrc'
 
@@ -14,10 +16,18 @@ export interface QueueTrack {
 }
 
 export type RepeatMode = 'off' | 'all' | 'one'
+export type PartyAudioCommand = { action: 'play' | 'pause' } | { action: 'seek'; position: number } | { action: 'change-item'; itemId: string }
 
 // One audio element for the whole app, so playback survives page navigation.
 const audio = typeof Audio === 'undefined' ? null : new Audio()
 if (audio) audio.preload = 'auto'
+const nativePlayback = Capacitor.isNativePlatform()
+interface AudioForegroundPlugin {
+  start(): Promise<void>
+  stop(): Promise<void>
+}
+const androidAudioForeground = Capacitor.getPlatform() === 'android' ? registerPlugin<AudioForegroundPlugin>('AudioForeground') : null
+const NATIVE_NOTIFICATION_ASSET_PREFIX = 'flixer-track-'
 
 const queue = ref<QueueTrack[]>([])
 const order = ref<number[]>([])
@@ -35,8 +45,170 @@ const lyricsLoading = ref(false)
 const lyricsOpen = ref(false)
 
 let loadToken = 0
+let nativeAssetId: string | null = null
+let nativeInitialization: Promise<void> | undefined
 let listeningTrackId: string | null = null
 let listeningInterval: ReturnType<typeof setInterval> | undefined
+let partyControlHandler: ((command: PartyAudioCommand) => boolean) | undefined
+
+function requestPartyControl(command: PartyAudioCommand): boolean {
+  return partyControlHandler?.(command) === true
+}
+
+function reportNativeError(operation: string, cause: unknown) {
+  console.error(`Native audio ${operation} failed`, cause)
+  error.value = 'error'
+}
+
+function startAndroidAudioForegroundService() {
+  return androidAudioForeground?.start() ?? Promise.resolve()
+}
+
+function stopAndroidAudioForegroundService() {
+  return androidAudioForeground?.stop() ?? Promise.resolve()
+}
+
+function initializeNativeAudio(): Promise<void> {
+  if (!nativePlayback) return Promise.resolve()
+  if (!nativeInitialization) {
+    nativeInitialization = (async () => {
+      await NativeAudio.configure({
+        background: true,
+        backgroundPlayback: true,
+        focus: true,
+        ignoreSilent: true,
+        showNotification: true,
+      })
+      await NativeAudio.addListener('currentTime', (event) => {
+        if (event.assetId === nativeAssetId && Number.isFinite(event.currentTime)) currentTime.value = event.currentTime
+      })
+      await NativeAudio.addListener('playbackState', (event) => {
+        if (event.assetId !== nativeAssetId) return
+        if (typeof event.currentTime === 'number' && Number.isFinite(event.currentTime)) currentTime.value = event.currentTime
+        if (typeof event.duration === 'number' && Number.isFinite(event.duration)) duration.value = event.duration
+        isPlaying.value = event.isPlaying
+        if (event.isPlaying) {
+          if (current.value) reportPlaying(current.value.id)
+          void startAndroidAudioForegroundService().catch((cause: unknown) => reportNativeError('foreground service start', cause))
+        } else {
+          reportStopped()
+          void stopAndroidAudioForegroundService().catch((cause: unknown) => reportNativeError('foreground service stop', cause))
+        }
+
+        if (event.reason === 'remotePlay') requestPartyControl({ action: 'play' })
+        else if (event.reason === 'remotePause' || event.reason === 'remoteStop') requestPartyControl({ action: 'pause' })
+      })
+      await NativeAudio.addListener('complete', (event) => {
+        if (event.assetId !== nativeAssetId) return
+        isPlaying.value = false
+        currentTime.value = duration.value
+        reportStopped()
+        next(true)
+      })
+    })().catch((cause: unknown) => {
+      nativeInitialization = undefined
+      throw cause
+    })
+  }
+  return nativeInitialization
+}
+
+async function unloadNativeAsset() {
+  const assetId = nativeAssetId
+  nativeAssetId = null
+  if (!assetId) return
+  try {
+    await NativeAudio.unload({ assetId })
+  } catch (cause) {
+    console.warn('Could not unload the previous native audio asset', cause)
+  }
+}
+
+function playNative() {
+  const assetId = nativeAssetId
+  if (!assetId) return
+  void (async () => {
+    await startAndroidAudioForegroundService()
+    await NativeAudio.play({ assetId })
+    isPlaying.value = true
+    if (current.value) reportPlaying(current.value.id)
+  })().catch((cause: unknown) => reportNativeError('play', cause))
+}
+
+function pauseNative() {
+  if (!nativeAssetId) return
+  void NativeAudio.pause({ assetId: nativeAssetId })
+    .then(async () => {
+      isPlaying.value = false
+      reportStopped()
+      await stopAndroidAudioForegroundService()
+    })
+    .catch((cause: unknown) => reportNativeError('pause', cause))
+}
+
+function seekNative(seconds: number) {
+  if (!nativeAssetId || !Number.isFinite(seconds)) return
+  const target = Math.max(0, Math.min(seconds, duration.value || seconds))
+  void NativeAudio.setCurrentTime({ assetId: nativeAssetId, time: target })
+    .then(() => {
+      currentTime.value = target
+    })
+    .catch((cause: unknown) => reportNativeError('seek', cause))
+}
+
+function setNativeRate(rate: number) {
+  if (!nativeAssetId) return
+  void NativeAudio.setRate({ assetId: nativeAssetId, rate }).catch((cause: unknown) => reportNativeError('rate adjustment', cause))
+}
+
+async function loadNativeTrack(streamUrl: string, track: QueueTrack, token: number, autoplay: boolean) {
+  await initializeNativeAudio()
+  await stopAndroidAudioForegroundService()
+  await unloadNativeAsset()
+  if (token !== loadToken) return
+  const assetId = `${NATIVE_NOTIFICATION_ASSET_PREFIX}${token}`
+  nativeAssetId = assetId
+  await NativeAudio.preload({
+    assetId,
+    assetPath: streamUrl,
+    isUrl: true,
+    volume: volume.value,
+    notificationMetadata: {
+      title: track.title,
+      artist: track.artist ?? '',
+      album: track.album ?? '',
+    },
+  })
+  if (token !== loadToken) {
+    await unloadNativeAsset()
+    return
+  }
+  const metadata = await NativeAudio.getDuration({ assetId })
+  if (Number.isFinite(metadata.duration)) duration.value = metadata.duration
+  prefetchNext()
+  void loadLyrics(streamUrl, token)
+  if (autoplay) {
+    await startAndroidAudioForegroundService()
+    await NativeAudio.play({ assetId })
+    isPlaying.value = true
+    reportPlaying(track.id)
+  } else {
+    isPlaying.value = false
+  }
+}
+
+async function refreshNativePlayback() {
+  if (!nativePlayback || !nativeAssetId) return
+  await initializeNativeAudio()
+  const [time, length, state] = await Promise.all([NativeAudio.getCurrentTime({ assetId: nativeAssetId }), NativeAudio.getDuration({ assetId: nativeAssetId }), NativeAudio.isPlaying({ assetId: nativeAssetId })])
+  if (Number.isFinite(time.currentTime)) currentTime.value = time.currentTime
+  if (Number.isFinite(length.duration)) duration.value = length.duration
+  isPlaying.value = state.isPlaying
+  if (state.isPlaying) await startAndroidAudioForegroundService()
+  else await stopAndroidAudioForegroundService()
+  if (state.isPlaying && current.value) reportPlaying(current.value.id)
+  else reportStopped()
+}
 
 function reportPlaying(itemId: string) {
   if (listeningTrackId !== itemId) reportStopped()
@@ -100,11 +272,16 @@ function setHandler(action: MediaSessionAction, handler: MediaSessionActionHandl
 // iOS only shows previous/next on the lock screen when those handlers exist while the session is active, and it
 // prefers seek buttons whenever seekbackward/seekforward handlers are set, so register again on every track and play.
 function registerMediaSessionHandlers() {
-  if (!('mediaSession' in navigator)) return
+  if (nativePlayback || !('mediaSession' in navigator)) return
   setHandler('play', () => {
-    if (audio?.paused) void audio.play()
+    if (!audio || !audio.paused) return
+    if (requestPartyControl({ action: 'play' })) return
+    void audio.play()
   })
-  setHandler('pause', () => audio?.pause())
+  setHandler('pause', () => {
+    if (!audio || audio.paused || requestPartyControl({ action: 'pause' })) return
+    audio.pause()
+  })
   setHandler('previoustrack', () => previous())
   setHandler('nexttrack', () => next())
   setHandler('seekbackward', null)
@@ -115,7 +292,7 @@ function registerMediaSessionHandlers() {
 }
 
 function updatePositionState() {
-  if (!audio || !('mediaSession' in navigator) || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+  if (nativePlayback || !audio || !('mediaSession' in navigator) || !Number.isFinite(audio.duration) || audio.duration <= 0) return
   try {
     navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate || 1, position: Math.min(audio.currentTime, audio.duration) })
   } catch {
@@ -124,6 +301,7 @@ function updatePositionState() {
 }
 
 function updateMediaSession(track: QueueTrack | null) {
+  if (nativePlayback) return
   if (!('mediaSession' in navigator)) return
   registerMediaSessionHandlers()
   const token = ++artworkToken
@@ -165,9 +343,9 @@ function prefetchNext() {
   if (upcoming) void resolveStreamUrl(upcoming.id).catch(() => undefined)
 }
 
-async function loadCurrent() {
+async function loadCurrent(autoplay = true) {
   const track = current.value
-  if (!audio || !track) return
+  if ((!audio && !nativePlayback) || !track) return
   const token = ++loadToken
   isLoading.value = true
   error.value = ''
@@ -179,16 +357,24 @@ async function loadCurrent() {
     const streamUrl = await resolveStreamUrl(track.id)
     prefetched.delete(track.id)
     if (token !== loadToken) return
-    audio.src = streamUrl
-    const playing = audio.play()
-    prefetchNext()
-    void loadLyrics(streamUrl, token)
-    await playing
+    if (nativePlayback) {
+      await loadNativeTrack(streamUrl, track, token, autoplay)
+    } else if (audio) {
+      audio.src = streamUrl
+      prefetchNext()
+      void loadLyrics(streamUrl, token)
+      if (autoplay) await audio.play()
+      else audio.pause()
+    }
   } catch (cause) {
     if (token !== loadToken) return
     // A rejected play() after a user-initiated pause or skip is not an error.
     if ((cause as { name?: string }).name !== 'AbortError') error.value = 'error'
     isPlaying.value = false
+    if (nativePlayback) {
+      reportNativeError('load', cause)
+      void stopAndroidAudioForegroundService().catch((serviceError: unknown) => reportNativeError('foreground service stop', serviceError))
+    }
   } finally {
     if (token === loadToken) isLoading.value = false
   }
@@ -206,11 +392,84 @@ async function loadLyrics(streamUrl: string, token: number) {
   }
 }
 
-function playQueue(tracks: QueueTrack[], startIndex = 0) {
+function loadQueue(tracks: QueueTrack[], startIndex = 0) {
   if (tracks.length === 0) return
   queue.value = tracks
   buildOrder(Math.min(Math.max(startIndex, 0), tracks.length - 1))
   void loadCurrent()
+}
+
+function playQueue(tracks: QueueTrack[], startIndex = 0) {
+  const track = tracks[Math.min(Math.max(startIndex, 0), tracks.length - 1)]
+  if (track && requestPartyControl({ action: 'change-item', itemId: track.id })) return
+  loadQueue(tracks, startIndex)
+}
+
+async function applyPartyPlayback(track: QueueTrack, targetPosition: number, shouldPlay: boolean) {
+  const changed = current.value?.id !== track.id
+  if (changed) {
+    queue.value = [track]
+    order.value = [0]
+    position.value = 0
+    await loadCurrent(shouldPlay)
+  }
+  if (current.value?.id !== track.id) return
+  const boundedPosition = Math.max(0, Math.min(targetPosition, duration.value || targetPosition))
+  if (nativePlayback) {
+    if (!nativeAssetId) return
+    if (Math.abs(currentTime.value - boundedPosition) > 0.15) {
+      await NativeAudio.setCurrentTime({ assetId: nativeAssetId, time: boundedPosition })
+      currentTime.value = boundedPosition
+    }
+    if (shouldPlay && !isPlaying.value && nativeAssetId) {
+      await startAndroidAudioForegroundService()
+      await NativeAudio.play({ assetId: nativeAssetId })
+      isPlaying.value = true
+    } else if (!shouldPlay && isPlaying.value && nativeAssetId) {
+      await NativeAudio.pause({ assetId: nativeAssetId })
+      isPlaying.value = false
+      await stopAndroidAudioForegroundService()
+    }
+    return
+  }
+  if (!audio) return
+  if (Math.abs(audio.currentTime - boundedPosition) > 0.15) {
+    audio.currentTime = boundedPosition
+    currentTime.value = audio.currentTime
+  }
+  if (shouldPlay && audio.paused) await audio.play()
+  else if (!shouldPlay && !audio.paused) audio.pause()
+}
+
+function correctPartyDrift(position: number) {
+  if (!Number.isFinite(position)) return
+  if (nativePlayback) {
+    const drift = position - currentTime.value
+    if (Math.abs(drift) >= 1) {
+      setNativeRate(1)
+      seekNative(position)
+    } else if (drift <= -0.15) {
+      setNativeRate(Math.max(0.97, 1 + drift * 0.03))
+    } else {
+      setNativeRate(1)
+    }
+    return
+  }
+  if (!audio) return
+  const drift = position - audio.currentTime
+  if (Math.abs(drift) >= 1) {
+    audio.playbackRate = 1
+    audio.currentTime = Math.max(0, Math.min(position, duration.value || position))
+    currentTime.value = audio.currentTime
+  } else if (Math.abs(drift) >= 0.15) {
+    audio.playbackRate = Math.max(0.97, Math.min(1.03, 1 + drift * 0.03))
+  } else {
+    audio.playbackRate = 1
+  }
+}
+
+function setPartyControlHandler(handler: ((command: PartyAudioCommand) => boolean) | undefined) {
+  partyControlHandler = handler
 }
 
 function skipTo(nextPosition: number) {
@@ -219,6 +478,18 @@ function skipTo(nextPosition: number) {
 }
 
 function next(auto = false) {
+  if (position.value >= 0 && repeat.value === 'one' && auto && current.value) {
+    if (requestPartyControl({ action: 'seek', position: 0 })) return
+  }
+  const nextIndex = position.value + 1 < order.value.length ? position.value + 1 : repeat.value === 'all' ? 0 : -1
+  const nextTrack = order.value[nextIndex] === undefined ? null : queue.value[order.value[nextIndex]]
+  if (nextTrack && requestPartyControl({ action: 'change-item', itemId: nextTrack.id })) return
+  if (auto && !nextTrack && current.value && requestPartyControl({ action: 'pause' })) return
+  if (auto && repeat.value === 'one' && nativePlayback) {
+    seekNative(0)
+    playNative()
+    return
+  }
   if (auto && repeat.value === 'one' && audio) {
     audio.currentTime = 0
     void audio.play()
@@ -230,29 +501,50 @@ function next(auto = false) {
 }
 
 function previous() {
-  if (!audio) return
-  if (audio.currentTime > 3 || position.value === 0) {
-    audio.currentTime = 0
+  if (!audio && !nativePlayback) return
+  if ((nativePlayback ? currentTime.value : (audio?.currentTime ?? 0)) > 3 || position.value === 0) {
+    if (requestPartyControl({ action: 'seek', position: 0 })) return
+    if (nativePlayback) seekNative(0)
+    else if (audio) audio.currentTime = 0
     return
   }
+  const previousTrack = queue.value[order.value[position.value - 1]]
+  if (previousTrack && requestPartyControl({ action: 'change-item', itemId: previousTrack.id })) return
   skipTo(position.value - 1)
 }
 
 function toggle() {
-  if (!audio || !current.value) return
+  if ((!audio && !nativePlayback) || !current.value) return
+  if (requestPartyControl({ action: isPlaying.value ? 'pause' : 'play' })) return
+  if (nativePlayback) {
+    if (isPlaying.value) pauseNative()
+    else playNative()
+    return
+  }
+  if (!audio) return
   if (audio.paused) void audio.play()
   else audio.pause()
 }
 
 function seek(seconds: number) {
-  if (!audio || !Number.isFinite(seconds)) return
-  audio.currentTime = Math.max(0, Math.min(seconds, duration.value || seconds))
+  if ((!audio && !nativePlayback) || !Number.isFinite(seconds)) return
+  const position = Math.max(0, Math.min(seconds, duration.value || seconds))
+  if (requestPartyControl({ action: 'seek', position })) return
+  if (nativePlayback) {
+    seekNative(position)
+    return
+  }
+  if (!audio) return
+  audio.currentTime = position
   currentTime.value = audio.currentTime
 }
 
 function setVolume(value: number) {
   volume.value = Math.max(0, Math.min(1, value))
   if (audio) audio.volume = volume.value
+  if (nativePlayback && nativeAssetId) {
+    void NativeAudio.setVolume({ assetId: nativeAssetId, volume: volume.value }).catch((cause: unknown) => reportNativeError('volume', cause))
+  }
   localStorage.setItem('flixer.volume', String(volume.value))
 }
 
@@ -267,9 +559,16 @@ function cycleRepeat() {
 }
 
 function stop() {
+  if (requestPartyControl({ action: 'pause' })) return
   loadToken++
   reportStopped()
-  audio?.pause()
+  if (nativePlayback) {
+    void (async () => {
+      await unloadNativeAsset()
+      await stopAndroidAudioForegroundService()
+    })().catch((cause: unknown) => reportNativeError('stop', cause))
+  } else audio?.pause()
+  if (audio) audio.playbackRate = 1
   if (audio) audio.removeAttribute('src')
   queue.value = []
   order.value = []
@@ -316,5 +615,5 @@ if (audio) {
 }
 
 export function useAudioPlayer() {
-  return { queue, current, position, isPlaying, isLoading, currentTime, duration, volume, shuffle, repeat, error, lyrics, lyricsLoading, lyricsOpen, hasNext, playQueue, next, previous, toggle, seek, setVolume, toggleShuffle, cycleRepeat, stop }
+  return { queue, current, position, isPlaying, isLoading, currentTime, duration, volume, shuffle, repeat, error, lyrics, lyricsLoading, lyricsOpen, hasNext, playQueue, next, previous, toggle, seek, setVolume, toggleShuffle, cycleRepeat, stop, applyPartyPlayback, correctPartyDrift, setPartyControlHandler, refreshNativePlayback }
 }

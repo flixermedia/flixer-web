@@ -39,7 +39,7 @@ const emit = defineEmits<{
   error: [message: string]
   progress: [position: number, duration: number]
   /** Playback changed (play, pause or seek); used to keep a watch party in sync. */
-  control: [state: { playing: boolean; position: number }]
+  control: [state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }]
 }>()
 
 const METHOD_LABELS: Record<PlayMethod, string> = {
@@ -50,12 +50,17 @@ const METHOD_LABELS: Record<PlayMethod, string> = {
 
 const { t, locale } = useI18n()
 const SKIP_SECONDS = 10
-// A guest further than this from the host is moved back to it.
+const REMOTE_DRIFT_IGNORE_S = 0.15
+const REMOTE_DRIFT_SEEK_S = 1
+// Transcoded streams need a larger threshold because seeking restarts the rendition.
 const REMOTE_DRIFT_S = 2
-// A transcoded stream restarts on every seek, so it gets a looser limit and a cooldown to avoid reload loops.
 const REMOTE_DRIFT_RELOAD_S = 6
 const REMOTE_RELOAD_COOLDOWN_MS = 10_000
 let lastRemoteReload = 0
+let remoteSeekTarget: number | null = null
+let remoteSeekUntil = 0
+let remotePlaybackTarget: boolean | null = null
+let remotePlaybackUntil = 0
 const HIDE_DELAY_MS = 3000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
@@ -280,6 +285,7 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
   if (opts.height !== undefined) height.value = opts.height
   let start = Math.max(0, opts.start ?? 0)
 
+  el.playbackRate = 1
   errorMessage.value = ''
   waiting.value = true
   ended.value = false
@@ -460,8 +466,24 @@ function stopLoop() {
   frame = 0
 }
 
-function emitControl() {
-  emit('control', { playing: !paused.value, position: position.value })
+function emitControl(action: 'play' | 'pause' | 'seek') {
+  const now = performance.now()
+  if (remotePlaybackTarget !== null && now < remotePlaybackUntil) {
+    const matchesRemoteState = remotePlaybackTarget === (action === 'play')
+    remotePlaybackTarget = null
+    if (matchesRemoteState) return
+  }
+  if (action === 'seek' && remoteSeekTarget !== null && now < remoteSeekUntil) {
+    const matchesRemotePosition = Math.abs(position.value - remoteSeekTarget) < 1
+    remoteSeekTarget = null
+    if (matchesRemotePosition) return
+  }
+  emit('control', { action, playing: !paused.value, position: position.value })
+}
+
+function onSeeked() {
+  sync()
+  emitControl('seek')
 }
 
 function getState() {
@@ -475,19 +497,42 @@ function applyRemote(state: { playing: boolean; position: number }) {
   remoteChange = true
   try {
     const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
-    const drift = Math.abs(position.value - target)
+    const drift = target - position.value
+    const absoluteDrift = Math.abs(drift)
     if (isNative.value) {
-      if (drift > REMOTE_DRIFT_S) seekTo(target)
-    } else if (!waiting.value && drift > REMOTE_DRIFT_RELOAD_S && Date.now() - lastRemoteReload > REMOTE_RELOAD_COOLDOWN_MS) {
+      if (absoluteDrift > REMOTE_DRIFT_S) {
+        remoteSeekTarget = target
+        remoteSeekUntil = performance.now() + 10_000
+        seekTo(target)
+      }
+    } else if (!waiting.value && absoluteDrift >= REMOTE_DRIFT_SEEK_S) {
       const local = target - offset.value
-      if (!(local >= 0 && isBuffered(el, local))) lastRemoteReload = Date.now()
-      seekTo(target)
-    } else if (!waiting.value && drift > REMOTE_DRIFT_S && isBuffered(el, target - offset.value)) {
-      seekTo(target)
+      const canSeek = local >= 0 && isBuffered(el, local)
+      const shouldReload = absoluteDrift >= REMOTE_DRIFT_RELOAD_S && Date.now() - lastRemoteReload > REMOTE_RELOAD_COOLDOWN_MS
+      if (canSeek || shouldReload) {
+        if (!canSeek) lastRemoteReload = Date.now()
+        remoteSeekTarget = target
+        remoteSeekUntil = performance.now() + 10_000
+        seekTo(target)
+      } else {
+        el.playbackRate = Math.max(0.97, Math.min(1.03, 1 + drift * 0.03))
+      }
+    } else if (!waiting.value && absoluteDrift >= REMOTE_DRIFT_IGNORE_S) {
+      el.playbackRate = Math.max(0.97, Math.min(1.03, 1 + drift * 0.03))
+    } else {
+      el.playbackRate = 1
     }
     if (waiting.value) return
-    if (state.playing && el.paused) tryPlay()
-    else if (!state.playing && !el.paused) el.pause()
+    if (state.playing && el.paused) {
+      remotePlaybackTarget = true
+      remotePlaybackUntil = performance.now() + 10_000
+      tryPlay()
+    } else if (!state.playing && !el.paused) {
+      remotePlaybackTarget = false
+      remotePlaybackUntil = performance.now() + 10_000
+      el.pause()
+    }
+    if (!state.playing) el.playbackRate = 1
   } finally {
     remoteChange = false
   }
@@ -501,7 +546,7 @@ function onPlay() {
   startLoop()
   scheduleHide()
   progressTimer ??= setInterval(reportProgress, PROGRESS_INTERVAL_MS)
-  emitControl()
+  emitControl('play')
 }
 
 function stopProgressTimer() {
@@ -522,7 +567,7 @@ function onPause() {
   showControls()
   stopProgressTimer()
   reportProgress()
-  emitControl()
+  emitControl('pause')
 }
 
 const NEXT_COUNTDOWN_SECONDS = 15
@@ -540,6 +585,7 @@ function onEnded() {
   sync()
   stopProgressTimer()
   reportProgress()
+  emitControl('pause')
   if (props.nextLabel) emit('next')
 }
 
@@ -764,7 +810,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" data-haptic class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown && !(partyState.chatOpen.value && inVideoParty) }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
-    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeked="emitControl" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
+    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeked="onSeeked" @ended="onEnded" @waiting="waiting = true" @playing="waiting = false" @canplay="waiting = false" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
       <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>

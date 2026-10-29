@@ -26,6 +26,9 @@ project(':capacitor-splash-screen').projectDir = new File('../node_modules/@capa
 include ':capgo-capacitor-autofill-save-password'
 project(':capgo-capacitor-autofill-save-password').projectDir = new File('../node_modules/@capgo/capacitor-autofill-save-password/android')
 
+include ':capgo-capacitor-native-audio'
+project(':capgo-capacitor-native-audio').projectDir = new File('../node_modules/@capgo/capacitor-native-audio/android')
+
 include ':capgo-capacitor-native-biometric'
 project(':capgo-capacitor-native-biometric').projectDir = new File('../node_modules/@capgo/capacitor-native-biometric/android')
 

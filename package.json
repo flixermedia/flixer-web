@@ -28,6 +28,7 @@
     "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.2",
     "@capgo/capacitor-autofill-save-password": "^8.2.3",
+    "@capgo/capacitor-native-audio": "^8.4.38",
     "@capgo/capacitor-native-biometric": "^8.9.1",
     "@capgo/capacitor-persistent-account": "^8.0.49",
     "@capgo/capacitor-textinteraction": "^8.1.6",

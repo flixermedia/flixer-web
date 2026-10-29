@@ -2014,6 +2014,9 @@ export interface PartySnapshot {
   position: number
   /** Server clock (ms since epoch) when `position` was recorded. */
   at: number
+  /** Version of the canonical playback timeline. */
+  version: number
+  playbackRate: number
   members: PartyPerson[]
 }
 

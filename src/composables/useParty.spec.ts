@@ -11,6 +11,8 @@ const snapshot = (playing: boolean): PartySnapshot => ({
   playing,
   position: 100,
   at: 1_000_000,
+  version: 1,
+  playbackRate: 1,
   members: [],
 })
 

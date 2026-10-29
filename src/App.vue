@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { App as CapacitorApp } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import { ModalOverlay, ModalTarget } from '@kolirt/vue-modal'
 import IdleSplash from './components/ui/IdleSplash.vue'
 import OfflineBanner from './components/ui/OfflineBanner.vue'
@@ -11,10 +13,24 @@ import { useParty } from './composables/useParty'
 import { useVideoOverlay } from './composables/useVideoOverlay'
 import { getAccessToken } from './api'
 
-const { lyricsOpen } = useAudioPlayer()
+const audio = useAudioPlayer()
+const { lyricsOpen } = audio
+const party = useParty()
 const { playing, close: closeVideo } = useVideoOverlay()
 const idle = useIdleSplash(() => playing.value !== null)
-if (getAccessToken()) void useParty().resume()
+if (getAccessToken()) void party.resume()
+
+if (Capacitor.isNativePlatform()) {
+  void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive) return
+    void audio.refreshNativePlayback().catch((error: unknown) => {
+      console.error('Could not refresh native audio after resuming the app', error)
+    })
+    party.reconnect()
+  }).catch((error: unknown) => {
+    console.error('Could not listen for native app state changes', error)
+  })
+}
 </script>
 
 <template>
@@ -27,8 +43,8 @@ if (getAccessToken()) void useParty().resume()
 
   <!-- Player components -->
   <MiniPlayer />
-  <PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" @close="closeVideo" />
-  
+  <PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" :autoplay="playing.autoplay" @close="closeVideo" />
+
   <!-- Lyrics view -->
   <Transition name="lyrics">
     <LyricsView v-if="lyricsOpen" />
@@ -49,12 +65,10 @@ if (getAccessToken()) void useParty().resume()
 </template>
 
 <style>
-
 html.capacitor main.page-gutter {
   padding-top: max(env(safe-area-inset-top, 0px), 10.5rem);
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
 }
-
 
 .lyrics-enter-active {
   transition:

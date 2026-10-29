@@ -23,7 +23,7 @@ const emit = defineEmits<{
   next: []
   error: [message: string]
   progress: [position: number, duration: number]
-  control: [state: { playing: boolean; position: number }]
+  control: [state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }]
 }>()
 
 const PLAYER_ID = 'flixer-native-video-player'
@@ -39,6 +39,11 @@ let offset = 0
 let seekOnReady = 0
 let playerOpen = false
 let remoteChange = false
+let remoteSeekTarget: number | null = null
+let remoteSeekUntil = 0
+let remotePlaybackTarget: boolean | null = null
+let remotePlaybackUntil = 0
+let lastPolledPosition: number | null = null
 let disposed = false
 let exitReason: 'next' | 'unmount' | null = null
 let pollTimer: ReturnType<typeof setInterval> | undefined
@@ -54,8 +59,21 @@ function getState() {
   return { playing: playing.value && ready.value, position: absolutePosition() }
 }
 
-function emitControl() {
-  if (!remoteChange) emit('control', getState())
+function emitControl(action: 'play' | 'pause' | 'seek') {
+  if (remoteChange) return
+  const state = getState()
+  const now = performance.now()
+  if (remotePlaybackTarget !== null && now < remotePlaybackUntil) {
+    const matchesRemoteState = remotePlaybackTarget === state.playing
+    remotePlaybackTarget = null
+    if (matchesRemoteState) return
+  }
+  if (action === 'seek' && now < remoteSeekUntil && remoteSeekTarget !== null) {
+    const matchesRemotePosition = Math.abs(state.position - remoteSeekTarget) < 1
+    remoteSeekTarget = null
+    if (matchesRemotePosition) return
+  }
+  emit('control', { ...state, action })
 }
 
 function emitProgress() {
@@ -121,7 +139,7 @@ function onPlay(event: { currentTime?: number | string; fromPlayerId?: string })
   if (!isCurrentPlayer(event)) return
   eventPosition(event.currentTime)
   playing.value = true
-  emitControl()
+  emitControl('play')
 }
 
 function onPause(event: { currentTime?: number | string; fromPlayerId?: string }) {
@@ -129,7 +147,7 @@ function onPause(event: { currentTime?: number | string; fromPlayerId?: string }
   eventPosition(event.currentTime)
   playing.value = false
   emitProgress()
-  emitControl()
+  emitControl('pause')
 }
 
 async function closeForNext() {
@@ -157,6 +175,7 @@ async function onEnded(event: { currentTime?: number | string; fromPlayerId?: st
   eventPosition(event.currentTime)
   playing.value = false
   emitProgress()
+  emitControl('pause')
   if (!props.nextLabel) return
   try {
     await closeForNext()
@@ -184,7 +203,13 @@ function startPolling() {
   pollTimer = setInterval(() => {
     void VideoPlayer.getCurrentTime(PLAYER_ID_OPTIONS)
       .then((result) => {
-        if (result.result) eventPosition(result.value)
+        if (!result.result) return
+        eventPosition(result.value)
+        const currentPosition = absolutePosition()
+        if (!props.locked && !remoteChange && lastPolledPosition !== null && Math.abs(currentPosition - lastPolledPosition) > REMOTE_DRIFT_SECONDS) {
+          emitControl('seek')
+        }
+        lastPolledPosition = currentPosition
       })
       .catch((error: unknown) => console.error('Could not read native video playback position', error))
   }, 1000)
@@ -277,23 +302,30 @@ async function attachListenersAndStart() {
 }
 
 function applyRemote(state: { playing: boolean; position: number }) {
-  if (!ready.value || remoteChange || !props.locked) return
+  if (!ready.value || remoteChange) return
   remoteChange = true
   void (async () => {
     try {
       const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
       if (Math.abs(absolutePosition() - target) > REMOTE_DRIFT_SECONDS) {
+        remoteSeekTarget = target
+        remoteSeekUntil = performance.now() + 10_000
         const localTarget = Math.max(0, target - offset)
         await requireSuccess('remote seek', await VideoPlayer.setCurrentTime({ ...PLAYER_ID_OPTIONS, seektime: localTarget }))
         position.value = localTarget
       }
       if (state.playing && !playing.value) {
+        remotePlaybackTarget = true
+        remotePlaybackUntil = performance.now() + 10_000
         await requireSuccess('remote play', await VideoPlayer.play(PLAYER_ID_OPTIONS))
         playing.value = true
       } else if (!state.playing && playing.value) {
+        remotePlaybackTarget = false
+        remotePlaybackUntil = performance.now() + 10_000
         await requireSuccess('remote pause', await VideoPlayer.pause(PLAYER_ID_OPTIONS))
         playing.value = false
       }
+      lastPolledPosition = absolutePosition()
     } catch (error) {
       console.error('Could not sync native video with the watch party', error)
       emit('error', error instanceof Error ? error.message : 'Could not sync native video with the watch party')

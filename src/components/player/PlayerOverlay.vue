@@ -10,7 +10,7 @@ import { isNativeApp } from '../../platform/serverConnection'
 
 const NativeVideoPlayer = defineAsyncComponent(() => import('./NativeVideoPlayer.vue'))
 
-const props = defineProps<{ itemId: string; title: string; startAtSeconds?: number }>()
+const props = withDefaults(defineProps<{ itemId: string; title: string; startAtSeconds?: number; autoplay?: boolean }>(), { autoplay: true })
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
@@ -48,15 +48,19 @@ function playNext() {
   if (next) play({ id: next.id, title: next.title })
 }
 
-function onControl(state: { playing: boolean; position: number }) {
-  if (videoParty.value && party.isHost.value) party.sendControl({ itemId: props.itemId, ...state })
+function onControl(state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }) {
+  if (videoParty.value && party.isHost.value) {
+    if (!party.sendVideoCommand({ action: state.action, position: state.position }, props.itemId)) syncVideo()
+  }
 }
 
-watch([() => party.latest.value, videoPlayer], () => {
+function syncVideo() {
   const state = party.latest.value
-  if (!locked.value || !state || !videoPlayer.value) return
+  if (!videoParty.value || !state || !videoPlayer.value) return
   videoPlayer.value.applyRemote({ playing: state.party.playing, position: expectedPosition(state) })
-})
+}
+
+watch([() => party.latest.value, videoPlayer], syncVideo)
 
 let partyBeat: ReturnType<typeof setInterval> | undefined
 
@@ -118,25 +122,20 @@ onMounted(() => {
   document.body.style.overflow = mini.value ? '' : 'hidden'
   window.addEventListener('keydown', onKeydown)
   void load(props.itemId)
-  partyBeat = setInterval(() => {
-    const state = videoPlayer.value?.getState()
-    if (state) onControl(state)
-  }, 5_000)
+  partyBeat = setInterval(syncVideo, 5_000)
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   clearInterval(partyBeat)
-  const last = videoPlayer.value?.getState()
-  if (last) onControl({ ...last, playing: false })
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
 <template>
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded-lg shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="title">
-    <NativeVideoPlayer v-if="playback && info && nativePlayback" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :container="playback.mediaSource.container" :info="info" :title="title" :start-at="startAt" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
-    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <NativeVideoPlayer v-if="playback && info && nativePlayback" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :container="playback.mediaSource.container" :info="info" :title="title" :start-at="startAt" :autoplay="props.autoplay" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :title="title" :start-at="startAt" :autoplay="props.autoplay" :chapters="chapters" :segments="segments" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <div v-else class="grid size-full place-items-center p-6 text-center">
       <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
       <div v-else class="w-full max-w-3xl" role="status" :aria-label="t('mediaItem.loading')">

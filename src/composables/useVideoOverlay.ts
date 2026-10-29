@@ -5,6 +5,7 @@ export interface PlayingVideo {
   title: string
   /** Where to begin, in seconds; omitted resumes from saved progress. */
   startAt?: number
+  autoplay?: boolean
 }
 
 // Module-level so the player outlives route changes.
