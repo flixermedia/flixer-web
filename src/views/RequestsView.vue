@@ -40,7 +40,13 @@ async function load(append = false) {
     }
     rows.value = append ? [...rows.value, ...result.items] : result.items
     total.value = result.total
-    counts.value = result.counts
+    counts.value = {
+      pending: result.counts.pending ?? 0,
+      approved: result.counts.approved ?? 0,
+      declined: result.counts.declined ?? 0,
+      failed: result.counts.failed ?? 0,
+      available: result.counts.available ?? 0,
+    }
     offset.value = rows.value.length
   } finally {
     busy.value = false
