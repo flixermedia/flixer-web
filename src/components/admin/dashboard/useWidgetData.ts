@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { catchError } from '../../../utils/catchError'
 
 /** Loads a widget's data once and then every `intervalMs`; a failed refresh keeps the last data and sets `failed`. */
 export function useWidgetData<T>(load: () => Promise<T>, intervalMs = 15000) {
@@ -7,12 +8,13 @@ export function useWidgetData<T>(load: () => Promise<T>, intervalMs = 15000) {
   let timer: ReturnType<typeof setInterval> | undefined
 
   async function refresh() {
-    try {
-      data.value = (await load()) as never
-      failed.value = false
-    } catch (error: unknown) {
+    const [error, result] = await catchError(load())
+    if (error) {
       console.error('[dashboard] widget failed to load', error)
       failed.value = true
+    } else {
+      data.value = result as never
+      failed.value = false
     }
   }
 

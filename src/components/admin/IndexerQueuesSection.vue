@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { cancelActiveIndexerTasks, getIndexerStatus, INDEXER_QUEUES, setIndexerConcurrency, setIndexerQueuePaused, type IndexerQueueName, type IndexerQueueStats, type IndexerStatus } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import StatusPill from './StatusPill.vue'
@@ -33,19 +34,19 @@ function apply(next: IndexerStatus) {
 }
 
 async function refresh() {
-  try {
-    apply(await getIndexerStatus())
-  } catch (err: unknown) {
-    error.value = describeRequestError(err, t('admin.indexer.loadError'))
+  const [requestError, result] = await catchError(getIndexerStatus())
+  if (requestError) {
+    error.value = describeRequestError(requestError, t('admin.indexer.loadError'))
+  } else {
+    apply(result)
   }
 }
 
 async function togglePause(queue: IndexerQueueName) {
   busyQueue.value = queue
   try {
-    await setIndexerQueuePaused(queue, !statsFor(queue)?.paused)
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.indexer.queueError')))
+    const [error] = await catchError(setIndexerQueuePaused(queue, !statsFor(queue)?.paused))
+    if (error) notify.error(describeRequestError(error, t('admin.indexer.queueError')))
   } finally {
     busyQueue.value = null
   }
@@ -56,14 +57,25 @@ async function cancelRunning(queues: IndexerQueueName[]) {
   cancelling.value = true
   try {
     let n = 0
+    let requestError: Error | undefined
     // A second pass catches work that upstream tasks queued while they were being cancelled.
     for (let pass = 0; pass < (queues.length > 1 ? 2 : 1); pass++) {
-      for (const queue of queues) n += await cancelActiveIndexerTasks(queue)
+      for (const queue of queues) {
+        const [error, cancelled] = await catchError(cancelActiveIndexerTasks(queue))
+        if (error) {
+          requestError = error
+          break
+        }
+        n += cancelled
+      }
+      if (requestError) break
     }
-    notify.success(t('admin.indexer.cancelledRunning', { n }))
-    await refresh()
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.indexer.queueError')))
+    if (requestError) {
+      notify.error(describeRequestError(requestError, t('admin.indexer.queueError')))
+    } else {
+      notify.success(t('admin.indexer.cancelledRunning', { n }))
+      await refresh()
+    }
   } finally {
     cancelling.value = false
   }
@@ -74,11 +86,14 @@ async function saveWorkers() {
   try {
     const counts: Partial<Record<IndexerQueueName, number>> = {}
     for (const queue of INDEXER_QUEUES) if (typeof workers[queue] === 'number') counts[queue] = workers[queue]
-    status.value = await setIndexerConcurrency(counts)
-    dirty.value = false
-    notify.success(t('admin.indexer.workersSaved'))
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.indexer.workersError')))
+    const [error, result] = await catchError(setIndexerConcurrency(counts))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.indexer.workersError')))
+    } else {
+      status.value = result
+      dirty.value = false
+      notify.success(t('admin.indexer.workersSaved'))
+    }
   } finally {
     saving.value = false
   }

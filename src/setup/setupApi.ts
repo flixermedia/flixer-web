@@ -1,8 +1,22 @@
 import axios from 'axios'
 import { api } from '../api'
-
-export type SetupState = 'not_started' | 'in_progress' | 'completed' | 'recovery_required'
-export type SetupFlow = 'quick' | 'advanced'
+import { catchError } from '../utils/catchError'
+import type {
+  FlixerApiRouteBody,
+  SetupFlow,
+  SetupProgress,
+  SetupState,
+  SetupStatus,
+  SetupStepResult,
+} from '@flixermedia/flixer-api-client'
+export type {
+  SetupConfigField as ConfigField,
+  SetupFlow,
+  SetupProgress,
+  SetupState,
+  SetupStatus,
+  SetupStepResult as StepResult,
+} from '@flixermedia/flixer-api-client'
 /** The wizard also has a recovery flow, chosen by the server's state rather than by the user. */
 export type WizardFlow = SetupFlow | 'recovery'
 
@@ -38,37 +52,6 @@ function recoveryHeaders(): { headers?: Record<string, string> } {
   return code ? { headers: { 'x-setup-recovery-code': code } } : {}
 }
 
-export interface SetupStatus {
-  state: SetupState
-  mode: 'bootstrap' | 'ready'
-  database: 'ok' | 'unconfigured' | 'unavailable'
-  persistent: boolean
-}
-
-export interface ConfigField {
-  source: 'env' | 'store' | 'default' | 'unset'
-  /** Set by an environment variable, so the wizard cannot change it. */
-  locked: boolean
-  set: boolean
-  /** Only present for values that are not secret. */
-  value?: string
-  default?: string
-}
-
-export interface SetupProgress extends SetupStatus {
-  flow: SetupFlow
-  completedSteps: string[]
-  steps: { id: string; title: string; canTest: boolean }[]
-  adminExists: boolean
-  config: Record<string, ConfigField>
-}
-
-export interface StepResult {
-  ok: boolean
-  message?: string
-  restart?: string[]
-}
-
 /** The answer to "does this installation need setup?". Anything that is not a clear answer is "unavailable". */
 export type SetupGate = { kind: 'ready' } | { kind: 'setup'; status: SetupStatus } | { kind: 'unavailable'; reason: 'unreachable' | 'starting' | 'invalid' }
 
@@ -93,14 +76,13 @@ export function classifyStatus(status: SetupStatus | null): SetupGate {
 }
 
 export async function fetchSetupGate(): Promise<SetupGate> {
-  try {
-    const response = await api.get<unknown>('/setup/status', { timeout: 6000 })
-    return classifyStatus(parseStatus(response.data))
-  } catch (error: unknown) {
+  const [error, response] = await catchError(api.get<SetupStatus>('/setup/status', { timeout: 6000 }))
+  if (error) {
     // An API that predates the wizard has no such route; it is already configured, not waiting for setup.
     if (axios.isAxiosError(error) && error.response?.status === 404) return { kind: 'ready' }
     return { kind: 'unavailable', reason: 'unreachable' }
   }
+  return classifyStatus(parseStatus(response.data))
 }
 
 export async function getProgress(): Promise<SetupProgress> {
@@ -108,15 +90,22 @@ export async function getProgress(): Promise<SetupProgress> {
 }
 
 export async function setFlow(flow: SetupFlow): Promise<void> {
-  await api.post('/setup/flow', { flow }, recoveryHeaders())
+  const request: FlixerApiRouteBody<'post', '/setup/flow'> = { flow }
+  await api.post('/setup/flow', request, recoveryHeaders())
 }
 
-export async function testStep(id: string, values: Record<string, unknown>): Promise<StepResult> {
-  return (await api.post<StepResult>(`/setup/steps/${id}/test`, values, { timeout: 20_000, ...recoveryHeaders() })).data
+export async function testStep(
+  id: string,
+  values: FlixerApiRouteBody<'post', '/setup/steps/{param}/test'>,
+): Promise<SetupStepResult> {
+  return (await api.post<SetupStepResult>(`/setup/steps/${id}/test`, values, { timeout: 20_000, ...recoveryHeaders() })).data
 }
 
-export async function applyStep(id: string, values: Record<string, unknown>): Promise<StepResult> {
-  return (await api.post<StepResult>(`/setup/steps/${id}`, values, { timeout: 20_000, ...recoveryHeaders() })).data
+export async function applyStep(
+  id: string,
+  values: FlixerApiRouteBody<'post', '/setup/steps/{param}'>,
+): Promise<SetupStepResult> {
+  return (await api.post<SetupStepResult>(`/setup/steps/${id}`, values, { timeout: 20_000, ...recoveryHeaders() })).data
 }
 
 /** Asks the server to write the setup recovery key to its log. The key is never returned here. */

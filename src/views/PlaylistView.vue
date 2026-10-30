@@ -16,6 +16,7 @@ import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -60,12 +61,15 @@ async function load() {
   missing.value = false
   failed.value = false
   try {
-    playlist.value = await getPlaylist(String(route.params.id))
-    document.title = `${playlist.value.name} · Flixer`
-  } catch (error) {
-    playlist.value = null
-    missing.value = axios.isAxiosError(error) && error.response?.status === 404
-    failed.value = !missing.value
+    const [error, value] = await catchError(getPlaylist(String(route.params.id)))
+    if (error) {
+      playlist.value = null
+      missing.value = axios.isAxiosError(error) && error.response?.status === 404
+      failed.value = !missing.value
+    } else {
+      playlist.value = value
+      document.title = `${value.name} · Flixer`
+    }
   } finally {
     loading.value = false
   }
@@ -90,12 +94,14 @@ async function removeTrack(track: PlaylistTrack) {
   if (!ok) return
   busy.value = track.id
   try {
-    await removePlaylistItem(playlist.value.id, track.id)
+    const [error] = await catchError(removePlaylistItem(playlist.value.id, track.id))
+    if (error) {
+      failed.value = true
+      return
+    }
     playlist.value.tracks = playlist.value.tracks.filter((entry) => entry.id !== track.id)
     playlist.value.trackCount = playlist.value.tracks.length
     playlist.value.durationSeconds = playlist.value.tracks.reduce((total, entry) => total + (entry.durationSeconds ?? 0), 0)
-  } catch {
-    failed.value = true
   } finally {
     busy.value = null
   }
@@ -110,25 +116,27 @@ async function move(index: number, direction: -1 | 1) {
   playlist.value.tracks = reordered.map((track, position) => ({ ...track, position }))
   busy.value = 'order'
   try {
-    await reorderPlaylist(
+    const [error] = await catchError(reorderPlaylist(
       playlist.value.id,
       playlist.value.tracks.map((track) => track.id),
-    )
-  } catch {
-    playlist.value.tracks = previous
-    failed.value = true
+    ))
+    if (error) {
+      playlist.value.tracks = previous
+      failed.value = true
+    }
   } finally {
     busy.value = null
   }
 }
 async function removePlaylist() {
   if (!playlist.value || !(await confirm(t('social.deletePlaylistConfirm', { name: playlist.value.name }), t('social.deletePlaylist')))) return
-  try {
-    await deletePlaylist(playlist.value.id)
-    await router.push({ name: 'home' })
-  } catch {
+  const [error] = await catchError(deletePlaylist(playlist.value.id))
+  if (error) {
     failed.value = true
+    return
   }
+  const [navigationError] = await catchError(router.push({ name: 'home' }))
+  if (navigationError) failed.value = true
 }
 watch(
   () => route.params.id,
@@ -198,7 +206,7 @@ watch(
               <li v-for="(track, index) in tracks" :key="track.id" class="group grid grid-cols-[2rem_minmax(0,1fr)_3rem] items-center gap-3 px-3 py-2 transition motion-reduce:transition-none hover:bg-white/10 md:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.5fr)_3rem_auto]">
                 <button type="button" class="grid size-8 place-items-center rounded text-xs tabular-nums text-flixer-muted hover:text-white" :aria-label="t('social.playTrackFrom', { title: track.title })" @click="playFrom(index)">
                   <span class="group-hover:hidden">{{ index + 1 }}</span>
-                  <svg class="hidden size-4 text-white group-hover:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="hidden size-4 text-white group-hover:block" aria-hidden="true" />
                 </button>
                 <RouterLink :to="{ name: 'media-item', params: { id: track.id } }" class="flex min-w-0 items-center gap-3">
                   <span class="block size-10 shrink-0 overflow-hidden rounded bg-flixer-surface"><AuthImage v-if="track.imageIndex !== null" scope="library" :item-id="track.imageItemId" :index="track.imageIndex" :version="track.imageUpdatedAt" :width="80" :alt="track.title" /></span>

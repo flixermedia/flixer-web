@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 
     <header class="relative shrink-0 flex items-center justify-between p-4 md:px-8">
       <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close">
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        <Icon icon="lucide:chevron-down" class="size-4" aria-hidden="true" />
         {{ t('music.closeLyrics') }}
       </button>
     </header>
@@ -132,15 +132,15 @@ onBeforeUnmount(() => {
       </div>
       <div class="mt-2 flex items-center justify-center gap-4">
         <button type="button" class="grid size-11 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('music.previous')" @click="player.previous()">
-          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zM9.5 12 18 18V6z" /></svg>
+          <Icon icon="lucide:skip-back" class="size-6" aria-hidden="true" />
         </button>
         <button type="button" class="grid size-14 place-items-center rounded bg-white text-flixer-background transition hover:bg-white/85" :aria-label="isPlaying ? t('music.pause') : t('music.play')" @click="player.toggle()">
           <span v-if="isLoading" class="size-5 animate-spin rounded-full border-2 border-flixer-background/30 border-t-flixer-background" aria-hidden="true"></span>
-          <svg v-else-if="isPlaying" class="size-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
-          <svg v-else class="size-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+          <Icon v-else-if="isPlaying" icon="lucide:pause" class="size-7" aria-hidden="true" />
+          <Icon v-else icon="lucide:play" class="size-7" aria-hidden="true" />
         </button>
         <button type="button" class="grid size-11 place-items-center rounded text-white transition hover:bg-white/10 disabled:opacity-40" :disabled="!player.hasNext.value" :aria-label="t('music.next')" @click="player.next()">
-          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z" /></svg>
+          <Icon icon="lucide:skip-forward" class="size-6" aria-hidden="true" />
         </button>
       </div>
     </footer>

@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
-import { listSettings, updateSetting, type ServerSetting } from '../../api'
+import { listSettings, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
 interface Field {
   key: string
@@ -29,26 +30,30 @@ const savingKey = ref<string | null>(null)
 
 async function load() {
   try {
-    const settings = await listSettings()
-    values.value = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
-  } catch (error: unknown) {
-    console.error('[settings] failed to load server settings', error)
-    notify.error(describeRequestError(error, t('settings.server.loadFailed')))
+    const [error, settings] = await catchError(listSettings())
+    if (error) {
+      console.error('[settings] failed to load server settings', error)
+      notify.error(describeRequestError(error, t('settings.server.loadFailed')))
+    } else {
+      values.value = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
+    }
   } finally {
     isLoading.value = false
   }
 }
 
-async function save(field: Field, value: unknown) {
+async function save(field: Field, value: SettingRequestValue) {
   savingKey.value = field.key
   try {
-    const saved = await updateSetting(field.key, value)
-    values.value = { ...values.value, [field.key]: saved.value }
-    notify.success(t('settings.server.saved', { setting: t(field.labelKey) }))
-  } catch (error: unknown) {
-    console.error('[settings] failed to save setting', field.key, error)
-    notify.error(describeRequestError(error, t('settings.server.saveFailed')))
-    await load()
+    const [error, saved] = await catchError(updateSetting(field.key, value))
+    if (error) {
+      console.error('[settings] failed to save setting', field.key, error)
+      notify.error(describeRequestError(error, t('settings.server.saveFailed')))
+      await load()
+    } else {
+      values.value = { ...values.value, [field.key]: saved.value }
+      notify.success(t('settings.server.saved', { setting: t(field.labelKey) }))
+    }
   } finally {
     savingKey.value = null
   }

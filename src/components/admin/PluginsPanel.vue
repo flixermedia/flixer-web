@@ -7,6 +7,7 @@ import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { refreshPluginPages } from '../../composables/usePluginPages'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 
 const { t } = useI18n()
@@ -37,9 +38,12 @@ async function load() {
   isLoading.value = true
   loadError.value = ''
   try {
-    ;[installations.value, repositories.value, catalog.value] = await Promise.all([listPluginInstallations(), listPluginRepositories(), discoverPlugins({ q: query.value || undefined, target: target.value || undefined, capability: capability.value || undefined })])
-  } catch (error) {
-    loadError.value = describeRequestError(error)
+    const [error, result] = await catchError(Promise.all([listPluginInstallations(), listPluginRepositories(), discoverPlugins({ q: query.value || undefined, target: target.value || undefined, capability: capability.value || undefined })]))
+    if (error) {
+      loadError.value = describeRequestError(error)
+    } else {
+      ;[installations.value, repositories.value, catalog.value] = result
+    }
   } finally {
     isLoading.value = false
   }
@@ -48,9 +52,8 @@ async function load() {
 async function refreshRepository(repository: PluginRepository) {
   refreshing.value = repository.id
   try {
-    await refreshPluginRepository(repository.id)
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(refreshPluginRepository(repository.id))
+    if (error) notify.error(describeRequestError(error))
   } finally {
     refreshing.value = null
     await load()
@@ -75,12 +78,14 @@ async function install(plugin: PluginCatalogEntry, version: string) {
 
   installing.value = `${plugin.id}:${version}`
   try {
-    await installPluginRequest(plugin.id, { repositoryId, version, approvedPermissions: permissions })
-    await load()
-    void refreshPluginPages()
-    notify.success(t('admin.plugins.installedSuccess', { name: plugin.name }))
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(installPluginRequest(plugin.id, { repositoryId, version, approvedPermissions: permissions }))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      await load()
+      void refreshPluginPages()
+      notify.success(t('admin.plugins.installedSuccess', { name: plugin.name }))
+    }
   } finally {
     installing.value = null
   }
@@ -107,16 +112,18 @@ async function updateInstalled(plugin: PluginInstallation) {
 
   updating.value = plugin.id
   try {
-    await installPluginRequest(plugin.id, {
+    const [error] = await catchError(installPluginRequest(plugin.id, {
       repositoryId: plugin.repository.id,
       version: update.version,
       approvedPermissions: [...new Set([...plugin.approvedPermissions, ...update.permissions])],
-    })
-    await load()
-    void refreshPluginPages()
-    notify.success(t('admin.plugins.updatedSuccess', { name: plugin.manifest.name }))
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    }))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      await load()
+      void refreshPluginPages()
+      notify.success(t('admin.plugins.updatedSuccess', { name: plugin.manifest.name }))
+    }
   } finally {
     updating.value = null
   }
@@ -124,24 +131,23 @@ async function updateInstalled(plugin: PluginInstallation) {
 
 async function setEnabled(plugin: PluginInstallation, enabled: boolean) {
   if (!enabled && !(await confirmAction(t('admin.plugins.confirmDisable', { name: plugin.manifest.name })))) return
-  try {
-    if (enabled) await enablePlugin(plugin.id)
-    else await disablePlugin(plugin.id)
+  const [error] = await catchError(enabled ? enablePlugin(plugin.id) : disablePlugin(plugin.id))
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
     await load()
     void refreshPluginPages()
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 }
 
 async function uninstall(plugin: PluginInstallation) {
   if (!(await confirmAction(t('admin.plugins.confirmUninstall', { name: plugin.manifest.name }), { danger: true }))) return
-  try {
-    await uninstallPlugin(plugin.id)
+  const [error] = await catchError(uninstallPlugin(plugin.id))
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
     await load()
     void refreshPluginPages()
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 }
 
@@ -153,10 +159,13 @@ async function toggleHistory(plugin: PluginInstallation) {
   historyOpen.value = [...historyOpen.value, plugin.id]
   historyLoading.value = plugin.id
   try {
-    updateHistory.value[plugin.id] = await listPluginUpdateHistory(plugin.id)
-  } catch (error) {
-    notify.error(describeRequestError(error))
-    historyOpen.value = historyOpen.value.filter((id) => id !== plugin.id)
+    const [error, history] = await catchError(listPluginUpdateHistory(plugin.id))
+    if (error) {
+      notify.error(describeRequestError(error))
+      historyOpen.value = historyOpen.value.filter((id) => id !== plugin.id)
+    } else {
+      updateHistory.value[plugin.id] = history
+    }
   } finally {
     historyLoading.value = null
   }
@@ -169,13 +178,15 @@ function openSettings(plugin: PluginInstallation) {
 async function addRepository() {
   isSaving.value = true
   try {
-    await addPluginRepository(name.value, url.value)
-    name.value = ''
-    url.value = ''
-    await load()
-    notify.success(t('admin.plugins.repositoryAdded'))
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(addPluginRepository(name.value, url.value))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      name.value = ''
+      url.value = ''
+      await load()
+      notify.success(t('admin.plugins.repositoryAdded'))
+    }
   } finally {
     isSaving.value = false
   }
@@ -185,11 +196,11 @@ async function removeRepository(repository: PluginRepository) {
   if (repository.isOfficial) return
   if (!(await confirmAction(t('admin.plugins.confirmRemove', { name: repository.name }), { danger: true }))) return
 
-  try {
-    await removePluginRepository(repository.id)
-    await load()
-  } catch (error) {
+  const [error] = await catchError(removePluginRepository(repository.id))
+  if (error) {
     notify.error(describeRequestError(error))
+  } else {
+    await load()
   }
 }
 

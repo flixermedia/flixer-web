@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { deleteAccount } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 
 defineOptions({ modalGroup: 'default' })
@@ -18,11 +19,13 @@ const isDeleting = ref(false)
 async function submit() {
   isDeleting.value = true
   try {
-    await deleteAccount(password.value)
-    confirm(true)
-  } catch (error: unknown) {
-    console.error('[settings] account deletion failed', error)
-    notify.error(describeRequestError(error, t('settings.profile.deleteFailed')))
+    const [error] = await catchError(deleteAccount(password.value))
+    if (error) {
+      console.error('[settings] account deletion failed', error)
+      notify.error(describeRequestError(error, t('settings.profile.deleteFailed')))
+    } else {
+      confirm(true)
+    }
   } finally {
     isDeleting.value = false
   }
@@ -33,9 +36,7 @@ async function submit() {
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <div class="flex size-11 items-center justify-center rounded bg-rose-400/10 text-rose-300">
-        <svg class="size-5 fill-none stroke-current" viewBox="0 0 20 20" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10 6v5M10 14h.01M8.6 3.5 2.5 14a1.6 1.6 0 0 0 1.4 2.4h12.2a1.6 1.6 0 0 0 1.4-2.4L11.4 3.5a1.6 1.6 0 0 0-2.8 0Z" />
-        </svg>
+        <Icon icon="lucide:circle-alert" class="size-5" aria-hidden="true" />
       </div>
       <ModalTitle class="mt-4 text-lg font-semibold">{{ t('settings.profile.deleteConfirmTitle') }}</ModalTitle>
       <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">{{ t('settings.profile.deleteConfirmDescription') }}</ModalDescription>

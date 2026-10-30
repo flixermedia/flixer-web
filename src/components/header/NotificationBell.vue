@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { acceptFriend } from '../../api'
 import { notify } from '../../composables/notify'
 import { useNotifications } from '../../composables/useNotifications'
+import { catchError } from '../../utils/catchError'
 
 const POLL_MS = 60_000
 
@@ -96,10 +97,13 @@ async function acceptRequest(notificationId: string, url: string | null) {
   if (!username || acceptingFriendRequest.value) return
   acceptingFriendRequest.value = notificationId
   try {
-    await acceptFriend(username)
-    await dismiss(notificationId)
-  } catch {
-    notify.error(t('notifications.friendRequestAcceptError'))
+    const [acceptError] = await catchError(acceptFriend(username))
+    if (acceptError) {
+      notify.error(t('notifications.friendRequestAcceptError'))
+      return
+    }
+    const [dismissError] = await catchError(dismiss(notificationId))
+    if (dismissError) notify.error(t('notifications.friendRequestAcceptError'))
   } finally {
     acceptingFriendRequest.value = ''
   }
@@ -113,9 +117,7 @@ function togglePush() {
 <template>
   <div v-if="enabled" ref="root" class="relative">
     <button type="button" :class="buttonClass" :aria-label="t('notifications.title')" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
-      <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
-      </svg>
+      <Icon icon="lucide:bell" class="size-5" aria-hidden="true" />
       <Transition name="bell-badge">
         <span v-if="hasUnread" class="absolute right-1 top-1 grid min-w-4 place-items-center rounded bg-flixer-accent px-1 text-[10px] font-bold leading-4 text-flixer-background">{{ unread > 9 ? '9+' : unread }}</span>
       </Transition>
@@ -142,7 +144,7 @@ function togglePush() {
               </button>
             </div>
             <button type="button" class="grid size-6 shrink-0 place-items-center rounded text-flixer-muted opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100" :aria-label="t('notifications.dismiss')" @click="dismiss(item.id)">
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              <Icon icon="lucide:x" class="size-3.5" aria-hidden="true" />
             </button>
           </li>
         </ul>

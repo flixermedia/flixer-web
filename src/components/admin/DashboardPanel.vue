@@ -6,6 +6,7 @@ import { getAdminOverview, getPreferences, updatePreferences, type AdminOverview
 import { notify } from '../../composables/notify'
 import { useLiveTopic } from '../../composables/useLive'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import ActivityWidget from './dashboard/ActivityWidget.vue'
 import AddWidgetModal from './AddWidgetModal.vue'
 import BackupsWidget from './dashboard/BackupsWidget.vue'
@@ -68,9 +69,7 @@ const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: Back
 const needsOverview = (id: DashboardWidgetId): id is keyof typeof COMPONENTS => id in COMPONENTS
 const standalone = (id: DashboardWidgetId): id is keyof typeof STANDALONE => id in STANDALONE
 
-const iconButton = 'inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-30'
-const quietButton = 'rounded-lg bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-60'
-const primaryButton = 'rounded-lg bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-60'
+const iconButton = 'inline-flex h-8 w-8 items-center justify-center rounded bg-white/10 text-sm transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-30'
 const resizeHandle = 'absolute z-20 hidden items-center justify-center touch-none lg:flex'
 
 const label = (id: DashboardWidgetId) => t(`admin.dashboard.widgets.${id}`)
@@ -168,16 +167,13 @@ function onHandleKey(id: DashboardWidgetId, event: KeyboardEvent) {
 }
 
 async function addPanel() {
-  try {
-    const id = await openModal<DashboardWidgetId>(AddWidgetModal, { props: { added: draft.value.map((item) => item.id) } })
-    draft.value = addWidget(draft.value, id)
-    justAdded.value = id
-    announcement.value = t('admin.dashboard.added', { widget: label(id) })
-    await nextTick()
-    document.getElementById(`dashboard-widget-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  } catch {
-    // modal dismissed without choosing a panel
-  }
+  const [error, id] = await catchError(openModal<DashboardWidgetId>(AddWidgetModal, { props: { added: draft.value.map((item) => item.id) } }))
+  if (error) return
+  draft.value = addWidget(draft.value, id)
+  justAdded.value = id
+  announcement.value = t('admin.dashboard.added', { widget: label(id) })
+  await nextTick()
+  document.getElementById(`dashboard-widget-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
 }
 
 function remove(id: DashboardWidgetId) {
@@ -188,12 +184,14 @@ function remove(id: DashboardWidgetId) {
 async function persist(next: GridItem[], clear = false) {
   isSaving.value = true
   try {
-    await updatePreferences({ adminDashboardGrid: clear ? null : next })
-    saved.value = next.map((item) => ({ ...item }))
-    editing.value = false
-    notify.success(t('admin.dashboard.saved'))
-  } catch (error: unknown) {
-    notify.error(describeRequestError(error, t('admin.dashboard.saveError')))
+    const [error] = await catchError(updatePreferences({ adminDashboardGrid: clear ? null : next }))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.dashboard.saveError')))
+    } else {
+      saved.value = next.map((item) => ({ ...item }))
+      editing.value = false
+      notify.success(t('admin.dashboard.saved'))
+    }
   } finally {
     isSaving.value = false
   }
@@ -201,14 +199,27 @@ async function persist(next: GridItem[], clear = false) {
 
 const save = () => persist(draft.value)
 const reset = () => persist(DEFAULT_GRID.map((item) => ({ ...item })), true)
+const editorActions = computed(() => [
+  { id: 'add-panel', label: t('admin.dashboard.addPanel'), disabled: isSaving.value, run: addPanel },
+  { id: 'reset', label: t('admin.dashboard.reset'), disabled: isSaving.value || (isDefaultGrid(draft.value) && isDefaultGrid(saved.value)), run: reset },
+  { id: 'save', label: t('admin.dashboard.save'), disabled: isSaving.value || !changed.value, run: save },
+])
+
+function toggleEditorActions() {
+  if (editing.value) cancel()
+  else startEditing()
+}
 
 async function load() {
   try {
-    overview.value = await getAdminOverview()
-    loadError.value = ''
-  } catch (error: unknown) {
-    console.error('[overview] failed to load', error)
-    loadError.value = describeRequestError(error, t('admin.overview.loadError'))
+    const [error, result] = await catchError(getAdminOverview())
+    if (error) {
+      console.error('[overview] failed to load', error)
+      loadError.value = describeRequestError(error, t('admin.overview.loadError'))
+    } else {
+      overview.value = result
+      loadError.value = ''
+    }
   } finally {
     isLoading.value = false
   }
@@ -237,15 +248,30 @@ watch(live.data, (value) => {
 <template>
   <div class="flex flex-col gap-5">
     <Teleport defer to="#admin-header-actions">
-    <div class="hidden flex-wrap items-center justify-end gap-2 lg:flex">
-      <template v-if="editing">
-        <button type="button" :class="primaryButton" :disabled="isSaving" @click="addPanel">{{ t('admin.dashboard.addPanel') }}</button>
-        <button type="button" :class="quietButton" :disabled="isSaving || (isDefaultGrid(draft) && isDefaultGrid(saved))" @click="reset">{{ t('admin.dashboard.reset') }}</button>
-        <button type="button" :class="quietButton" :disabled="isSaving" @click="cancel">{{ t('admin.dashboard.cancel') }}</button>
-        <button type="button" :class="primaryButton" :disabled="isSaving || !changed" @click="save">{{ t('admin.dashboard.save') }}</button>
-      </template>
-      <button v-else type="button" :class="quietButton" @click="startEditing">{{ t('admin.dashboard.customize') }}</button>
-    </div>
+      <div class="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-1">
+        <TransitionGroup id="admin-layout-actions" name="fab-pop" tag="div" class="flex flex-col items-end gap-1">
+          <button
+            v-for="(action, index) in (editing ? editorActions : [])"
+            :key="action.id"
+            type="button"
+            class="group inline-flex size-14 items-center justify-center"
+            :aria-label="action.label"
+            :title="action.label"
+            :disabled="action.disabled"
+            :style="{ '--action-delay': `${(editorActions.length - index - 1) * 45}ms` }"
+            @click="action.run"
+          >
+            <span class="inline-flex size-12 items-center justify-center rounded-full bg-flixer-primary text-white shadow-lg shadow-black/40 transition group-hover:bg-flixer-primary/80 group-disabled:opacity-50">
+              <Icon v-if="action.id === 'add-panel'" icon="lucide:plus" class="size-5" aria-hidden="true" />
+              <Icon v-else-if="action.id === 'reset'" icon="lucide:rotate-ccw" class="size-5" aria-hidden="true" />
+              <Icon v-else icon="lucide:check" class="size-5" aria-hidden="true" />
+            </span>
+          </button>
+        </TransitionGroup>
+        <button type="button" class="inline-flex size-14 items-center justify-center rounded-full bg-flixer-accent text-white shadow-xl shadow-black/40 transition hover:bg-flixer-accent/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="t(editing ? 'admin.dashboard.cancel' : 'admin.dashboard.customize')" :aria-expanded="editing" aria-controls="admin-layout-actions" :title="t(editing ? 'admin.dashboard.cancel' : 'admin.dashboard.customize')" @click="toggleEditorActions">
+          <Icon :icon="editing ? 'lucide:x' : 'lucide:layout-dashboard'" class="size-6" aria-hidden="true" />
+        </button>
+      </div>
     </Teleport>
 
     <p class="sr-only" role="status" aria-live="polite">{{ announcement }}</p>
@@ -257,11 +283,11 @@ watch(live.data, (value) => {
     <TransitionGroup tag="div" name="dashboard-move" class="dash-grid" :class="editing && 'dash-grid-editing'" :style="{ '--rows': rows }">
       <div v-for="item in layout" :id="`dashboard-widget-${item.id}`" :key="item.id" data-widget class="dash-cell relative min-w-0 rounded transition-shadow" :class="[editing && 'ring-1 ring-flixer-accent/40', editing && gesture?.id === item.id && 'z-10 ring-2 ring-flixer-accent', editing && justAdded === item.id && 'ring-2 ring-emerald-400']" :style="{ '--x': item.x, '--y': item.y, '--w': item.w, '--h': item.h, '--o': orderOf.get(item.id) }">
         <div v-if="editing" class="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between gap-2">
-          <button type="button" class="pointer-events-auto flex min-w-0 cursor-grab touch-none items-center gap-2 rounded-lg bg-flixer-background/90 px-2 py-1.5 text-xs shadow-lg backdrop-blur font-semibold text-flixer-accent focus-visible:outline-2 focus-visible:outline-flixer-accent active:cursor-grabbing" aria-describedby="dashboard-keys" :aria-label="t('admin.dashboard.dragHandle', { widget: label(item.id) })" @pointerdown="startMove(item.id, $event)" @keydown="onHandleKey(item.id, $event)">
-            <svg class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1.5 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM16 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1.5 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM16 17a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" /></svg>
+          <button type="button" class="pointer-events-auto flex min-w-0 cursor-grab touch-none items-center gap-2 rounded bg-flixer-background/90 px-2 py-1.5 text-xs shadow-lg backdrop-blur font-semibold text-flixer-accent focus-visible:outline-2 focus-visible:outline-flixer-accent active:cursor-grabbing" aria-describedby="dashboard-keys" :aria-label="t('admin.dashboard.dragHandle', { widget: label(item.id) })" @pointerdown="startMove(item.id, $event)" @keydown="onHandleKey(item.id, $event)">
+            <Icon icon="lucide:grip" class="h-4 w-4 shrink-0" aria-hidden="true" />
             <span class="truncate">{{ label(item.id) }}</span>
           </button>
-          <button type="button" :class="[iconButton, 'pointer-events-auto bg-flixer-background/90 shadow-lg']" :aria-label="t('admin.dashboard.remove', { widget: label(item.id) })" @click="remove(item.id)">✕</button>
+          <button type="button" :class="[iconButton, 'pointer-events-auto bg-flixer-background/90 shadow-lg']" :aria-label="t('admin.dashboard.remove', { widget: label(item.id) })" @click="remove(item.id)"><Icon icon="lucide:x" class="size-4" aria-hidden="true" /></button>
         </div>
 
         <div :class="editing && 'pointer-events-none select-none'" class="h-full lg:*:h-full lg:*:overflow-auto" :inert="editing">
@@ -296,7 +322,7 @@ watch(live.data, (value) => {
 }
 @media (min-width: 1024px) {
   .dash-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: repeat(var(--rows), 96px);
   }
   .dash-grid-editing {
@@ -312,8 +338,19 @@ watch(live.data, (value) => {
 .dashboard-move-move {
   transition: transform 0.2s ease;
 }
+.fab-pop-enter-active,
+.fab-pop-leave-active {
+  transition: opacity 0.2s ease var(--action-delay, 0ms), transform 0.2s ease var(--action-delay, 0ms);
+}
+.fab-pop-enter-from,
+.fab-pop-leave-to {
+  opacity: 0;
+  transform: translate(1rem, 0.75rem) scale(0.75);
+}
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-move-move {
+  .dashboard-move-move,
+  .fab-pop-enter-active,
+  .fab-pop-leave-active {
     transition: none;
   }
 }

@@ -2,10 +2,11 @@
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AVATAR_TYPES, MAX_AVATAR_BYTES, deleteAdminUser, removeAdminUserAvatar, revokeAdminUserSessions, setAdminUserAvatar, setAdminUserPassword, updateAdminUser, type AdminUser } from '../../api'
+import { AVATAR_TYPES, MAX_AVATAR_BYTES, deleteAdminUser, removeAdminUserAvatar, revokeAdminUserSessions, setAdminUserAvatar, setAdminUserPassword, updateAdminUser, type AdminUser, type AdminUserChanges } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
 import AdminToggle from './AdminToggle.vue'
@@ -24,20 +25,28 @@ const avatarUrl = ref(props.user.avatarUrl)
 const fileInput = ref<HTMLInputElement | null>(null)
 const { load: reloadProfile } = useProfile()
 const activeSessions = ref(props.user.activeSessions)
-const form = reactive({ displayName: props.user.displayName, email: props.user.email ?? '', role: props.user.role, enabled: !props.user.disabled, newPassword: '' })
+const form = reactive<{
+  displayName: string
+  email: string
+  role: NonNullable<AdminUserChanges['role']>
+  enabled: boolean
+  newPassword: string
+}>({ displayName: props.user.displayName, email: props.user.email ?? '', role: props.user.role, enabled: !props.user.disabled, newPassword: '' })
 const canSave = computed(() => !busy.value && form.displayName.trim() !== '')
 
-const secondaryButton = 'flex h-11 items-center justify-center rounded-lg border border-flixer-border px-5 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60'
-const dangerButton = 'flex h-11 items-center justify-center rounded-lg border border-rose-400/40 px-5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:opacity-60'
+const secondaryButton = 'flex h-11 items-center justify-center rounded border border-flixer-border px-5 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60'
+const dangerButton = 'flex h-11 items-center justify-center rounded border border-rose-400/40 px-5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:opacity-60'
 
 async function run<T>(action: () => Promise<T>, errorKey: string): Promise<T | undefined> {
   busy.value = true
   try {
-    return await action()
-  } catch (error: unknown) {
-    console.error('[users]', errorKey, error)
-    notify.error(describeRequestError(error, t(errorKey)))
-    return undefined
+    const [error, result] = await catchError(action())
+    if (error) {
+      console.error('[users]', errorKey, error)
+      notify.error(describeRequestError(error, t(errorKey)))
+      return undefined
+    }
+    return result
   } finally {
     busy.value = false
   }
@@ -123,13 +132,13 @@ async function remove() {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.users.editTitle', { name: user.displayName }) }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.users.editDescription') }}</ModalDescription>
 
       <div class="mt-5 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="flex items-center gap-4">
-          <button type="button" class="group relative size-16 shrink-0 overflow-hidden rounded-xl text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait" :aria-label="t('settings.avatar.changeLabel')" :disabled="busy" @click="fileInput?.click()">
+          <button type="button" class="group relative size-16 shrink-0 overflow-hidden rounded text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait" :aria-label="t('settings.avatar.changeLabel')" :disabled="busy" @click="fileInput?.click()">
             <UserAvatar :avatar-url="avatarUrl" :name="user.displayName" />
             <span class="absolute inset-0 grid place-items-center bg-black/55 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">{{ busy ? t('settings.avatar.working') : t('settings.avatar.change') }}</span>
           </button>
@@ -174,7 +183,7 @@ async function remove() {
 
       <div class="mt-5 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button type="button" :class="secondaryButton" :disabled="busy" @click="changed ? confirm(true) : close()">{{ t('common.cancel') }}</button>
-        <button type="submit" form="edit-user-form" class="flex h-11 items-center justify-center rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="!canSave">{{ t('common.save') }}</button>
+        <button type="submit" form="edit-user-form" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="!canSave">{{ t('common.save') }}</button>
       </div>
     </ModalContent>
   </ModalRoot>

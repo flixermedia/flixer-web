@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { addFavorite, getFavoriteIds, removeFavorite } from '../api'
+import { catchError } from '../utils/catchError'
 
 const favoriteIds = ref<Set<string>>(new Set())
 let loadPromise: Promise<void> | null = null
@@ -34,10 +35,8 @@ async function toggle(itemId: string): Promise<void> {
   const operation = previous
     .catch(() => undefined)
     .then(async () => {
-      try {
-        if (shouldFavorite) await addFavorite(itemId)
-        else await removeFavorite(itemId)
-      } catch (error) {
+      const [error] = await catchError(shouldFavorite ? addFavorite(itemId) : removeFavorite(itemId))
+      if (error) {
         if (revisions.get(itemId) === revision) {
           const rolledBack = new Set(favoriteIds.value)
           if (wasFavorite) rolledBack.add(itemId)

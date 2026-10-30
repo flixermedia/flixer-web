@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
@@ -12,11 +12,12 @@ import VerificationNotice from '../components/auth/VerificationNotice.vue'
 import { notify } from '../composables/notify'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
-import { getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, type AuthResult } from '../api'
+import { clearAccessToken, getAccessToken, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
 import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -36,6 +37,9 @@ const biometricLoginAvailable = ref(false)
 const biometricCredentialsForSecondFactor = ref<{ username: string; password: string } | null>(null)
 const isRegistration = computed(() => route.name === 'register')
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
+const SESSION_RECOVERY_INTERVAL_MS = 5_000
+let sessionRecoveryTimer: ReturnType<typeof setInterval> | undefined
+let sessionRecoveryInFlight = false
 
 function getPostLoginDestination(): string | undefined {
   const redirect = route.query.redirect
@@ -45,28 +49,87 @@ function getPostLoginDestination(): string | undefined {
 onMounted(() => {
   void loadRegistrationStatus()
   if (isNativeApp()) void loadNativeSignInOptions()
+  startSessionRecovery()
 })
 
-async function loadNativeSignInOptions() {
-  try {
-    nativeUsername.value = (await restoreNativeAccount()) ?? ''
-    const status = await getNativeBiometricLoginStatus()
-    biometricAvailable.value = status.available
-    biometricLoginAvailable.value = status.saved
-  } catch (error) {
-    console.warn('[native-auth] Could not load native sign-in options', error)
+onUnmounted(stopSessionRecovery)
+
+watch(sessionCheckUnavailable, (unavailable) => {
+  if (unavailable) startSessionRecovery()
+  else stopSessionRecovery()
+})
+
+function stopSessionRecovery() {
+  if (sessionRecoveryTimer) clearInterval(sessionRecoveryTimer)
+  sessionRecoveryTimer = undefined
+}
+
+function clearSessionCheckWarning() {
+  const query = { ...route.query }
+  delete query.sessionCheck
+  void router.replace({ query })
+}
+
+async function recoverSavedSession() {
+  if (sessionRecoveryInFlight || !sessionCheckUnavailable.value) return
+  if (!getAccessToken()) {
+    clearSessionCheckWarning()
+    return
   }
+
+  sessionRecoveryInFlight = true
+  try {
+    const [error, isValid] = await catchError(validateAccessToken())
+    if (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearAccessToken()
+        clearSessionCheckWarning()
+      }
+      return
+    }
+    if (!isValid) {
+      clearAccessToken()
+      clearSessionCheckWarning()
+      return
+    }
+
+    await router.replace(getPostLoginDestination() ?? '/')
+  } finally {
+    sessionRecoveryInFlight = false
+  }
+}
+
+function startSessionRecovery() {
+  if (!sessionCheckUnavailable.value || sessionRecoveryTimer) return
+  void recoverSavedSession()
+  sessionRecoveryTimer = setInterval(() => void recoverSavedSession(), SESSION_RECOVERY_INTERVAL_MS)
+}
+
+async function loadNativeSignInOptions() {
+  const [accountError, username] = await catchError(restoreNativeAccount())
+  if (accountError) {
+    console.warn('[native-auth] Could not load native sign-in options', accountError)
+    return
+  }
+  nativeUsername.value = username ?? ''
+  const [statusError, status] = await catchError(getNativeBiometricLoginStatus())
+  if (statusError) {
+    console.warn('[native-auth] Could not load native sign-in options', statusError)
+    return
+  }
+  biometricAvailable.value = status.available
+  biometricLoginAvailable.value = status.saved
 }
 
 async function loadRegistrationStatus() {
   registrationStatusError.value = ''
-  try {
-    const status = await getRegistrationStatus()
-    registrationEnabled.value = status.registrationEnabled
-    loginBanner.value = status.loginBanner ?? ''
-  } catch {
+  const [error, status] = await catchError(getRegistrationStatus())
+  if (error) {
     registrationStatusError.value = t('auth.registrationAvailabilityError')
+    return
   }
+  registrationEnabled.value = status.registrationEnabled
+  loginBanner.value = status.loginBanner ?? ''
 }
 
 function switchAuthMode() {
@@ -79,60 +142,72 @@ function switchAuthMode() {
 async function promptNativePasswordSave(username: string, password: string) {
   if (!isNativeApp()) return
 
-  try {
-    await SavePassword.promptDialog({
+  const [error] = await catchError(Promise.resolve().then(() => SavePassword.promptDialog({
       username,
       password,
       url: window.location.hostname,
       title: 'Flixer',
-    })
-  } catch (error) {
+    })))
+  if (error) {
     console.warn('[native-auth] Password manager save prompt failed', error)
   }
 }
 
 async function completeAuthentication(result: AuthResult, biometricCredentials?: { username: string; password: string }) {
-  useProfile().clear()
-  saveAccessToken(result.accessToken)
+  try {
+    useProfile().clear()
+    saveAccessToken(result.accessToken)
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
   if (isNativeApp()) {
     if (!nativeUsername.value) {
-      try {
-        nativeUsername.value = (await restoreNativeAccount()) ?? ''
-      } catch (error) {
+      const [error, username] = await catchError(restoreNativeAccount())
+      if (error) {
         console.warn('[native-account] Could not check the previously saved account', error)
+      } else {
+        nativeUsername.value = username ?? ''
       }
     }
     const accountChanged = nativeUsername.value && nativeUsername.value.toLowerCase() !== result.user.username.toLowerCase()
-    try {
-      await saveNativeAccount(result.user.username)
+    const [accountError] = await catchError(saveNativeAccount(result.user.username))
+    if (!accountError) {
       nativeUsername.value = result.user.username
-    } catch (error) {
-      console.warn('[native-account] Could not save the account for reinstall recovery', error)
+    } else {
+      console.warn('[native-account] Could not save the account for reinstall recovery', accountError)
       notify.error(t('auth.rememberAccountFailed'))
     }
     if (biometricCredentials) {
-      try {
-        await saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password)
-      } catch (error) {
-        console.warn('[native-auth] Could not enable biometric sign-in', error)
+      const [biometricError] = await catchError(saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password))
+      if (biometricError) {
+        console.warn('[native-auth] Could not enable biometric sign-in', biometricError)
         notify.error(t('auth.biometricSetupFailed'))
       }
     } else if (accountChanged) {
-      try {
-        await removeNativeBiometricCredentials()
+      const [removeError] = await catchError(removeNativeBiometricCredentials())
+      if (!removeError) {
         biometricLoginAvailable.value = false
-      } catch (error) {
-        console.warn('[native-auth] Could not remove credentials for the previous account', error)
+      } else {
+        console.warn('[native-auth] Could not remove credentials for the previous account', removeError)
         notify.error(t('auth.biometricRemoveFailed'))
       }
     }
   }
-  await syncLocaleFromAccount()
+  const [localeError] = await catchError(syncLocaleFromAccount())
+  if (localeError) return localeError
 
   const redirect = route.query.redirect
   const destination = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
 
-  await router.replace(destination)
+  const [navigationError] = await catchError(router.replace(destination))
+  return navigationError
+}
+
+function handleLoginError(error: unknown) {
+  const message = axios.isAxiosError(error) ? String((error.response?.data as { message?: unknown } | undefined)?.message ?? '') : ''
+  // Disabled accounts also answer 403, but resending verification can't help them.
+  needsVerification.value = axios.isAxiosError(error) && error.response?.status === 403 && /verify your email/i.test(message)
+  notify.error(getRequestErrorMessage(error, false))
 }
 
 async function handleLogin(credentials: { username: string; password: string; rememberBiometric: boolean }) {
@@ -141,21 +216,31 @@ async function handleLogin(credentials: { username: string; password: string; re
   isSubmitting.value = true
 
   try {
-    const result = await login(credentials.username, credentials.password)
+    const [loginError, result] = await catchError(login(credentials.username, credentials.password))
+    if (loginError) {
+      handleLoginError(loginError)
+      return
+    }
     if ('passkeyRequired' in result) {
       passkeyTicket.value = result.ticket
       biometricCredentialsForSecondFactor.value = credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : null
       return
     }
     await promptNativePasswordSave(credentials.username, credentials.password)
-    await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined)
-  } catch (error: unknown) {
-    const message = axios.isAxiosError(error) ? String((error.response?.data as { message?: unknown } | undefined)?.message ?? '') : ''
-    // Disabled accounts also answer 403, but resending verification can't help them.
-    needsVerification.value = axios.isAxiosError(error) && error.response?.status === 403 && /verify your email/i.test(message)
-    notify.error(getRequestErrorMessage(error, false))
+    const authenticationError = await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined)
+    if (authenticationError) handleLoginError(authenticationError)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+function handleSecondFactorError(error: unknown) {
+  console.error('[passkey] second factor failed', error)
+  if (axios.isAxiosError(error) && error.response?.status === 401) {
+    passkeyTicket.value = ''
+    notify.error(t('auth.passkeySecondFactorExpired'))
+  } else {
+    notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyCheckCancelled') : getRequestErrorMessage(error, false))
   }
 }
 
@@ -166,30 +251,31 @@ async function handleSecondFactor() {
     if (isNativeApp()) {
       const biometricCredentials = biometricCredentialsForSecondFactor.value
       if (biometricCredentials) {
-        try {
-          await saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password)
+        const [saveError] = await catchError(saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password))
+        if (!saveError) {
           biometricLoginAvailable.value = true
-        } catch (error) {
-          console.warn('[native-auth] Could not enable biometric sign-in', error)
+        } else {
+          console.warn('[native-auth] Could not enable biometric sign-in', saveError)
           notify.error(t('auth.biometricSetupFailed'))
         }
       }
-      await beginNativePasskeyHandoff(passkeyTicket.value, getPostLoginDestination())
+      const [handoffError] = await catchError(beginNativePasskeyHandoff(passkeyTicket.value, getPostLoginDestination()))
+      if (handoffError) handleSecondFactorError(handoffError)
       return
     }
 
-    const result = await loginWithPasskeySecondFactor(passkeyTicket.value)
-    passkeyTicket.value = ''
-    await completeAuthentication(result, biometricCredentialsForSecondFactor.value ?? undefined)
-    biometricCredentialsForSecondFactor.value = null
-  } catch (error: unknown) {
-    console.error('[passkey] second factor failed', error)
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      passkeyTicket.value = ''
-      notify.error(t('auth.passkeySecondFactorExpired'))
-    } else {
-      notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyCheckCancelled') : getRequestErrorMessage(error, false))
+    const [loginError, result] = await catchError(loginWithPasskeySecondFactor(passkeyTicket.value))
+    if (loginError) {
+      handleSecondFactorError(loginError)
+      return
     }
+    passkeyTicket.value = ''
+    const authenticationError = await completeAuthentication(result, biometricCredentialsForSecondFactor.value ?? undefined)
+    if (authenticationError) {
+      handleSecondFactorError(authenticationError)
+      return
+    }
+    biometricCredentialsForSecondFactor.value = null
   } finally {
     isSubmitting.value = false
   }
@@ -206,11 +292,13 @@ async function handleResendVerification() {
 
   isResending.value = true
   try {
-    await resendVerification(lastCredentials.username, lastCredentials.password)
+    const [error] = await catchError(resendVerification(lastCredentials.username, lastCredentials.password))
+    if (error) {
+      console.error('[auth] resend verification failed', error)
+      notify.error(getRequestErrorMessage(error, false))
+      return
+    }
     notify.success(t('auth.verificationEmailSentToast'))
-  } catch (error: unknown) {
-    console.error('[auth] resend verification failed', error)
-    notify.error(getRequestErrorMessage(error, false))
   } finally {
     isResending.value = false
   }
@@ -226,15 +314,25 @@ async function handlePasskeyLogin() {
 
   try {
     if (isNativeApp()) {
-      await beginNativePasskeyHandoff(undefined, getPostLoginDestination())
+      const [error] = await catchError(beginNativePasskeyHandoff(undefined, getPostLoginDestination()))
+      if (error) {
+        console.error('[passkey] login failed', error)
+        notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: error.message }) : getRequestErrorMessage(error, false))
+      }
       return
     }
 
-    const result = await loginWithPasskey()
-    await completeAuthentication(result)
-  } catch (error: unknown) {
-    console.error('[passkey] login failed', error)
-    notify.error(error instanceof Error && error.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: error.message }) : getRequestErrorMessage(error, false))
+    const [loginError, result] = await catchError(loginWithPasskey())
+    if (loginError) {
+      console.error('[passkey] login failed', loginError)
+      notify.error(loginError instanceof Error && loginError.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: loginError.message }) : getRequestErrorMessage(loginError, false))
+      return
+    }
+    const authenticationError = await completeAuthentication(result)
+    if (authenticationError) {
+      console.error('[passkey] login failed', authenticationError)
+      notify.error(authenticationError instanceof Error && authenticationError.name === 'NotAllowedError' ? t('auth.passkeyLoginCancelled', { message: authenticationError.message }) : getRequestErrorMessage(authenticationError, false))
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -243,43 +341,51 @@ async function handlePasskeyLogin() {
 async function handleBiometricLogin() {
   isSubmitting.value = true
   try {
-    const credentials = await getNativeBiometricCredentials()
+    const [credentialsError, credentials] = await catchError(getNativeBiometricCredentials())
+    if (credentialsError) {
+      await handleBiometricLoginError(credentialsError)
+      return
+    }
     lastCredentials = credentials
-    const result = await login(credentials.username, credentials.password)
+    const [loginError, result] = await catchError(login(credentials.username, credentials.password))
+    if (loginError) {
+      await handleBiometricLoginError(loginError)
+      return
+    }
     if ('passkeyRequired' in result) {
       biometricCredentialsForSecondFactor.value = credentials
       passkeyTicket.value = result.ticket
       return
     }
-    await completeAuthentication(result)
-  } catch (error: unknown) {
-    const errorCode = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'number' ? error.code : undefined
-    if (errorCode === BiometricAuthError.USER_CANCEL || errorCode === BiometricAuthError.SYSTEM_CANCEL || errorCode === BiometricAuthError.APP_CANCEL) return
-    console.error('[native-auth] Biometric sign-in failed', error)
-    if (errorCode === BiometricAuthError.NO_PROTECTED_CREDENTIALS_FOUND) {
-      biometricLoginAvailable.value = false
-      try {
-        await removeNativeBiometricCredentials()
-      } catch (removeError) {
-        console.warn('[native-auth] Could not remove stale biometric credentials', removeError)
-      }
-      notify.error(t('auth.biometricCredentialsUnavailable'))
-      return
-    }
-    notify.error(getRequestErrorMessage(error, false))
+    const authenticationError = await completeAuthentication(result)
+    if (authenticationError) await handleBiometricLoginError(authenticationError)
   } finally {
     isSubmitting.value = false
   }
 }
 
-async function handleForgetBiometricLogin() {
-  try {
-    await removeNativeBiometricCredentials()
+async function handleBiometricLoginError(error: unknown) {
+  const errorCode = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'number' ? error.code : undefined
+  if (errorCode === BiometricAuthError.USER_CANCEL || errorCode === BiometricAuthError.SYSTEM_CANCEL || errorCode === BiometricAuthError.APP_CANCEL) return
+  console.error('[native-auth] Biometric sign-in failed', error)
+  if (errorCode === BiometricAuthError.NO_PROTECTED_CREDENTIALS_FOUND) {
     biometricLoginAvailable.value = false
-  } catch (error) {
+    const [removeError] = await catchError(removeNativeBiometricCredentials())
+    if (removeError) console.warn('[native-auth] Could not remove stale biometric credentials', removeError)
+    notify.error(t('auth.biometricCredentialsUnavailable'))
+    return
+  }
+  notify.error(getRequestErrorMessage(error, false))
+}
+
+async function handleForgetBiometricLogin() {
+  const [error] = await catchError(removeNativeBiometricCredentials())
+  if (error) {
     console.error('[native-auth] Could not remove biometric sign-in', error)
     notify.error(t('auth.biometricRemoveFailed'))
+    return
   }
+  biometricLoginAvailable.value = false
 }
 
 async function handleRegistration(credentials: { username: string; password: string; email: string; displayName: string }) {
@@ -290,14 +396,17 @@ async function handleRegistration(credentials: { username: string; password: str
   isSubmitting.value = true
 
   try {
-    const result = await register(credentials.username, credentials.password, credentials.email, credentials.displayName)
+    const [registrationError, result] = await catchError(register(credentials.username, credentials.password, credentials.email, credentials.displayName))
+    if (registrationError) {
+      notify.error(getRequestErrorMessage(registrationError, true))
+      return
+    }
     if ('verificationRequired' in result) {
       pendingVerificationEmail.value = result.email
       return
     }
-    await completeAuthentication(result)
-  } catch (error: unknown) {
-    notify.error(getRequestErrorMessage(error, true))
+    const authenticationError = await completeAuthentication(result)
+    if (authenticationError) notify.error(getRequestErrorMessage(authenticationError, true))
   } finally {
     isSubmitting.value = false
   }
@@ -357,9 +466,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
     <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10 lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16" :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
       <div class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted lg:flex">
-        <svg class="size-3.5 fill-none stroke-current" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3.5 7h9v7h-9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" />
-        </svg>
+        <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
         {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
 

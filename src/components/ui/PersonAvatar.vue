@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { fetchPersonImage } from '../../api'
 import { limitedImageLoad } from '../../composables/imageQueue'
 import AuthImage from './AuthImage.vue'
+import { catchError } from '../../utils/catchError'
 
 /**
  * A round photo of a person. Without a photo it shows the artwork of `fallback` (an album cover, for artists)
@@ -35,14 +36,14 @@ async function load() {
   src.value = ''
   if (!props.hasImage) return
   const width = Math.ceil(props.width * Math.min(window.devicePixelRatio || 1, 2))
-  try {
-    const blob = await limitedImageLoad(() => fetchPersonImage(props.personId, width))
-    if (current !== request) return
-    objectUrl = URL.createObjectURL(blob)
-    src.value = objectUrl
-  } catch {
+  const [failure, blob] = await catchError(limitedImageLoad(() => fetchPersonImage(props.personId, width)))
+  if (failure) {
     // Falls back to the artwork or initials.
+    return
   }
+  if (current !== request) return
+  objectUrl = URL.createObjectURL(blob)
+  src.value = objectUrl
 }
 
 watch(() => [props.personId, props.hasImage, props.width], load, { immediate: true })

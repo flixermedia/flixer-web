@@ -47,6 +47,8 @@ npm install
 npm run dev
 ```
 
+The generated Flixer API client is hosted on GitHub Packages. Set `NODE_AUTH_TOKEN` to a GitHub token with `read:packages` access before installing dependencies. The Flixer Web package must also be granted access to the client package in GitHub's package settings; Docker image builds use `GITHUB_TOKEN` for this access.
+
 Open `http://localhost:5173`. Development API and streamer requests use same-origin Vite proxies, targeting `http://localhost:8083` and `http://localhost:8091` by default. Override those targets with `VITE_API_PROXY_TARGET` and `VITE_STREAMER_PROXY_TARGET` when the services are elsewhere.
 
 ### Native projects

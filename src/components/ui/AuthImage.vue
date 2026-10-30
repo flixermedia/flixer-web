@@ -2,6 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { fetchHomeImage, fetchMediaImage } from '../../api'
 import { limitedImageLoad } from '../../composables/imageQueue'
+import { fetchCachedImageBlob } from '../../composables/imageBlobCache'
+import { catchError } from '../../utils/catchError'
 
 // Images need the signed-in user's token, so they are fetched as blobs instead of used as plain img sources.
 // "admin" reads through the admin media endpoint (which can see every image); "library" is for regular users.
@@ -27,21 +29,24 @@ async function load() {
   const current = ++request
   failed.value = false
   const width = pixelWidth()
-  const fetcher = () => (props.scope === 'admin' ? fetchMediaImage(props.itemId, props.index, width) : fetchHomeImage(props.itemId, props.index, width, props.version))
-  try {
-    if (current !== request) return
-    const blob = await limitedImageLoad(() => fetcher().catch(() => fetcher()))
-    if (current !== request) return
-    release()
-    objectUrl = URL.createObjectURL(blob)
-    src.value = objectUrl
-  } catch {
+  const cacheKey = JSON.stringify([props.scope, props.itemId, props.index, width ?? 'original', props.version ?? ''])
+  const fetcher = () => (props.scope === 'admin'
+    ? fetchMediaImage(props.itemId, props.index, width, props.version)
+    : fetchHomeImage(props.itemId, props.index, width, props.version))
+  if (current !== request) return
+  const [failure, blob] = await catchError(fetchCachedImageBlob(cacheKey, () => limitedImageLoad(() => fetcher().catch(() => fetcher())), props.version))
+  if (failure) {
     if (current === request) {
       release()
       src.value = ''
       failed.value = true
     }
+    return
   }
+  if (current !== request) return
+  release()
+  objectUrl = URL.createObjectURL(blob)
+  src.value = objectUrl
 }
 
 watch(() => [props.itemId, props.index, props.version, props.scope, props.width], load, { immediate: true })

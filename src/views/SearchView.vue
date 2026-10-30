@@ -11,6 +11,7 @@ import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const DEBOUNCE_MS = 250
 const MIN_LENGTH = 2
@@ -50,7 +51,7 @@ const filters = computed<SearchFilters>(() => ({
   yearFrom: year(yearFrom.value),
   yearTo: year(yearTo.value),
   sort: sort.value,
-  unwatched: unwatched.value,
+  unwatched: unwatched.value ? 'true' : undefined,
 }))
 const hasFilters = computed(() => Boolean(type.value || genre.value || year(yearFrom.value) || year(yearTo.value) || unwatched.value))
 const activeCount = computed(() => [type.value, genre.value, year(yearFrom.value), year(yearTo.value), unwatched.value].filter(Boolean).length)
@@ -89,26 +90,27 @@ async function run(term: string) {
   controller = new AbortController()
   isLoading.value = true
   failed.value = false
-  try {
-    const externalType: RequestMediaType | undefined = type.value === 'movie' ? 'movie' : type.value === 'series' ? 'tv' : type.value === 'album' ? 'music' : undefined
-    const externalAllowed = requestsConfig.config.value?.enabled && requestsConfig.config.value.canRequest && type.value !== 'video'
-    const signal = controller.signal
-    const pluginType = pluginSearchType(type.value)
-    const [local, external, sections] = await Promise.all([
-      searchMedia(term, filters.value, signal),
-      externalAllowed ? searchRequests(term, externalType, signal).catch(() => []) : Promise.resolve([]),
-      pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => []),
-    ])
-    results.value = local
-    pluginSections.value = sections
-    const enabledTypes = requestsConfig.config.value
-    externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
-  } catch (error) {
+  const externalType: RequestMediaType | undefined = type.value === 'movie' ? 'movie' : type.value === 'series' ? 'tv' : type.value === 'album' ? 'music' : undefined
+  const externalAllowed = requestsConfig.config.value?.enabled && requestsConfig.config.value.canRequest && type.value !== 'video'
+  const signal = controller.signal
+  const pluginType = pluginSearchType(type.value)
+  const [error, data] = await catchError(Promise.all([
+    searchMedia(term, filters.value, signal),
+    externalAllowed ? searchRequests(term, externalType, signal).catch(() => []) : Promise.resolve([]),
+    pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => []),
+  ]))
+  if (error) {
     if ((error as { code?: string }).code === 'ERR_CANCELED') return
     failed.value = true
     results.value = []
     externalResults.value = []
     pluginSections.value = []
+  } else {
+    const [local, external, sections] = data
+    results.value = local
+    pluginSections.value = sections
+    const enabledTypes = requestsConfig.config.value
+    externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
   }
   isLoading.value = false
 }
@@ -164,9 +166,7 @@ function subtitleOf(item: HomeCard) {
         <h1 class="text-3xl font-bold tracking-tight text-white transition-all duration-500 sm:text-5xl" :class="hasActivity ? 'mb-4 !text-2xl sm:!text-3xl' : 'mb-6'">{{ t('search.label') }}</h1>
 
         <form role="search" class="group relative w-full" @submit.prevent="run(trimmed)">
-          <svg class="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-flixer-muted transition-colors group-focus-within:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
-          </svg>
+          <Icon icon="lucide:search" class="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-flixer-muted transition-colors group-focus-within:text-white" aria-hidden="true" />
           <input ref="input" v-model="query" type="search" maxlength="100" autocomplete="off" :placeholder="t('search.placeholder')" :aria-label="t('search.label')" class="w-full rounded-xl border border-white/10 bg-white/[0.06] py-4 pl-14 pr-14 text-lg text-white shadow-lg shadow-black/30 backdrop-blur transition duration-300 placeholder:text-flixer-muted focus:border-white/40 focus:bg-white/10 focus:shadow-2xl focus:shadow-black/50 focus:outline-none" />
           <span v-if="isLoading" class="absolute right-5 top-1/2 size-5 -translate-y-1/2 animate-spin rounded-full border-2 border-white/20 border-t-white" role="status" :aria-label="t('search.searching')"></span>
         </form>
@@ -176,7 +176,7 @@ function subtitleOf(item: HomeCard) {
             {{ entry ? t(`home.itemType.${entry}`) : t('search.anyType') }}
           </button>
           <button type="button" class="ml-1 inline-flex items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-expanded="showFilters" @click="showFilters = !showFilters">
-            <svg class="size-4 transition-transform duration-300" :class="showFilters ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-300" :class="showFilters ? 'rotate-180' : ''" aria-hidden="true" />
             {{ t('search.filters') }}<span v-if="activeCount > 0" class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{ activeCount }}</span>
           </button>
         </div>

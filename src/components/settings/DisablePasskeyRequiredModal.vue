@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { setPasskeyRequired, type UserProfile } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 
 defineOptions({ modalGroup: 'default' })
@@ -18,10 +19,13 @@ const isSubmitting = ref(false)
 async function submit() {
   isSubmitting.value = true
   try {
-    confirm(await setPasskeyRequired(false, password.value))
-  } catch (error: unknown) {
-    console.error('[settings] disabling passkey required failed', error)
-    notify.error(describeRequestError(error, t('settings.passkeys.disableRequiredFailed')))
+    const [error, profile] = await catchError(setPasskeyRequired(false, password.value))
+    if (error) {
+      console.error('[settings] disabling passkey required failed', error)
+      notify.error(describeRequestError(error, t('settings.passkeys.disableRequiredFailed')))
+    } else {
+      confirm(profile)
+    }
   } finally {
     isSubmitting.value = false
   }

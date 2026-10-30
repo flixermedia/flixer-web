@@ -2,9 +2,10 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { deleteRequestService, getRequestsConfig, listMediaLibraries, listRequestServices, listRequestUsers, listSettings, updateRequestUser, updateSetting, type MediaLibrary, type RequestServiceView, type RequestUserView } from '../../api'
+import { deleteRequestService, getRequestsConfig, listMediaLibraries, listRequestServices, listRequestUsers, listSettings, updateRequestUser, updateSetting, type MediaLibrary, type RequestServiceView, type RequestUserView, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import ConfirmModal from '../ui/ConfirmModal.vue'
@@ -17,27 +18,28 @@ const services = ref<RequestServiceView[]>([])
 const libraries = ref<MediaLibrary[]>([])
 const users = ref<RequestUserView[]>([])
 const overrides: Record<string, RequestUserView> = reactive({})
-const inputClass = 'mt-1 w-full rounded-lg border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
+const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
 async function load() {
-  try {
-    const [settingList, serviceList, userList, requestConfig, libraryList] = await Promise.all([listSettings(), listRequestServices(), listRequestUsers(), getRequestsConfig(), listMediaLibraries()])
+  const [error, result] = await catchError(Promise.all([listSettings(), listRequestServices(), listRequestUsers(), getRequestsConfig(), listMediaLibraries()]))
+  if (error) {
+    notify.error(describeRequestError(error, t('admin.requests.loadError')))
+  } else {
+    const [settingList, serviceList, userList, requestConfig, libraryList] = result
     settings.value = Object.fromEntries(settingList.map(({ key, value }) => [key, value]))
     services.value = serviceList
     libraries.value = libraryList
     users.value = userList
     config.value = requestConfig
     for (const user of userList) overrides[user.id] = { ...user }
-  } catch (error) {
-    notify.error(describeRequestError(error, t('admin.requests.loadError')))
   }
 }
-async function saveGlobal(key: string, value: unknown) {
-  try {
-    await updateSetting(key, value)
+async function saveGlobal(key: string, value: SettingRequestValue) {
+  const [error] = await catchError(updateSetting(key, value))
+  if (error) {
+    notify.error(describeRequestError(error, t('admin.requests.saveError')))
+  } else {
     settings.value[key] = value
     notify.success(t('admin.requests.saved'))
-  } catch (error) {
-    notify.error(describeRequestError(error, t('admin.requests.saveError')))
   }
 }
 async function openEditor(service?: RequestServiceView) {
@@ -47,22 +49,22 @@ async function openEditor(service?: RequestServiceView) {
 async function removeService(id: string) {
   const confirmed = await openModal<boolean>(ConfirmModal, { props: { message: t('admin.requests.confirmDeleteService'), confirmLabel: t('admin.requests.removeService'), danger: true } }).catch(() => false)
   if (!confirmed) return
-  try {
-    await deleteRequestService(id)
-    await load()
-  } catch (error) {
+  const [error] = await catchError(deleteRequestService(id))
+  if (error) {
     notify.error(describeRequestError(error))
+  } else {
+    await load()
   }
 }
 function setUserNumber(id: string, field: 'quotaLimit' | 'quotaDays', value: string) {
   overrides[id][field] = value === '' ? null : Number(value)
 }
 async function saveUser(id: string) {
-  try {
-    await updateRequestUser(id, { canRequest: overrides[id].canRequest, autoApprove: overrides[id].autoApprove, quotaLimit: overrides[id].quotaLimit, quotaDays: overrides[id].quotaDays })
-    notify.success(t('admin.requests.saved'))
-  } catch (error) {
+  const [error] = await catchError(updateRequestUser(id, { canRequest: overrides[id].canRequest, autoApprove: overrides[id].autoApprove, quotaLimit: overrides[id].quotaLimit, quotaDays: overrides[id].quotaDays }))
+  if (error) {
     notify.error(describeRequestError(error))
+  } else {
+    notify.success(t('admin.requests.saved'))
   }
 }
 onMounted(load)
@@ -72,8 +74,8 @@ onMounted(load)
   <div class="flex flex-col gap-6">
     <AdminSection :title="t('admin.requests.generalTitle')" :description="t('admin.requests.generalDescription')">
       <div class="flex flex-col gap-3">
-        <p v-if="config && !config.tmdbConfigured" class="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-200">{{ t('admin.requests.tmdbWarning') }}</p>
-        <p v-if="config && !config.discogsConfigured" class="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-200">{{ t('admin.requests.discogsWarning') }}</p>
+        <p v-if="config && !config.tmdbConfigured" class="rounded border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-200">{{ t('admin.requests.tmdbWarning') }}</p>
+        <p v-if="config && !config.discogsConfigured" class="rounded border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-200">{{ t('admin.requests.discogsWarning') }}</p>
         <div class="grid gap-x-10 divide-y divide-flixer-border lg:grid-cols-2 lg:divide-y-0">
           <div class="divide-y divide-flixer-border">
             <AdminToggle :model-value="Boolean(settings.requests_enabled)" :label="t('admin.requests.enabled')" :description="t('admin.requests.enabledHint')" @update:model-value="saveGlobal('requests_enabled', $event)" />
@@ -101,12 +103,12 @@ onMounted(load)
 
     <AdminSection :title="t('admin.requests.servicesTitle')" :description="t('admin.requests.servicesDescription')">
       <template #actions
-        ><button type="button" class="inline-flex items-center gap-2 rounded-lg bg-flixer-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openEditor()"><span aria-hidden="true">＋</span>{{ t('admin.requests.addService') }}</button></template
+        ><button type="button" class="inline-flex items-center gap-2 rounded bg-flixer-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openEditor()"><span aria-hidden="true">＋</span>{{ t('admin.requests.addService') }}</button></template
       >
       <ul v-if="services.length" class="grid gap-3 md:grid-cols-2">
-        <li v-for="service in services" :key="service.id" class="rounded-xl border border-flixer-border bg-flixer-background/40 p-4 transition hover:border-white/20">
+        <li v-for="service in services" :key="service.id" class="rounded border border-flixer-border bg-flixer-background/40 p-4 transition hover:border-white/20">
           <div class="flex items-start gap-3">
-            <span class="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.06] text-sm font-bold text-flixer-accent" :aria-label="service.kind">{{ service.kind === 'sonarr' ? 'S' : service.kind === 'radarr' ? 'R' : 'L' }}</span>
+            <span class="grid size-10 shrink-0 place-items-center rounded border border-white/10 bg-white/[0.06] text-sm font-bold text-flixer-accent" :aria-label="service.kind">{{ service.kind === 'sonarr' ? 'S' : service.kind === 'radarr' ? 'R' : 'L' }}</span>
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="truncate text-sm font-semibold text-white">{{ service.name }}</h3>
@@ -123,15 +125,15 @@ onMounted(load)
             </div>
           </div>
           <div class="mt-4 flex justify-end gap-2 border-t border-flixer-border pt-3">
-            <button type="button" class="rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openEditor(service)">{{ t('admin.requests.editService') }}</button><button type="button" class="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="removeService(service.id)">{{ t('admin.requests.removeService') }}</button>
+            <button type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openEditor(service)">{{ t('admin.requests.editService') }}</button><button type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="removeService(service.id)">{{ t('admin.requests.removeService') }}</button>
           </div>
         </li>
       </ul>
-      <p v-else class="rounded-xl border border-dashed border-flixer-border px-4 py-8 text-center text-sm text-flixer-muted">{{ t('admin.requests.noServices') }}</p>
+      <p v-else class="rounded border border-dashed border-flixer-border px-4 py-8 text-center text-sm text-flixer-muted">{{ t('admin.requests.noServices') }}</p>
     </AdminSection>
 
     <AdminSection :title="t('admin.requests.usersTitle')" :description="t('admin.requests.usersDescription')">
-      <div v-if="users.length" class="overflow-hidden rounded-xl border border-flixer-border">
+      <div v-if="users.length" class="overflow-hidden rounded border border-flixer-border">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[46rem] border-collapse text-left text-xs">
             <thead class="bg-flixer-background/60 text-[10px] uppercase tracking-wide text-flixer-muted">
@@ -169,14 +171,14 @@ onMounted(load)
                 <td class="px-2 py-2"><input :value="overrides[user.id].quotaLimit ?? ''" :aria-label="`${t('admin.requests.quotaLimit')}: ${user.username}`" type="number" min="0" :class="inputClass" @change="setUserNumber(user.id, 'quotaLimit', ($event.target as HTMLInputElement).value)" /></td>
                 <td class="px-2 py-2"><input :value="overrides[user.id].quotaDays ?? ''" :aria-label="`${t('admin.requests.quotaDays')}: ${user.username}`" type="number" min="1" max="365" :class="inputClass" @change="setUserNumber(user.id, 'quotaDays', ($event.target as HTMLInputElement).value)" /></td>
                 <td class="px-2 py-2">
-                  <button type="button" class="rounded-lg bg-white/[0.08] px-3 py-2 font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`${t('common.save')}: ${user.username}`" @click="saveUser(user.id)">{{ t('common.save') }}</button>
+                  <button type="button" class="rounded bg-white/[0.08] px-3 py-2 font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`${t('common.save')}: ${user.username}`" @click="saveUser(user.id)">{{ t('common.save') }}</button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-      <p v-else class="rounded-xl border border-dashed border-flixer-border px-4 py-8 text-center text-sm text-flixer-muted">{{ t('admin.requests.noUsers') }}</p>
+      <p v-else class="rounded border border-dashed border-flixer-border px-4 py-8 text-center text-sm text-flixer-muted">{{ t('admin.requests.noUsers') }}</p>
     </AdminSection>
   </div>
 </template>

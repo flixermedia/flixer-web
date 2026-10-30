@@ -23,6 +23,7 @@ import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
 
 const { t, te } = useI18n()
@@ -106,12 +107,14 @@ async function startParty() {
   if (!id || partyBusy.value) return
   partyBusy.value = true
   try {
-    const started = await party.start(id)
+    const [error, started] = await catchError(party.start(id))
+    if (error) {
+      notify.error(t('party.startFailed'))
+      return
+    }
     if (!started) return
     if (isTrack.value) await playTrackPage()
     else if (playTarget.value) play(playTarget.value)
-  } catch {
-    notify.error(t('party.startFailed'))
   } finally {
     partyBusy.value = false
   }
@@ -155,14 +158,13 @@ async function playTrackPage() {
   const track = item.value
   if (!track) return
   if (track.parent?.type === 'album') {
-    try {
-      const album = await getItemDetail(track.parent.id)
+    const [error, album] = await catchError(getItemDetail(track.parent.id))
+    if (!error) {
       const tracks = album.children.map((entry) => queueTrack(entry, album))
       const start = tracks.findIndex((entry) => entry.id === track.id)
       if (start >= 0) return audioPlayer.playQueue(tracks, start)
-    } catch {
-      // Fall through to playing the single track.
     }
+    // Fall through to playing the single track if the album request failed.
   }
   audioPlayer.playQueue([queueTrack(track, track)])
 }
@@ -182,13 +184,11 @@ watch(
   async (id) => {
     trickplay.value = null
     if (!id) return
-    try {
-      const playback = await getItemPlaybackInfo(id)
-      const loaded = await getTrickplay(playback.mediaSource.streamUrl)
-      if (item.value?.id === id) trickplay.value = loaded
-    } catch {
-      // Cards fall back to a plain background.
-    }
+    const [playbackError, playback] = await catchError(getItemPlaybackInfo(id))
+    if (playbackError) return // Cards fall back to a plain background.
+    const [trickplayError, loaded] = await catchError(getTrickplay(playback.mediaSource.streamUrl))
+    if (trickplayError) return // Cards fall back to a plain background.
+    if (item.value?.id === id) trickplay.value = loaded
   },
   { immediate: true },
 )
@@ -240,13 +240,11 @@ const itemWatched = computed(() => {
 })
 
 async function toggleWatched(id: string, watched: boolean) {
-  try {
-    await setItemWatched(id, watched)
-    const fresh = await getItemDetail(String(route.params.id))
-    item.value = fresh
-  } catch {
-    // Leave the current state; the user can retry.
-  }
+  const [updateError] = await catchError(setItemWatched(id, watched))
+  if (updateError) return // Leave the current state; the user can retry.
+  const [loadError, fresh] = await catchError(getItemDetail(String(route.params.id)))
+  if (loadError) return // Leave the current state; the user can retry.
+  item.value = fresh
 }
 
 async function load(id: string) {
@@ -255,20 +253,23 @@ async function load(id: string) {
   failure.value = null
   activeSeason.value = 0
   try {
-    item.value = await getItemDetail(id)
-    document.title = `${item.value.title} · Flixer`
+    const [error, loaded] = await catchError(getItemDetail(id))
+    if (error) {
+      item.value = null
+      failure.value = (error as { response?: { status?: number } }).response?.status === 404 ? 'missing' : 'error'
+      return
+    }
+    item.value = loaded
+    document.title = `${loaded.title} · Flixer`
     trackAlbumArt.value = null
-    if (item.value.type === 'track' && item.value.parent?.type === 'album') {
-      const albumId = item.value.parent.id
+    if (loaded.type === 'track' && loaded.parent?.type === 'album') {
+      const albumId = loaded.parent.id
       void getItemDetail(albumId)
         .then((album) => {
           if (item.value?.id === id && album.poster !== null) trackAlbumArt.value = { itemId: album.id, index: album.poster, version: album.updatedAt }
         })
         .catch(() => undefined)
     }
-  } catch (error) {
-    item.value = null
-    failure.value = (error as { response?: { status?: number } }).response?.status === 404 ? 'missing' : 'error'
   } finally {
     isLoading.value = false
   }
@@ -334,7 +335,7 @@ watch(
               <div class="flex flex-wrap items-center gap-3">
                 <h1 class="mt-1 break-words text-4xl font-bold text-white drop-shadow-lg sm:text-5xl">{{ item.title }}</h1>
                 <button v-if="themeMusic.available.value" type="button" class="mt-1 grid size-10 shrink-0 place-items-center rounded-full border border-white/20 bg-black/35 text-white/80 backdrop-blur transition motion-reduce:transition-none hover:border-white/40 hover:bg-black/55 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :aria-label="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" :aria-pressed="themeMusic.playing.value" :title="t(themeMusic.playing.value ? 'mediaItem.themeMusicStop' : 'mediaItem.themeMusicPlay')" @click="themeMusic.toggle">
-                  <svg v-if="themeMusic.playing.value" class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg><svg v-else class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" /></svg>
+                  <Icon :icon="themeMusic.playing.value ? 'lucide:pause' : 'lucide:volume-2'" class="size-5" aria-hidden="true" />
                 </button>
               </div>
               <p v-if="item.tagline" class="mt-2 text-base italic text-flixer-text/80">{{ item.tagline }}</p>
@@ -359,25 +360,25 @@ watch(
 
               <div class="mt-6 flex flex-wrap items-center gap-3">
                 <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('music.playAlbum') }}
                 </button>
                 <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
                 <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
-                <button v-if="partyItemId" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15 disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
-                <button v-if="isMusic" type="button" class="rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
+                <button v-if="partyItemId" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
+                <button v-if="isMusic" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
                 <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
                   {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}
                 </button>
                 <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zM4 12h4v2H4zm10 6H4v-2h10zm6 0h-4v-2h4zm0-4H10v-2h10z" /></svg>
+                  <Icon icon="lucide:captions" class="size-5" aria-hidden="true" />
                   {{ t('subtitles.manage') }}
                 </button>
               </div>
@@ -422,17 +423,17 @@ watch(
                   </div>
                 </RouterLink>
                 <button v-if="WATCHABLE.includes(episode.type)" type="button" class="mr-2 grid size-10 shrink-0 place-items-center rounded transition motion-reduce:transition-none hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="episode.watched ? 'text-flixer-accent' : 'text-white/50'" :aria-pressed="episode.watched" :aria-label="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" :title="episode.watched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched')" @click="toggleWatched(episode.id, !episode.watched)">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                  <Icon icon="lucide:check" class="size-5" aria-hidden="true" />
                 </button>
-                <FavoriteToggle v-if="episode.type === 'track'" :item-id="episode.id" class="mr-1" />
+                <FavoriteToggle v-if="episode.type === 'track'" :item-id="episode.id" :compact="true" class="mr-1" />
                 <button v-if="episode.type === 'track'" type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('social.addToPlaylistFor', { title: episode.title })" :title="t('social.addToPlaylist')" @click="addToPlaylist(episode.id, episode.title)">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
                 </button>
                 <button v-if="episode.type === 'track'" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('music.playTrack', { title: episode.title })" @click="playAlbum(episode.id)">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 </button>
                 <button v-else-if="PLAYABLE.includes(episode.type)" type="button" class="mr-3 grid size-10 shrink-0 place-items-center rounded bg-white/10 text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="`${t('mediaItem.play')} ${episode.title}`" @click="play({ id: episode.id, title: playerTitle(episode, episode.seasonNumber ?? item.seasonNumber ?? seasons[activeSeason]?.seasonNumber ?? null) })">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 </button>
               </li>
             </ul>

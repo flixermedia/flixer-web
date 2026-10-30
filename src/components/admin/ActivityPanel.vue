@@ -8,6 +8,7 @@ import AdminSkeleton from './AdminSkeleton.vue'
 import StatusPill from './StatusPill.vue'
 import { useActivityFormat } from '../../composables/useActivityFormat'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
 const PAGE_SIZE = 25
 const SORTS = ['recent', 'oldest', 'user', 'title'] as const
@@ -41,13 +42,14 @@ async function load() {
   const current = ++requestId
   loading.value = true
   try {
-    const result = await getAdminActivity({ ...filters.value, pageSize: PAGE_SIZE })
-    if (current !== requestId) return
-    data.value = result
-    error.value = ''
-  } catch (err: unknown) {
-    if (current !== requestId) return
-    error.value = describeRequestError(err, t('admin.activity.loadError'))
+    const [requestError, result] = await catchError(getAdminActivity({ ...filters.value, page: String(filters.value.page), pageSize: String(PAGE_SIZE) }))
+    if (requestError) {
+      if (current !== requestId) return
+      error.value = describeRequestError(requestError, t('admin.activity.loadError'))
+    } else if (current === requestId) {
+      data.value = result
+      error.value = ''
+    }
   } finally {
     if (current === requestId) loading.value = false
   }
@@ -103,7 +105,7 @@ const summaryCards = computed(() => [
   { label: t('admin.activity.summary.users'), value: data.value?.summary.users ?? 0 },
 ])
 
-const fieldClass = 'h-10 w-full rounded-lg border border-flixer-border bg-flixer-background px-3 text-sm text-flixer-text placeholder:text-flixer-muted focus-visible:outline-2 focus-visible:outline-flixer-accent scheme-dark'
+const fieldClass = 'h-10 w-full rounded border border-flixer-border bg-flixer-background px-3 text-sm text-flixer-text placeholder:text-flixer-muted focus-visible:outline-2 focus-visible:outline-flixer-accent scheme-dark'
 const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
 </script>
 
@@ -144,7 +146,7 @@ const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
           <input type="date" :value="filters.to" :min="filters.from || undefined" :class="fieldClass" @change="setFilters({ to: ($event.target as HTMLInputElement).value })" />
         </label>
         <div class="flex items-center sm:col-span-2 lg:col-span-2 lg:justify-end">
-          <button type="button" :disabled="!hasFilters" class="h-10 rounded-lg border border-flixer-border px-4 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="reset">{{ t('admin.activity.reset') }}</button>
+          <button type="button" :disabled="!hasFilters" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="reset">{{ t('admin.activity.reset') }}</button>
         </div>
       </form>
 
@@ -152,7 +154,7 @@ const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
 
       <p v-if="error" role="alert" class="mt-4 rounded border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{{ error }}</p>
 
-      <div v-if="data" class="mt-4 overflow-hidden rounded-lg border border-flixer-border" :aria-busy="loading">
+      <div v-if="data" class="mt-4 overflow-hidden rounded border border-flixer-border" :aria-busy="loading">
         <div class="hidden grid-cols-[12rem_1fr_6rem_12rem_9rem] gap-4 border-b border-flixer-border px-5 py-3 text-xs font-semibold uppercase tracking-wide text-flixer-muted md:grid">
           <span>{{ t('admin.activity.columns.user') }}</span>
           <span>{{ t('admin.activity.columns.title') }}</span>
@@ -184,9 +186,9 @@ const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
       <nav v-if="data && data.total > 0" class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm" :aria-label="t('admin.activity.pagination')">
         <p class="text-flixer-muted">{{ t('admin.activity.range', { from: rangeStart.toLocaleString(locale), to: rangeEnd.toLocaleString(locale), total: data.total.toLocaleString(locale) }) }}</p>
         <div class="flex items-center gap-2">
-          <button type="button" :disabled="filters.page <= 1" class="h-10 rounded-lg border border-flixer-border px-4 font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="setFilters({ page: filters.page - 1 })">{{ t('admin.activity.previous') }}</button>
+          <button type="button" :disabled="filters.page <= 1" class="h-10 rounded border border-flixer-border px-4 font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="setFilters({ page: filters.page - 1 })">{{ t('admin.activity.previous') }}</button>
           <span class="px-2 text-flixer-muted">{{ t('admin.activity.pageOf', { page: filters.page, pages: pageCount }) }}</span>
-          <button type="button" :disabled="filters.page >= pageCount" class="h-10 rounded-lg border border-flixer-border px-4 font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="setFilters({ page: filters.page + 1 })">{{ t('admin.activity.next') }}</button>
+          <button type="button" :disabled="filters.page >= pageCount" class="h-10 rounded border border-flixer-border px-4 font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40" @click="setFilters({ page: filters.page + 1 })">{{ t('admin.activity.next') }}</button>
         </div>
       </nav>
     </AdminSection>

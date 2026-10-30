@@ -1,7 +1,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AdminTabItem } from '../components/admin/AdminTabs.vue'
-import { ADMIN_TAB_IDS, pagesOf } from '../components/admin/adminNav'
+import { ADMIN_TAB_IDS, pagesOf, type AdminTabItem } from '../components/admin/adminNav'
 
 /** The admin tab bar with its dropdown pages, labelled in the current language. */
 export function useAdminTabs() {

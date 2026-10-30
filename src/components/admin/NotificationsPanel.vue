@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { listAdminUsers, listSettings, sendAdminNotification, updateSetting, type AdminUser } from '../../api'
+import { listAdminUsers, listSettings, sendAdminNotification, updateSetting, type AdminUser, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 
@@ -35,10 +36,9 @@ const subject = ref('')
 const savedSubject = ref('')
 const isSavingSubject = ref(false)
 
-async function saveSetting(key: string, value: unknown, revert: () => void) {
-  try {
-    await updateSetting(key, value)
-  } catch (error) {
+async function saveSetting(key: string, value: SettingRequestValue, revert: () => void) {
+  const [error] = await catchError(updateSetting(key, value))
+  if (error) {
     revert()
     notify.error(describeRequestError(error))
   }
@@ -65,19 +65,24 @@ function setPromptMode(value: 'button' | 'load') {
 async function saveSubject() {
   isSavingSubject.value = true
   try {
-    await updateSetting('notifications_vapid_subject', subject.value.trim())
-    savedSubject.value = subject.value.trim()
-    notify.success(t('admin.notifications.settings.saved'))
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(updateSetting('notifications_vapid_subject', subject.value.trim()))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      savedSubject.value = subject.value.trim()
+      notify.success(t('admin.notifications.settings.saved'))
+    }
   } finally {
     isSavingSubject.value = false
   }
 }
 
 onMounted(async () => {
-  try {
-    const [list, settings] = await Promise.all([listAdminUsers(), listSettings()])
+  const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings()]))
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
+    const [list, settings] = result
     users.value = list
     const value = (key: string) => settings.find((setting) => setting.key === key)?.value
     enabled.value = value('notifications_enabled') !== false
@@ -85,8 +90,6 @@ onMounted(async () => {
     promptMode.value = value('notifications_permission_prompt') === 'load' ? 'load' : 'button'
     const stored = value('notifications_vapid_subject')
     subject.value = savedSubject.value = typeof stored === 'string' ? stored : ''
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 })
 
@@ -98,18 +101,20 @@ async function send() {
   if (!canSend.value) return
   isSending.value = true
   try {
-    const result = await sendAdminNotification({
+    const [error, result] = await catchError(sendAdminNotification({
       title: title.value.trim(),
       body: body.value.trim(),
       url: url.value.trim() || undefined,
       userIds: everyone.value ? undefined : selected.value,
-    })
-    notify.success(t('admin.notifications.sent', { recipients: result.recipients, pushed: result.pushed }))
-    title.value = ''
-    body.value = ''
-    url.value = ''
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    }))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      notify.success(t('admin.notifications.sent', { recipients: result.recipients, pushed: result.pushed }))
+      title.value = ''
+      body.value = ''
+      url.value = ''
+    }
   } finally {
     isSending.value = false
   }

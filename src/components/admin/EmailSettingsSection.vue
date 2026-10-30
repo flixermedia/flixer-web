@@ -2,9 +2,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { listSettings, sendTestEmail, updateSetting, type ServerSetting } from '../../api'
+import { listSettings, sendTestEmail, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 
@@ -26,20 +27,23 @@ function text(value: unknown): string {
 
 async function load() {
   try {
-    const values = Object.fromEntries((await listSettings()).map((setting: ServerSetting) => [setting.key, setting.value]))
-    const port = Number(values.smtp_port)
-    saved.value = {
-      host: text(values.smtp_host),
-      port: Number.isInteger(port) && port > 0 ? port : 587,
-      secure: values.smtp_secure === true,
-      user: text(values.smtp_user),
-      from: text(values.smtp_from),
+    const [error, settings] = await catchError(listSettings())
+    if (error) {
+      console.error('[email] failed to load settings', error)
+      notify.error(describeRequestError(error, t('admin.general.emailLoadFailed')))
+    } else {
+      const values = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
+      const port = Number(values.smtp_port)
+      saved.value = {
+        host: text(values.smtp_host),
+        port: Number.isInteger(port) && port > 0 ? port : 587,
+        secure: values.smtp_secure === true,
+        user: text(values.smtp_user),
+        from: text(values.smtp_from),
+      }
+      Object.assign(form, saved.value, { password: '' })
+      passwordSet.value = text(values.smtp_password) !== ''
     }
-    Object.assign(form, saved.value, { password: '' })
-    passwordSet.value = text(values.smtp_password) !== ''
-  } catch (error: unknown) {
-    console.error('[email] failed to load settings', error)
-    notify.error(describeRequestError(error, t('admin.general.emailLoadFailed')))
   } finally {
     isLoading.value = false
   }
@@ -51,7 +55,7 @@ async function save() {
     return
   }
 
-  const changes: [string, unknown][] = [
+  const changes: [string, SettingRequestValue][] = [
     ['smtp_host', form.host.trim()],
     ['smtp_port', form.port],
     ['smtp_secure', form.secure],
@@ -62,13 +66,20 @@ async function save() {
 
   isSaving.value = true
   try {
+    let requestError: Error | undefined
     for (const [key, value] of changes) {
-      await updateSetting(key, value)
+      const [error] = await catchError(updateSetting(key, value))
+      if (error) {
+        requestError = error
+        break
+      }
     }
-    notify.success(t('admin.general.emailSaved'))
-  } catch (error: unknown) {
-    console.error('[email] failed to save settings', error)
-    notify.error(describeRequestError(error, t('admin.general.emailSaveFailed')))
+    if (requestError) {
+      console.error('[email] failed to save settings', requestError)
+      notify.error(describeRequestError(requestError, t('admin.general.emailSaveFailed')))
+    } else {
+      notify.success(t('admin.general.emailSaved'))
+    }
   } finally {
     isSaving.value = false
     await load()
@@ -78,11 +89,13 @@ async function save() {
 async function sendTest() {
   isTesting.value = true
   try {
-    const result = await sendTestEmail()
-    notify.success(t('admin.general.testEmailSent', { email: result.sentTo }))
-  } catch (error: unknown) {
-    console.error('[email] test email failed', error)
-    notify.error(describeRequestError(error, t('admin.general.testEmailFailed')))
+    const [error, result] = await catchError(sendTestEmail())
+    if (error) {
+      console.error('[email] test email failed', error)
+      notify.error(describeRequestError(error, t('admin.general.testEmailFailed')))
+    } else {
+      notify.success(t('admin.general.testEmailSent', { email: result.sentTo }))
+    }
   } finally {
     isTesting.value = false
   }

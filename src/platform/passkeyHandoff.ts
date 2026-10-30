@@ -1,6 +1,7 @@
 import { Browser } from '@capacitor/browser'
 import { isNativeApp } from './serverConnection'
 import { startNativePasskeyHandoff } from '../api'
+import { catchError } from '../utils/catchError'
 
 export const NATIVE_PASSKEY_CALLBACK_SCHEME = 'flixer'
 export const NATIVE_PASSKEY_HANDOFF_KEY = 'flixer.nativePasskeyHandoff'
@@ -66,9 +67,8 @@ export async function beginNativePasskeyHandoff(ticket?: string, redirect?: stri
 
   localStorage.setItem(NATIVE_PASSKEY_HANDOFF_KEY, JSON.stringify({ codeVerifier, state, expiresAt: Date.now() + HANDOFF_LIFETIME_MS, redirect } satisfies PendingNativePasskeyHandoff))
 
-  try {
-    await Browser.open({ url: handoffUrl.toString() })
-  } catch (error) {
+  const [error] = await catchError(Browser.open({ url: handoffUrl.toString() }))
+  if (error) {
     clearPendingNativePasskeyHandoff()
     throw error
   }

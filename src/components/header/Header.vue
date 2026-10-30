@@ -98,9 +98,7 @@ const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 tra
 
       <div class="flex items-center justify-self-end gap-1">
         <RouterLink :to="{ name: 'search' }" :class="iconButton" :aria-label="t('header.search')">
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 21l-4.3-4.3M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
-          </svg>
+          <Icon icon="lucide:search" class="size-5" aria-hidden="true" />
         </RouterLink>
 
         <ChatButton :button-class="`relative ${iconButton}`" />

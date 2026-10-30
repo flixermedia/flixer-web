@@ -5,6 +5,7 @@ import { createApiKey, listApiKeys, listDevices, revokeApiKey, signOutDevice, ty
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import StatusPill from './StatusPill.vue'
@@ -24,20 +25,22 @@ const newKeyName = ref('')
 const createdKey = ref<CreatedApiKey | null>(null)
 
 async function loadDevices() {
-  try {
-    devices.value = await listDevices()
-    devicesError.value = ''
-  } catch (error: unknown) {
+  const [error, result] = await catchError(listDevices())
+  if (error) {
     devicesError.value = describeRequestError(error, t('admin.devices.loadError'))
+  } else {
+    devices.value = result
+    devicesError.value = ''
   }
 }
 
 async function loadKeys() {
-  try {
-    apiKeys.value = await listApiKeys()
-    keysError.value = ''
-  } catch (error: unknown) {
+  const [error, result] = await catchError(listApiKeys())
+  if (error) {
     keysError.value = describeRequestError(error, t('admin.devices.keysLoadError'))
+  } else {
+    apiKeys.value = result
+    keysError.value = ''
   }
 }
 
@@ -45,10 +48,12 @@ async function signOut(device: AdminDevice) {
   if (!(await confirmAction(t('admin.devices.confirmSignOut', { device: `${device.app} · ${device.device}`, name: device.user.displayName }), { danger: true }))) return
   signingOutId.value = device.id
   try {
-    await signOutDevice(device.id)
-    notify.success(t('admin.devices.signOutSuccess'))
-  } catch (error: unknown) {
-    notify.error(describeRequestError(error, t('admin.devices.signOutError')))
+    const [error] = await catchError(signOutDevice(device.id))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.devices.signOutError')))
+    } else {
+      notify.success(t('admin.devices.signOutSuccess'))
+    }
   } finally {
     signingOutId.value = null
     await loadDevices()
@@ -60,12 +65,15 @@ async function create() {
   if (!name || creating.value) return
   creating.value = true
   try {
-    createdKey.value = await createApiKey(name)
-    newKeyName.value = ''
-    showForm.value = false
-    await loadKeys()
-  } catch (error: unknown) {
-    notify.error(describeRequestError(error, t('admin.devices.createError')))
+    const [error, key] = await catchError(createApiKey(name))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.devices.createError')))
+    } else {
+      createdKey.value = key
+      newKeyName.value = ''
+      showForm.value = false
+      await loadKeys()
+    }
   } finally {
     creating.value = false
   }
@@ -75,11 +83,13 @@ async function revoke(key: ApiKeyInfo) {
   if (!(await confirmAction(t('admin.devices.confirmRevoke', { name: key.name }), { danger: true }))) return
   revokingId.value = key.id
   try {
-    await revokeApiKey(key.id)
-    if (createdKey.value?.id === key.id) createdKey.value = null
-    notify.success(t('admin.devices.revokeSuccess'))
-  } catch (error: unknown) {
-    notify.error(describeRequestError(error, t('admin.devices.revokeError')))
+    const [error] = await catchError(revokeApiKey(key.id))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.devices.revokeError')))
+    } else {
+      if (createdKey.value?.id === key.id) createdKey.value = null
+      notify.success(t('admin.devices.revokeSuccess'))
+    }
   } finally {
     revokingId.value = null
     await loadKeys()
@@ -88,11 +98,11 @@ async function revoke(key: ApiKeyInfo) {
 
 async function copySecret() {
   if (!createdKey.value) return
-  try {
-    await navigator.clipboard.writeText(createdKey.value.secret)
-    notify.success(t('admin.devices.copied'))
-  } catch {
+  const [error] = await catchError(navigator.clipboard.writeText(createdKey.value.secret))
+  if (error) {
     notify.error(t('admin.devices.copyError'))
+  } else {
+    notify.success(t('admin.devices.copied'))
   }
 }
 
@@ -179,7 +189,7 @@ watch(liveDevices.data, (value) => {
         </button>
       </form>
 
-      <div v-if="createdKey" role="status" class="mb-4 rounded-lg border border-flixer-primary/50 bg-flixer-primary/10 p-4">
+      <div v-if="createdKey" role="status" class="mb-4 rounded border border-flixer-primary/50 bg-flixer-primary/10 p-4">
         <p class="text-sm font-semibold">{{ t('admin.devices.keyCreatedTitle', { name: createdKey.name }) }}</p>
         <p class="mt-1 text-xs text-flixer-muted">{{ t('admin.devices.keyCreatedWarning') }}</p>
         <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -195,7 +205,7 @@ watch(liveDevices.data, (value) => {
 
       <p v-if="keysError" role="alert" class="mb-3 text-sm text-red-300">{{ keysError }}</p>
       <ul class="grid gap-2">
-        <li v-for="k in apiKeys" :key="k.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-flixer-border bg-flixer-background/60 px-4 py-3">
+        <li v-for="k in apiKeys" :key="k.id" class="flex flex-wrap items-center justify-between gap-3 rounded border border-flixer-border bg-flixer-background/60 px-4 py-3">
           <div>
             <p class="text-sm font-semibold">{{ k.name }}</p>
             <p class="text-xs text-flixer-muted">

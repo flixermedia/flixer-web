@@ -14,6 +14,7 @@ import { useSignOut } from '../composables/useSignOut'
 import { applyQuery, queryFromRoute, resolveNav } from '../plugins/pageLogic'
 import { sanitizePageResponse } from '../plugins/viewSchema'
 import type { PluginNav, PluginPageResponse } from '../plugins/viewTypes'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -41,19 +42,28 @@ async function load() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const raw = await callPluginOperation(pluginId.value, 'page', { page: pageId.value, query: query.value })
+    const [error, raw] = await catchError(callPluginOperation(pluginId.value, 'page', { page: pageId.value, query: query.value }))
+    if (error) {
+      if (current !== sequence) return
+      page.value = null
+      errorMessage.value = describeRequestError(error, t('plugins.view.loadError'))
+      return
+    }
     if (current !== sequence) return
-    const result = sanitizePageResponse(raw)
+    let result: PluginPageResponse | null
+    try {
+      result = sanitizePageResponse(raw)
+    } catch (error) {
+      page.value = null
+      errorMessage.value = describeRequestError(error, t('plugins.view.loadError'))
+      return
+    }
     if (!result) {
       page.value = null
       errorMessage.value = t('plugins.view.invalid')
       return
     }
     page.value = result
-  } catch (error) {
-    if (current !== sequence) return
-    page.value = null
-    errorMessage.value = describeRequestError(error, t('plugins.view.loadError'))
   } finally {
     if (current === sequence) loading.value = false
   }

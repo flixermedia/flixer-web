@@ -9,6 +9,15 @@ import { useParty } from './useParty'
 import { clearPluginPages } from './usePluginPages'
 import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
+import { catchError } from '../utils/catchError'
+
+function notifySignOutError(error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.status !== 401) {
+    notify.error(i18n.global.t('errors.signOutNetwork'))
+  } else if (!axios.isAxiosError(error)) {
+    notify.error(i18n.global.t('errors.signOutGeneric'))
+  }
+}
 
 export function useSignOut() {
   const router = useRouter()
@@ -18,19 +27,27 @@ export function useSignOut() {
     isSigningOut.value = true
 
     try {
-      useAudioPlayer().stop()
-      useVideoOverlay().close()
-      await useParty().leave()
-      await logout()
+      try {
+        useAudioPlayer().stop()
+        useVideoOverlay().close()
+      } catch (error: unknown) {
+        notifySignOutError(error)
+        return
+      }
+      const [partyError] = await catchError(useParty().leave())
+      if (partyError) {
+        notifySignOutError(partyError)
+        return
+      }
+      const [logoutError] = await catchError(logout())
+      if (logoutError) {
+        notifySignOutError(logoutError)
+        return
+      }
       useProfile().clear()
       clearPluginPages()
-      await router.replace({ name: 'login' })
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.status !== 401) {
-        notify.error(i18n.global.t('errors.signOutNetwork'))
-      } else if (!axios.isAxiosError(error)) {
-        notify.error(i18n.global.t('errors.signOutGeneric'))
-      }
+      const [navigationError] = await catchError(router.replace({ name: 'login' }))
+      if (navigationError) notifySignOutError(navigationError)
     } finally {
       isSigningOut.value = false
     }

@@ -3,6 +3,8 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { SplashScreen } from '@capacitor/splash-screen'
+import { addCollection, Icon } from '@iconify/vue'
+import lucideIcons from '@iconify-json/lucide/icons.json'
 import { createApp } from 'vue'
 import { registerSW } from 'virtual:pwa-register'
 import Vue3Toastify from 'vue3-toastify'
@@ -16,6 +18,7 @@ import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
 import { initMonitoring } from './monitoring'
 import router from './router'
 import { restoreNativeAccount } from './platform/nativeAccount'
+import { catchError } from './utils/catchError'
 import './tailwind.css'
 import './toast.css'
 import './modal.css'
@@ -26,6 +29,8 @@ declare module '@kolirt/vue-modal' {
 }
 
 const app = createApp(App)
+addCollection(lucideIcons)
+app.component('Icon', Icon)
 let lastPasskeyCallbackUrl = ''
 document.documentElement.classList.toggle('capacitor', Capacitor.isNativePlatform())
 initButtonHaptics()
@@ -54,10 +59,9 @@ async function handleAppUrl(url: string) {
   if (url === lastPasskeyCallbackUrl) return
   lastPasskeyCallbackUrl = url
 
-  try {
-    await Browser.close()
-  } catch (error) {
-    console.warn('[passkey] browser close failed after callback', error)
+  const [closeError] = await catchError(Browser.close())
+  if (closeError) {
+    console.warn('[passkey] browser close failed after callback', closeError)
   }
 
   await router.isReady()
@@ -79,10 +83,9 @@ if (Capacitor.isNativePlatform()) {
 
 await initLocale()
 if (Capacitor.isNativePlatform()) {
-  try {
-    await restoreNativeAccount()
-  } catch (error) {
-    console.warn('[native-account] Could not restore the saved account', error)
+  const [restoreError] = await catchError(restoreNativeAccount())
+  if (restoreError) {
+    console.warn('[native-account] Could not restore the saved account', restoreError)
   }
 }
 app.mount('#app')

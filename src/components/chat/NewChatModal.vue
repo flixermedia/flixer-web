@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { addChatMembers, createChatGroup, getProfiles, startDirectChat, type ChatConversation, type PublicProfileSummary } from '../../api'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
 import UserAvatar from '../ui/UserAvatar.vue'
+import { catchError } from '../../utils/catchError'
 
 defineOptions({ modalGroup: 'default' })
 const props = defineProps<{ addTo?: { id: string; usernames: string[] } }>()
@@ -32,10 +33,12 @@ async function search() {
   const current = ++searchId
   loading.value = true
   try {
-    const result = await getProfiles(query.value.trim() || undefined)
+    const [failure, result] = await catchError(getProfiles(query.value.trim() || undefined))
+    if (failure) {
+      if (current === searchId) error.value = t('chat.loadError')
+      return
+    }
     if (current === searchId) people.value = result.profiles
-  } catch {
-    if (current === searchId) error.value = t('chat.loadError')
   } finally {
     if (current === searchId) loading.value = false
   }
@@ -60,9 +63,12 @@ async function run(action: () => Promise<ChatConversation>) {
   busy.value = true
   error.value = ''
   try {
-    confirm(await action())
-  } catch (cause) {
-    error.value = describeRequestError(cause, t('chat.createError'))
+    const [failure, result] = await catchError(action())
+    if (failure) {
+      error.value = describeRequestError(failure, t('chat.createError'))
+      return
+    }
+    confirm(result)
   } finally {
     busy.value = false
   }
@@ -104,7 +110,7 @@ function submit() {
             <span class="block size-9 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="person.avatarUrl" :name="person.displayName" /></span>
             <span class="min-w-0 flex-1 truncate text-sm font-medium text-white">{{ person.displayName }}</span>
             <span v-if="multi" class="grid size-5 shrink-0 place-items-center rounded border" :class="selected.includes(person.username) ? 'border-flixer-accent bg-flixer-accent text-flixer-background' : 'border-white/30'" aria-hidden="true">
-              <svg v-if="selected.includes(person.username)" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+              <Icon v-if="selected.includes(person.username)" icon="lucide:check" class="size-3.5" aria-hidden="true" />
             </span>
           </button>
         </li>

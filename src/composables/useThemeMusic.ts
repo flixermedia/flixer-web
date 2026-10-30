@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { getItemTheme, listSettings } from '../api'
+import { catchError } from '../utils/catchError'
 
 export const THEME_MUTED_KEY = 'flixer.themeMusicMuted'
 const TARGET_VOLUME = 0.35
@@ -77,9 +78,9 @@ export function useThemeMusic(itemId: Ref<string | undefined>, eligible: Ref<boo
   async function prepare(id = itemId.value) {
     if (!id || !enabled.value || !eligible.value || muted.value) return false
     if (audio && objectUrl) return true
+    const [error, blob] = await catchError(Promise.resolve().then(() => getItemTheme(id)))
+    if (error || !blob || id !== itemId.value) return false
     try {
-      const blob = await getItemTheme(id)
-      if (!blob || id !== itemId.value) return false
       objectUrl = URL.createObjectURL(blob)
       audio = new Audio(objectUrl)
       audio.loop = true
@@ -99,18 +100,18 @@ export function useThemeMusic(itemId: Ref<string | undefined>, eligible: Ref<boo
     const target = audio
     const current = generation
     if (!target) return
-    try {
-      await target.play()
-      if (current !== generation || target !== audio || muted.value) {
-        target.pause()
-        return
-      }
-      fadeTo(target, TARGET_VOLUME)
-    } catch {
+    const [error] = await catchError(Promise.resolve().then(() => target.play()))
+    if (error) {
       target.pause()
       target.volume = 0
       playing.value = false
+      return
     }
+    if (current !== generation || target !== audio || muted.value) {
+      target.pause()
+      return
+    }
+    fadeTo(target, TARGET_VOLUME)
   }
 
   function setMuted(value: boolean) {
@@ -143,32 +144,43 @@ export function useThemeMusic(itemId: Ref<string | undefined>, eligible: Ref<boo
     if (!id || !isEligible) return
     loading.value = true
     try {
-      const settings = await listSettings()
+      const [settingsError, settings] = await catchError(Promise.resolve().then(() => listSettings()))
+      if (settingsError) {
+        available.value = false
+        return
+      }
       if (current !== generation) return
       enabled.value = settings.find((entry) => entry.key === 'themes_enabled')?.value === true
       if (!enabled.value) return
-      const blob = await getItemTheme(id)
+      const [themeError, blob] = await catchError(Promise.resolve().then(() => getItemTheme(id)))
+      if (themeError) {
+        available.value = false
+        return
+      }
       if (current !== generation || id !== itemId.value || !blob) return
-      objectUrl = URL.createObjectURL(blob)
-      audio = new Audio(objectUrl)
-      audio.loop = true
-      audio.volume = 0
-      audio.addEventListener('play', () => (playing.value = true))
-      audio.addEventListener('pause', () => (playing.value = false))
-      available.value = true
+      try {
+        objectUrl = URL.createObjectURL(blob)
+        audio = new Audio(objectUrl)
+        audio.loop = true
+        audio.volume = 0
+        audio.addEventListener('play', () => (playing.value = true))
+        audio.addEventListener('pause', () => (playing.value = false))
+        available.value = true
+      } catch {
+        available.value = false
+        return
+      }
       if (!muted.value) {
         const target = audio
-        try {
-          await target.play()
-          if (current === generation && target === audio && !muted.value) fadeTo(target, TARGET_VOLUME)
-          else target.pause()
-        } catch {
+        const [playError] = await catchError(Promise.resolve().then(() => target.play()))
+        if (playError) {
           target.pause()
           target.volume = 0
+        } else if (current === generation && target === audio && !muted.value) fadeTo(target, TARGET_VOLUME)
+        else {
+          target.pause()
         }
       }
-    } catch {
-      available.value = false
     } finally {
       if (current === generation) loading.value = false
     }

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { getAccessToken, getChatUnread, type ChatConversation, type ChatMessage } from '../api'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
+import { catchError } from '../utils/catchError'
 import { useNotifications } from './useNotifications'
 import { useProfile } from './useProfile'
 
@@ -59,11 +60,9 @@ function playChime() {
 }
 
 async function refreshUnread() {
-  try {
-    unread.value = await getChatUnread()
-  } catch {
-    // Keep the last known count; the next event or reconnect refreshes it.
-  }
+  const [error, count] = await catchError(getChatUnread())
+  if (error) return // Keep the last known count; the next event or reconnect refreshes it.
+  unread.value = count
 }
 
 function handle(event: ChatEvent) {

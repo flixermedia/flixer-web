@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router'
 import { saveRequestService, testRequestService, type MediaLibrary, type RequestServiceInput, type RequestServiceTest, type RequestServiceView } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import AdminToggle from './AdminToggle.vue'
 
@@ -20,7 +21,7 @@ function compatibleFor(kind: RequestServiceInput['kind']) {
   return props.libraries.filter((library) => (kindTypes[kind] as readonly string[]).includes(library.type))
 }
 
-const selectClass = 'mt-1.5 w-full rounded-lg border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent'
+const selectClass = 'mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent'
 const labelClass = 'block text-xs font-medium text-flixer-muted'
 
 const editingId = props.service?.id
@@ -48,13 +49,15 @@ function changeKind(kind: RequestServiceInput['kind']) {
 async function test() {
   testing.value = true
   try {
-    const result = await testRequestService({ kind: draft.kind, url: draft.url, apiKey: draft.apiKey ?? '', serviceId: editingId })
-    testResult.value = result
-    if (result.qualityProfiles.length && !result.qualityProfiles.some(({ id }) => id === draft.qualityProfileId)) draft.qualityProfileId = result.qualityProfiles[0].id
-    if (result.rootFolders.length && !result.rootFolders.some(({ path }) => path === draft.rootFolder)) draft.rootFolder = result.rootFolders[0].path
-    if (!result.ok) notify.error(result.error || t('admin.requests.testFailed'))
-  } catch (error) {
-    notify.error(describeRequestError(error, t('admin.requests.testFailed')))
+    const [error, result] = await catchError(testRequestService({ kind: draft.kind, url: draft.url, apiKey: draft.apiKey ?? '', serviceId: editingId }))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.requests.testFailed')))
+    } else {
+      testResult.value = result
+      if (result.qualityProfiles.length && !result.qualityProfiles.some(({ id }) => id === draft.qualityProfileId)) draft.qualityProfileId = result.qualityProfiles[0].id
+      if (result.rootFolders.length && !result.rootFolders.some(({ path }) => path === draft.rootFolder)) draft.rootFolder = result.rootFolders[0].path
+      if (!result.ok) notify.error(result.error || t('admin.requests.testFailed'))
+    }
   } finally {
     testing.value = false
   }
@@ -64,10 +67,12 @@ async function save() {
   if (!canSave.value) return
   saving.value = true
   try {
-    await saveRequestService({ ...draft, apiKey: draft.apiKey || undefined }, editingId)
-    confirm(true)
-  } catch (error) {
-    notify.error(describeRequestError(error, t('admin.requests.saveError')))
+    const [error] = await catchError(saveRequestService({ ...draft, apiKey: draft.apiKey || undefined }, editingId))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.requests.saveError')))
+    } else {
+      confirm(true)
+    }
   } finally {
     saving.value = false
   }
@@ -76,7 +81,7 @@ async function save() {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ editingId ? t('admin.requests.editService') : t('admin.requests.addService') }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.requests.servicesDescription') }}</ModalDescription>
 
@@ -104,7 +109,7 @@ async function save() {
             </option>
           </select>
           <span class="mt-1.5 block text-[11px]">{{ t('admin.requests.libraryHint') }}</span>
-          <span v-if="compatibleLibraries.length === 0" class="mt-2 block rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2.5 text-xs leading-5 text-amber-200"
+          <span v-if="compatibleLibraries.length === 0" class="mt-2 block rounded border border-amber-300/20 bg-amber-300/[0.06] p-2.5 text-xs leading-5 text-amber-200"
             >{{ t('admin.requests.noCompatibleLibrary') }}
             <RouterLink :to="{ name: 'admin', query: { tab: 'library' } }" class="font-semibold underline underline-offset-2" @click="close()">{{ t('admin.requests.goToLibraries') }}</RouterLink></span
           >
@@ -153,12 +158,12 @@ async function save() {
           <AdminToggle v-model="draft.enabled" :label="t('admin.requests.serviceEnabled')" />
         </div>
 
-        <p v-if="testResult?.ok && testResult.version" class="rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] p-3 text-xs text-emerald-200">{{ t('admin.requests.connectionOk', { version: testResult.version }) }}</p>
+        <p v-if="testResult?.ok && testResult.version" class="rounded border border-emerald-400/20 bg-emerald-400/[0.06] p-3 text-xs text-emerald-200">{{ t('admin.requests.connectionOk', { version: testResult.version }) }}</p>
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" class="flex h-11 items-center justify-center rounded-lg border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="saving" @click="close()">{{ t('common.cancel') }}</button>
-          <button type="button" class="flex h-11 items-center justify-center rounded-lg border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="testing || !draft.url" @click="test">{{ testing ? t('common.loading') : t('admin.requests.testConnection') }}</button>
-          <button type="submit" class="flex h-11 items-center justify-center rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving || !canSave">{{ t('common.save') }}</button>
+          <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="saving" @click="close()">{{ t('common.cancel') }}</button>
+          <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="testing || !draft.url" @click="test">{{ testing ? t('common.loading') : t('admin.requests.testConnection') }}</button>
+          <button type="submit" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving || !canSave">{{ t('common.save') }}</button>
         </div>
       </form>
     </ModalContent>

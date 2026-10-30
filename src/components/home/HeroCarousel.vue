@@ -75,11 +75,11 @@ onBeforeUnmount(stopAutoplay)
       <p v-if="currentItem.overview" class="mt-3 line-clamp-3 max-w-2xl text-base text-flixer-text/90">{{ currentItem.overview }}</p>
       <div class="mt-5 flex gap-3">
         <RouterLink :to="{ name: 'media-item', params: { id: currentItem.id } }" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
+          <Icon icon="lucide:circle-question-mark" class="size-4" aria-hidden="true" />
           {{ t('home.moreInfo') }}
         </RouterLink>
         <button type="button" class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          <Icon icon="lucide:plus" class="size-4" aria-hidden="true" />
           {{ t('home.myList') }}
         </button>
       </div>

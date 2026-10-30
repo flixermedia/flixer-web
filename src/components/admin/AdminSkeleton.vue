@@ -9,7 +9,7 @@ import Skeleton from '../ui/Skeleton.vue'
  */
 withDefaults(defineProps<{ variant: 'cards' | 'tasks' | 'table' | 'stats' | 'fields' | 'toggles' | 'tracks'; rows?: number }>(), { rows: 2 })
 const { t } = useI18n()
-const rowClass = 'rounded-lg border border-flixer-border bg-flixer-background/60'
+const rowClass = 'rounded border border-flixer-border bg-flixer-background/60'
 </script>
 
 <template>
@@ -64,13 +64,13 @@ const rowClass = 'rounded-lg border border-flixer-border bg-flixer-background/60
 
     <div v-else-if="variant === 'stats'" class="flex flex-col gap-6">
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <div v-for="n in 5" :key="n" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-5">
+        <div v-for="n in 5" :key="n" class="rounded border border-flixer-border bg-flixer-surface/50 p-5">
           <Skeleton class="h-3 w-16" />
           <Skeleton class="mt-3 h-8 w-20" />
         </div>
       </div>
       <div class="grid gap-6 lg:grid-cols-3">
-        <div v-for="n in 3" :key="n" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-5">
+        <div v-for="n in 3" :key="n" class="rounded border border-flixer-border bg-flixer-surface/50 p-5">
           <Skeleton class="h-5 w-1/2" />
           <Skeleton class="mt-2 h-3 w-4/5" />
           <div class="mt-5 space-y-3">

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { createAdminUser } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import AdminToggle from './AdminToggle.vue'
 
@@ -19,18 +20,20 @@ const form = reactive({ username: '', displayName: '', email: '', password: '', 
 async function submit() {
   busy.value = true
   try {
-    const created = await createAdminUser({
+    const [error, created] = await catchError(createAdminUser({
       username: form.username.trim(),
       displayName: form.displayName.trim() || undefined,
       email: form.email.trim(),
       password: form.password,
       role: form.role,
-    })
-    notify.success(t('admin.users.created', { name: created.displayName }))
-    confirm(true)
-  } catch (error: unknown) {
-    console.error('[users] create failed', error)
-    notify.error(describeRequestError(error, t('admin.users.createError')))
+    }))
+    if (error) {
+      console.error('[users] create failed', error)
+      notify.error(describeRequestError(error, t('admin.users.createError')))
+    } else {
+      notify.success(t('admin.users.created', { name: created.displayName }))
+      confirm(true)
+    }
   } finally {
     busy.value = false
   }
@@ -39,7 +42,7 @@ async function submit() {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.users.createTitle') }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.users.createDescription') }}</ModalDescription>
 
@@ -51,8 +54,8 @@ async function submit() {
         <AdminToggle :model-value="form.role === 'admin'" :label="t('admin.users.administrator')" :description="t('admin.users.fullDashboardAccess')" @update:model-value="form.role = $event ? 'admin' : 'user'" />
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" class="flex h-11 items-center justify-center rounded-lg border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="busy" @click="close()">{{ t('common.cancel') }}</button>
-          <button type="submit" class="flex h-11 items-center justify-center rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="busy">{{ t('admin.users.create') }}</button>
+          <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="busy" @click="close()">{{ t('common.cancel') }}</button>
+          <button type="submit" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="busy">{{ t('admin.users.create') }}</button>
         </div>
       </form>
     </ModalContent>

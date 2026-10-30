@@ -7,6 +7,7 @@ import { cancelStreamSession, listStreamSessions, type StreamSession, type Strea
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
 const { t } = useI18n()
 
@@ -30,10 +31,13 @@ async function load() {
   if (loading) return
   loading = true
   try {
-    data.value = await listStreamSessions()
-    loadError.value = ''
-  } catch (error: unknown) {
-    loadError.value = describeRequestError(error, t('admin.streams.loadError'))
+    const [error, result] = await catchError(listStreamSessions())
+    if (error) {
+      loadError.value = describeRequestError(error, t('admin.streams.loadError'))
+    } else {
+      data.value = result
+      loadError.value = ''
+    }
   } finally {
     now.value = Date.now()
     loading = false
@@ -45,10 +49,12 @@ async function cancel(session: StreamSession) {
   if (!(await confirmAction(t('admin.streams.confirmCancel', { file: session.file, name: who }), { danger: true }))) return
   cancellingId.value = session.id
   try {
-    await cancelStreamSession(session.id)
-    notify.success(t('admin.streams.cancelSuccess'))
-  } catch (error: unknown) {
-    notify.error(describeRequestError(error, t('admin.streams.cancelError')))
+    const [error] = await catchError(cancelStreamSession(session.id))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.streams.cancelError')))
+    } else {
+      notify.success(t('admin.streams.cancelSuccess'))
+    }
   } finally {
     cancellingId.value = null
     await load()
@@ -98,22 +104,22 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section aria-labelledby="streams-heading" class="admin-card p-5">
+  <section aria-labelledby="streams-heading" class="admin-card p-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 id="streams-heading" class="text-lg font-semibold">{{ t('admin.streams.title') }}</h2>
+        <h2 id="streams-heading" class="text-base font-semibold">{{ t('admin.streams.title') }}</h2>
         <p class="mt-1 text-sm text-flixer-muted">{{ t('admin.streams.description') }}</p>
       </div>
       <p v-if="data" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold" aria-live="polite">{{ data.maxTranscodes > 0 ? t('admin.streams.slotUsage', { active: data.activeTranscodes, max: data.maxTranscodes }) : t('admin.streams.slotUsageUnlimited', { active: data.activeTranscodes }) }}</p>
     </div>
 
-    <p v-if="loadError" class="mt-4 text-sm text-red-300" role="alert">{{ loadError }}</p>
-    <AdminSkeleton v-else-if="!data" variant="cards" class="mt-4" />
-    <p v-else-if="!data.transcodingAvailable" class="mt-4 text-sm text-flixer-muted">{{ t('admin.streams.ffmpegUnavailable') }}</p>
-    <p v-else-if="sessions.length === 0" class="mt-4 text-sm text-flixer-muted">{{ t('admin.streams.noSessions') }}</p>
+    <p v-if="loadError" class="mt-2 text-sm text-red-300" role="alert">{{ loadError }}</p>
+    <AdminSkeleton v-else-if="!data" variant="cards" class="mt-2" />
+    <p v-else-if="!data.transcodingAvailable" class="mt-2 text-sm text-flixer-muted">{{ t('admin.streams.ffmpegUnavailable') }}</p>
+    <p v-else-if="sessions.length === 0" class="mt-2 text-sm text-flixer-muted">{{ t('admin.streams.noSessions') }}</p>
 
-    <ul v-else class="mt-4 flex flex-col gap-3">
-      <li v-for="session in sessions" :key="session.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
+    <ul v-else class="mt-2 flex flex-col gap-2">
+      <li v-for="session in sessions" :key="session.id" class="rounded border border-flixer-border bg-flixer-background/60 p-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold" :title="session.file">{{ session.file }}</p>
@@ -131,7 +137,7 @@ onBeforeUnmount(() => clearInterval(timer))
           </div>
         </div>
 
-        <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
+        <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
           <div>
             <dt class="text-flixer-muted">{{ t('admin.streams.method') }}</dt>
             <dd class="font-medium">{{ t(modeKeys[session.mode] ?? session.mode) }} · {{ session.delivery === 'hls' ? t('admin.streams.hls') : t('admin.streams.mp4Webm') }}</dd>

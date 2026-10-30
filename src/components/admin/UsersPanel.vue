@@ -6,6 +6,7 @@ import AdminSkeleton from './AdminSkeleton.vue'
 import { listAdminUsers, listSettings, updateSetting, type AdminUser } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import UserAvatar from '../ui/UserAvatar.vue'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
@@ -51,16 +52,19 @@ function relativeTime(iso: string | null) {
 
 async function load() {
   try {
-    const [list, settings] = await Promise.all([listAdminUsers(), listSettings()])
-    users.value = list
-    registrationEnabled.value = settings.find((setting) => setting.key === 'registration_enabled')?.value !== false
-    const host = settings.find((setting) => setting.key === 'smtp_host')?.value
-    smtpConfigured.value = typeof host === 'string' && host.trim() !== ''
-    verificationEnabled.value = settings.find((setting) => setting.key === 'email_verification_required')?.value !== false
-    loadError.value = ''
-  } catch (error: unknown) {
-    console.error('[users] failed to load', error)
-    loadError.value = describeRequestError(error, t('admin.users.loadError'))
+    const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings()]))
+    if (error) {
+      console.error('[users] failed to load', error)
+      loadError.value = describeRequestError(error, t('admin.users.loadError'))
+    } else {
+      const [list, settings] = result
+      users.value = list
+      registrationEnabled.value = settings.find((setting) => setting.key === 'registration_enabled')?.value !== false
+      const host = settings.find((setting) => setting.key === 'smtp_host')?.value
+      smtpConfigured.value = typeof host === 'string' && host.trim() !== ''
+      verificationEnabled.value = settings.find((setting) => setting.key === 'email_verification_required')?.value !== false
+      loadError.value = ''
+    }
   } finally {
     isLoading.value = false
   }
@@ -78,9 +82,8 @@ async function openCreate() {
 async function setRegistration(enabled: boolean) {
   const previous = registrationEnabled.value
   registrationEnabled.value = enabled
-  try {
-    await updateSetting('registration_enabled', enabled)
-  } catch (error: unknown) {
+  const [error] = await catchError(updateSetting('registration_enabled', enabled))
+  if (error) {
     registrationEnabled.value = previous
     notify.error(describeRequestError(error, t('admin.users.registrationError')))
   }
@@ -89,9 +92,8 @@ async function setRegistration(enabled: boolean) {
 async function setVerification(enabled: boolean) {
   const previous = verificationEnabled.value
   verificationEnabled.value = enabled
-  try {
-    await updateSetting('email_verification_required', enabled)
-  } catch (error: unknown) {
+  const [error] = await catchError(updateSetting('email_verification_required', enabled))
+  if (error) {
     verificationEnabled.value = previous
     notify.error(describeRequestError(error, t('admin.users.verificationError')))
   }

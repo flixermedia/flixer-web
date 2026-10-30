@@ -37,9 +37,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="current" ref="root" class="relative">
     <button type="button" :class="buttonClass" :aria-label="label" :title="label" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
-      <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7" />
-      </svg>
+      <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
       <span class="absolute right-1 top-1 grid min-w-4 place-items-center rounded px-1 text-[10px] font-bold leading-4 text-flixer-background" :class="reconnecting ? 'bg-amber-400' : 'bg-flixer-accent'">{{ current.members.length }}</span>
     </button>
     <Transition name="party-panel">

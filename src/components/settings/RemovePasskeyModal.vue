@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { deletePasskey } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 
 defineOptions({ modalGroup: 'default' })
@@ -23,11 +24,13 @@ const isSubmitting = ref(false)
 async function submit() {
   isSubmitting.value = true
   try {
-    await deletePasskey(props.passkeyId, password.value)
-    confirm(true)
-  } catch (error: unknown) {
-    console.error('[settings] passkey removal failed', error)
-    notify.error(describeRequestError(error, t('settings.passkeys.removeFailed')))
+    const [error] = await catchError(deletePasskey(props.passkeyId, password.value))
+    if (error) {
+      console.error('[settings] passkey removal failed', error)
+      notify.error(describeRequestError(error, t('settings.passkeys.removeFailed')))
+    } else {
+      confirm(true)
+    }
   } finally {
     isSubmitting.value = false
   }

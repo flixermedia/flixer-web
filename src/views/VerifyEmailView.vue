@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import logo from '../../resources/logo/flixer-logo.svg'
 import { verifyEmail } from '../api'
 import { describeRequestError } from '../composables/useProfile'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -19,14 +20,14 @@ onMounted(async () => {
     return
   }
 
-  try {
-    await verifyEmail(token)
-    status.value = 'success'
-  } catch (error: unknown) {
+  const [error] = await catchError(verifyEmail(token))
+  if (error) {
     console.error('[auth] email verification failed', error)
     errorMessage.value = describeRequestError(error, t('verify.failedFallback'))
     status.value = 'error'
+    return
   }
+  status.value = 'success'
 })
 </script>
 

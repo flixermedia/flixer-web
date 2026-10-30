@@ -11,6 +11,7 @@ import { getHomeContent, setItemWatched, type HomeContent } from '../api'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
@@ -34,9 +35,8 @@ function libraryRoute(type: string) {
 }
 
 async function markWatched(id: string) {
-  try {
-    await setItemWatched(id, true)
-  } catch {
+  const [error] = await catchError(setItemWatched(id, true))
+  if (error) {
     notify.error(t('home.loadError'))
     return
   }
@@ -52,10 +52,13 @@ async function load() {
   isLoading.value = true
   loadFailed.value = false
   try {
-    content.value = await getHomeContent()
-  } catch {
-    loadFailed.value = true
-    notify.error(t('home.loadError'))
+    const [error, home] = await catchError(getHomeContent())
+    if (error) {
+      loadFailed.value = true
+      notify.error(t('home.loadError'))
+      return
+    }
+    content.value = home
   } finally {
     isLoading.value = false
   }

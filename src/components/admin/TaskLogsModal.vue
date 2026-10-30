@@ -2,10 +2,11 @@
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getIndexerTaskLogs, type IndexerQueueName, type IndexerTaskLogEntry } from '../../api'
+import { getIndexerTaskLogs, type IndexerTaskLogEntry, type IndexerTaskQueueName } from '../../api'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
-const props = defineProps<{ queue: IndexerQueueName; id: string; title: string }>()
+const props = defineProps<{ queue: IndexerTaskQueueName; id: string; title: string }>()
 
 defineOptions({ modalGroup: 'default' })
 
@@ -22,8 +23,10 @@ let timer: ReturnType<typeof setTimeout> | undefined
 let stopped = false
 
 async function poll() {
-  try {
-    const result = await getIndexerTaskLogs(props.queue, props.id, entries.value.length)
+  const [requestError, result] = await catchError(getIndexerTaskLogs(props.queue, props.id, entries.value.length))
+  if (requestError) {
+    error.value = describeRequestError(requestError, t('admin.indexer.taskLogsError'))
+  } else {
     error.value = ''
     if (result.entries.length > 0) {
       entries.value.push(...result.entries)
@@ -31,8 +34,6 @@ async function poll() {
     }
     // A task that retries stays "live" so the next attempt's output keeps arriving.
     live.value = result.state === 'active' || result.state === 'pending' || result.state === 'retry' || result.state === 'scheduled'
-  } catch (err: unknown) {
-    error.value = describeRequestError(err, t('admin.indexer.taskLogsError'))
   }
   if (!stopped && live.value) timer = setTimeout(poll, POLL_MS)
 }
@@ -58,7 +59,7 @@ onBeforeUnmount(() => {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.indexer.taskLogsTitle') }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 truncate font-mono text-xs text-flixer-muted">{{ title }}</ModalDescription>
       <div class="mt-3 flex shrink-0 items-center justify-between gap-3 text-xs text-flixer-muted">
@@ -66,7 +67,7 @@ onBeforeUnmount(() => {
         <label class="flex items-center gap-2"><input v-model="follow" type="checkbox" />{{ t('admin.indexer.taskLogsAutoscroll') }}</label>
       </div>
       <p v-if="error" role="alert" class="mt-2 shrink-0 text-sm text-red-300">{{ error }}</p>
-      <div ref="output" class="mt-3 min-h-48 flex-1 overflow-y-auto rounded-lg border border-flixer-border bg-black/40 p-3 font-mono text-xs leading-5">
+      <div ref="output" class="mt-3 min-h-48 flex-1 overflow-y-auto rounded border border-flixer-border bg-black/40 p-3 font-mono text-xs leading-5">
         <p v-if="entries.length === 0 && !error" class="text-flixer-muted">{{ t('admin.indexer.taskLogsEmpty') }}</p>
         <p v-for="(entry, index) in entries" :key="index" class="whitespace-pre-wrap break-words" :class="levelClass(entry.level)">
           <span class="text-flixer-muted">{{ clock(entry.time) }}</span> {{ entry.message }}

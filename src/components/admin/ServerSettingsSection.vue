@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { listSettings, updateSetting, type ServerSetting } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
 
@@ -22,13 +23,16 @@ function text(value: unknown): string {
 
 async function load() {
   try {
-    const values = Object.fromEntries((await listSettings()).map((setting: ServerSetting) => [setting.key, setting.value]))
-    saved.name = text(values.server_name)
-    saved.banner = text(values.login_banner)
-    Object.assign(form, { name: saved.name, banner: saved.banner })
-  } catch (error: unknown) {
-    console.error('[server] failed to load settings', error)
-    notify.error(describeRequestError(error, t('admin.general.serverLoadFailed')))
+    const [error, settings] = await catchError(listSettings())
+    if (error) {
+      console.error('[server] failed to load settings', error)
+      notify.error(describeRequestError(error, t('admin.general.serverLoadFailed')))
+    } else {
+      const values = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
+      saved.name = text(values.server_name)
+      saved.banner = text(values.login_banner)
+      Object.assign(form, { name: saved.name, banner: saved.banner })
+    }
   } finally {
     isLoading.value = false
   }
@@ -37,12 +41,19 @@ async function load() {
 async function save() {
   isSaving.value = true
   try {
-    if (form.name.trim() !== saved.name) await updateSetting('server_name', form.name.trim() || null)
-    if (form.banner.trim() !== saved.banner) await updateSetting('login_banner', form.banner.trim())
-    notify.success(t('admin.general.serverSaved'))
-  } catch (error: unknown) {
-    console.error('[server] failed to save settings', error)
-    notify.error(describeRequestError(error, t('admin.general.serverSaveFailed')))
+    let requestError: Error | undefined
+    if (form.name.trim() !== saved.name) {
+      ;[requestError] = await catchError(updateSetting('server_name', form.name.trim() || null))
+    }
+    if (!requestError && form.banner.trim() !== saved.banner) {
+      ;[requestError] = await catchError(updateSetting('login_banner', form.banner.trim()))
+    }
+    if (requestError) {
+      console.error('[server] failed to save settings', requestError)
+      notify.error(describeRequestError(requestError, t('admin.general.serverSaveFailed')))
+    } else {
+      notify.success(t('admin.general.serverSaved'))
+    }
   } finally {
     isSaving.value = false
     await load()

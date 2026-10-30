@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { acceptFriend, getFriends, getMySocialProfile, removeFriend, updateMySocialProfile, type FriendLists, type Profile } from '../../api'
 import { notify } from '../../composables/notify'
+import { catchError } from '../../utils/catchError'
 
 const { t } = useI18n()
 const visibility = ref<Profile['visibility']>('public')
@@ -19,10 +20,11 @@ getMySocialProfile()
   .catch(() => notify.error(t('social.privacyLoadError')))
 
 async function loadFriends() {
-  try {
-    friends.value = await getFriends()
-  } catch {
+  const [error, result] = await catchError(getFriends())
+  if (error) {
     notify.error(t('social.friendsLoadError'))
+  } else {
+    friends.value = result
   }
 }
 void loadFriends()
@@ -33,10 +35,13 @@ async function changeVisibility(event: Event) {
   visibility.value = next
   saving.value = true
   try {
-    visibility.value = (await updateMySocialProfile({ visibility: next })).visibility
-  } catch {
-    visibility.value = previous
-    notify.error(t('social.saveError'))
+    const [error, profile] = await catchError(updateMySocialProfile({ visibility: next }))
+    if (error) {
+      visibility.value = previous
+      notify.error(t('social.saveError'))
+    } else {
+      visibility.value = profile.visibility
+    }
   } finally {
     saving.value = false
   }
@@ -45,11 +50,12 @@ async function changeVisibility(event: Event) {
 async function updateFriend(username: string, accept: boolean) {
   busyUsername.value = username
   try {
-    if (accept) await acceptFriend(username)
-    else await removeFriend(username)
+    const [error] = await catchError(accept ? acceptFriend(username) : removeFriend(username))
+    if (error) {
+      notify.error(t('social.friendActionFailed'))
+      return
+    }
     await loadFriends()
-  } catch {
-    notify.error(t('social.friendActionFailed'))
   } finally {
     busyUsername.value = ''
   }

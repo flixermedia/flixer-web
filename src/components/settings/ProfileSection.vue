@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { clearAccessToken, updateProfile } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import AvatarUploader from './AvatarUploader.vue'
 import DeleteAccountModal from './DeleteAccountModal.vue'
@@ -55,13 +56,15 @@ async function save() {
       changes.email = email.value
     }
     const emailChanged = Boolean(changes.email)
-    const updated = await updateProfile(changes)
-    setProfile(updated)
-    email.value = updated.email ?? ''
-    notify.success(emailChanged && updated.pendingEmail ? t('settings.profile.emailVerificationSent', { email: updated.pendingEmail }) : t('settings.profile.updated'))
-  } catch (error: unknown) {
-    console.error('[settings] profile update failed', error)
-    notify.error(describeRequestError(error, t('settings.profile.updateFailed')))
+    const [error, updated] = await catchError(updateProfile(changes))
+    if (error) {
+      console.error('[settings] profile update failed', error)
+      notify.error(describeRequestError(error, t('settings.profile.updateFailed')))
+    } else {
+      setProfile(updated)
+      email.value = updated.email ?? ''
+      notify.success(emailChanged && updated.pendingEmail ? t('settings.profile.emailVerificationSent', { email: updated.pendingEmail }) : t('settings.profile.updated'))
+    }
   } finally {
     isSaving.value = false
   }

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
-import { deleteNotification, getAccessToken, getNotificationConfig, getPushPublicKey, getPushStatus, listNotifications, markNotificationsRead, removePushSubscription, savePushSubscription, type AppNotification } from '../api'
+import { deleteNotification, getAccessToken, getNotificationConfig, getPushPublicKey, getPushStatus, listNotifications, markNotificationsRead, removePushSubscription, savePushSubscription, type AppNotification, type NotificationConfig } from '../api'
 import { isNativeApp } from '../platform/serverConnection'
+import { catchError } from '../utils/catchError'
 
 const items = ref<AppNotification[]>([])
 const unread = ref(0)
@@ -8,7 +9,7 @@ const isLoading = ref(false)
 const pushEnabled = ref(false)
 const pushBusy = ref(false)
 const enabled = ref(true)
-const promptMode = ref<'button' | 'load'>('button')
+const promptMode = ref<NotificationConfig['permissionPrompt']>('button')
 let promptedThisSession = false
 const permission = ref<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission)
 
@@ -31,13 +32,10 @@ async function registration() {
 
 async function loadConfig() {
   if (!getAccessToken()) return
-  try {
-    const config = await getNotificationConfig()
-    enabled.value = config.enabled
-    promptMode.value = config.permissionPrompt
-  } catch {
-    // Keep defaults.
-  }
+  const [error, config] = await catchError(getNotificationConfig())
+  if (error) return // Keep defaults.
+  enabled.value = config.enabled
+  promptMode.value = config.permissionPrompt
 }
 
 async function maybePromptOnLoad() {
@@ -51,11 +49,10 @@ async function refresh() {
   if (!getAccessToken()) return
   isLoading.value = true
   try {
-    const result = await listNotifications()
+    const [error, result] = await catchError(listNotifications())
+    if (error) return // The bell just keeps its last known state.
     items.value = result.items
     unread.value = result.unread
-  } catch {
-    // The bell just keeps its last known state.
   } finally {
     isLoading.value = false
   }
@@ -64,31 +61,59 @@ async function refresh() {
 async function refreshPushState() {
   if (!pushSupported || !getAccessToken()) return
   permission.value = Notification.permission
-  try {
-    const subscription = await (await registration()).pushManager.getSubscription()
-    pushEnabled.value = subscription ? await getPushStatus(subscription.endpoint) : false
-  } catch {
+  const [registrationError, reg] = await catchError(registration())
+  if (registrationError) {
     pushEnabled.value = false
+    return
   }
+  const [subscriptionError, subscription] = await catchError(Promise.resolve().then(() => reg.pushManager.getSubscription()))
+  if (subscriptionError) {
+    pushEnabled.value = false
+    return
+  }
+  if (!subscription) {
+    pushEnabled.value = false
+    return
+  }
+  const [statusError, status] = await catchError(getPushStatus(subscription.endpoint))
+  if (statusError) {
+    pushEnabled.value = false
+    return
+  }
+  pushEnabled.value = status
 }
 
 async function enablePush(): Promise<boolean> {
   if (!pushSupported) return false
   pushBusy.value = true
   try {
-    const result = await Notification.requestPermission()
+    const [permissionError, result] = await catchError(Promise.resolve().then(() => Notification.requestPermission()))
+    if (permissionError) return false
     permission.value = result
     if (result !== 'granted') return false
-    const reg = await registration()
-    const existing = await reg.pushManager.getSubscription()
-    const subscription = existing ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getPushPublicKey()) }))
-    const json = subscription.toJSON()
+    const [registrationError, reg] = await catchError(registration())
+    if (registrationError) return false
+    const [subscriptionError, existing] = await catchError(Promise.resolve().then(() => reg.pushManager.getSubscription()))
+    if (subscriptionError) return false
+    let subscription = existing
+    if (!subscription) {
+      const [keyError, publicKey] = await catchError(getPushPublicKey())
+      if (keyError) return false
+      const [subscribeError, created] = await catchError(Promise.resolve().then(() => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) })))
+      if (subscribeError) return false
+      subscription = created
+    }
+    let json: PushSubscriptionJSON
+    try {
+      json = subscription.toJSON()
+    } catch {
+      return false
+    }
     if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return false
-    await savePushSubscription({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } })
+    const [saveError] = await catchError(savePushSubscription({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } }))
+    if (saveError) return false
     pushEnabled.value = true
     return true
-  } catch {
-    return false
   } finally {
     pushBusy.value = false
   }
@@ -98,14 +123,17 @@ async function disablePush() {
   if (!pushSupported) return
   pushBusy.value = true
   try {
-    const subscription = await (await registration()).pushManager.getSubscription()
+    const [registrationError, reg] = await catchError(registration())
+    if (registrationError) return
+    const [subscriptionError, subscription] = await catchError(Promise.resolve().then(() => reg.pushManager.getSubscription()))
+    if (subscriptionError) return
     if (subscription) {
-      await removePushSubscription(subscription.endpoint)
-      await subscription.unsubscribe()
+      const [removeError] = await catchError(removePushSubscription(subscription.endpoint))
+      if (removeError) return // Leave the state as it was; the user can retry.
+      const [unsubscribeError] = await catchError(Promise.resolve().then(() => subscription.unsubscribe()))
+      if (unsubscribeError) return // Leave the state as it was; the user can retry.
     }
     pushEnabled.value = false
-  } catch {
-    // Leave the state as it was; the user can retry.
   } finally {
     pushBusy.value = false
   }
@@ -115,11 +143,8 @@ async function markAllRead() {
   if (unread.value === 0) return
   items.value = items.value.map((item) => ({ ...item, read: true }))
   unread.value = 0
-  try {
-    await markNotificationsRead()
-  } catch {
-    await refresh()
-  }
+  const [error] = await catchError(markNotificationsRead())
+  if (error) await refresh()
 }
 
 async function markRead(id: string) {
@@ -127,22 +152,16 @@ async function markRead(id: string) {
   if (!target || target.read) return
   target.read = true
   unread.value = Math.max(0, unread.value - 1)
-  try {
-    await markNotificationsRead([id])
-  } catch {
-    await refresh()
-  }
+  const [error] = await catchError(markNotificationsRead([id]))
+  if (error) await refresh()
 }
 
 async function dismiss(id: string) {
   const target = items.value.find((item) => item.id === id)
   items.value = items.value.filter((item) => item.id !== id)
   if (target && !target.read) unread.value = Math.max(0, unread.value - 1)
-  try {
-    await deleteNotification(id)
-  } catch {
-    await refresh()
-  }
+  const [error] = await catchError(deleteNotification(id))
+  if (error) await refresh()
 }
 
 export function useNotifications() {

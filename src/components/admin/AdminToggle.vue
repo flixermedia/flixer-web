@@ -1,10 +1,10 @@
 <script setup lang="ts">
-defineProps<{ label: string; description?: string; badge?: string }>()
+defineProps<{ label: string; description?: string; badge?: string; compact?: boolean }>()
 const model = defineModel<boolean>({ default: false })
 </script>
 
 <template>
-  <label class="flex cursor-pointer items-center justify-between gap-4 py-2">
+  <label class="cursor-pointer items-center" :class="compact ? 'inline-flex gap-3' : 'flex justify-between gap-4 py-2'">
     <span class="min-w-0">
       <span class="flex items-center gap-2 text-sm font-medium">
         {{ label }}

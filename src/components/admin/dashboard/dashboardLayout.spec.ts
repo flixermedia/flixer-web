@@ -14,6 +14,21 @@ describe('default grid', () => {
     expect(noOverlaps([...DEFAULT_GRID])).toBe(true)
     expect(DEFAULT_GRID.every((i) => i.x + i.w <= GRID_COLUMNS && i.h >= 1 && i.h <= MAX_HEIGHT)).toBe(true)
   })
+
+  it('puts key status panels first and gives the main panels useful width', () => {
+    expect(get([...DEFAULT_GRID], 'stats')).toMatchObject({ x: 0, y: 0, w: GRID_COLUMNS })
+    expect(get([...DEFAULT_GRID], 'server')).toMatchObject({ x: 0, y: 1, w: 1, h: 4 })
+    expect(get([...DEFAULT_GRID], 'logs').y).toBeGreaterThan(get([...DEFAULT_GRID], 'server').y)
+    expect(get([...DEFAULT_GRID], 'activity').y).toBeLessThan(get([...DEFAULT_GRID], 'streams').y)
+    expect(get([...DEFAULT_GRID], 'activity').w).toBe(2)
+    expect(get([...DEFAULT_GRID], 'services')).toMatchObject({ y: 4, x: 1, h: 1 })
+    expect(get([...DEFAULT_GRID], 'updates')).toMatchObject({ y: 4, x: 2, h: 1 })
+    expect(get([...DEFAULT_GRID], 'requests')).toMatchObject({ y: 5, x: 0, h: 1 })
+    expect(get([...DEFAULT_GRID], 'queues').w).toBe(1)
+    expect(get([...DEFAULT_GRID], 'streams')).toMatchObject({ x: 1, y: 7, w: 2, h: 2 })
+    expect(get([...DEFAULT_GRID], 'logs')).toMatchObject({ x: 0, y: 9, w: GRID_COLUMNS, h: 4 })
+    expect(get([...DEFAULT_GRID], 'queues').h).toBeGreaterThanOrEqual(2)
+  })
 })
 
 describe('normalizeGrid', () => {
@@ -24,11 +39,11 @@ describe('normalizeGrid', () => {
 
   it('drops unknown, repeated and malformed entries and clamps sizes', () => {
     const grid = normalizeGrid([{ id: 'stats', x: 4, y: 0, w: 3, h: 99 }, { id: 'stats', x: 0, y: 0, w: 1, h: 1 }, { id: 'nope', x: 0, y: 0, w: 1, h: 1 }, { id: 'logs', x: 'a', y: 0, w: 1, h: 1 }, null])
-    expect(grid).toEqual([{ id: 'stats', x: 2, y: 0, w: 3, h: MAX_HEIGHT }])
+    expect(grid).toEqual([{ id: 'stats', x: 0, y: 0, w: 3, h: MAX_HEIGHT }])
   })
 
   it('closes gaps in a saved layout', () => {
-    expect(normalizeGrid([{ id: 'stats', x: 0, y: 40, w: 5, h: 2 }])).toEqual([{ id: 'stats', x: 0, y: 0, w: 5, h: 2 }])
+    expect(normalizeGrid([{ id: 'stats', x: 0, y: 40, w: 3, h: 2 }])).toEqual([{ id: 'stats', x: 0, y: 0, w: 3, h: 2 }])
   })
 
   it('settles saved overlaps', () => {
@@ -42,9 +57,9 @@ describe('normalizeGrid', () => {
 
 describe('placeWidget', () => {
   const base: GridItem[] = [
-    { id: 'server', x: 0, y: 0, w: 2, h: 6 },
-    { id: 'storage', x: 2, y: 0, w: 3, h: 2 },
-    { id: 'activity', x: 2, y: 2, w: 3, h: 2 },
+    { id: 'server', x: 0, y: 0, w: 1, h: 6 },
+    { id: 'storage', x: 1, y: 0, w: 2, h: 2 },
+    { id: 'activity', x: 1, y: 2, w: 2, h: 2 },
   ]
 
   it('never leaves a gap: a panel dropped lower floats back up against the one above', () => {
@@ -53,7 +68,7 @@ describe('placeWidget', () => {
 
   it('pushes panels it lands on down, then closes the space', () => {
     const next = placeWidget(base, 'activity', { y: 0 })
-    expect(get(next, 'activity')).toMatchObject({ x: 2, y: 0 })
+    expect(get(next, 'activity')).toMatchObject({ x: 1, y: 0 })
     expect(get(next, 'storage').y).toBe(2)
     expect(noOverlaps(next)).toBe(true)
   })
@@ -93,14 +108,14 @@ describe('placeWidget', () => {
 
 describe('adding and removing', () => {
   it('adds in the first free spot at the default size', () => {
-    const items: GridItem[] = [{ id: 'stats', x: 0, y: 0, w: 5, h: 2 }]
+    const items: GridItem[] = [{ id: 'stats', x: 0, y: 0, w: 3, h: 2 }]
     const next = addWidget(items, 'server')
-    expect(get(next, 'server')).toMatchObject({ x: 0, y: 2, w: 2, h: 4 })
+    expect(get(next, 'server')).toMatchObject({ x: 0, y: 2, w: 1, h: 4 })
     expect(addWidget(next, 'server')).toEqual(next)
   })
 
   it('finds a gap beside existing panels', () => {
-    expect(findFreeSpot([{ id: 'server', x: 0, y: 0, w: 2, h: 4 }], 3, 2)).toEqual({ x: 2, y: 0 })
+    expect(findFreeSpot([{ id: 'server', x: 0, y: 0, w: 1, h: 4 }], 2, 2)).toEqual({ x: 1, y: 0 })
   })
 
   it('removes a panel', () => {

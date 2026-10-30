@@ -14,9 +14,9 @@ const services = computed(() => [
 </script>
 
 <template>
-  <AdminSection :title="t('admin.dashboard.widgets.services')" class="h-full">
-    <ul class="grid gap-3 text-sm">
-      <li v-for="service in services" :key="service.key" class="flex items-center justify-between gap-3">
+  <AdminSection :title="t('admin.dashboard.widgets.services')" compact class="h-full">
+    <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+      <li v-for="service in services" :key="service.key" class="flex items-center gap-2">
         <span class="font-medium">{{ t(`admin.dashboard.serviceNames.${service.key}`) }}</span>
         <StatusPill :tone="service.ok ? 'good' : 'bad'">{{ service.ok ? t('admin.dashboard.online') : t('admin.dashboard.offline') }}</StatusPill>
       </li>

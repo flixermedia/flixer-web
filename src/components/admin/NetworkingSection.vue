@@ -5,6 +5,7 @@ import { applyStep, describeFailure, getProgress, type ConfigField } from '../..
 import { notify } from '../../composables/notify'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
+import { catchError } from '../../utils/catchError'
 
 const FIELDS = ['publicUrl', 'appUrl', 'passkeyRpId', 'passkeyOrigins'] as const
 type Field = (typeof FIELDS)[number]
@@ -28,11 +29,14 @@ const fields: { id: Field; label: string; hint: string; placeholder: string; wid
 
 async function load() {
   try {
-    config.value = (await getProgress()).config
-    for (const field of FIELDS) form[field] = config.value[field]?.value ?? ''
-  } catch (error: unknown) {
-    console.error('[networking] failed to load addresses', error)
-    notify.error(describeFailure(error, t('admin.general.networkingLoadFailed')).message)
+    const [error, progress] = await catchError(getProgress())
+    if (error) {
+      console.error('[networking] failed to load addresses', error)
+      notify.error(describeFailure(error, t('admin.general.networkingLoadFailed')).message)
+    } else {
+      config.value = progress.config
+      for (const field of FIELDS) form[field] = config.value[field]?.value ?? ''
+    }
   } finally {
     isLoading.value = false
   }
@@ -42,13 +46,15 @@ async function save() {
   for (const key of Object.keys(errors)) delete errors[key]
   isSaving.value = true
   try {
-    await applyStep('urls', { ...form })
-    notify.success(t('admin.general.networkingSaved'))
-    await load()
-  } catch (error: unknown) {
-    const failure = describeFailure(error, t('admin.general.networkingSaveFailed'))
-    Object.assign(errors, failure.fields)
-    notify.error(failure.message)
+    const [error] = await catchError(applyStep('urls', { ...form }))
+    if (error) {
+      const failure = describeFailure(error, t('admin.general.networkingSaveFailed'))
+      Object.assign(errors, failure.fields)
+      notify.error(failure.message)
+    } else {
+      notify.success(t('admin.general.networkingSaved'))
+      await load()
+    }
   } finally {
     isSaving.value = false
   }

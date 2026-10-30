@@ -2,6 +2,7 @@ import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { applyStep, describeFailure, testStep, type StepResult } from './setupApi'
 import { WIZARD_KEY } from './stepContract'
+import { catchError } from '../utils/catchError'
 
 /** Shared plumbing for steps that talk to one server-side step: busy state, field errors, test and save. */
 export function useStepForm(stepId: string) {
@@ -26,8 +27,8 @@ export function useStepForm(stepId: string) {
     busy.value = true
     clear()
     try {
-      return await action()
-    } catch (error: unknown) {
+      const [error, result] = await catchError(action())
+      if (!error) return result as T
       const failure = describeFailure(error, t('setup.errors.generic'))
       message.value = failure.message
       fieldErrors.value = failure.fields

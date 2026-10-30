@@ -3,6 +3,7 @@ import { callPluginOperation } from '../api'
 import { buildActionBody, planActionOutcome, toastKind } from '../plugins/pageLogic'
 import { sanitizeActionResponse } from '../plugins/viewSchema'
 import type { PluginAction, PluginNav } from '../plugins/viewTypes'
+import { catchError } from '../utils/catchError'
 import { confirmAction } from './confirm'
 import { notify } from './notify'
 import { describeRequestError } from './useProfile'
@@ -44,8 +45,18 @@ export function usePluginActions(options: ActionRunnerOptions) {
 
     inFlight.value += 1
     try {
-      const raw = await callPluginOperation(options.pluginId(), action.op, buildActionBody(action, runOptions.values))
-      const outcome = planActionOutcome(action, sanitizeActionResponse(raw))
+      const [error, raw] = await catchError(callPluginOperation(options.pluginId(), action.op, buildActionBody(action, runOptions.values)))
+      if (error) {
+        notify.error(describeRequestError(error))
+        return false
+      }
+      let outcome: ReturnType<typeof planActionOutcome>
+      try {
+        outcome = planActionOutcome(action, sanitizeActionResponse(raw))
+      } catch (error) {
+        notify.error(describeRequestError(error))
+        return false
+      }
       if (outcome.error) {
         notify.error(outcome.error)
         return false
@@ -54,9 +65,6 @@ export function usePluginActions(options: ActionRunnerOptions) {
       if (outcome.navigate) options.navigate(outcome.navigate)
       else if (outcome.reload) options.reload()
       return true
-    } catch (error) {
-      notify.error(describeRequestError(error))
-      return false
     } finally {
       inFlight.value -= 1
     }

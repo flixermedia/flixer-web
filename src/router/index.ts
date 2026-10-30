@@ -6,6 +6,7 @@ import { useProfile } from '../composables/useProfile'
 import { i18n } from '../i18n'
 import { setupGuard } from '../setup/setupGate'
 import { getNativeServerUrl } from '../platform/serverConnection'
+import { catchError } from '../utils/catchError'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -238,23 +239,8 @@ router.beforeEach(async (to) => {
     return true
   }
 
-  try {
-    const isValid = await validateAccessToken()
-    if (!isValid) {
-      clearAccessToken()
-      return isAuthRoute ? true : { name: 'login', query: { redirect: to.fullPath } }
-    }
-
-    if (to.meta.requiresAdmin) {
-      const { profile, load } = useProfile()
-      await load()
-      if (profile.value?.role !== 'admin') {
-        return { name: 'home' }
-      }
-    }
-
-    return isAuthRoute ? { name: 'home' } : true
-  } catch (error: unknown) {
+  const [error, isValid] = await catchError(validateAccessToken())
+  if (error) {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       clearAccessToken()
       return isAuthRoute ? true : { name: 'login', query: { redirect: to.fullPath } }
@@ -269,6 +255,21 @@ router.beforeEach(async (to) => {
       },
     }
   }
+
+  if (!isValid) {
+    clearAccessToken()
+    return isAuthRoute ? true : { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAdmin) {
+    const { profile, load } = useProfile()
+    await load()
+    if (profile.value?.role !== 'admin') {
+      return { name: 'home' }
+    }
+  }
+
+  return isAuthRoute ? { name: 'home' } : true
 })
 
 router.afterEach((to) => {

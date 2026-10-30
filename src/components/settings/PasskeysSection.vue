@@ -7,6 +7,7 @@ import ListSkeleton from '../ui/ListSkeleton.vue'
 import { listPasskeys, registerPasskey, setPasskeyRequired, type Passkey, type UserProfile } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AddPasskeyForm from './AddPasskeyForm.vue'
 import AddPasskeyModal from './AddPasskeyModal.vue'
 import DisablePasskeyRequiredModal from './DisablePasskeyRequiredModal.vue'
@@ -30,10 +31,13 @@ async function handleToggleRequired() {
 
   isTogglingRequired.value = true
   try {
-    setProfile(await setPasskeyRequired(true))
-    notify.success(t('settings.passkeys.nowRequired'))
-  } catch (error: unknown) {
-    notify.error(describeError(error))
+    const [toggleError, updated] = await catchError(setPasskeyRequired(true))
+    if (toggleError) {
+      notify.error(describeError(toggleError))
+    } else {
+      setProfile(updated)
+      notify.success(t('settings.passkeys.nowRequired'))
+    }
   } finally {
     isTogglingRequired.value = false
   }
@@ -58,9 +62,12 @@ function describeError(error: unknown): string {
 
 async function load() {
   try {
-    passkeys.value = await listPasskeys()
-  } catch (error: unknown) {
-    notify.error(describeError(error))
+    const [error, result] = await catchError(listPasskeys())
+    if (error) {
+      notify.error(describeError(error))
+    } else {
+      passkeys.value = result
+    }
   } finally {
     isLoading.value = false
   }
@@ -74,11 +81,13 @@ async function handleAdd(name: string) {
 
   isRegistering.value = true
   try {
-    const passkey = await registerPasskey(options, name)
-    passkeys.value = [passkey, ...passkeys.value]
-    notify.success(t('settings.passkeys.added', { name: passkey.name }))
-  } catch (error: unknown) {
-    notify.error(describeError(error))
+    const [error, passkey] = await catchError(registerPasskey(options, name))
+    if (error) {
+      notify.error(describeError(error))
+    } else {
+      passkeys.value = [passkey, ...passkeys.value]
+      notify.success(t('settings.passkeys.added', { name: passkey.name }))
+    }
   } finally {
     isRegistering.value = false
   }

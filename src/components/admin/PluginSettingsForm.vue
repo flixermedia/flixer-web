@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getPluginSettings, updatePluginSettings, type PluginSettingsSchema } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 
 const props = defineProps<{ pluginId: string; title: string; description?: string; closable?: boolean }>()
@@ -40,9 +41,12 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    apply(await getPluginSettings(props.pluginId))
-  } catch (err) {
-    error.value = describeRequestError(err)
+    const [requestError, result] = await catchError(getPluginSettings(props.pluginId))
+    if (requestError) {
+      error.value = describeRequestError(requestError)
+    } else {
+      apply(result)
+    }
   } finally {
     loading.value = false
   }
@@ -67,10 +71,13 @@ async function save() {
 
   saving.value = true
   try {
-    apply(await updatePluginSettings(props.pluginId, { values: nextValues, secrets }))
-    notify.success(t('admin.plugins.settingsSaved'))
-  } catch (err) {
-    notify.error(describeRequestError(err))
+    const [error, result] = await catchError(updatePluginSettings(props.pluginId, { values: nextValues, secrets }))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      apply(result)
+      notify.success(t('admin.plugins.settingsSaved'))
+    }
   } finally {
     saving.value = false
   }

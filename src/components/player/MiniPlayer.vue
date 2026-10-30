@@ -9,6 +9,7 @@ import AuthImage from '../ui/AuthImage.vue'
 import { openModal } from '@kolirt/vue-modal'
 import AddToPlaylistModal from '../AddToPlaylistModal.vue'
 import { formatTime } from './formatTime'
+import { catchError } from '../../utils/catchError'
 
 const { t } = useI18n()
 const player = useAudioPlayer()
@@ -30,14 +31,20 @@ async function onParty() {
   partyBusy.value = true
   try {
     if (hostingListen.value) {
-      await navigator.clipboard.writeText(party.inviteLink())
+      const [error] = await catchError(Promise.resolve().then(() => navigator.clipboard.writeText(party.inviteLink())))
+      if (error) {
+        notify.error(t('party.copyFailed'))
+        return
+      }
       notify.success(t('party.linkCopied'))
     } else {
-      const started = await party.start(current.value.id)
+      const [error, started] = await catchError(party.start(current.value.id))
+      if (error) {
+        notify.error(t('party.startFailed'))
+        return
+      }
       if (!started) return
     }
-  } catch {
-    notify.error(t(hostingListen.value ? 'party.copyFailed' : 'party.startFailed'))
   } finally {
     partyBusy.value = false
   }
@@ -72,24 +79,21 @@ function onVolume(event: Event) {
         <div class="flex flex-col items-center gap-1 md:flex-1">
           <div class="flex items-center gap-1 sm:gap-3">
             <button type="button" class="hidden size-9 place-items-center rounded transition hover:bg-white/10 sm:grid" :class="shuffle ? 'text-flixer-accent' : 'text-white'" :aria-pressed="shuffle" :aria-label="t('music.shuffle')" @click="player.toggleShuffle()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
+              <Icon icon="lucide:shuffle" class="size-5" aria-hidden="true" />
             </button>
             <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('music.previous')" @click="player.previous()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zM9.5 12 18 18V6z" /></svg>
+              <Icon icon="lucide:skip-back" class="size-5" aria-hidden="true" />
             </button>
             <button type="button" class="grid size-10 place-items-center rounded bg-white text-flixer-background transition hover:bg-white/85" :aria-label="isPlaying ? t('music.pause') : t('music.play')" @click="player.toggle()">
               <span v-if="isLoading" class="size-4 animate-spin rounded-full border-2 border-flixer-background/30 border-t-flixer-background" aria-hidden="true"></span>
-              <svg v-else-if="isPlaying" class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
-              <svg v-else class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+              <Icon v-else-if="isPlaying" icon="lucide:pause" class="size-5" aria-hidden="true" />
+              <Icon v-else icon="lucide:play" class="size-5" aria-hidden="true" />
             </button>
             <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10 disabled:opacity-40" :disabled="!player.hasNext.value" :aria-label="t('music.next')" @click="player.next()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z" /></svg>
+              <Icon icon="lucide:skip-forward" class="size-5" aria-hidden="true" />
             </button>
             <button type="button" class="hidden size-9 place-items-center rounded transition hover:bg-white/10 sm:grid" :class="repeat === 'off' ? 'text-white' : 'text-flixer-accent'" :aria-label="repeat === 'one' ? t('music.repeatOne') : repeat === 'all' ? t('music.repeatAll') : t('music.repeat')" @click="player.cycleRepeat()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" />
-                <text v-if="repeat === 'one'" x="9.5" y="15" font-size="8" fill="currentColor" stroke="none">1</text>
-              </svg>
+              <Icon :icon="repeat === 'one' ? 'lucide:repeat-1' : 'lucide:repeat'" class="size-5" aria-hidden="true" />
             </button>
           </div>
           <div class="hidden w-full max-w-xl items-center gap-2 text-xs text-flixer-muted sm:flex">
@@ -101,18 +105,18 @@ function onVolume(event: Event) {
 
         <div class="flex items-center justify-end gap-1 md:w-1/4">
           <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('social.addToPlaylistFor', { title: current.title })" :title="t('social.addToPlaylist')" @click="addCurrentToPlaylist">
-            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
           </button>
           <button v-if="canParty" type="button" class="grid size-9 place-items-center rounded transition hover:bg-white/10 disabled:opacity-60" :class="hostingListen ? 'text-flixer-accent' : 'text-white'" :disabled="partyBusy" :aria-label="hostingListen ? t('party.copyLink') : t('party.startListen')" :title="hostingListen ? t('party.copyLink') : t('party.startListen')" @click="onParty">
-            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7" /></svg>
+            <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
           </button>
           <button type="button" class="grid h-9 place-items-center rounded px-3 text-sm font-semibold text-white transition hover:bg-white/10" :aria-label="t('music.lyrics')" @click="lyricsOpen = true">
-            <svg class="size-5 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h16" /></svg>
+            <Icon icon="lucide:list-music" class="size-5 md:hidden" aria-hidden="true" />
             <span class="hidden md:inline">{{ t('music.lyrics') }}</span>
           </button>
           <input type="range" min="0" max="1" step="0.01" class="hidden h-1 w-24 cursor-pointer accent-flixer-accent lg:block" :aria-label="t('music.volume')" :value="volume" @input="onVolume" />
           <button type="button" class="grid size-9 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('music.close')" @click="player.stop()">
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
           </button>
         </div>
       </div>

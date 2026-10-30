@@ -12,6 +12,7 @@ import DeclineRequestModal from '../components/DeclineRequestModal.vue'
 import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
@@ -32,33 +33,37 @@ const offset = ref(0)
 async function load(append = false) {
   busy.value = true
   try {
-    const result = await listMediaRequests({ scope: scope.value, status: status.value || undefined, type: type.value || undefined, offset: append ? offset.value : 0, limit })
+    const [error, result] = await catchError(listMediaRequests({ scope: scope.value, status: status.value || undefined, type: type.value || undefined, offset: append ? offset.value : 0, limit }))
+    if (error) {
+      notify.error(describeRequestError(error, t('requests.loadError')))
+      return
+    }
     rows.value = append ? [...rows.value, ...result.items] : result.items
     total.value = result.total
     counts.value = result.counts
     offset.value = rows.value.length
-  } catch (error) {
-    notify.error(describeRequestError(error, t('requests.loadError')))
   } finally {
     busy.value = false
   }
 }
 async function action(row: MediaRequestView, kind: 'approve' | 'decline' | 'retry' | 'delete') {
-  try {
-    let reason: string | undefined
-    if (kind === 'decline') {
-      const answer = await openModal<string>(DeclineRequestModal, { props: { title: row.title } }).catch(() => null)
-      if (answer === null) return
-      reason = answer || undefined
-    }
-    if (kind === 'approve') await approveMediaRequest(row.id)
-    if (kind === 'decline') await declineMediaRequest(row.id, reason)
-    if (kind === 'retry') await retryMediaRequest(row.id)
-    if (kind === 'delete') await deleteMediaRequest(row.id)
-    await load()
-  } catch (error) {
-    notify.error(describeRequestError(error, t('requests.actionError')))
+  let reason: string | undefined
+  if (kind === 'decline') {
+    const answer = await openModal<string>(DeclineRequestModal, { props: { title: row.title } }).catch(() => null)
+    if (answer === null) return
+    reason = answer || undefined
   }
+  const operation =
+    kind === 'approve' ? approveMediaRequest(row.id).then(() => undefined) :
+    kind === 'decline' ? declineMediaRequest(row.id, reason).then(() => undefined) :
+    kind === 'retry' ? retryMediaRequest(row.id).then(() => undefined) :
+    deleteMediaRequest(row.id).then(() => undefined)
+  const [error] = await catchError(operation)
+  if (error) {
+    notify.error(describeRequestError(error, t('requests.actionError')))
+    return
+  }
+  await load()
 }
 onMounted(async () => {
   await config.load()
@@ -141,7 +146,7 @@ watch([scope, status, type], () => {
       </ul>
       <div v-else-if="!busy" class="mt-8 rounded-2xl border border-dashed border-flixer-border bg-flixer-surface/30 px-5 py-14 text-center">
         <div class="mx-auto grid size-12 place-items-center rounded-full bg-white/[0.06] text-flixer-muted" aria-hidden="true">
-          <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4zM8 9h8m-8 4h8" /></svg>
+          <Icon icon="lucide:clipboard-list" class="size-6" aria-hidden="true" />
         </div>
         <p class="mt-4 text-sm font-medium text-white">{{ t('requests.empty') }}</p>
       </div>

@@ -35,12 +35,12 @@ async function select(code: string) {
           <button type="button" role="radio" :aria-checked="o.code === locale" class="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left text-sm transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="o.code === locale ? 'bg-white/10 font-semibold text-white' : 'text-flixer-text'" @click="select(o.code)">
             <span class="flex min-w-0 items-center gap-3">
               <span v-if="o.country" class="fi shrink-0 rounded-sm" :class="`fi-${o.country}`" aria-hidden="true"></span>
-              <span v-else class="inline-block w-5 shrink-0 text-center" aria-hidden="true">🌐</span>
+              <Icon v-else icon="lucide:globe" class="size-5 shrink-0" aria-hidden="true" />
               <span class="truncate"
                 >{{ o.name }} <span class="text-flixer-muted">({{ o.code }})</span></span
               >
             </span>
-            <svg v-if="o.code === locale" class="size-4 shrink-0 text-flixer-accent" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9" /></svg>
+            <Icon v-if="o.code === locale" icon="lucide:check" class="size-4 shrink-0 text-flixer-accent" aria-hidden="true" />
           </button>
         </li>
         <li v-if="filtered.length === 0" class="px-4 py-6 text-center text-sm text-flixer-muted">{{ t('languageModal.noResults') }}</li>

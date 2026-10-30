@@ -1,4 +1,4 @@
-// Prototype data only: nothing in the admin dashboard tabs below is wired to the API yet.
+// Prototype data for admin sections that still need API wiring.
 
 export interface MockLibrary {
   id: string
@@ -20,27 +20,6 @@ export const libraries: MockLibrary[] = [
   { id: 'l2', name: 'TV Shows', type: 'TV Shows', paths: ['/media/tv', '/mnt/nas/tv'], items: 1893, sizeGb: 3120, lastScan: 'Scanning…', scanning: true, scanProgress: 63, realtimeMonitor: true, metadataLanguage: 'English', providers: ['TVDB', 'TMDB'] },
   { id: 'l3', name: 'Anime', type: 'TV Shows', paths: ['/media/anime'], items: 604, sizeGb: 980, lastScan: '3 hours ago', scanning: false, realtimeMonitor: false, metadataLanguage: 'Japanese', providers: ['AniDB', 'TMDB'] },
   { id: 'l4', name: 'Home Videos', type: 'Home Videos', paths: ['/media/home'], items: 87, sizeGb: 64, lastScan: 'Yesterday', scanning: false, realtimeMonitor: false, metadataLanguage: 'English', providers: [] },
-]
-
-export interface MockTask {
-  id: string
-  name: string
-  category: string
-  description: string
-  trigger: string
-  lastRun: string
-  lastResult: 'Completed' | 'Failed' | 'Never run'
-  running: boolean
-  progress?: number
-}
-
-export const tasks: MockTask[] = [
-  { id: 't1', name: 'Scan media libraries', category: 'Library', description: 'Looks for new, changed and removed files in all libraries.', trigger: 'Every 12 hours', lastRun: '12 minutes ago', lastResult: 'Completed', running: true, progress: 63 },
-  { id: 't2', name: 'Refresh metadata', category: 'Library', description: 'Re-downloads artwork and metadata for items missing details.', trigger: 'Weekly, Sunday 03:00', lastRun: '4 days ago', lastResult: 'Completed', running: false },
-  { id: 't3', name: 'Generate trickplay thumbnails', category: 'Library', description: 'Creates seek preview images for video files.', trigger: 'Daily, 04:00', lastRun: '17 hours ago', lastResult: 'Completed', running: false },
-  { id: 't4', name: 'Clean transcode directory', category: 'Maintenance', description: 'Deletes stale transcode segments older than 24 hours.', trigger: 'Every 6 hours', lastRun: '2 hours ago', lastResult: 'Completed', running: false },
-  { id: 't5', name: 'Clean log files', category: 'Maintenance', description: 'Removes log files older than the retention period.', trigger: 'Daily, 02:00', lastRun: '19 hours ago', lastResult: 'Failed', running: false },
-  { id: 't6', name: 'Optimise database', category: 'Maintenance', description: 'Compacts and re-indexes the database.', trigger: 'Not scheduled', lastRun: 'Never', lastResult: 'Never run', running: false },
 ]
 
 export interface MockLogEntry {

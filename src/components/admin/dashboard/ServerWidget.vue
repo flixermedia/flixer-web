@@ -31,13 +31,13 @@ const services = computed(() => [
 </script>
 
 <template>
-  <AdminSection :title="t('admin.overview.serverTitle')" :description="t('admin.overview.serverDescription')" class="h-full">
+  <AdminSection :title="t('admin.overview.serverTitle')" :description="t('admin.overview.serverDescription')" compact class="h-full">
     <template #actions>
       <div class="flex gap-2">
         <StatusPill v-for="service in services" :key="service.name" :tone="service.ok ? 'good' : 'bad'">{{ service.name }}</StatusPill>
       </div>
     </template>
-    <dl class="grid gap-2.5 text-sm">
+    <dl class="grid gap-y-1 text-sm">
       <div v-for="[k, v] in info" :key="k" class="flex justify-between gap-4">
         <dt class="text-flixer-muted">{{ k }}</dt>
         <dd class="truncate text-right font-medium">{{ v }}</dd>

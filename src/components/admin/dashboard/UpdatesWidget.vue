@@ -10,12 +10,14 @@ const { data, failed } = useWidgetData(() => getUpdateStatus(), 60000)
 </script>
 
 <template>
-  <AdminSection :title="t('admin.dashboard.widgets.updates')" class="h-full">
+  <AdminSection :title="t('admin.dashboard.widgets.updates')" compact class="h-full">
     <p v-if="failed && !data" class="text-sm text-red-200">{{ t('admin.dashboard.loadError') }}</p>
     <template v-else-if="data">
-      <StatusPill :tone="data.updatesAvailable > 0 ? 'accent' : 'good'">{{ data.updatesAvailable > 0 ? t('admin.dashboard.updatesAvailable', { count: data.updatesAvailable }) : t('admin.dashboard.upToDate') }}</StatusPill>
-      <p v-if="!data.updaterReachable" class="mt-3 text-xs text-amber-300">{{ t('admin.dashboard.updaterOffline') }}</p>
-      <p v-else-if="data.lastCheckedAt" class="mt-3 text-xs text-flixer-muted">{{ t('admin.dashboard.checkedAt', { time: new Date(data.lastCheckedAt).toLocaleString() }) }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <StatusPill :tone="data.updatesAvailable > 0 ? 'accent' : 'good'">{{ data.updatesAvailable > 0 ? t('admin.dashboard.updatesAvailable', { count: data.updatesAvailable }) : t('admin.dashboard.upToDate') }}</StatusPill>
+        <p v-if="!data.updaterReachable" class="text-xs text-amber-300">{{ t('admin.dashboard.updaterOffline') }}</p>
+        <p v-else-if="data.lastCheckedAt" class="text-xs text-flixer-muted">{{ t('admin.dashboard.checkedAt', { time: new Date(data.lastCheckedAt).toLocaleString() }) }}</p>
+      </div>
     </template>
     <p v-else class="text-sm text-flixer-muted">{{ t('common.loading') }}</p>
   </AdminSection>

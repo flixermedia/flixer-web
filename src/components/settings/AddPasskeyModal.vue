@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { getPasskeyRegistrationOptions } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 
 defineOptions({ modalGroup: 'default' })
@@ -19,10 +20,13 @@ const isSubmitting = ref(false)
 async function submit() {
   isSubmitting.value = true
   try {
-    confirm(await getPasskeyRegistrationOptions(password.value))
-  } catch (error: unknown) {
-    console.error('[settings] passkey password check failed', error)
-    notify.error(describeRequestError(error, t('settings.passkeys.addFailed')))
+    const [error, options] = await catchError(getPasskeyRegistrationOptions(password.value))
+    if (error) {
+      console.error('[settings] passkey password check failed', error)
+      notify.error(describeRequestError(error, t('settings.passkeys.addFailed')))
+    } else {
+      confirm(options)
+    }
   } finally {
     isSubmitting.value = false
   }

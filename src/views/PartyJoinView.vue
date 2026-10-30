@@ -9,6 +9,7 @@ import UserAvatar from '../components/ui/UserAvatar.vue'
 import { useParty } from '../composables/useParty'
 import { getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -26,9 +27,12 @@ const music = computed(() => snapshot.value?.kind === 'music')
 
 onMounted(async () => {
   try {
-    snapshot.value = await getParty(props.id)
-  } catch {
-    gone.value = true
+    const [error, value] = await catchError(getParty(props.id))
+    if (error) {
+      gone.value = true
+    } else {
+      snapshot.value = value
+    }
   } finally {
     loading.value = false
   }
@@ -38,10 +42,13 @@ async function join() {
   joining.value = true
   error.value = ''
   try {
-    const joined = await party.join(props.id)
-    await router.replace({ name: 'profile', params: { username: joined.host.username } })
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('party.joinFailed')
+    const [joinError, joined] = await catchError(party.join(props.id))
+    if (joinError) {
+      error.value = joinError instanceof Error ? joinError.message : t('party.joinFailed')
+      return
+    }
+    const [navigationError] = await catchError(router.replace({ name: 'profile', params: { username: joined.host.username } }))
+    if (navigationError) error.value = navigationError instanceof Error ? navigationError.message : t('party.joinFailed')
   } finally {
     joining.value = false
   }

@@ -3,13 +3,15 @@ import { openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, scanMediaLibrary, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
+import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, queueLibrarySegments, scanMediaLibrary, syncLibraryThemes, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { useLiveTopic } from '../../composables/useLive'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import LibraryModal from './LibraryModal.vue'
+import LibraryRescanModal from './LibraryRescanModal.vue'
 import NetworkSharesSection from './NetworkSharesSection.vue'
 import StatusPill from './StatusPill.vue'
 
@@ -33,21 +35,24 @@ function applyStatus(status: IndexerStatus) {
 }
 
 async function pollScans() {
-  try {
-    applyStatus(await getIndexerStatus())
-  } catch {
+  const [error, status] = await catchError(getIndexerStatus())
+  if (error) {
     indexerReachable.value = false
+  } else {
+    applyStatus(status)
   }
 }
 
 async function scan(library: MediaLibrary, force: boolean, trickplayOnly = false) {
   scanningId.value = library.id
   try {
-    await scanMediaLibrary(library.id, force, trickplayOnly)
-    notify.success(t(trickplayOnly ? 'admin.libraries.trickplayStarted' : 'admin.libraries.scanStarted'))
-    await pollScans()
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.libraries.scanError')))
+    const [error] = await catchError(scanMediaLibrary(library.id, force, trickplayOnly))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.libraries.scanError')))
+    } else {
+      notify.success(t(trickplayOnly ? 'admin.libraries.trickplayStarted' : 'admin.libraries.scanStarted'))
+      await pollScans()
+    }
   } finally {
     scanningId.value = null
   }
@@ -64,10 +69,13 @@ function scanPercent(scan: IndexerScan) {
 
 async function load() {
   try {
-    libraries.value = await listMediaLibraries()
-    error.value = ''
-  } catch (err: unknown) {
-    error.value = describeRequestError(err, t('admin.libraries.loadError'))
+    const [requestError, result] = await catchError(listMediaLibraries())
+    if (requestError) {
+      error.value = describeRequestError(requestError, t('admin.libraries.loadError'))
+    } else {
+      libraries.value = result
+      error.value = ''
+    }
   } finally {
     loading.value = false
   }
@@ -78,14 +86,48 @@ async function openForm(library: MediaLibrary | null) {
   if (saved) await load()
 }
 
+async function openRescan(library: MediaLibrary) {
+  const selected = await openModal<string[]>(LibraryRescanModal, { props: { library } }).catch((): string[] => [])
+  if (!selected.length) return
+  if (selected.includes('full')) {
+    await scan(library, true)
+    return
+  }
+
+  scanningId.value = library.id
+  try {
+    const jobs = selected.filter((job) => ['images', 'descriptions', 'fileData', 'lyrics'].includes(job))
+    const actions: Array<() => Promise<unknown>> = []
+    if (jobs.length > 0) actions.push(() => scanMediaLibrary(library.id, false, false, jobs))
+    if (selected.includes('trickplay')) actions.push(() => scanMediaLibrary(library.id, false, true))
+    if (selected.includes('themes')) actions.push(() => syncLibraryThemes(library.id))
+    if (selected.includes('movieSegments')) actions.push(() => queueLibrarySegments(library.id, 'movie'))
+    if (selected.includes('tvSegments')) actions.push(() => queueLibrarySegments(library.id, 'episode'))
+
+    const results = await Promise.all(actions.map((action) => catchError(action())))
+    const failures = results.filter(([requestError]) => requestError)
+    for (const [requestError] of failures) {
+      if (requestError) notify.error(describeRequestError(requestError, t('admin.libraries.rescanError')))
+    }
+    if (failures.length < actions.length) {
+      notify.success(t('admin.libraries.rescanQueued', { count: actions.length - failures.length }))
+      await pollScans()
+    }
+  } finally {
+    scanningId.value = null
+  }
+}
+
 async function remove(library: MediaLibrary) {
   if (!(await confirmAction(t('admin.libraries.confirmDelete', { name: library.name }), { danger: true }))) return
   deletingId.value = library.id
   try {
-    await deleteMediaLibrary(library.id)
-    notify.success(t('admin.libraries.deleted'))
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.libraries.deleteError')))
+    const [error] = await catchError(deleteMediaLibrary(library.id))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.libraries.deleteError')))
+    } else {
+      notify.success(t('admin.libraries.deleted'))
+    }
   } finally {
     deletingId.value = null
     await load()
@@ -105,25 +147,25 @@ watch(live.data, (status) => {
 
 <template>
   <div class="flex flex-col gap-6">
-  <NetworkSharesSection @changed="load" />
-  <AdminSection :title="t('admin.libraries.title')" :description="t('admin.libraries.description')">
-    <template #actions>
-      <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80" @click="openForm(null)">{{ t('admin.libraries.addLibrary') }}</button>
-    </template>
+    <NetworkSharesSection @changed="load" />
+    <AdminSection :title="t('admin.libraries.title')" :description="t('admin.libraries.description')">
+      <template #actions>
+        <button type="button" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80" @click="openForm(null)">{{ t('admin.libraries.addLibrary') }}</button>
+      </template>
 
-    <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
-    <p v-if="!indexerReachable" class="mb-3 text-sm text-amber-300">{{ t('admin.libraries.indexerOffline') }}</p>
+      <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
+      <p v-if="!indexerReachable" class="mb-3 text-sm text-amber-300">{{ t('admin.libraries.indexerOffline') }}</p>
 
-    <AdminSkeleton v-if="loading && libraries.length === 0" variant="cards" />
-    <ul v-else class="flex flex-col gap-3">
-      <li v-for="lib in libraries" :key="lib.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
+      <AdminSkeleton v-if="loading && libraries.length === 0" variant="cards" />
+      <ul v-else class="flex flex-col gap-3">
+        <li v-for="lib in libraries" :key="lib.id" class="rounded border border-flixer-border bg-flixer-background/60 p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
             <p class="text-sm font-semibold">
               {{ lib.name }} <StatusPill tone="accent" class="ml-2">{{ t(`admin.libraries.types.${lib.type}`) }}</StatusPill>
             </p>
             <div class="flex items-center gap-2">
               <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="scan(lib, false)">{{ t('admin.libraries.scan') }}</button>
-              <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="scan(lib, true)">{{ t('admin.libraries.rescan') }}</button>
+              <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="openRescan(lib)">{{ t('admin.libraries.rescan') }}</button>
               <button v-if="lib.type !== 'music'" type="button" :disabled="!indexerReachable || scanningId === lib.id" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="scan(lib, false, true)">{{ t('admin.libraries.trickplay') }}</button>
               <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="openForm(lib)">{{ t('admin.libraries.manage') }}</button>
               <button type="button" :disabled="deletingId === lib.id" class="rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="remove(lib)">{{ t('admin.libraries.deleteLibrary') }}</button>
@@ -131,7 +173,9 @@ watch(live.data, (status) => {
           </div>
           <div v-if="scans[lib.id]" class="mt-3" role="status">
             <div class="flex items-center justify-between text-xs text-flixer-muted">
-              <span :class="scans[lib.id].state === 'failed' ? 'text-red-300' : ''">{{ scanLabel(scans[lib.id]) }}<template v-if="scans[lib.id].failed > 0"> · {{ t('admin.libraries.scanFailedItems', { failed: scans[lib.id].failed }) }}</template></span>
+              <span :class="scans[lib.id].state === 'failed' ? 'text-red-300' : ''"
+                >{{ scanLabel(scans[lib.id]) }}<template v-if="scans[lib.id].failed > 0"> · {{ t('admin.libraries.scanFailedItems', { failed: scans[lib.id].failed }) }}</template></span
+              >
               <span v-if="isRunning(scans[lib.id])">{{ scanPercent(scans[lib.id]) }}%</span>
             </div>
             <div v-if="isRunning(scans[lib.id])" class="mt-1 h-1.5 overflow-hidden rounded bg-white/10">
@@ -145,8 +189,8 @@ watch(live.data, (status) => {
             </li>
           </ul>
         </li>
-      <li v-if="!loading && libraries.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.libraries.empty') }}</li>
-    </ul>
-  </AdminSection>
+        <li v-if="!loading && libraries.length === 0 && !error" class="rounded border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.libraries.empty') }}</li>
+      </ul>
+    </AdminSection>
   </div>
 </template>

@@ -10,6 +10,7 @@ import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -26,12 +27,15 @@ async function loadInvite() {
   loading.value = true
   failed.value = false
   try {
-    invite.value = await getFriendInvite(token.value)
-  } catch (error) {
-    failed.value = true
-    invite.value = null
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      document.title = `${t('social.friendInvite.invalid')} · Flixer`
+    const [error, value] = await catchError(getFriendInvite(token.value))
+    if (error) {
+      failed.value = true
+      invite.value = null
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        document.title = `${t('social.friendInvite.invalid')} · Flixer`
+      }
+    } else {
+      invite.value = value
     }
   } finally {
     loading.value = false
@@ -43,10 +47,14 @@ async function updateFriendship() {
   if (!person || busy.value) return
   busy.value = true
   try {
-    if (person.friendship !== 'friends' && person.friendship !== 'self') await acceptFriendInvite(token.value)
+    if (person.friendship !== 'friends' && person.friendship !== 'self') {
+      const [error] = await catchError(acceptFriendInvite(token.value))
+      if (error) {
+        notify.error(t('social.friendInvite.requestFailed'))
+        return
+      }
+    }
     invite.value = { ...person, friendship: 'friends' }
-  } catch {
-    notify.error(t('social.friendInvite.requestFailed'))
   } finally {
     busy.value = false
   }

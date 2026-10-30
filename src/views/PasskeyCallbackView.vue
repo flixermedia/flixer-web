@@ -8,6 +8,7 @@ import { syncLocaleFromAccount } from '../i18n'
 import { useProfile } from '../composables/useProfile'
 import { saveNativeAccount } from '../platform/nativeAccount'
 import { notify } from '../composables/notify'
+import { catchError } from '../utils/catchError'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,23 +41,33 @@ async function completeHandoff() {
     return
   }
 
-  try {
-    const result = await exchangeNativePasskeyHandoff({ code, codeVerifier: pending.codeVerifier, state })
-    clearPendingNativePasskeyHandoff()
-    useProfile().clear()
-    saveAccessToken(result.accessToken)
-    try {
-      await saveNativeAccount(result.user.username)
-    } catch (saveError) {
-      console.warn('[native-account] Could not save the account for reinstall recovery', saveError)
-      notify.error(t('auth.rememberAccountFailed'))
-    }
-    await syncLocaleFromAccount()
-    const redirect = pending.redirect
-    const destination = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
-    await router.replace(destination)
-  } catch (cause) {
-    console.error('[passkey] native handoff exchange failed', cause)
+  const [exchangeError, result] = await catchError(exchangeNativePasskeyHandoff({ code, codeVerifier: pending.codeVerifier, state }))
+  if (exchangeError) {
+    console.error('[passkey] native handoff exchange failed', exchangeError)
+    error.value = t('auth.passkeyHandoffFailed')
+    isCompleting.value = false
+    return
+  }
+  clearPendingNativePasskeyHandoff()
+  useProfile().clear()
+  saveAccessToken(result.accessToken)
+  const [saveError] = await catchError(Promise.resolve().then(() => saveNativeAccount(result.user.username)))
+  if (saveError) {
+    console.warn('[native-account] Could not save the account for reinstall recovery', saveError)
+    notify.error(t('auth.rememberAccountFailed'))
+  }
+  const [localeError] = await catchError(syncLocaleFromAccount())
+  if (localeError) {
+    console.error('[passkey] native handoff exchange failed', localeError)
+    error.value = t('auth.passkeyHandoffFailed')
+    isCompleting.value = false
+    return
+  }
+  const redirect = pending.redirect
+  const destination = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+  const [navigationError] = await catchError(router.replace(destination))
+  if (navigationError) {
+    console.error('[passkey] native handoff exchange failed', navigationError)
     error.value = t('auth.passkeyHandoffFailed')
     isCompleting.value = false
   }

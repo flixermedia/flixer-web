@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useParty } from '../../composables/useParty'
 import { notify } from '../../composables/notify'
 import UserAvatar from '../ui/UserAvatar.vue'
+import { catchError } from '../../utils/catchError'
 
 const emit = defineEmits<{ left: [] }>()
 const { t } = useI18n()
@@ -11,12 +12,12 @@ const party = useParty()
 const busy = ref(false)
 
 async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(party.inviteLink())
-    notify.success(t('party.linkCopied'))
-  } catch {
+  const [failure] = await catchError(navigator.clipboard.writeText(party.inviteLink()))
+  if (failure) {
     notify.error(t('party.copyFailed'))
+    return
   }
+  notify.success(t('party.linkCopied'))
 }
 
 async function leave() {

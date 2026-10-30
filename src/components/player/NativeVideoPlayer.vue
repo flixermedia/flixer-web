@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { VideoPlayer, type VideoSubtitle, type capVideoPlayerResult } from '@capgo/capacitor-video-player'
 import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleTracks, type StreamInfo } from '../../api'
+import { catchError } from '../../utils/catchError'
 
 const props = withDefaults(
   defineProps<{
@@ -95,14 +96,14 @@ async function requireSuccess(operation: string, result: capVideoPlayerResult) {
 }
 
 async function runCommand(operation: string, command: () => Promise<capVideoPlayerResult>) {
-  try {
-    await requireSuccess(operation, await command())
-    return true
-  } catch (error) {
-    console.error(`Native video player ${operation} failed`, error)
-    emit('error', error instanceof Error ? error.message : `Native video player ${operation} failed`)
+  const [error, result] = await catchError(Promise.resolve().then(command))
+  if (error || result.result !== true) {
+    const failure = error ?? new Error(result.message || `Native video player ${operation} failed`)
+    console.error(`Native video player ${operation} failed`, failure)
+    emit('error', failure instanceof Error ? failure.message : `Native video player ${operation} failed`)
     return false
   }
+  return true
 }
 
 function subtitleUrl(streamUrl: string, id: string) {
@@ -113,11 +114,15 @@ function subtitleUrl(streamUrl: string, id: string) {
 }
 
 async function loadSubtitleTracks(streamUrl: string): Promise<VideoSubtitle[]> {
-  try {
-    const tracks = await getSubtitleTracks(streamUrl)
-    return tracks.map((track) => ({ subtitle: subtitleUrl(streamUrl, track.id), language: track.language }))
-  } catch (error) {
+  const [error, tracks] = await catchError(Promise.resolve().then(() => getSubtitleTracks(streamUrl)))
+  if (error) {
     console.error('Could not load native video subtitles', error)
+    return []
+  }
+  try {
+    return tracks.map((track) => ({ subtitle: subtitleUrl(streamUrl, track.id), language: track.language }))
+  } catch (mappingError) {
+    console.error('Could not load native video subtitles', mappingError)
     return []
   }
 }
@@ -177,13 +182,13 @@ async function onEnded(event: { currentTime?: number | string; fromPlayerId?: st
   emitProgress()
   emitControl('pause')
   if (!props.nextLabel) return
-  try {
-    await closeForNext()
-    emit('next')
-  } catch (error) {
+  const [error] = await catchError(closeForNext())
+  if (error) {
     console.error('Could not advance the native video player', error)
     emit('error', error instanceof Error ? error.message : 'Could not advance to the next episode')
+    return
   }
+  emit('next')
 }
 
 function onExit(event: { currentTime?: number | string; fromPlayerId?: string }) {
@@ -223,7 +228,7 @@ function stopPolling() {
   progressTimer = undefined
 }
 
-async function loadPlayer() {
+async function loadPlayer(): Promise<Error | undefined> {
   ready.value = false
   playing.value = false
   position.value = 0
@@ -249,13 +254,13 @@ async function loadPlayer() {
   } else {
     let serverStart = start
     if (props.info.playMethod === 'DirectStream' && start > 0) {
-      try {
-        const streamInfo = await getStreamInfo(props.streamUrl, { start })
+      const [error, streamInfo] = await catchError(Promise.resolve().then(() => getStreamInfo(props.streamUrl, { start })))
+      if (error) {
+        console.error('Could not find a keyframe for native playback resume', error)
+      } else {
         if (typeof streamInfo.keyframeStart === 'number' && streamInfo.keyframeStart <= start) {
           serverStart = streamInfo.keyframeStart
         }
-      } catch (error) {
-        console.error('Could not find a keyframe for native playback resume', error)
       }
     }
     url = buildStreamUrl(props.streamUrl, { start: serverStart })
@@ -266,7 +271,7 @@ async function loadPlayer() {
   const subtitles = await loadSubtitleTracks(props.streamUrl)
   if (disposed) return
   playerOpen = true
-  const result = await VideoPlayer.initPlayer({
+  const [initError, result] = await catchError(Promise.resolve().then(() => VideoPlayer.initPlayer({
     playerId: PLAYER_ID,
     mode: 'fullscreen',
     url,
@@ -277,62 +282,86 @@ async function loadPlayer() {
     pipEnabled: true,
     bkmodeEnabled: true,
     showControls: true,
-  })
-  await requireSuccess('initialize', result)
+  })))
+  if (initError) return initError
+  const [validationError] = await catchError(requireSuccess('initialize', result))
+  return validationError
+}
+
+function handleStartError(error: Error) {
+  playerOpen = false
+  for (const listener of listeners) {
+    void listener.remove().catch((removeError) => console.error('Could not remove native video player listener', removeError))
+  }
+  listeners = []
+  console.error('Could not start native video playback', error)
+  if (!disposed) emit('error', error.message || 'Could not start native video playback')
 }
 
 async function attachListenersAndStart() {
-  try {
-    listeners.push(await VideoPlayer.addListener('jeepCapVideoPlayerReady', (event) => void onReady(event)))
-    listeners.push(await VideoPlayer.addListener('jeepCapVideoPlayerPlay', onPlay))
-    listeners.push(await VideoPlayer.addListener('jeepCapVideoPlayerPause', onPause))
-    listeners.push(await VideoPlayer.addListener('jeepCapVideoPlayerEnded', (event) => void onEnded(event)))
-    listeners.push(await VideoPlayer.addListener('jeepCapVideoPlayerExit', onExit))
-    if (disposed) return
-    await loadPlayer()
-  } catch (error) {
-    playerOpen = false
-    for (const listener of listeners) {
-      void listener.remove().catch((removeError) => console.error('Could not remove native video player listener', removeError))
-    }
-    listeners = []
-    console.error('Could not start native video playback', error)
-    if (!disposed) emit('error', error instanceof Error ? error.message : 'Could not start native video playback')
+  const [readyError, readyListener] = await catchError(Promise.resolve().then(() => VideoPlayer.addListener('jeepCapVideoPlayerReady', (event) => void onReady(event))))
+  if (readyError) return handleStartError(readyError)
+  listeners.push(readyListener)
+  const [playError, playListener] = await catchError(Promise.resolve().then(() => VideoPlayer.addListener('jeepCapVideoPlayerPlay', onPlay)))
+  if (playError) return handleStartError(playError)
+  listeners.push(playListener)
+  const [pauseError, pauseListener] = await catchError(Promise.resolve().then(() => VideoPlayer.addListener('jeepCapVideoPlayerPause', onPause)))
+  if (pauseError) return handleStartError(pauseError)
+  listeners.push(pauseListener)
+  const [endedError, endedListener] = await catchError(Promise.resolve().then(() => VideoPlayer.addListener('jeepCapVideoPlayerEnded', (event) => void onEnded(event))))
+  if (endedError) return handleStartError(endedError)
+  listeners.push(endedListener)
+  const [exitError, exitListener] = await catchError(Promise.resolve().then(() => VideoPlayer.addListener('jeepCapVideoPlayerExit', onExit)))
+  if (exitError) return handleStartError(exitError)
+  listeners.push(exitListener)
+  if (disposed) return
+  const loadError = await loadPlayer()
+  if (loadError) handleStartError(loadError)
+}
+
+async function runRemoteCommand(operation: string, command: Promise<capVideoPlayerResult>) {
+  const [commandError, result] = await catchError(command)
+  if (commandError) {
+    console.error('Could not sync native video with the watch party', commandError)
+    emit('error', commandError.message || 'Could not sync native video with the watch party')
+    return false
   }
+  const [validationError] = await catchError(requireSuccess(operation, result))
+  if (validationError) {
+    console.error('Could not sync native video with the watch party', validationError)
+    emit('error', validationError.message || 'Could not sync native video with the watch party')
+    return false
+  }
+  return true
 }
 
 function applyRemote(state: { playing: boolean; position: number }) {
   if (!ready.value || remoteChange) return
   remoteChange = true
   void (async () => {
-    try {
-      const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
-      if (Math.abs(absolutePosition() - target) > REMOTE_DRIFT_SECONDS) {
-        remoteSeekTarget = target
-        remoteSeekUntil = performance.now() + 10_000
-        const localTarget = Math.max(0, target - offset)
-        await requireSuccess('remote seek', await VideoPlayer.setCurrentTime({ ...PLAYER_ID_OPTIONS, seektime: localTarget }))
-        position.value = localTarget
-      }
-      if (state.playing && !playing.value) {
-        remotePlaybackTarget = true
-        remotePlaybackUntil = performance.now() + 10_000
-        await requireSuccess('remote play', await VideoPlayer.play(PLAYER_ID_OPTIONS))
-        playing.value = true
-      } else if (!state.playing && playing.value) {
-        remotePlaybackTarget = false
-        remotePlaybackUntil = performance.now() + 10_000
-        await requireSuccess('remote pause', await VideoPlayer.pause(PLAYER_ID_OPTIONS))
-        playing.value = false
-      }
-      lastPolledPosition = absolutePosition()
-    } catch (error) {
-      console.error('Could not sync native video with the watch party', error)
-      emit('error', error instanceof Error ? error.message : 'Could not sync native video with the watch party')
-    } finally {
-      remoteChange = false
+    const target = duration.value > 0 ? Math.min(state.position, Math.max(0, duration.value - 0.5)) : state.position
+    if (Math.abs(absolutePosition() - target) > REMOTE_DRIFT_SECONDS) {
+      remoteSeekTarget = target
+      remoteSeekUntil = performance.now() + 10_000
+      const localTarget = Math.max(0, target - offset)
+      if (!(await runRemoteCommand('remote seek', Promise.resolve().then(() => VideoPlayer.setCurrentTime({ ...PLAYER_ID_OPTIONS, seektime: localTarget }))))) return
+      position.value = localTarget
     }
-  })()
+    if (state.playing && !playing.value) {
+      remotePlaybackTarget = true
+      remotePlaybackUntil = performance.now() + 10_000
+      if (!(await runRemoteCommand('remote play', Promise.resolve().then(() => VideoPlayer.play(PLAYER_ID_OPTIONS))))) return
+      playing.value = true
+    } else if (!state.playing && playing.value) {
+      remotePlaybackTarget = false
+      remotePlaybackUntil = performance.now() + 10_000
+      if (!(await runRemoteCommand('remote pause', Promise.resolve().then(() => VideoPlayer.pause(PLAYER_ID_OPTIONS))))) return
+      playing.value = false
+    }
+    lastPolledPosition = absolutePosition()
+  })().finally(() => {
+    remoteChange = false
+  })
 }
 
 defineExpose({ getState, applyRemote })

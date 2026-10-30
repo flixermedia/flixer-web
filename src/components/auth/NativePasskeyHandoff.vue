@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { getNativePasskeyHandoffOptions, verifyNativePasskeyHandoff } from '../../api'
 import { NATIVE_PASSKEY_CALLBACK_SCHEME } from '../../platform/passkeyHandoff'
+import { catchError } from '../../utils/catchError'
 
 const props = defineProps<{ handoffId: string; state: string }>()
 const { t } = useI18n()
@@ -21,16 +22,30 @@ async function verify() {
   isSubmitting.value = true
   error.value = ''
   try {
-    const options = await getNativePasskeyHandoffOptions(props.handoffId)
-    const assertion = await startAuthentication({ optionsJSON: options })
-    const result = await verifyNativePasskeyHandoff(props.handoffId, assertion)
+    const [optionsError, options] = await catchError(getNativePasskeyHandoffOptions(props.handoffId))
+    if (optionsError) {
+      showError(optionsError)
+      return
+    }
+    const [assertionError, assertion] = await catchError(startAuthentication({ optionsJSON: options }))
+    if (assertionError) {
+      showError(assertionError)
+      return
+    }
+    const [verifyError, result] = await catchError(verifyNativePasskeyHandoff(props.handoffId, { ...assertion }))
+    if (verifyError) {
+      showError(verifyError)
+      return
+    }
     window.location.assign(callbackUrl({ code: result.code, state: result.state }))
-  } catch (cause) {
-    console.error('[passkey] browser handoff failed', cause)
-    error.value = cause instanceof Error && cause.name === 'NotAllowedError' ? t('auth.passkeyCheckCancelled') : t('auth.passkeyHandoffFailed')
   } finally {
     isSubmitting.value = false
   }
+}
+
+function showError(cause: Error) {
+  console.error('[passkey] browser handoff failed', cause)
+  error.value = cause.name === 'NotAllowedError' ? t('auth.passkeyCheckCancelled') : t('auth.passkeyHandoffFailed')
 }
 
 function cancel() {

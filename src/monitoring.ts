@@ -1,26 +1,19 @@
 import * as Sentry from '@sentry/vue'
 import type { App } from 'vue'
-import { getApiBaseUrl } from './platform/serverConnection'
+import type { SentryConfig } from '@flixermedia/flixer-api-client'
+import { api } from './api'
+import { catchError } from './utils/catchError'
 
 const FETCH_TIMEOUT_MS = 60_000
 const RETRY_DELAY_MS = 2_000
 const REQUEST_TIMEOUT_MS = 5_000
 
-interface SentryConfig {
-  enabled: boolean
-  dsn: string | null
-}
-
 async function fetchConfig(): Promise<SentryConfig | null> {
-  const baseUrl = getApiBaseUrl().replace(/\/+$/, '')
   const deadline = Date.now() + FETCH_TIMEOUT_MS
   const attempt = async (): Promise<SentryConfig | null> => {
-    try {
-      const response = await fetch(`${baseUrl}/sentry/config/web`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
-      if (response.ok) return (await response.json()) as SentryConfig
-    } catch {
-      // flixer is unreachable; retry until the deadline.
-    }
+    const [error, response] = await catchError(api.get<SentryConfig>('/sentry/config/web', { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }))
+    if (!error) return response.data
+    // flixer is unreachable; retry until the deadline.
     if (Date.now() + RETRY_DELAY_MS >= deadline) return null
     return new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS)).then(attempt)
   }

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { clearBackupPassphrase, createBackup, deleteBackup, getBackupDownloadUrl, getBackupStatus, restoreBackup, setBackupPassphrase, updateSetting, uploadBackup, type BackupEntry, type BackupStatus } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
 import StatusPill from './StatusPill.vue'
@@ -78,52 +79,56 @@ function schedulePoll() {
 }
 
 async function load(quiet = false) {
-  try {
-    adopt(await getBackupStatus())
-    loadError.value = ''
-    if (wasRunning && !running.value) {
-      const run = status.value?.run
-      if (run?.status === 'succeeded') notify.success(t(run.kind === 'restore' ? 'admin.backups.run.restored' : 'admin.backups.run.created'))
-    }
-    wasRunning = running.value
-  } catch (error) {
+  const [error, result] = await catchError(getBackupStatus())
+  if (error) {
     if (!quiet) loadError.value = describeRequestError(error)
+    return
   }
+  adopt(result)
+  loadError.value = ''
+  if (wasRunning && !running.value) {
+    const run = status.value?.run
+    if (run?.status === 'succeeded') notify.success(t(run.kind === 'restore' ? 'admin.backups.run.restored' : 'admin.backups.run.created'))
+  }
+  wasRunning = running.value
 }
 
 async function create() {
   isCreating.value = true
   try {
-    await createBackup()
-    notify.success(t('admin.backups.started'))
-    await load(true)
-    wasRunning = running.value
-    schedulePoll()
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(createBackup())
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      notify.success(t('admin.backups.started'))
+      await load(true)
+      wasRunning = running.value
+      schedulePoll()
+    }
   } finally {
     isCreating.value = false
   }
 }
 
 async function download(backup: BackupEntry) {
-  try {
-    const link = document.createElement('a')
-    link.href = await getBackupDownloadUrl(backup.name)
+  const link = document.createElement('a')
+  const [error, url] = await catchError(getBackupDownloadUrl(backup.name))
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
+    link.href = url
     link.download = backup.name
     link.click()
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 }
 
 async function remove(backup: BackupEntry) {
   if (!(await confirmAction(t('admin.backups.confirmDelete', { name: backup.name }), { danger: true }))) return
-  try {
-    await deleteBackup(backup.name)
-    await load(true)
-  } catch (error) {
+  const [error] = await catchError(deleteBackup(backup.name))
+  if (error) {
     notify.error(describeRequestError(error))
+  } else {
+    await load(true)
   }
 }
 
@@ -138,11 +143,13 @@ async function upload(event: Event) {
   if (!file) return
   uploadProgress.value = 0
   try {
-    await uploadBackup(file, (fraction) => (uploadProgress.value = fraction))
-    notify.success(t('admin.backups.uploaded'))
-    await load(true)
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(uploadBackup(file, (fraction) => (uploadProgress.value = fraction)))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      notify.success(t('admin.backups.uploaded'))
+      await load(true)
+    }
   } finally {
     uploadProgress.value = null
   }
@@ -159,39 +166,47 @@ async function restore() {
   if (!target || !restoreConfirmed.value) return
   isRestoring.value = true
   try {
-    await restoreBackup(target.name, restorePassphrase.value)
-    notify.success(t('admin.backups.restoreStarted'))
-    restoreTarget.value = null
-    await load(true)
-    wasRunning = true
-    schedulePoll()
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(restoreBackup(target.name, restorePassphrase.value))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      notify.success(t('admin.backups.restoreStarted'))
+      restoreTarget.value = null
+      await load(true)
+      wasRunning = true
+      schedulePoll()
+    }
   } finally {
     isRestoring.value = false
   }
 }
 
 async function saveSchedule() {
-  try {
-    await updateSetting('backups_schedule', schedule.value)
-    await updateSetting('backups_keep', Math.trunc(Number(keep.value)))
-    notify.success(t('admin.backups.schedule.saved'))
-    await load(true)
-  } catch (error) {
-    notify.error(describeRequestError(error))
+  const [scheduleError] = await catchError(updateSetting('backups_schedule', schedule.value))
+  if (scheduleError) {
+    notify.error(describeRequestError(scheduleError))
+    return
   }
+  const [keepError] = await catchError(updateSetting('backups_keep', Math.trunc(Number(keep.value))))
+  if (keepError) {
+    notify.error(describeRequestError(keepError))
+    return
+  }
+  notify.success(t('admin.backups.schedule.saved'))
+  await load(true)
 }
 
 async function savePassphrase() {
   isSavingPassphrase.value = true
   try {
-    await setBackupPassphrase(newPassphrase.value)
-    newPassphrase.value = ''
-    notify.success(t('admin.backups.encryption.saved'))
-    await load(true)
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(setBackupPassphrase(newPassphrase.value))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      newPassphrase.value = ''
+      notify.success(t('admin.backups.encryption.saved'))
+      await load(true)
+    }
   } finally {
     isSavingPassphrase.value = false
   }
@@ -199,12 +214,12 @@ async function savePassphrase() {
 
 async function removePassphrase() {
   if (!(await confirmAction(t('admin.backups.encryption.confirmRemove'), { danger: true }))) return
-  try {
-    await clearBackupPassphrase()
+  const [error] = await catchError(clearBackupPassphrase())
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
     notify.success(t('admin.backups.encryption.removed'))
     await load(true)
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 }
 

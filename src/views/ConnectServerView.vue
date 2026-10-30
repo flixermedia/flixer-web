@@ -8,6 +8,7 @@ import { useProfile } from '../composables/useProfile'
 import { getNativeServerUrl, isNativeApp } from '../platform/serverConnection'
 import { fetchSetupGate } from '../setup/setupApi'
 import { resetSetupGate } from '../setup/setupGate'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -27,16 +28,28 @@ async function connect() {
   error.value = ''
   isConnecting.value = true
   try {
-    const changed = configureNativeServer(serverUrl.value)
+    let changed: boolean
+    try {
+      changed = configureNativeServer(serverUrl.value)
+    } catch (cause) {
+      error.value = cause instanceof Error && cause.message === 'invalid' ? t('native.invalidServerUrl') : t('native.serverUnreachable')
+      return
+    }
     if (changed) {
       useProfile().clear()
       resetSetupGate()
     }
-    const gate = await fetchSetupGate()
-    if (gate.kind === 'unavailable') throw new Error('unreachable')
-    await router.replace({ name: gate.kind === 'setup' ? 'setup' : 'login' })
-  } catch (cause) {
-    error.value = cause instanceof Error && cause.message === 'invalid' ? t('native.invalidServerUrl') : t('native.serverUnreachable')
+    const [gateError, gate] = await catchError(fetchSetupGate())
+    if (gateError || gate.kind === 'unavailable') {
+      const cause = gateError ?? new Error('unreachable')
+      error.value = cause instanceof Error && cause.message === 'invalid' ? t('native.invalidServerUrl') : t('native.serverUnreachable')
+      return
+    }
+    const [navigationError] = await catchError(router.replace({ name: gate.kind === 'setup' ? 'setup' : 'login' }))
+    if (navigationError) {
+      const cause = navigationError
+      error.value = cause instanceof Error && cause.message === 'invalid' ? t('native.invalidServerUrl') : t('native.serverUnreachable')
+    }
   } finally {
     isConnecting.value = false
   }

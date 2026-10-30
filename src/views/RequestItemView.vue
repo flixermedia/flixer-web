@@ -11,6 +11,7 @@ import ClampedText from '../components/ui/ClampedText.vue'
 import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { getNavLinks } from '../composables/homeNav'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -36,12 +37,18 @@ async function load() {
   loading.value = true
   try {
     const requestedType = type.value
-    if (!['movie', 'tv', 'music'].includes(requestedType)) throw new Error('Invalid media type')
-    detail.value = await getExternalMediaDetail(requestedType, id.value)
+    if (!['movie', 'tv', 'music'].includes(requestedType)) {
+      notify.error(describeRequestError(new Error('Invalid media type'), t('requests.detailError')))
+      return
+    }
+    const [error, value] = await catchError(getExternalMediaDetail(requestedType, id.value))
+    if (error) {
+      notify.error(describeRequestError(error, t('requests.detailError')))
+      return
+    }
+    detail.value = value
     ownRequest.value = detail.value.requests.find((entry) => (entry.requestedBy.id === profile.value?.id || entry.id === detail.value?.requestId) && entry.status !== 'declined') ?? null
     selectedSeasons.value = (detail.value.seasons ?? []).filter((season) => season.status === 'none').map((season) => season.number)
-  } catch (error) {
-    notify.error(describeRequestError(error, t('requests.detailError')))
   } finally {
     loading.value = false
   }
@@ -53,25 +60,28 @@ async function submit() {
   if (!detail.value || !requestAllowed.value || submitting.value) return
   submitting.value = true
   try {
-    ownRequest.value = await createMediaRequest({ type: type.value, externalId: id.value, ...(tv.value && !selectedAll.value ? { seasons: selectedSeasons.value } : {}), ...(serviceId.value ? { serviceId: serviceId.value } : {}), ...(rootFolder.value.trim() ? { rootFolder: rootFolder.value.trim() } : {}) })
+    const [error, request] = await catchError(createMediaRequest({ type: type.value, externalId: id.value, ...(tv.value && !selectedAll.value ? { seasons: selectedSeasons.value } : {}), ...(serviceId.value ? { serviceId: serviceId.value } : {}), ...(rootFolder.value.trim() ? { rootFolder: rootFolder.value.trim() } : {}) }))
+    if (error) {
+      notify.error(describeRequestError(error, t('requests.actionError')))
+      return
+    }
+    ownRequest.value = request
     notify.success(t('requests.requested'))
     await config.refresh()
-  } catch (error) {
-    notify.error(describeRequestError(error, t('requests.actionError')))
   } finally {
     submitting.value = false
   }
 }
 async function cancelRequest() {
   if (!ownRequest.value) return
-  try {
-    await deleteMediaRequest(ownRequest.value.id)
-    ownRequest.value = null
-    await load()
-    await config.refresh()
-  } catch (error) {
+  const [error] = await catchError(deleteMediaRequest(ownRequest.value.id))
+  if (error) {
     notify.error(describeRequestError(error, t('requests.actionError')))
+    return
   }
+  ownRequest.value = null
+  await load()
+  await config.refresh()
 }
 onMounted(async () => {
   await Promise.all([config.load(), loadProfile()])
@@ -145,11 +155,11 @@ watch(
 
             <div class="mt-6 flex flex-wrap items-center gap-3">
               <RouterLink v-if="detail.libraryItemId" :to="{ name: 'media-item', params: { id: detail.libraryItemId } }" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 {{ t('requests.play') }}
               </RouterLink>
               <button v-else-if="activeStatus === 'none' || activeStatus === 'declined'" type="button" :disabled="!requestAllowed || submitting || (tv && selectedSeasons.length === 0)" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" @click="submit">
-                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
+                <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
                 {{ submitting ? t('common.loading') : t('requests.request') }}
               </button>
               <button v-else type="button" disabled aria-disabled="true" class="inline-flex cursor-default items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white/80">

@@ -3,16 +3,17 @@ import { openModal } from '@kolirt/vue-modal'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { cancelIndexerTask, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TASK_STATES, listIndexerTasks, retryIndexerTask, type IndexerQueueName, type IndexerTask, type IndexerTaskState } from '../../api'
+import { cancelIndexerTask, clearAllFailedIndexerTasks, clearFailedIndexerTasks, INDEXER_TASK_QUEUES, INDEXER_TASK_STATES, listIndexerTasks, retryIndexerTask, type IndexerTask, type IndexerTaskQueueName, type IndexerTaskState } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import TaskLogsModal from './TaskLogsModal.vue'
 import { confirmAction } from '../../composables/confirm'
 
 const { t } = useI18n()
 
-const queue = ref<IndexerQueueName>('identify')
+const queue = ref<IndexerTaskQueueName>('identify')
 const state = ref<IndexerTaskState>('archived')
 const page = ref(1)
 const tasks = ref<IndexerTask[]>([])
@@ -27,11 +28,14 @@ const inputClass = 'rounded border border-flixer-border bg-flixer-background px-
 async function load() {
   loading.value = true
   try {
-    tasks.value = await listIndexerTasks(queue.value, state.value, page.value, PAGE_SIZE)
-    error.value = ''
-  } catch (err: unknown) {
-    tasks.value = []
-    error.value = describeRequestError(err, t('admin.indexer.tasksError'))
+    const [requestError, result] = await catchError(listIndexerTasks(queue.value, state.value, page.value, PAGE_SIZE))
+    if (requestError) {
+      tasks.value = []
+      error.value = describeRequestError(requestError, t('admin.indexer.tasksError'))
+    } else {
+      tasks.value = result
+      error.value = ''
+    }
   } finally {
     loading.value = false
   }
@@ -40,10 +44,12 @@ async function load() {
 async function act(task: IndexerTask, action: 'cancel' | 'retry') {
   busyId.value = task.id
   try {
-    await (action === 'cancel' ? cancelIndexerTask : retryIndexerTask)(task.queue, task.id)
-    await load()
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.indexer.taskError')))
+    const [error] = await catchError((action === 'cancel' ? cancelIndexerTask : retryIndexerTask)(task.queue, task.id))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.indexer.taskError')))
+    } else {
+      await load()
+    }
   } finally {
     busyId.value = null
   }
@@ -53,11 +59,29 @@ async function clearFailed() {
   if (!(await confirmAction(t('admin.indexer.clearFailedConfirm'), { danger: true }))) return
   clearing.value = true
   try {
-    const n = await clearFailedIndexerTasks(queue.value)
-    notify.success(t('admin.indexer.clearedFailed', { n }))
-    await load()
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.indexer.taskError')))
+    const [error, n] = await catchError(clearFailedIndexerTasks(queue.value))
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.indexer.taskError')))
+    } else {
+      notify.success(t('admin.indexer.clearedFailed', { n }))
+      await load()
+    }
+  } finally {
+    clearing.value = false
+  }
+}
+
+async function clearAllFailed() {
+  if (!(await confirmAction(t('admin.indexer.clearAllFailedConfirm'), { danger: true }))) return
+  clearing.value = true
+  try {
+    const [error, n] = await catchError(clearAllFailedIndexerTasks())
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.indexer.taskError')))
+    } else {
+      notify.success(t('admin.indexer.clearedAllFailed', { n }))
+      await load()
+    }
   } finally {
     clearing.value = false
   }
@@ -100,7 +124,7 @@ watch(
       <label class="flex flex-col gap-1 text-xs text-flixer-muted">
         {{ t('admin.indexer.queue') }}
         <select v-model="queue" :class="inputClass">
-          <option v-for="name in INDEXER_QUEUES" :key="name" :value="name">{{ t(`admin.indexer.queueNames.${name}`) }}</option>
+          <option v-for="name in INDEXER_TASK_QUEUES" :key="name" :value="name">{{ t(`admin.indexer.queueNames.${name}`) }}</option>
         </select>
       </label>
       <label class="flex flex-col gap-1 text-xs text-flixer-muted">
@@ -110,13 +134,14 @@ watch(
         </select>
       </label>
       <button v-if="state === 'archived'" type="button" :disabled="clearing || loading || tasks.length === 0" class="self-end rounded bg-red-500/20 px-3 py-1.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearFailed">{{ t('admin.indexer.clearFailed') }}</button>
+      <button v-if="state === 'archived'" type="button" :disabled="clearing || loading" class="self-end rounded bg-red-500/20 px-3 py-1.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearAllFailed">{{ t('admin.indexer.clearAllFailed') }}</button>
     </div>
 
     <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">{{ error }}</p>
 
     <AdminSkeleton v-if="loading && tasks.length === 0" variant="tasks" />
     <ul v-else class="flex flex-col gap-2">
-      <li v-for="task in tasks" :key="task.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-3">
+      <li v-for="task in tasks" :key="task.id" class="rounded border border-flixer-border bg-flixer-background/60 p-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="truncate font-mono text-xs">{{ describeTask(task) }}</p>
@@ -130,7 +155,7 @@ watch(
           </div>
         </div>
       </li>
-      <li v-if="!loading && tasks.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-4 text-center text-sm text-flixer-muted">{{ t('admin.indexer.noTasks') }}</li>
+      <li v-if="!loading && tasks.length === 0 && !error" class="rounded border border-dashed border-flixer-border p-4 text-center text-sm text-flixer-muted">{{ t('admin.indexer.noTasks') }}</li>
     </ul>
 
     <div v-if="page > 1 || tasks.length === PAGE_SIZE" class="mt-3 flex items-center gap-3 text-xs">

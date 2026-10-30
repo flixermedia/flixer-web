@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listSettings, type IndexerSubtitleSetting } from '../../api'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import SubtitlesSettingsModal from './SubtitlesSettingsModal.vue'
 
@@ -15,11 +16,13 @@ const error = ref('')
 
 async function load() {
   try {
-    const settings = await listSettings()
-    stored.value = settings.find((setting) => setting.key === 'indexer_subtitles')?.value as Partial<IndexerSubtitleSetting> | undefined
-    error.value = ''
-  } catch (err: unknown) {
-    error.value = describeRequestError(err, t('admin.indexer.subtitles.error'))
+    const [requestError, settings] = await catchError(listSettings())
+    if (requestError) {
+      error.value = describeRequestError(requestError, t('admin.indexer.subtitles.error'))
+    } else {
+      stored.value = settings.find((setting) => setting.key === 'indexer_subtitles')?.value as Partial<IndexerSubtitleSetting> | undefined
+      error.value = ''
+    }
   } finally {
     loading.value = false
   }

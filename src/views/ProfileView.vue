@@ -17,6 +17,7 @@ import { notify } from '../composables/notify'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useParty } from '../composables/useParty'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const openingChat = ref(false)
@@ -60,15 +61,17 @@ async function load() {
   notFound.value = false
   if (!profile.value) loading.value = true
   try {
-    const result = await getSocialProfile(username.value)
+    const [error, result] = await catchError(getSocialProfile(username.value))
+    if (error) {
+      if (current !== generation) return
+      notFound.value = axios.isAxiosError(error) && error.response?.status === 404
+      if (notFound.value) profile.value = null
+      failed.value = !notFound.value
+      return
+    }
     if (current !== generation) return
     profile.value = result
     document.title = `${result.displayName} · Flixer`
-  } catch (error) {
-    if (current !== generation) return
-    notFound.value = axios.isAxiosError(error) && error.response?.status === 404
-    if (notFound.value) profile.value = null
-    failed.value = !notFound.value
   } finally {
     if (current === generation) loading.value = false
   }
@@ -85,10 +88,13 @@ async function messageUser() {
   if (!profile.value || openingChat.value) return
   openingChat.value = true
   try {
-    const conversation = await startDirectChat(profile.value.username)
-    await router.push({ name: 'chat', params: { id: conversation.id } })
-  } catch {
-    notify.error(t('chat.messageFailed'))
+    const [error, conversation] = await catchError(startDirectChat(profile.value.username))
+    if (error) {
+      notify.error(t('chat.messageFailed'))
+      return
+    }
+    const [navigationError] = await catchError(router.push({ name: 'chat', params: { id: conversation.id } }))
+    if (navigationError) notify.error(t('chat.messageFailed'))
   } finally {
     openingChat.value = false
   }
@@ -98,12 +104,13 @@ async function changeFriendship() {
   if (!person || person.isSelf || friendBusy.value) return
   friendBusy.value = true
   try {
-    if (person.friendship === 'incoming') await acceptFriend(person.username)
-    else if (person.friendship === 'none') await requestFriend(person.username)
-    else await removeFriend(person.username)
+    const operation = person.friendship === 'incoming' ? acceptFriend(person.username).then(() => undefined) : person.friendship === 'none' ? requestFriend(person.username).then(() => undefined) : removeFriend(person.username).then(() => undefined)
+    const [error] = await catchError(operation)
+    if (error) {
+      notify.error(t('social.friendActionFailed'))
+      return
+    }
     await load()
-  } catch {
-    notify.error(t('social.friendActionFailed'))
   } finally {
     friendBusy.value = false
   }
@@ -111,10 +118,11 @@ async function changeFriendship() {
 async function joinParty(id: string) {
   joiningParty.value = true
   try {
-    await party.join(id)
-  } catch (cause) {
-    notify.error(cause instanceof Error ? cause.message : t('party.joinFailed'))
-    await load()
+    const [error] = await catchError(party.join(id))
+    if (error) {
+      notify.error(error instanceof Error ? error.message : t('party.joinFailed'))
+      await load()
+    }
   } finally {
     joiningParty.value = false
   }
@@ -226,7 +234,7 @@ onBeforeUnmount(() => {
               <button type="button" class="relative size-11 shrink-0 overflow-hidden rounded bg-flixer-surface" :aria-label="t('social.playTrackFrom', { title: item.title })" @click="playListened(index)">
                 <AuthImage v-if="item.imageIndex !== null" scope="library" :item-id="item.imageItemId" :index="item.imageIndex" :version="item.imageUpdatedAt" :width="96" :alt="item.title" />
                 <span class="absolute inset-0 grid place-items-center bg-black/55 text-white opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
-                  ><svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg
+                  ><Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 ></span>
               </button>
               <RouterLink :to="{ name: 'media-item', params: { id: item.id } }" class="min-w-0 flex-1"

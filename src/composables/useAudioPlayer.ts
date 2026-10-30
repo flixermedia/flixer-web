@@ -4,6 +4,7 @@ import { Directory, Filesystem } from '@capacitor/filesystem'
 import { NativeAudio } from '@capgo/capacitor-native-audio'
 import { fetchHomeImage, getItemPlaybackInfo, getTrackLyrics, reportListening } from '../api'
 import { parseLrc, type ParsedLyrics } from './lrc'
+import { catchError } from '../utils/catchError'
 
 export interface QueueTrack {
   id: string
@@ -154,11 +155,8 @@ async function unloadNativeAsset() {
   const assetId = nativeAssetId
   nativeAssetId = null
   if (!assetId) return
-  try {
-    await NativeAudio.unload({ assetId })
-  } catch (cause) {
-    console.warn('Could not unload the previous native audio asset', cause)
-  }
+  const [error] = await catchError(Promise.resolve().then(() => NativeAudio.unload({ assetId })))
+  if (error) console.warn('Could not unload the previous native audio asset', error)
 }
 
 function playNative() {
@@ -198,64 +196,76 @@ function setNativeRate(rate: number) {
   void NativeAudio.setRate({ assetId: nativeAssetId, rate }).catch((cause: unknown) => reportNativeError('rate adjustment', cause))
 }
 
-async function loadNativeTrack(streamUrl: string, track: QueueTrack, token: number, autoplay: boolean) {
+async function loadNativeTrack(streamUrl: string, track: QueueTrack, token: number, autoplay: boolean): Promise<Error | undefined> {
   let assetId: string | null = null
-  try {
-    await initializeNativeAudio()
-    await stopAndroidAudioForegroundService()
-    await unloadNativeAsset()
-    if (token !== loadToken) return
-    assetId = `${NATIVE_NOTIFICATION_ASSET_PREFIX}${token}`
-    const artworkUrl = await cacheNativeArtwork(track).catch((cause: unknown) => {
-      console.warn('Could not prepare lock-screen album artwork', cause)
-      return undefined
-    })
-    if (token !== loadToken) return
-    nativeAssetId = assetId
-    await NativeAudio.preload({
-      assetId,
-      assetPath: streamUrl,
-      isUrl: true,
-      volume: volume.value,
-      notificationMetadata: {
-        title: track.title,
-        artist: track.artist ?? '',
-        album: track.album ?? '',
-        ...(artworkUrl ? { artworkUrl } : {}),
-      },
-    })
-    if (token !== loadToken) {
-      await unloadNativeAsset()
-      return
-    }
-    const metadata = await NativeAudio.getDuration({ assetId })
-    if (Number.isFinite(metadata.duration) && metadata.duration > 0) duration.value = metadata.duration
-    prefetchNext()
-    void loadLyrics(streamUrl, token)
-    if (autoplay) {
-      await startAndroidAudioForegroundService()
-      await NativeAudio.play({ assetId })
-      isPlaying.value = true
-      reportPlaying(track.id)
-    } else {
-      isPlaying.value = false
-    }
-  } catch (cause) {
+  const fallback = async (cause: Error): Promise<Error | undefined> => {
     if (token !== loadToken) return
     console.error('Native audio playback failed; falling back to web audio', cause)
     if (assetId) {
+      const failedAssetId = assetId
       nativeAssetId = null
-      await NativeAudio.unload({ assetId }).catch((unloadError: unknown) => {
-        console.warn('Could not unload the failed native audio asset', unloadError)
-      })
+      const [unloadError] = await catchError(Promise.resolve().then(() => NativeAudio.unload({ assetId: failedAssetId })))
+      if (unloadError) console.warn('Could not unload the failed native audio asset', unloadError)
     }
-    await stopAndroidAudioForegroundService()
-    if (!audio) throw cause
+    const [serviceError] = await catchError(stopAndroidAudioForegroundService())
+    if (serviceError) return serviceError
+    if (!audio) return cause
     audio.src = streamUrl
     prefetchNext()
     void loadLyrics(streamUrl, token)
-    if (autoplay) await audio.play()
+    if (autoplay) {
+      const [playError] = await catchError(Promise.resolve().then(() => audio.play()))
+      if (playError) return playError
+    }
     else audio.pause()
+  }
+
+  const [initializeError] = await catchError(initializeNativeAudio())
+  if (initializeError) return fallback(initializeError)
+  const [serviceError] = await catchError(stopAndroidAudioForegroundService())
+  if (serviceError) return fallback(serviceError)
+  await unloadNativeAsset()
+  if (token !== loadToken) return
+  assetId = `${NATIVE_NOTIFICATION_ASSET_PREFIX}${token}`
+  const artworkUrl = await Promise.resolve()
+    .then(() => cacheNativeArtwork(track))
+    .catch((cause: unknown) => {
+      console.warn('Could not prepare lock-screen album artwork', cause)
+      return undefined
+    })
+  if (token !== loadToken) return
+  nativeAssetId = assetId
+  const [preloadError] = await catchError(Promise.resolve().then(() => NativeAudio.preload({
+    assetId,
+    assetPath: streamUrl,
+    isUrl: true,
+    volume: volume.value,
+    notificationMetadata: {
+      title: track.title,
+      artist: track.artist ?? '',
+      album: track.album ?? '',
+      ...(artworkUrl ? { artworkUrl } : {}),
+    },
+  })))
+  if (preloadError) return fallback(preloadError)
+  if (token !== loadToken) {
+    await unloadNativeAsset()
+    return
+  }
+  const [durationError, metadata] = await catchError(Promise.resolve().then(() => NativeAudio.getDuration({ assetId })))
+  if (durationError) return fallback(durationError)
+  if (Number.isFinite(metadata.duration) && metadata.duration > 0) duration.value = metadata.duration
+  prefetchNext()
+  void loadLyrics(streamUrl, token)
+  if (autoplay) {
+    const [startError] = await catchError(startAndroidAudioForegroundService())
+    if (startError) return fallback(startError)
+    const [playError] = await catchError(Promise.resolve().then(() => NativeAudio.play({ assetId })))
+    if (playError) return fallback(playError)
+    isPlaying.value = true
+    reportPlaying(track.id)
+  } else {
+    isPlaying.value = false
   }
 }
 
@@ -415,20 +425,7 @@ async function loadCurrent(autoplay = true) {
   currentTime.value = 0
   duration.value = 0
   updateMediaSession(track)
-  try {
-    const streamUrl = await resolveStreamUrl(track.id)
-    prefetched.delete(track.id)
-    if (token !== loadToken) return
-    if (nativePlayback) {
-      await loadNativeTrack(streamUrl, track, token, autoplay)
-    } else if (audio) {
-      audio.src = streamUrl
-      prefetchNext()
-      void loadLyrics(streamUrl, token)
-      if (autoplay) await audio.play()
-      else audio.pause()
-    }
-  } catch (cause) {
+  function handleLoadError(cause: Error) {
     if (token !== loadToken) return
     // A rejected play() after a user-initiated pause or skip is not an error.
     if ((cause as { name?: string }).name !== 'AbortError') error.value = 'error'
@@ -436,6 +433,28 @@ async function loadCurrent(autoplay = true) {
     if (nativePlayback) {
       reportNativeError('load', cause)
       void stopAndroidAudioForegroundService().catch((serviceError: unknown) => reportNativeError('foreground service stop', serviceError))
+    }
+  }
+  try {
+    const [streamError, streamUrl] = await catchError(Promise.resolve().then(() => resolveStreamUrl(track.id)))
+    if (streamError) {
+      handleLoadError(streamError)
+      return
+    }
+    prefetched.delete(track.id)
+    if (token !== loadToken) return
+    if (nativePlayback) {
+      const nativeError = await loadNativeTrack(streamUrl, track, token, autoplay)
+      if (nativeError) handleLoadError(nativeError)
+    } else if (audio) {
+      audio.src = streamUrl
+      prefetchNext()
+      void loadLyrics(streamUrl, token)
+      if (autoplay) {
+        const [playError] = await catchError(Promise.resolve().then(() => audio.play()))
+        if (playError) handleLoadError(playError)
+      }
+      else audio.pause()
     }
   } finally {
     if (token === loadToken) isLoading.value = false
@@ -445,10 +464,18 @@ async function loadCurrent(autoplay = true) {
 async function loadLyrics(streamUrl: string, token: number) {
   lyricsLoading.value = true
   try {
-    const text = await getTrackLyrics(streamUrl)
-    if (token === loadToken) lyrics.value = text ? parseLrc(text) : null
-  } catch {
-    if (token === loadToken) lyrics.value = null
+    const [error, text] = await catchError(Promise.resolve().then(() => getTrackLyrics(streamUrl)))
+    if (token === loadToken) {
+      if (error || !text) {
+        lyrics.value = null
+      } else {
+        try {
+          lyrics.value = parseLrc(text)
+        } catch {
+          lyrics.value = null
+        }
+      }
+    }
   } finally {
     if (token === loadToken) lyricsLoading.value = false
   }

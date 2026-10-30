@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { listPluginInstallations } from '../../api'
+import { catchError } from '../../utils/catchError'
 import PluginSettingsForm from './PluginSettingsForm.vue'
 
 const props = defineProps<{ pluginId: string }>()
@@ -15,10 +16,11 @@ function back() {
 }
 
 onMounted(async () => {
-  try {
-    name.value = (await listPluginInstallations()).find((plugin) => plugin.id === props.pluginId)?.manifest.name ?? ''
-  } catch {
+  const [error, installations] = await catchError(listPluginInstallations())
+  if (error) {
     name.value = ''
+  } else {
+    name.value = installations.find((plugin) => plugin.id === props.pluginId)?.manifest.name ?? ''
   }
 })
 </script>

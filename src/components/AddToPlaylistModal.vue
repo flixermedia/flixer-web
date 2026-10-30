@@ -3,6 +3,7 @@ import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext 
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addPlaylistItem, createPlaylist, getPlaylists, getPlaylistsContaining, removePlaylistItem, type PlaylistSummary } from '../api'
+import { catchError } from '../utils/catchError'
 
 defineOptions({ modalGroup: 'default' })
 const props = defineProps<{ itemId: string; title: string; album?: boolean }>()
@@ -16,28 +17,37 @@ const busy = ref(false)
 const error = ref(false)
 
 async function load() {
-  try {
-    if (props.album) {
-      playlists.value = (await getPlaylists()).playlists
+  if (props.album) {
+    const [failure, result] = await catchError(getPlaylists())
+    if (failure) {
+      error.value = true
       return
     }
-    const [{ playlists: own }, { playlistIds }] = await Promise.all([getPlaylists(), getPlaylistsContaining(props.itemId)])
-    playlists.value = own
-    selected.value = new Set(playlistIds)
-  } catch {
-    error.value = true
+    playlists.value = result.playlists
+    return
   }
+  const [failure, results] = await catchError(Promise.all([getPlaylists(), getPlaylistsContaining(props.itemId)]))
+  if (failure) {
+    error.value = true
+    return
+  }
+  const [{ playlists: own }, { playlistIds }] = results
+  playlists.value = own
+  selected.value = new Set(playlistIds)
 }
 async function addAlbum(playlist: PlaylistSummary) {
   if (busy.value) return
   busy.value = true
   error.value = false
   try {
-    const { added: count } = await addPlaylistItem(playlist.id, props.itemId)
+    const [failure, result] = await catchError(addPlaylistItem(playlist.id, props.itemId))
+    if (failure) {
+      error.value = true
+      return
+    }
+    const { added: count } = result
     added.value = new Map(added.value).set(playlist.id, count)
     playlist.trackCount += count
-  } catch {
-    error.value = true
   } finally {
     busy.value = false
   }
@@ -50,12 +60,11 @@ async function toggle(playlist: PlaylistSummary) {
   wasSelected ? next.delete(playlist.id) : next.add(playlist.id)
   selected.value = next
   try {
-    if (wasSelected) {
-      await removePlaylistItem(playlist.id, props.itemId)
-    } else await addPlaylistItem(playlist.id, props.itemId)
-  } catch {
-    selected.value = new Set(wasSelected ? [...selected.value, playlist.id] : [...selected.value].filter((id) => id !== playlist.id))
-    error.value = true
+    const [failure] = wasSelected ? await catchError(removePlaylistItem(playlist.id, props.itemId)) : await catchError(addPlaylistItem(playlist.id, props.itemId))
+    if (failure) {
+      selected.value = new Set(wasSelected ? [...selected.value, playlist.id] : [...selected.value].filter((id) => id !== playlist.id))
+      error.value = true
+    }
   } finally {
     busy.value = false
   }
@@ -65,15 +74,22 @@ async function create() {
   busy.value = true
   error.value = false
   try {
-    const playlist = await createPlaylist({ name: name.value.trim() })
+    const [createError, playlist] = await catchError(createPlaylist({ name: name.value.trim() }))
+    if (createError) {
+      error.value = true
+      return
+    }
     playlists.value = [playlist, ...playlists.value]
-    const { added: count } = await addPlaylistItem(playlist.id, props.itemId)
+    const [addError, result] = await catchError(addPlaylistItem(playlist.id, props.itemId))
+    if (addError) {
+      error.value = true
+      return
+    }
+    const { added: count } = result
     if (props.album) added.value = new Map(added.value).set(playlist.id, count)
     else selected.value = new Set([...selected.value, playlist.id])
     playlist.trackCount += count
     name.value = ''
-  } catch {
-    error.value = true
   } finally {
     busy.value = false
   }

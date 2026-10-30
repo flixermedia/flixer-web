@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { AVATAR_TYPES, MAX_AVATAR_BYTES, removeAvatar, uploadAvatar } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import UserAvatar from '../ui/UserAvatar.vue'
 
 const { profile, setProfile } = useProfile()
@@ -29,11 +30,14 @@ async function handleFile(event: Event) {
 
   isBusy.value = true
   try {
-    setProfile(await uploadAvatar(file))
-    notify.success(t('settings.avatar.updated'))
-  } catch (error: unknown) {
-    console.error('[settings] avatar upload failed', error)
-    notify.error(describeRequestError(error, t('settings.avatar.uploadFailed')))
+    const [error, profile] = await catchError(uploadAvatar(file))
+    if (error) {
+      console.error('[settings] avatar upload failed', error)
+      notify.error(describeRequestError(error, t('settings.avatar.uploadFailed')))
+    } else {
+      setProfile(profile)
+      notify.success(t('settings.avatar.updated'))
+    }
   } finally {
     isBusy.value = false
   }
@@ -42,11 +46,14 @@ async function handleFile(event: Event) {
 async function handleRemove() {
   isBusy.value = true
   try {
-    setProfile(await removeAvatar())
-    notify.success(t('settings.avatar.removed'))
-  } catch (error: unknown) {
-    console.error('[settings] avatar removal failed', error)
-    notify.error(describeRequestError(error, t('settings.avatar.removeFailed')))
+    const [error, profile] = await catchError(removeAvatar())
+    if (error) {
+      console.error('[settings] avatar removal failed', error)
+      notify.error(describeRequestError(error, t('settings.avatar.removeFailed')))
+    } else {
+      setProfile(profile)
+      notify.success(t('settings.avatar.removed'))
+    }
   } finally {
     isBusy.value = false
   }

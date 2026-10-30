@@ -3,9 +3,10 @@ import * as Sentry from '@sentry/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { listSettings, updateSetting, type ServerSetting } from '../../api'
+import { listSettings, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 
@@ -20,26 +21,30 @@ const globalEnabled = computed(() => values.value.sentry_enabled === true)
 
 async function load() {
   try {
-    const settings = await listSettings()
-    values.value = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
-  } catch (error: unknown) {
-    console.error('[monitoring] failed to load settings', error)
-    notify.error(describeRequestError(error, t('admin.monitoring.loadFailed')))
+    const [error, settings] = await catchError(listSettings())
+    if (error) {
+      console.error('[monitoring] failed to load settings', error)
+      notify.error(describeRequestError(error, t('admin.monitoring.loadFailed')))
+    } else {
+      values.value = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
+    }
   } finally {
     isLoading.value = false
   }
 }
 
-async function save(key: string, value: unknown, label: string) {
+async function save(key: string, value: SettingRequestValue, label: string) {
   savingKey.value = key
   try {
-    const saved = await updateSetting(key, value)
-    values.value = { ...values.value, [key]: saved.value }
-    notify.success(t('admin.monitoring.saved', { setting: label }))
-  } catch (error: unknown) {
-    console.error('[monitoring] failed to save setting', key, error)
-    notify.error(describeRequestError(error, t('admin.monitoring.saveFailed')))
-    await load()
+    const [error, saved] = await catchError(updateSetting(key, value))
+    if (error) {
+      console.error('[monitoring] failed to save setting', key, error)
+      notify.error(describeRequestError(error, t('admin.monitoring.saveFailed')))
+      await load()
+    } else {
+      values.value = { ...values.value, [key]: saved.value }
+      notify.success(t('admin.monitoring.saved', { setting: label }))
+    }
   } finally {
     savingKey.value = null
   }

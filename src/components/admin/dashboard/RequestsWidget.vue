@@ -9,13 +9,13 @@ const { data, failed } = useWidgetData(() => listMediaRequests({ scope: 'all', l
 </script>
 
 <template>
-  <AdminSection :title="t('admin.dashboard.widgets.requests')" class="h-full">
+  <AdminSection :title="t('admin.dashboard.widgets.requests')" compact class="h-full">
     <p v-if="failed && !data" class="text-sm text-red-200">{{ t('admin.dashboard.loadError') }}</p>
     <template v-else-if="data">
-      <p class="text-3xl font-semibold">
+      <p class="text-2xl font-semibold leading-8">
         {{ data.counts.pending ?? 0 }} <span class="text-sm font-normal text-flixer-muted">{{ t('admin.dashboard.pending') }}</span>
       </p>
-      <p class="mt-2 text-xs text-flixer-muted">{{ t('admin.dashboard.requestTotals', { approved: data.counts.approved ?? 0, available: data.counts.available ?? 0, failed: data.counts.failed ?? 0 }) }}</p>
+      <p class="text-xs leading-4 text-flixer-muted">{{ t('admin.dashboard.requestTotals', { approved: data.counts.approved ?? 0, available: data.counts.available ?? 0, failed: data.counts.failed ?? 0 }) }}</p>
     </template>
     <p v-else class="text-sm text-flixer-muted">{{ t('common.loading') }}</p>
   </AdminSection>

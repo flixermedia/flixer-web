@@ -12,6 +12,7 @@ import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -58,16 +59,16 @@ async function load() {
   hasImage.value = false
   profile.value = null
   expanded.value = false
-  try {
-    const person = await getPerson(routeName.value, controller.signal)
+  const [error, person] = await catchError(getPerson(routeName.value, controller.signal))
+  if (error) {
+    if ((error as { code?: string }).code === 'ERR_CANCELED') return
+    if (axios.isAxiosError(error) && error.response?.status === 404) notFound.value = true
+    else failed.value = true
+  } else {
     name.value = person.name
     hasImage.value = person.hasImage
     profile.value = person.profile
     groups.value = person.groups
-  } catch (error) {
-    if ((error as { code?: string }).code === 'ERR_CANCELED') return
-    if (axios.isAxiosError(error) && error.response?.status === 404) notFound.value = true
-    else failed.value = true
   }
   isLoading.value = false
 }

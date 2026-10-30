@@ -13,7 +13,7 @@ const { t } = useI18n()
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('subtitles.modalTitle', { title }) }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('subtitles.modalDescription') }}</ModalDescription>
       <div class="mt-4 min-h-24 flex-1 overflow-y-auto pr-1">

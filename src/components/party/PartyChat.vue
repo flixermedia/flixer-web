@@ -37,7 +37,7 @@ watch(input, (el) => el?.focus(), { once: true })
     <header class="flex items-center justify-between px-3 pb-1 pt-2">
       <h2 class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.chat') }}</h2>
       <button type="button" class="grid size-7 place-items-center rounded-lg text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('party.chatClose')" @click="emit('close')">
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
       </button>
     </header>
 

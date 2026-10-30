@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { getRequestsConfig, type RequestsConfig } from '../api'
+import { catchError } from '../utils/catchError'
 
 const config = ref<RequestsConfig | null>(null)
 const loading = ref(false)
@@ -11,9 +12,8 @@ export function useRequestsConfig() {
     request ??= (async () => {
       loading.value = true
       try {
-        config.value = await getRequestsConfig()
-      } catch {
-        config.value = null
+        const [error, value] = await catchError(getRequestsConfig())
+        config.value = error ? null : value
       } finally {
         loading.value = false
         request = null

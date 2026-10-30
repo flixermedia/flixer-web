@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { updateSetting, type IndexerSubtitleSetting } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminToggle from './AdminToggle.vue'
 
 defineOptions({ modalGroup: 'default' })
@@ -31,20 +32,22 @@ const inputClass = 'rounded border border-flixer-border bg-flixer-background px-
 async function persist(clear: boolean) {
   saving.value = true
   formError.value = ''
+  // An empty box keeps a saved secret; a typed value replaces it.
+  const value: IndexerSubtitleSetting = {
+    apiKey: clear ? '' : apiKey.value.trim() || (hasKey ? SECRET_MASK : ''),
+    username: username.value.trim(),
+    password: clear ? '' : password.value || (hasPassword ? SECRET_MASK : ''),
+    languages: languages.value.split(/[\s,]+/).filter(Boolean),
+    autoFetch: autoFetch.value,
+  }
   try {
-    // An empty box keeps a saved secret; a typed value replaces it.
-    const value: IndexerSubtitleSetting = {
-      apiKey: clear ? '' : apiKey.value.trim() || (hasKey ? SECRET_MASK : ''),
-      username: username.value.trim(),
-      password: clear ? '' : password.value || (hasPassword ? SECRET_MASK : ''),
-      languages: languages.value.split(/[\s,]+/).filter(Boolean),
-      autoFetch: autoFetch.value,
+    const [error] = await catchError(updateSetting('indexer_subtitles', { ...value }))
+    if (error) {
+      formError.value = describeRequestError(error, t('admin.indexer.subtitles.error'))
+    } else {
+      notify.success(t('admin.indexer.subtitles.saved'))
+      confirm(true)
     }
-    await updateSetting('indexer_subtitles', value)
-    notify.success(t('admin.indexer.subtitles.saved'))
-    confirm(true)
-  } catch (err: unknown) {
-    formError.value = describeRequestError(err, t('admin.indexer.subtitles.error'))
   } finally {
     saving.value = false
   }
@@ -53,7 +56,7 @@ async function persist(clear: boolean) {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.indexer.subtitles.title') }}</ModalTitle>
       <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.indexer.subtitles.description') }}</ModalDescription>
       <form class="mt-5 grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" @submit.prevent="persist(false)">

@@ -7,6 +7,7 @@ import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { languageName } from '../../composables/subtitles'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
 const props = defineProps<{ itemId: string }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -39,11 +40,13 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await listItemSubtitles(props.itemId)
-    tracks.value = data.tracks
-    configured.value = data.configured
-  } catch (err) {
-    loadError.value = describeRequestError(err, t('subtitles.loadError'))
+    const [error, data] = await catchError(listItemSubtitles(props.itemId))
+    if (error) {
+      loadError.value = describeRequestError(error, t('subtitles.loadError'))
+    } else {
+      tracks.value = data.tracks
+      configured.value = data.configured
+    }
   } finally {
     loading.value = false
   }
@@ -53,10 +56,13 @@ async function search() {
   searching.value = true
   searchError.value = ''
   try {
-    results.value = await searchItemSubtitles(props.itemId, { query: query.value.trim() || undefined, languages: [language.value] })
-  } catch (err) {
-    results.value = []
-    searchError.value = describeRequestError(err, t('subtitles.searchError'))
+    const [error, found] = await catchError(searchItemSubtitles(props.itemId, { query: query.value.trim() || undefined, languages: [language.value] }))
+    if (error) {
+      results.value = []
+      searchError.value = describeRequestError(error, t('subtitles.searchError'))
+    } else {
+      results.value = found
+    }
   } finally {
     searched.value = true
     searching.value = false
@@ -66,12 +72,14 @@ async function search() {
 async function download(result: SubtitleSearchResult) {
   downloading.value = result.fileId
   try {
-    await downloadItemSubtitle(props.itemId, result.fileId, language.value)
-    notify.success(t('subtitles.downloaded'))
-    await load()
-    emit('changed')
-  } catch (err) {
-    notify.error(describeRequestError(err, t('subtitles.downloadError')))
+    const [error] = await catchError(downloadItemSubtitle(props.itemId, result.fileId, language.value))
+    if (error) {
+      notify.error(describeRequestError(error, t('subtitles.downloadError')))
+    } else {
+      notify.success(t('subtitles.downloaded'))
+      await load()
+      emit('changed')
+    }
   } finally {
     downloading.value = null
   }
@@ -79,13 +87,13 @@ async function download(result: SubtitleSearchResult) {
 
 async function remove(track: SubtitleFile) {
   if (!(await confirmAction(t('subtitles.confirmRemove', { file: track.file }), { danger: true }))) return
-  try {
-    await deleteItemSubtitle(props.itemId, track.file)
+  const [error] = await catchError(deleteItemSubtitle(props.itemId, track.file))
+  if (error) {
+    notify.error(describeRequestError(error, t('subtitles.removeError')))
+  } else {
     notify.success(t('subtitles.removed'))
     await load()
     emit('changed')
-  } catch (err) {
-    notify.error(describeRequestError(err, t('subtitles.removeError')))
   }
 }
 

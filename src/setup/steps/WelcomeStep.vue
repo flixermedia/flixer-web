@@ -6,6 +6,7 @@ import StepFrame from '../StepFrame.vue'
 import { AVAILABLE_FLOWS } from '../registry'
 import { describeFailure, setFlow, type SetupFlow } from '../setupApi'
 import { WIZARD_KEY } from '../stepContract'
+import { catchError } from '../../utils/catchError'
 
 const { t } = useI18n()
 const wizard = inject(WIZARD_KEY)!
@@ -19,15 +20,18 @@ const options: { flow: SetupFlow; available: boolean }[] = [
 
 async function submit(): Promise<boolean> {
   message.value = ''
-  try {
-    await setFlow(selected.value)
-    wizard.chooseFlow(selected.value)
-    await wizard.refresh()
-    return true
-  } catch (error: unknown) {
-    message.value = describeFailure(error, t('setup.errors.generic')).message
+  const [flowError] = await catchError(setFlow(selected.value))
+  if (flowError) {
+    message.value = describeFailure(flowError, t('setup.errors.generic')).message
     return false
   }
+  wizard.chooseFlow(selected.value)
+  const [refreshError] = await catchError(wizard.refresh())
+  if (refreshError) {
+    message.value = describeFailure(refreshError, t('setup.errors.generic')).message
+    return false
+  }
+  return true
 }
 
 defineExpose({ submit })

@@ -22,10 +22,7 @@ function formatDate(value: string | null): string {
   <ul v-if="passkeys.length" class="flex flex-col gap-3">
     <li v-for="passkey in passkeys" :key="passkey.id" class="flex items-center gap-4 rounded-lg border border-flixer-border bg-flixer-surface/50 p-4">
       <span class="grid size-10 shrink-0 place-items-center rounded-lg border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
-        <svg class="size-5 fill-none stroke-current" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24">
-          <circle cx="9" cy="9" r="4" />
-          <path d="M12 12l8 8M17 17l2-2M15 15l2-2" />
-        </svg>
+        <Icon icon="lucide:key-round" class="size-5" aria-hidden="true" />
       </span>
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-semibold text-flixer-text">{{ passkey.name }}</p>

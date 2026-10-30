@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { catchError } from '../utils/catchError'
 
 const editableSelector = 'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
 
@@ -13,15 +14,22 @@ export function initNativeTextInteraction() {
     if (updating) return
     updating = true
     try {
-      const { TextInteraction } = await import('@capgo/capacitor-textinteraction')
+      const [importError, module] = await catchError(import('@capgo/capacitor-textinteraction'))
+      if (importError) {
+        console.warn('[text-interaction] Could not update native text interaction', importError)
+        return
+      }
+      const { TextInteraction } = module
       while (nativeEnabled !== editorFocused) {
         const enabled = editorFocused
-        const result = await TextInteraction.toggle({ enabled })
+        const [error, result] = await catchError(TextInteraction.toggle({ enabled }))
+        if (error) {
+          console.warn('[text-interaction] Could not update native text interaction', error)
+          return
+        }
         if (!result.success) return
         nativeEnabled = enabled
       }
-    } catch (error) {
-      console.warn('[text-interaction] Could not update native text interaction', error)
     } finally {
       updating = false
     }

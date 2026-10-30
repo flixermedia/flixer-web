@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { listSettings, updateSetting, type ServerSetting } from '../../api'
+import { listSettings, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
 
@@ -39,17 +40,20 @@ function number(value: unknown, fallback: number): number {
 
 async function load() {
   try {
-    const values = Object.fromEntries((await listSettings()).map((setting: ServerSetting) => [setting.key, setting.value]))
-    saved.value = values
-    form.hwAccel = typeof values.transcode_hw_accel === 'string' ? values.transcode_hw_accel : 'none'
-    form.preset = typeof values.transcode_preset === 'string' ? values.transcode_preset : 'veryfast'
-    form.crf = number(values.transcode_crf, 23)
-    form.threads = number(values.transcode_threads, 0)
-    form.maxBitrateMbps = number(values.transcode_max_bitrate_kbps, 0) / 1000
-    form.maxConcurrent = typeof values.transcode_max_concurrent === 'number' ? values.transcode_max_concurrent : ''
-  } catch (error: unknown) {
-    console.error('[transcoding] failed to load settings', error)
-    notify.error(describeRequestError(error, t('admin.transcoding.loadFailed')))
+    const [error, settings] = await catchError(listSettings())
+    if (error) {
+      console.error('[transcoding] failed to load settings', error)
+      notify.error(describeRequestError(error, t('admin.transcoding.loadFailed')))
+    } else {
+      const values = Object.fromEntries(settings.map((setting: ServerSetting) => [setting.key, setting.value]))
+      saved.value = values
+      form.hwAccel = typeof values.transcode_hw_accel === 'string' ? values.transcode_hw_accel : 'none'
+      form.preset = typeof values.transcode_preset === 'string' ? values.transcode_preset : 'veryfast'
+      form.crf = number(values.transcode_crf, 23)
+      form.threads = number(values.transcode_threads, 0)
+      form.maxBitrateMbps = number(values.transcode_max_bitrate_kbps, 0) / 1000
+      form.maxConcurrent = typeof values.transcode_max_concurrent === 'number' ? values.transcode_max_concurrent : ''
+    }
   } finally {
     isLoading.value = false
   }
@@ -67,7 +71,7 @@ async function save() {
     return
   }
 
-  const changes: [string, unknown][] = [
+  const changes: [string, SettingRequestValue][] = [
     ['transcode_hw_accel', form.hwAccel],
     ['transcode_preset', form.preset],
     ['transcode_crf', Number(form.crf)],
@@ -77,13 +81,22 @@ async function save() {
   ]
   isSaving.value = true
   try {
+    let requestError: Error | undefined
     for (const [key, value] of changes) {
-      if (saved.value[key] !== value) await updateSetting(key, value)
+      if (saved.value[key] !== value) {
+        const [error] = await catchError(updateSetting(key, value))
+        if (error) {
+          requestError = error
+          break
+        }
+      }
     }
-    notify.success(t('admin.transcoding.saved'))
-  } catch (error: unknown) {
-    console.error('[transcoding] failed to save settings', error)
-    notify.error(describeRequestError(error, t('admin.transcoding.saveFailed')))
+    if (requestError) {
+      console.error('[transcoding] failed to save settings', requestError)
+      notify.error(describeRequestError(requestError, t('admin.transcoding.saveFailed')))
+    } else {
+      notify.success(t('admin.transcoding.saved'))
+    }
   } finally {
     isSaving.value = false
     await load()

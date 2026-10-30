@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { applyStep, describeFailure, getProgress, testStep, type ConfigField } from '../../setup/setupApi'
 import AdminSection from './AdminSection.vue'
+import { catchError } from '../../utils/catchError'
 
 type Target = 'database' | 'redis' | 'services'
 type Field = 'databaseUrl' | 'redisUrl' | 'indexerUrl' | 'streamerInternalUrl'
@@ -38,10 +39,11 @@ const button = 'rounded border border-flixer-border px-4 py-1.5 text-xs font-sem
 const primary = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 
 async function load() {
-  try {
-    config.value = (await getProgress()).config
-  } catch {
+  const [error, progress] = await catchError(getProgress())
+  if (error) {
     config.value = {}
+  } else {
+    config.value = progress.config
   }
   for (const { entries } of targets) {
     for (const entry of entries) {
@@ -77,7 +79,12 @@ async function run(target: { id: Target; entries: Entry[] }, save: boolean) {
   results[target.id] = null
   try {
     const payload = body(target.id, target.entries)
-    const tested = await testStep(target.id, payload)
+    const [testError, tested] = await catchError(testStep(target.id, payload))
+    if (testError) {
+      const failure = describeFailure(testError, t('admin.connections.failed'))
+      results[target.id] = { ok: false, text: target.entries.map((entry) => failure.fields[entry.field]).find(Boolean) || failure.message }
+      return
+    }
     if (!tested.ok) {
       results[target.id] = { ok: false, text: tested.message || t('setup.connectionFailed') }
       return
@@ -86,13 +93,15 @@ async function run(target: { id: Target; entries: Entry[] }, save: boolean) {
       results[target.id] = { ok: true, text: t('setup.connectionOk') }
       return
     }
-    const applied = await applyStep(target.id, payload)
+    const [applyError, applied] = await catchError(applyStep(target.id, payload))
+    if (applyError) {
+      const failure = describeFailure(applyError, t('admin.connections.failed'))
+      results[target.id] = { ok: false, text: target.entries.map((entry) => failure.fields[entry.field]).find(Boolean) || failure.message }
+      return
+    }
     results[target.id] = { ok: true, text: applied.restart?.length ? t('admin.connections.saved', { services: applied.restart.join(', ') }) : t('admin.connections.savedNow') }
     for (const entry of target.entries) if (!entry.prefill) values[entry.field] = ''
     await load()
-  } catch (error: unknown) {
-    const failure = describeFailure(error, t('admin.connections.failed'))
-    results[target.id] = { ok: false, text: target.entries.map((entry) => failure.fields[entry.field]).find(Boolean) || failure.message }
   } finally {
     busy.value = null
   }

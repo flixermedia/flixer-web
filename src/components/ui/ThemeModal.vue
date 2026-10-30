@@ -10,9 +10,9 @@ const { t } = useI18n()
 const { preference, setTheme } = useTheme()
 
 const icons: Record<ThemePreference, string> = {
-  dark: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
-  light: 'M12 4V2m0 20v-2m8-8h2M2 12h2m13.7-5.7 1.4-1.4M4.9 19.1l1.4-1.4m0-11.4L4.9 4.9m14.2 14.2-1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
-  auto: 'M3 5h18v11H3zM8 20h8m-4-4v4',
+  dark: 'lucide:moon',
+  light: 'lucide:sun',
+  auto: 'lucide:monitor',
 }
 
 function select(value: ThemePreference) {
@@ -31,13 +31,13 @@ function select(value: ThemePreference) {
         <li v-for="option in THEME_OPTIONS" :key="option">
           <button type="button" role="radio" :aria-checked="option === preference" class="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left text-sm transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="option === preference ? 'bg-white/10 font-semibold text-white' : 'text-flixer-text'" @click="select(option)">
             <span class="flex min-w-0 items-center gap-3">
-              <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="icons[option]" /></svg>
+              <Icon :icon="icons[option]" class="size-5 shrink-0" aria-hidden="true" />
               <span class="min-w-0">
                 <span class="block truncate">{{ t(`themeModal.${option}`) }}</span>
                 <span class="block text-xs font-normal text-flixer-muted">{{ t(`themeModal.${option}Hint`) }}</span>
               </span>
             </span>
-            <svg v-if="option === preference" class="size-4 shrink-0 text-flixer-accent" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9" /></svg>
+            <Icon v-if="option === preference" icon="lucide:check" class="size-4 shrink-0 text-flixer-accent" aria-hidden="true" />
           </button>
         </li>
       </ul>

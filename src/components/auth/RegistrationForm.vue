@@ -66,42 +66,32 @@ function handleSubmit() {
     <form class="mt-7 flex flex-col" @submit.prevent="handleSubmit">
       <AuthField id="registration-display-name" :label="t('auth.displayName')">
         <template #icon>
-          <path d="M4 6h16M4 12h10M4 18h6" />
+          <Icon icon="lucide:text" class="ml-4 size-[18px] shrink-0 text-flixer-muted" aria-hidden="true" />
         </template>
         <input id="registration-display-name" v-model="displayName" type="text" name="displayName" :placeholder="t('auth.displayNamePlaceholder')" autocomplete="nickname" maxlength="64" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" />
       </AuthField>
 
       <AuthField id="registration-username" class="mt-4" :label="t('auth.username')">
         <template #icon>
-          <circle cx="12" cy="8" r="3.5" />
-          <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+          <Icon icon="lucide:user-round" class="ml-4 size-[18px] shrink-0 text-flixer-muted" aria-hidden="true" />
         </template>
         <input id="registration-username" v-model.trim="username" type="text" name="username" :placeholder="t('auth.usernamePlaceholder')" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="3" maxlength="64" pattern="[a-zA-Z0-9_.\-]+" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" required />
       </AuthField>
       <AuthField id="registration-email" class="mt-4" :label="t('auth.email')">
         <template #icon>
-          <rect x="3.5" y="5" width="17" height="14" rx="2" />
-          <path d="m4.5 7 7.5 6 7.5-6" />
+          <Icon icon="lucide:mail" class="ml-4 size-[18px] shrink-0 text-flixer-muted" aria-hidden="true" />
         </template>
         <input id="registration-email" v-model.trim="email" type="email" name="email" :placeholder="t('auth.emailPlaceholder')" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="254" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" required />
       </AuthField>
 
       <AuthField id="registration-password" class="mt-4" :label="t('auth.password')">
         <template #icon>
-          <rect x="4.5" y="10" width="15" height="10" rx="2" />
-          <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+          <Icon icon="lucide:lock-keyhole" class="ml-4 size-[18px] shrink-0 text-flixer-muted" aria-hidden="true" />
         </template>
         <input id="registration-password" v-model="password" :type="isPasswordVisible ? 'text' : 'password'" name="password" :placeholder="t('auth.passwordMinimumPlaceholder')" autocomplete="new-password" minlength="8" maxlength="128" :disabled="registrationEnabled !== true" class="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-flixer-text outline-none placeholder:text-flixer-muted/70 disabled:cursor-not-allowed" required />
         <template #trailing>
           <button class="grid size-11 shrink-0 place-items-center rounded-r-lg text-flixer-muted transition hover:text-flixer-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed" type="button" :disabled="registrationEnabled !== true" :aria-label="isPasswordVisible ? t('auth.hidePassword') : t('auth.showPassword')" @click="isPasswordVisible = !isPasswordVisible">
-            <svg v-if="isPasswordVisible" class="size-[18px] fill-none stroke-current" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-              <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5.2 0 8.5 5 9 7-.2.8-1 2-2.3 3.2M6.2 6.2C3.8 7.7 2.4 10.4 2 12c.5 1.6 3.8 7 10 7 1.1 0 2.1-.2 3-.5" />
-            </svg>
-            <svg v-else class="size-[18px] fill-none stroke-current" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <Icon :icon="isPasswordVisible ? 'lucide:eye-off' : 'lucide:eye'" class="size-[18px]" aria-hidden="true" />
           </button>
         </template>
       </AuthField>
@@ -138,9 +128,7 @@ function handleSubmit() {
 
       <button class="mt-5 flex h-12 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting || registrationEnabled !== true" :aria-busy="isSubmitting">
         <span>{{ isSubmitting ? t('auth.creatingAccount') : t('auth.createAccount') }}</span>
-        <svg v-if="!isSubmitting" class="size-[17px] fill-none stroke-current" viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M4 10h11M10 5l5 5-5 5" />
-        </svg>
+        <Icon v-if="!isSubmitting" icon="lucide:arrow-right" class="size-[17px]" aria-hidden="true" />
         <span v-else class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
       </button>
     </form>
@@ -153,17 +141,13 @@ function handleSubmit() {
 
     <button class="flex w-full items-center gap-3 rounded-xl border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" @click="emit('switchMode')">
       <span class="grid size-[34px] shrink-0 place-items-center rounded-lg border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
-        <svg class="size-[17px] fill-none stroke-current" viewBox="0 0 24 24">
-          <path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4" />
-        </svg>
+        <Icon icon="lucide:repeat" class="size-[17px]" aria-hidden="true" />
       </span>
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <strong class="text-xs font-semibold text-flixer-text/90">{{ t('auth.alreadyHaveAccount') }}</strong>
         <span class="text-[11px] leading-5 text-flixer-muted">{{ t('auth.signInInstead') }}</span>
       </span>
-      <svg class="size-[17px] shrink-0 fill-none stroke-flixer-accent" viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M4 10h11M10 5l5 5-5 5" />
-      </svg>
+      <Icon icon="lucide:arrow-right" class="size-[17px] shrink-0 text-flixer-accent" aria-hidden="true" />
     </button>
   </div>
 </template>

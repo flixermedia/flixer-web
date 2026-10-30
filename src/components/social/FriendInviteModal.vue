@@ -6,6 +6,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { createFriendInvite, type FriendInviteMode } from '../../api'
+import { catchError } from '../../utils/catchError'
 
 defineOptions({ modalGroup: 'default' })
 
@@ -28,36 +29,35 @@ async function createLink() {
   error.value = false
   try {
     const expiresInHours = mode.value === 'expires' ? duration.value * (durationUnit.value === 'days' ? 24 : 1) : undefined
-    const { token } = await createFriendInvite(props.username, {
-      mode: mode.value,
-      expiresInHours,
-    })
-    link.value = new URL(router.resolve({ name: 'friend-invite', params: { token } }).href, window.location.origin).toString()
-  } catch {
-    error.value = true
+    const [failure, invite] = await catchError(
+      createFriendInvite(props.username, {
+        mode: mode.value,
+        expiresInHours,
+      }),
+    )
+    if (failure) {
+      error.value = true
+      return
+    }
+    link.value = new URL(router.resolve({ name: 'friend-invite', params: { token: invite.token } }).href, window.location.origin).toString()
   } finally {
     busy.value = false
   }
 }
 
 async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(link.value)
-    copied.value = true
-  } catch {
+  const [failure] = await catchError(navigator.clipboard.writeText(link.value))
+  if (failure) {
     error.value = true
+    return
   }
+  copied.value = true
 }
 
 async function shareLink() {
-  try {
-    if (Capacitor.isNativePlatform()) {
-      await Share.share({ title: t('social.shareProfile'), url: link.value, dialogTitle: t('social.shareProfile') })
-    } else {
-      await navigator.share({ title: t('social.shareProfile'), url: link.value })
-    }
-  } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') return
+  const [cause] = Capacitor.isNativePlatform() ? await catchError(Share.share({ title: t('social.shareProfile'), url: link.value, dialogTitle: t('social.shareProfile') }).then(() => undefined)) : await catchError(navigator.share({ title: t('social.shareProfile'), url: link.value }))
+  if (cause) {
+    if (cause.name === 'AbortError') return
     error.value = true
   }
 }

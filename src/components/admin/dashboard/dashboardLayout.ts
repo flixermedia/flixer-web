@@ -15,17 +15,17 @@ const MAX_ROW = 99
 
 /** What a dashboard that was never customised shows. */
 export const DEFAULT_GRID: readonly GridItem[] = [
-  { id: 'server', x: 0, y: 0, w: 2, h: 4 },
-  { id: 'activity', x: 2, y: 0, w: 2, h: 2 },
-  { id: 'updates', x: 4, y: 0, w: 1, h: 2 },
-  { id: 'requests', x: 2, y: 2, w: 1, h: 2 },
-  { id: 'services', x: 3, y: 2, w: 2, h: 2 },
-  { id: 'stats', x: 0, y: 4, w: 2, h: 1 },
-  { id: 'users', x: 2, y: 4, w: 2, h: 2 },
-  { id: 'queues', x: 4, y: 4, w: 1, h: 2 },
-  { id: 'logs', x: 0, y: 5, w: 2, h: 5 },
-  { id: 'storage', x: 2, y: 6, w: 3, h: 2 },
-  { id: 'streams', x: 2, y: 8, w: 3, h: 2 },
+  { id: 'stats', x: 0, y: 0, w: 3, h: 1 },
+  { id: 'server', x: 0, y: 1, w: 1, h: 4 },
+  { id: 'activity', x: 1, y: 1, w: 2, h: 3 },
+  { id: 'services', x: 1, y: 4, w: 1, h: 1 },
+  { id: 'updates', x: 2, y: 4, w: 1, h: 1 },
+  { id: 'requests', x: 0, y: 5, w: 1, h: 1 },
+  { id: 'queues', x: 1, y: 5, w: 1, h: 2 },
+  { id: 'users', x: 2, y: 5, w: 1, h: 2 },
+  { id: 'storage', x: 0, y: 6, w: 1, h: 3 },
+  { id: 'streams', x: 1, y: 7, w: 2, h: 2 },
+  { id: 'logs', x: 0, y: 9, w: 3, h: 4 },
 ]
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))

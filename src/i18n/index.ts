@@ -1,6 +1,7 @@
 import { createI18n } from 'vue-i18n'
 import { getAccessToken, getPreferences, updatePreferences } from '../api'
 import en from '../locales/en.json'
+import { catchError } from '../utils/catchError'
 
 export type MessageSchema = typeof en
 
@@ -78,15 +79,14 @@ export async function setLocale(code: string): Promise<void> {
 /** Applies the language saved on the account (if any); otherwise uploads the current choice. Never throws. */
 export async function syncLocaleFromAccount(): Promise<void> {
   if (!getAccessToken() || !navigator.onLine) return
-  try {
-    const { language } = await getPreferences()
-    if (language && availableLocales.includes(language)) {
-      await applyLocale(language)
-    } else {
-      await updatePreferences({ language: i18n.global.locale.value })
-    }
-  } catch {
-    // Offline or signed out: keep the locally stored language.
+  const [preferencesError, preferences] = await catchError(getPreferences())
+  if (preferencesError) return // Offline or signed out: keep the locally stored language.
+
+  if (preferences.language && availableLocales.includes(preferences.language)) {
+    const [localeError] = await catchError(applyLocale(preferences.language))
+    if (localeError) return
+  } else {
+    await catchError(updatePreferences({ language: i18n.global.locale.value }))
   }
 }
 

@@ -5,6 +5,7 @@ import { getSamplePlaybackInfo, getStreamInfo, listSampleVideos, type PlaybackIn
 import Header from '../components/header/Header.vue'
 import VideoPlayer from '../components/player/VideoPlayer.vue'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
@@ -19,13 +20,14 @@ const error = ref('')
 const selectedTitle = computed(() => samples.value.find((sample) => sample.id === selectedId.value)?.title ?? '')
 
 onMounted(async () => {
-  try {
-    samples.value = await listSampleVideos()
-    selectedId.value = samples.value.find((sample) => sample.container === 'mkv')?.id ?? samples.value[0]?.id ?? ''
-    await load()
-  } catch {
+  const [loadError, list] = await catchError(listSampleVideos())
+  if (loadError) {
     error.value = t('player.couldNotLoadSamples')
+    return
   }
+  samples.value = list
+  selectedId.value = samples.value.find((sample) => sample.container === 'mkv')?.id ?? samples.value[0]?.id ?? ''
+  await load()
 })
 
 async function load() {
@@ -33,13 +35,22 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const next = await getSamplePlaybackInfo(selectedId.value)
-    info.value = await getStreamInfo(next.mediaSource.streamUrl)
+    const [playbackError, next] = await catchError(getSamplePlaybackInfo(selectedId.value))
+    if (playbackError) {
+      playback.value = null
+      info.value = null
+      error.value = t('player.couldNotGetStreamUrl')
+      return
+    }
+    const [streamError, streamInfo] = await catchError(getStreamInfo(next.mediaSource.streamUrl))
+    if (streamError) {
+      playback.value = null
+      info.value = null
+      error.value = t('player.couldNotGetStreamUrl')
+      return
+    }
+    info.value = streamInfo
     playback.value = next
-  } catch {
-    playback.value = null
-    info.value = null
-    error.value = t('player.couldNotGetStreamUrl')
   } finally {
     loading.value = false
   }

@@ -72,8 +72,8 @@ const statusClass = computed(
         <template v-else>
           <div class="theme-dark absolute inset-0 grid transition" :class="posterUrl ? 'items-end justify-end bg-gradient-to-t from-black/30 via-transparent to-transparent p-2' : 'place-items-center bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'">
             <span class="grid place-items-center rounded-full border border-white/25 bg-black/65 text-white shadow-lg backdrop-blur transition group-hover:scale-105" :class="posterUrl ? 'size-9 sm:size-10' : 'size-12'">
-              <svg v-if="posterUrl" class="size-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
-              <svg v-else class="ml-0.5 size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z" /></svg>
+              <Icon v-if="posterUrl" icon="lucide:plus" class="size-6" aria-hidden="true" />
+              <Icon v-else icon="lucide:play" class="ml-0.5 size-5" aria-hidden="true" />
             </span>
           </div>
           <span v-if="requestStatus && requestStatus !== 'none'" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="statusClass" :aria-label="t(requestStatusLabelKey(requestStatus))">{{ t(requestStatusLabelKey(requestStatus)) }}</span>
@@ -90,7 +90,7 @@ const statusClass = computed(
       </div>
     </component>
     <button v-if="markable" type="button" class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded bg-black/70 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100" :aria-label="t('mediaItem.markWatched')" :title="t('mediaItem.markWatched')" @click.stop="emit('watched')">
-      <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+      <Icon icon="lucide:check" class="size-4" aria-hidden="true" />
     </button>
   </li>
 </template>

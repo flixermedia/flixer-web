@@ -11,6 +11,7 @@ import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import NetworkShareModal from './NetworkShareModal.vue'
 import StatusPill from './StatusPill.vue'
+import { catchError } from '../../utils/catchError'
 
 const emit = defineEmits<{ changed: [] }>()
 
@@ -27,10 +28,13 @@ const TONES = { connected: 'good', connecting: 'warn', error: 'bad' } as const
 
 async function load() {
   try {
-    shares.value = await listNetworkShares()
-    error.value = ''
-  } catch (err: unknown) {
-    error.value = describeRequestError(err, t('admin.networkShares.loadError'))
+    const [requestError, result] = await catchError(listNetworkShares())
+    if (requestError) {
+      error.value = describeRequestError(requestError, t('admin.networkShares.loadError'))
+    } else {
+      shares.value = result
+      error.value = ''
+    }
   } finally {
     loading.value = false
   }
@@ -46,11 +50,11 @@ async function openForm(share: NetworkShare | null) {
 async function reconnect(share: NetworkShare) {
   busyId.value = share.id
   try {
-    const result = await reconnectNetworkShare(share.id)
-    if (result.status === 'connected') notify.success(t('admin.networkShares.reconnected'))
+    const [requestError, result] = await catchError(reconnectNetworkShare(share.id))
+    if (requestError) {
+      notify.error(describeRequestError(requestError, t('admin.networkShares.reconnectError')))
+    } else if (result.status === 'connected') notify.success(t('admin.networkShares.reconnected'))
     else notify.error(result.error || t('admin.networkShares.reconnectError'))
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.networkShares.reconnectError')))
   } finally {
     busyId.value = null
     await load()
@@ -62,10 +66,12 @@ async function remove(share: NetworkShare) {
   if (!(await confirmAction(t('admin.networkShares.confirmDelete', { name: share.name }), { danger: true }))) return
   busyId.value = share.id
   try {
-    await deleteNetworkShare(share.id)
-    notify.success(t('admin.networkShares.deleted'))
-  } catch (err: unknown) {
-    notify.error(describeRequestError(err, t('admin.networkShares.deleteError')))
+    const [requestError] = await catchError(deleteNetworkShare(share.id))
+    if (requestError) {
+      notify.error(describeRequestError(requestError, t('admin.networkShares.deleteError')))
+    } else {
+      notify.success(t('admin.networkShares.deleted'))
+    }
   } finally {
     busyId.value = null
     await load()
@@ -96,7 +102,7 @@ watch(live.data, (value) => {
 
     <AdminSkeleton v-if="loading && shares.length === 0" variant="cards" />
     <ul v-else class="flex flex-col gap-3">
-      <li v-for="share in shares" :key="share.id" class="rounded-lg border border-flixer-border bg-flixer-background/60 p-4">
+      <li v-for="share in shares" :key="share.id" class="rounded border border-flixer-border bg-flixer-background/60 p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="text-sm font-semibold">
@@ -112,7 +118,7 @@ watch(live.data, (value) => {
         </div>
         <p v-if="share.status === 'error' && share.error" class="mt-2 text-xs text-red-300">{{ share.error }}</p>
       </li>
-      <li v-if="!loading && shares.length === 0 && !error" class="rounded-lg border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.networkShares.empty') }}</li>
+      <li v-if="!loading && shares.length === 0 && !error" class="rounded border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.networkShares.empty') }}</li>
     </ul>
   </AdminSection>
 </template>

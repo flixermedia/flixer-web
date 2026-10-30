@@ -18,6 +18,12 @@ export interface AdminLocation {
   page: AdminPageId
 }
 
+export interface AdminTabItem {
+  id: AdminTabId
+  label: string
+  pages: { id: AdminPageId; label: string }[]
+}
+
 export const ADMIN_TAB_IDS = Object.keys(ADMIN_TABS) as AdminTabId[]
 
 export function pagesOf(tab: AdminTabId): readonly AdminPageId[] {

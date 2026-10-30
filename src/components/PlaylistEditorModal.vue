@@ -3,6 +3,7 @@ import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext 
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPlaylist, updatePlaylist, type PlaylistSummary } from '../api'
+import { catchError } from '../utils/catchError'
 
 defineOptions({ modalGroup: 'default' })
 const props = defineProps<{ playlist?: PlaylistSummary }>()
@@ -18,10 +19,12 @@ async function save() {
   busy.value = true
   error.value = false
   try {
-    const result = props.playlist ? await updatePlaylist(props.playlist.id, { name: name.value.trim(), description: description.value.trim(), isPublic: isPublic.value }) : await createPlaylist({ name: name.value.trim(), description: description.value.trim() || undefined, isPublic: isPublic.value })
+    const [failure, result] = await catchError(props.playlist ? updatePlaylist(props.playlist.id, { name: name.value.trim(), description: description.value.trim(), isPublic: isPublic.value }) : createPlaylist({ name: name.value.trim(), description: description.value.trim() || undefined, isPublic: isPublic.value }))
+    if (failure) {
+      error.value = true
+      return
+    }
     confirm(result)
-  } catch {
-    error.value = true
   } finally {
     busy.value = false
   }

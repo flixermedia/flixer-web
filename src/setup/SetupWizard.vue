@@ -12,6 +12,7 @@ import { stepsFor } from './registry'
 import RecoveryCodePrompt from './RecoveryCodePrompt.vue'
 import { clearRecoveryCode, fetchSetupGate, getProgress, requestRecoveryKey, storedRecoveryCode, storeRecoveryCode, type SetupProgress, type WizardFlow } from './setupApi'
 import { WIZARD_KEY, type StepHandle, type WizardContext } from './stepContract'
+import { catchError } from '../utils/catchError'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -60,12 +61,8 @@ async function load(): Promise<void> {
     needCode.value = true
     return
   }
-  try {
-    const result = await getProgress()
-    progress.value = result
-    flow.value = recovering.value ? 'recovery' : result.flow
-    index.value = reached.value = firstIncomplete(result, flow.value)
-  } catch (error: unknown) {
+  const [error, result] = await catchError(getProgress())
+  if (error) {
     if (axios.isAxiosError(error) && (error.response?.status === 403 || error.response?.status === 429)) {
       loadError.value = 'locked'
       const body = error.response.data as { error?: unknown } | undefined
@@ -73,7 +70,11 @@ async function load(): Promise<void> {
     } else {
       loadError.value = 'failed'
     }
+    return
   }
+  progress.value = result
+  flow.value = recovering.value ? 'recovery' : result.flow
+  index.value = reached.value = firstIncomplete(result, flow.value)
 }
 
 async function submitCode(code: string): Promise<void> {
@@ -90,22 +91,20 @@ async function submitCode(code: string): Promise<void> {
 
 async function useRecoveryKey(): Promise<void> {
   codeMessage.value = ''
-  try {
-    await requestRecoveryKey()
-  } catch {
-    // The prompt still works if a key was already requested; a wrong or missing key is reported on submit.
-  }
+  // The prompt still works if a key was already requested; a wrong or missing key is reported on submit.
+  await catchError(requestRecoveryKey())
   keyRequested.value = true
   loadError.value = null
   needCode.value = true
 }
 
 async function refresh(): Promise<void> {
-  try {
-    progress.value = await getProgress()
-  } catch {
+  const [error, result] = await catchError(getProgress())
+  if (error) {
     // The server may be switching modes, or setup may have just been completed by an existing database; keep what we have.
+    return
   }
+  progress.value = result
 }
 
 async function waitUntilReady(): Promise<boolean> {
@@ -173,7 +172,7 @@ onMounted(load)
       <header class="relative flex shrink-0 flex-col gap-4 px-6 pt-6 sm:px-10">
         <button v-if="index === 0 && progress" type="button" class="absolute top-5 right-6 flex h-9 items-center gap-2 rounded-lg border border-flixer-border px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-10" :aria-label="t('languageModal.title')" @click="openLanguage">
           <span v-if="localeCountry(locale)" class="fi rounded-sm" :class="`fi-${localeCountry(locale)}`" aria-hidden="true"></span>
-          <span v-else aria-hidden="true">🌐</span>
+          <Icon v-else icon="lucide:globe" class="size-4" aria-hidden="true" />
           {{ localeName(locale) }}
         </button>
         <img :src="logo" alt="Flixer" class="h-7 w-auto self-start md:h-10 md:self-center" />

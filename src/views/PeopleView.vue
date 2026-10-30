@@ -9,6 +9,7 @@ import UserAvatar from '../components/ui/UserAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
 const navLinks = computed(getNavLinks)
@@ -27,10 +28,12 @@ async function search(silent = false) {
   if (!silent) loading.value = true
   failed.value = false
   try {
-    const result = await getProfiles(query.value.trim() || undefined)
-    if (current === searchId) profiles.value = result.profiles
-  } catch {
-    if (current === searchId) failed.value = true
+    const [error, result] = await catchError(getProfiles(query.value.trim() || undefined))
+    if (error) {
+      if (current === searchId) failed.value = true
+    } else if (current === searchId) {
+      profiles.value = result.profiles
+    }
   } finally {
     if (current === searchId) loading.value = false
   }
@@ -69,10 +72,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="flex w-full items-center gap-2 sm:max-w-md">
           <div class="relative min-w-0 flex-1">
-            <svg class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
+            <Icon icon="lucide:search" class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted" aria-hidden="true" />
             <input v-model="query" type="search" class="w-full rounded border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('social.searchPeople')" :aria-label="t('social.searchPeople')" />
           </div>
           <button type="button" class="flex shrink-0 items-center gap-2 rounded px-3 py-2.5 text-sm font-semibold transition" :class="activeOnly ? 'bg-white text-flixer-background' : 'bg-white/10 text-white hover:bg-white/20'" :aria-pressed="activeOnly" @click="activeOnly = !activeOnly"><span class="size-2 rounded-full bg-emerald-400" aria-hidden="true" />{{ t('social.activeNow', { count: activeCount }) }}</button>

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { changePassword } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 
 const { t } = useI18n()
@@ -20,14 +21,16 @@ async function save() {
   }
   isSaving.value = true
   try {
-    await changePassword(currentPassword.value, newPassword.value)
-    currentPassword.value = ''
-    newPassword.value = ''
-    confirmPassword.value = ''
-    notify.success(t('settings.password.changed'))
-  } catch (error: unknown) {
-    console.error('[settings] password change failed', error)
-    notify.error(describeRequestError(error, t('settings.password.changeFailed')))
+    const [error] = await catchError(changePassword(currentPassword.value, newPassword.value))
+    if (error) {
+      console.error('[settings] password change failed', error)
+      notify.error(describeRequestError(error, t('settings.password.changeFailed')))
+    } else {
+      currentPassword.value = ''
+      newPassword.value = ''
+      confirmPassword.value = ''
+      notify.success(t('settings.password.changed'))
+    }
   } finally {
     isSaving.value = false
   }

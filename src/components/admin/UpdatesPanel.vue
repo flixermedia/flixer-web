@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { applyUpdates, getUpdateStatus, listSettings, updateSetting, type UpdateComponent, type UpdateStatus } from '../../api'
+import { applyUpdates, getUpdateStatus, listSettings, updateSetting, type SettingRequestValue, type UpdateComponent, type UpdateStatus } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
@@ -59,10 +60,11 @@ function schedulePoll() {
 }
 
 async function load(refresh = false, quiet = false) {
-  try {
-    status.value = await getUpdateStatus(refresh)
-  } catch (error) {
+  const [error, result] = await catchError(getUpdateStatus(refresh))
+  if (error) {
     if (!quiet) notify.error(describeRequestError(error))
+  } else {
+    status.value = result
   }
 }
 
@@ -77,21 +79,22 @@ async function updateAll() {
   if (!(await confirmAction(t('admin.updates.confirm'), {}))) return
   isApplying.value = true
   try {
-    await applyUpdates()
-    notify.success(t('admin.updates.started'))
-    await load(false, true)
-    schedulePoll()
-  } catch (error) {
-    notify.error(describeRequestError(error))
+    const [error] = await catchError(applyUpdates())
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      notify.success(t('admin.updates.started'))
+      await load(false, true)
+      schedulePoll()
+    }
   } finally {
     isApplying.value = false
   }
 }
 
-async function save(key: string, value: unknown, revert: () => void) {
-  try {
-    await updateSetting(key, value)
-  } catch (error) {
+async function save(key: string, value: SettingRequestValue, revert: () => void) {
+  const [error] = await catchError(updateSetting(key, value))
+  if (error) {
     revert()
     notify.error(describeRequestError(error))
   }
@@ -110,27 +113,27 @@ function setAuto(value: boolean) {
 }
 
 async function saveUrl() {
-  try {
-    await updateSetting('updates_updater_url', updaterUrl.value.trim())
+  const [error] = await catchError(updateSetting('updates_updater_url', updaterUrl.value.trim()))
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
     savedUrl.value = updaterUrl.value.trim()
     notify.success(t('admin.updates.settings.save'))
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 }
 
 onMounted(async () => {
   await load(false)
   schedulePoll()
-  try {
-    const settings = await listSettings()
+  const [error, settings] = await catchError(listSettings())
+  if (error) {
+    notify.error(describeRequestError(error))
+  } else {
     const value = (key: string) => settings.find((setting) => setting.key === key)?.value
     checkEnabled.value = value('updates_check_enabled') !== false
     autoUpdate.value = value('updates_auto_update') === true
     const url = value('updates_updater_url')
     updaterUrl.value = savedUrl.value = typeof url === 'string' ? url : ''
-  } catch (error) {
-    notify.error(describeRequestError(error))
   }
 })
 

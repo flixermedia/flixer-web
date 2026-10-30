@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { createNetworkShare, updateNetworkShare, type NetworkShare } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
+import { catchError } from '../../utils/catchError'
 
 defineOptions({ modalGroup: 'default' })
 
@@ -29,14 +30,20 @@ async function save() {
   const input = { name: name.value.trim(), host: host.value.trim(), share: shareName.value.trim(), username: username.value.trim(), domain: domain.value.trim(), readOnly: readOnly.value }
   try {
     if (props.share) {
-      await updateNetworkShare(props.share.id, password.value ? { ...input, password: password.value } : input)
+      const [error] = await catchError(updateNetworkShare(props.share.id, password.value ? { ...input, password: password.value } : input))
+      if (error) {
+        formError.value = describeRequestError(error, t('admin.networkShares.saveError'))
+        return
+      }
     } else {
-      await createNetworkShare({ ...input, password: password.value })
+      const [error] = await catchError(createNetworkShare({ ...input, password: password.value }))
+      if (error) {
+        formError.value = describeRequestError(error, t('admin.networkShares.saveError'))
+        return
+      }
     }
     notify.success(t(props.share ? 'admin.networkShares.updated' : 'admin.networkShares.created'))
     confirm(true)
-  } catch (err: unknown) {
-    formError.value = describeRequestError(err, t('admin.networkShares.saveError'))
   } finally {
     saving.value = false
   }
@@ -45,7 +52,7 @@ async function save() {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <ModalTitle class="shrink-0 text-lg font-semibold">{{ share ? t('admin.networkShares.editTitle') : t('admin.networkShares.addTitle') }}</ModalTitle>
       <form class="mt-5 grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" @submit.prevent="save">
         <div class="grid gap-3 sm:grid-cols-2">

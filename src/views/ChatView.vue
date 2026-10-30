@@ -13,6 +13,7 @@ import { confirmAction } from '../composables/confirm'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut'
+import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id?: string }>()
 const { t } = useI18n()
@@ -118,10 +119,13 @@ function applyList(next: { conversations: ChatConversation[]; unread: number }) 
 async function refreshList(silent = true) {
   if (!silent) listLoading.value = true
   try {
-    applyList(await getChatConversations())
+    const [error, result] = await catchError(getChatConversations())
+    if (error) {
+      if (!silent) listFailed.value = true
+      return
+    }
+    applyList(result)
     listFailed.value = false
-  } catch {
-    if (!silent) listFailed.value = true
   } finally {
     listLoading.value = false
   }
@@ -157,8 +161,13 @@ async function openThread(id: string | undefined) {
   if (!id) return
   threadLoading.value = true
   try {
-    const [conversation, page] = await Promise.all([getChatConversation(id), getChatMessages(id)])
+    const [error, result] = await catchError(Promise.all([getChatConversation(id), getChatMessages(id)]))
+    if (error) {
+      if (token === threadToken) threadMissing.value = true
+      return
+    }
     if (token !== threadToken) return
+    const [conversation, page] = result
     active.value = conversation
     renameDraft.value = conversation.name ?? ''
     messages.value = page.messages
@@ -166,8 +175,6 @@ async function openThread(id: string | undefined) {
     conversations.value = conversations.value.map((entry) => (entry.id === id ? { ...entry, unread: 0 } : entry))
     unread.set(conversations.value.reduce((total, entry) => total + entry.unread, 0))
     scrollToEnd()
-  } catch {
-    if (token === threadToken) threadMissing.value = true
   } finally {
     if (token === threadToken) threadLoading.value = false
   }
@@ -175,17 +182,18 @@ async function openThread(id: string | undefined) {
 
 async function pollThread(id: string, token: number) {
   if (token !== threadToken) return
-  try {
-    const last = messages.value[messages.value.length - 1]
-    const stick = nearBottom()
-    const page = await getChatMessages(id, last ? { after: last.createdAt } : {})
-    if (token !== threadToken) return
-    if (merge(page.messages)) {
-      if (page.messages.some((message) => message.kind === 'system')) active.value = await getChatConversation(id)
-      if (stick) scrollToEnd()
+  const last = messages.value[messages.value.length - 1]
+  const stick = nearBottom()
+  const [pageError, page] = await catchError(getChatMessages(id, last ? { after: last.createdAt } : {}))
+  if (pageError) return // The next tick retries.
+  if (token !== threadToken) return
+  if (merge(page.messages)) {
+    if (page.messages.some((message) => message.kind === 'system')) {
+      const [conversationError, conversation] = await catchError(getChatConversation(id))
+      if (conversationError) return // The next tick retries.
+      active.value = conversation
     }
-  } catch {
-    // The next tick retries.
+    if (stick) scrollToEnd()
   }
 }
 
@@ -209,15 +217,15 @@ function onEvent(event: ChatEvent) {
 
 async function syncThread(id: string) {
   const token = threadToken
-  try {
-    const conversation = await getChatConversation(id)
-    if (token !== threadToken) return
-    active.value = conversation
-    renameDraft.value = conversation.name ?? ''
-    await pollThread(id, token)
-  } catch {
+  const [error, conversation] = await catchError(getChatConversation(id))
+  if (error) {
     if (token === threadToken) threadMissing.value = true
+    return
   }
+  if (token !== threadToken) return
+  active.value = conversation
+  renameDraft.value = conversation.name ?? ''
+  await pollThread(id, token)
 }
 
 async function loadEarlier() {
@@ -238,13 +246,15 @@ async function send() {
   sending.value = true
   sendError.value = ''
   try {
-    const message = await sendChatMessage(props.id, body)
+    const [error, message] = await catchError(sendChatMessage(props.id, body))
+    if (error) {
+      sendError.value = describeRequestError(error, t('chat.sendError'))
+      return
+    }
     draft.value = ''
     merge([message])
     scrollToEnd()
     void refreshList()
-  } catch (error) {
-    sendError.value = describeRequestError(error, t('chat.sendError'))
   } finally {
     sending.value = false
     void nextTick(() => composer.value?.focus())
@@ -259,41 +269,38 @@ function onComposerKey(event: KeyboardEvent) {
 }
 
 async function newChat() {
-  try {
-    const conversation = (await openModal(NewChatModal)) as ChatConversation | undefined
-    if (conversation) {
-      await refreshList()
-      void router.push({ name: 'chat', params: { id: conversation.id } })
-    }
-  } catch {
-    // Dismissed.
+  const [error, result] = await catchError(openModal(NewChatModal))
+  if (error) return // Dismissed.
+  const conversation = result as ChatConversation | undefined
+  if (conversation) {
+    await refreshList()
+    void router.push({ name: 'chat', params: { id: conversation.id } })
   }
 }
 
 async function addPeople() {
   if (!active.value) return
-  try {
-    const conversation = (await openModal(NewChatModal, { props: { addTo: { id: active.value.id, usernames: active.value.members.map((member) => member.username) } } })) as ChatConversation | undefined
-    if (conversation) {
-      active.value = conversation
-      void pollThread(conversation.id, threadToken)
-      void refreshList()
-    }
-  } catch {
-    // Dismissed.
+  const [error, result] = await catchError(openModal(NewChatModal, { props: { addTo: { id: active.value.id, usernames: active.value.members.map((member) => member.username) } } }))
+  if (error) return // Dismissed.
+  const conversation = result as ChatConversation | undefined
+  if (conversation) {
+    active.value = conversation
+    void pollThread(conversation.id, threadToken)
+    void refreshList()
   }
 }
 
 async function rename() {
   const name = renameDraft.value.trim()
   if (!active.value || !name || name === active.value.name) return
-  try {
-    active.value = await renameChatGroup(active.value.id, name)
-    void pollThread(active.value.id, threadToken)
-    void refreshList()
-  } catch (error) {
+  const [error, conversation] = await catchError(renameChatGroup(active.value.id, name))
+  if (error) {
     sendError.value = describeRequestError(error, t('chat.createError'))
+    return
   }
+  active.value = conversation
+  void pollThread(active.value.id, threadToken)
+  void refreshList()
 }
 
 async function leaveOrRemove(username: string) {
@@ -301,17 +308,22 @@ async function leaveOrRemove(username: string) {
   const leaving = username === self.value
   const ok = await confirmAction(leaving ? t('chat.leaveConfirm') : t('chat.removeConfirm'), { title: leaving ? t('chat.leaveGroup') : t('chat.removePerson'), confirmLabel: leaving ? t('chat.leave') : t('chat.remove'), danger: true })
   if (!ok) return
-  try {
-    await removeChatMember(active.value.id, username)
-    if (leaving) {
-      await refreshList()
-      void router.push({ name: 'chat' })
-    } else {
-      active.value = await getChatConversation(active.value.id)
-      void pollThread(active.value.id, threadToken)
+  const [removeError] = await catchError(removeChatMember(active.value.id, username))
+  if (removeError) {
+    sendError.value = describeRequestError(removeError, t('chat.createError'))
+    return
+  }
+  if (leaving) {
+    await refreshList()
+    void router.push({ name: 'chat' })
+  } else {
+    const [conversationError, conversation] = await catchError(getChatConversation(active.value.id))
+    if (conversationError) {
+      sendError.value = describeRequestError(conversationError, t('chat.createError'))
+      return
     }
-  } catch (error) {
-    sendError.value = describeRequestError(error, t('chat.createError'))
+    active.value = conversation
+    void pollThread(conversation.id, threadToken)
   }
 }
 
@@ -321,13 +333,13 @@ async function deleteActive() {
   const group = conversation.kind === 'group'
   const ok = await confirmAction(group ? t('chat.deleteGroupConfirm') : t('chat.deleteChatConfirm'), { title: group ? t('chat.deleteGroup') : t('chat.deleteChat'), confirmLabel: t('chat.delete'), danger: true })
   if (!ok) return
-  try {
-    await deleteChatConversation(conversation.id)
-    await refreshList()
-    void router.push({ name: 'chat' })
-  } catch (error) {
+  const [error] = await catchError(deleteChatConversation(conversation.id))
+  if (error) {
     sendError.value = describeRequestError(error, t('chat.createError'))
+    return
   }
+  await refreshList()
+  void router.push({ name: 'chat' })
 }
 
 function onVisible() {
@@ -380,7 +392,7 @@ onBeforeUnmount(() => {
           <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <h1 class="text-lg font-bold text-white">{{ t('chat.title') }}</h1>
             <button type="button" class="flex items-center gap-1.5 rounded bg-white px-3 py-1.5 text-xs font-bold text-flixer-background transition hover:bg-white/85" @click="newChat">
-              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              <Icon icon="lucide:plus" class="size-3.5" aria-hidden="true" />
               {{ t('chat.new') }}
             </button>
           </div>
@@ -398,10 +410,7 @@ onBeforeUnmount(() => {
                 <span class="relative block size-11 shrink-0 overflow-hidden rounded">
                   <UserAvatar v-if="conversation.kind === 'direct'" :avatar-url="otherMember(conversation)?.avatarUrl" :name="title(conversation)" />
                   <span v-else class="grid size-full place-items-center bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true">
-                    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="9" cy="8" r="3.5" />
-                      <path d="M2.5 20c.6-3.5 3.2-5.5 6.5-5.5s5.9 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .6 3.2 2.4 3.5 5.2" />
-                    </svg>
+                    <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
                   </span>
                 </span>
                 <span class="min-w-0 flex-1">
@@ -429,16 +438,13 @@ onBeforeUnmount(() => {
             <template v-else>
               <header class="flex items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4">
                 <RouterLink :to="{ name: 'chat' }" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 md:hidden" :aria-label="t('chat.back')">
-                  <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                  <Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" />
                 </RouterLink>
                 <template v-if="active">
                   <span class="block size-9 shrink-0 overflow-hidden rounded">
                     <UserAvatar v-if="active.kind === 'direct'" :avatar-url="otherMember(active)?.avatarUrl" :name="title(active)" />
                     <span v-else class="grid size-full place-items-center bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true">
-                      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="9" cy="8" r="3.5" />
-                        <path d="M2.5 20c.6-3.5 3.2-5.5 6.5-5.5s5.9 2 6.5 5.5" />
-                      </svg>
+                      <Icon icon="lucide:users-round" class="size-4" aria-hidden="true" />
                     </span>
                   </span>
                   <div class="min-w-0 flex-1">
@@ -447,13 +453,10 @@ onBeforeUnmount(() => {
                     <p v-if="active.kind === 'group'" class="truncate text-xs text-flixer-muted">{{ t('chat.memberCount', { count: active.members.length }, active.members.length) }}</p>
                   </div>
                   <button v-if="active.kind === 'direct' || isOwner" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
-                    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v6m4-6v6" /></svg>
+                    <Icon icon="lucide:trash" class="size-5" aria-hidden="true" />
                   </button>
                   <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
-                    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 11v5M12 8h.01" />
-                    </svg>
+                    <Icon icon="lucide:circle-question-mark" class="size-5" aria-hidden="true" />
                   </button>
                 </template>
                 <Skeleton v-else class="h-5 w-40" />
