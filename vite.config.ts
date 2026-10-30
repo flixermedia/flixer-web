@@ -117,7 +117,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 5175,
     allowedHosts: true,
     ...(hasOriginCert ? { https: { cert: readFileSync(certPath), key: readFileSync(keyPath) } } : {}),
     proxy: proxyOptions,
