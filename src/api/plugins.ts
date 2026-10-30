@@ -10,7 +10,7 @@ import type {
   FlixerApiRouteBody,
   FlixerApiRouteData,
   FlixerApiRouteQuery,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 export type {
   PluginCatalogEntry,
   PluginInstallation,
@@ -19,7 +19,7 @@ export type {
   PluginSettingsSchema,
   PluginSettingsView,
   PluginUpdateHistoryEntry,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 
 export async function listPluginInstallations(): Promise<PluginInstallation[]> {
   const response = await api.get<PluginInstallation[]>('/admin/plugins')

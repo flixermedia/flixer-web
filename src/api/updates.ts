@@ -1,7 +1,7 @@
 /** Application update status and update actions. */
 import { api } from './client'
-import type { UpdateRun, UpdateStatus } from '@flixermedia/flixer-api-client'
-export type { UpdateComponent, UpdateRun, UpdateStatus } from '@flixermedia/flixer-api-client'
+import type { UpdateRun, UpdateStatus } from 'flixer-api-client'
+export type { UpdateComponent, UpdateRun, UpdateStatus } from 'flixer-api-client'
 
 export async function getUpdateStatus(refresh = false): Promise<UpdateStatus> {
   const response = await api.get<UpdateStatus>('/admin/updates', { params: refresh ? { refresh: true } : undefined })

@@ -38,8 +38,9 @@ const yearFrom = ref(str(route.query.from))
 const yearTo = ref(str(route.query.to))
 const sort = ref<(typeof SORTS)[number]>(SORTS.find((entry) => entry === route.query.sort) ?? 'relevance')
 const unwatched = ref(route.query.unwatched === 'true')
+const includeChildren = ref(route.query.includeChildren === 'true')
 const genres = ref<string[]>([])
-const showFilters = ref(Boolean(type.value || genre.value || yearFrom.value || yearTo.value || unwatched.value || route.query.sort))
+const showFilters = ref(Boolean(type.value || genre.value || yearFrom.value || yearTo.value || unwatched.value || includeChildren.value || route.query.sort))
 
 function year(value: string) {
   const parsed = Number.parseInt(value, 10)
@@ -52,9 +53,10 @@ const filters = computed<SearchFilters>(() => ({
   yearTo: year(yearTo.value),
   sort: sort.value,
   unwatched: unwatched.value ? 'true' : undefined,
+  includeChildren: includeChildren.value || undefined,
 }))
 const hasFilters = computed(() => Boolean(type.value || genre.value || year(yearFrom.value) || year(yearTo.value) || unwatched.value))
-const activeCount = computed(() => [type.value, genre.value, year(yearFrom.value), year(yearTo.value), unwatched.value].filter(Boolean).length)
+const activeCount = computed(() => [type.value, genre.value, year(yearFrom.value), year(yearTo.value), unwatched.value, includeChildren.value].filter(Boolean).length)
 
 const hasActivity = computed(() => trimmed.value.length > 0 || hasFilters.value)
 
@@ -64,10 +66,12 @@ function clearFilters() {
   yearFrom.value = ''
   yearTo.value = ''
   unwatched.value = false
+  includeChildren.value = false
   sort.value = 'relevance'
 }
 
-const results = ref<HomeCard[]>([])
+type SearchCard = HomeCard & { searchContext?: string | null }
+const results = ref<SearchCard[]>([])
 const isLoading = ref(false)
 const failed = ref(false)
 
@@ -94,11 +98,7 @@ async function run(term: string) {
   const externalAllowed = requestsConfig.config.value?.enabled && requestsConfig.config.value.canRequest && type.value !== 'video'
   const signal = controller.signal
   const pluginType = pluginSearchType(type.value)
-  const [error, data] = await catchError(Promise.all([
-    searchMedia(term, filters.value, signal),
-    externalAllowed ? searchRequests(term, externalType, signal).catch(() => []) : Promise.resolve([]),
-    pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => []),
-  ]))
+  const [error, data] = await catchError(Promise.all([searchMedia(term, filters.value, signal), externalAllowed ? searchRequests(term, externalType, signal).catch(() => []) : Promise.resolve([]), pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => [])]))
   if (error) {
     if ((error as { code?: string }).code === 'ERR_CANCELED') return
     failed.value = true
@@ -115,7 +115,7 @@ async function run(term: string) {
   isLoading.value = false
 }
 
-watch([query, type, genre, yearFrom, yearTo, sort, unwatched], () => {
+watch([query, type, genre, yearFrom, yearTo, sort, unwatched, includeChildren], () => {
   clearTimeout(timer)
   const term = trimmed.value
   const current = filters.value
@@ -127,6 +127,7 @@ watch([query, type, genre, yearFrom, yearTo, sort, unwatched], () => {
   if (current.yearTo) params.to = String(current.yearTo)
   if (current.sort && current.sort !== 'relevance') params.sort = current.sort
   if (current.unwatched) params.unwatched = 'true'
+  if (current.includeChildren) params.includeChildren = 'true'
   void router.replace({ name: 'search', query: params })
   timer = setTimeout(() => void run(term), DEBOUNCE_MS)
 })
@@ -149,9 +150,9 @@ function externalSubtitle(item: ExternalMediaCard) {
   return item.year ? `${typeName} · ${item.year}` : typeName
 }
 
-function subtitleOf(item: HomeCard) {
+function subtitleOf(item: SearchCard) {
   const type = t(`home.itemType.${item.type}`)
-  return item.year ? `${type} · ${item.year}` : type
+  return [type, item.year, item.searchContext].filter(Boolean).join(' · ')
 }
 </script>
 
@@ -205,12 +206,16 @@ function subtitleOf(item: HomeCard) {
                 {{ t('search.yearTo') }}
                 <input v-model="yearTo" type="number" inputmode="numeric" min="1800" max="2200" class="mt-1.5 w-full rounded-lg border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none" />
               </label>
-              <div class="flex items-center justify-between gap-3 sm:col-span-2">
+              <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
                 <label class="flex cursor-pointer items-center gap-2.5 text-sm text-white">
                   <input v-model="unwatched" type="checkbox" class="size-4 accent-flixer-accent" />
                   {{ t('search.unwatched') }}
                 </label>
-                <button v-if="hasFilters || sort !== 'relevance'" type="button" class="text-sm text-flixer-muted underline-offset-2 transition hover:text-white hover:underline" @click="clearFilters">{{ t('search.clear') }}</button>
+                <label class="flex cursor-pointer items-center gap-2.5 text-sm text-white">
+                  <input v-model="includeChildren" type="checkbox" class="size-4 accent-flixer-accent" />
+                  {{ t('search.includeChildren') }}
+                </label>
+                <button v-if="hasFilters || includeChildren || sort !== 'relevance'" type="button" class="text-sm text-flixer-muted underline-offset-2 transition hover:text-white hover:underline" @click="clearFilters">{{ t('search.clear') }}</button>
               </div>
             </div>
           </div>

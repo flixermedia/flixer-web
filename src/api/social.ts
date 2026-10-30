@@ -13,7 +13,7 @@ import type {
   FlixerApiRouteBody,
   FlixerApiRouteData,
   FlixerApiRouteQuery,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 export type {
   ChatConversation,
   ChatMember,
@@ -35,7 +35,7 @@ export type {
   PublicProfileSummary,
   SocialItem,
   SocialItemType,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 
 export async function getFavorites(): Promise<FlixerApiRouteData<'get', '/favorites'>> {
   return (await api.get<FlixerApiRouteData<'get', '/favorites'>>('/favorites')).data

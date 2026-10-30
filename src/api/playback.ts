@@ -3,8 +3,8 @@ import axios from 'axios'
 import { api } from './client'
 import { resolveServerResourceUrl } from '../platform/serverConnection'
 import { catchError } from '../utils/catchError'
-import type { PlaybackInfo, SampleVideo } from '@flixermedia/flixer-api-client'
-export type { NextEpisode, PlaybackInfo, PlayerChapter, PlayerSegment, SampleVideo, SegmentType } from '@flixermedia/flixer-api-client'
+import type { PlaybackInfo, SampleVideo } from 'flixer-api-client'
+export type { NextEpisode, PlaybackInfo, PlayerChapter, PlayerSegment, SampleVideo, SegmentType } from 'flixer-api-client'
 
 export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
 

@@ -1,7 +1,7 @@
 /** Backup creation, restoration, uploads, downloads, and passphrase operations. */
 import { api } from './client'
-import type { BackupEntry, BackupRun, BackupStatus, FlixerApiRouteBody, FlixerApiRouteData } from '@flixermedia/flixer-api-client'
-export type { BackupEntry, BackupRun, BackupStatus } from '@flixermedia/flixer-api-client'
+import type { BackupEntry, BackupRun, BackupStatus, FlixerApiRouteBody, FlixerApiRouteData } from 'flixer-api-client'
+export type { BackupEntry, BackupRun, BackupStatus } from 'flixer-api-client'
 
 export async function getBackupStatus(): Promise<BackupStatus> {
   const response = await api.get<BackupStatus>('/admin/backups')

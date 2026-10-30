@@ -15,7 +15,7 @@ import type {
   UserPreferencesUpdate,
   UserProfile,
   VerificationPending,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 export type {
   AuthResult,
   AuthSession,
@@ -28,7 +28,7 @@ export type {
   UserPreferencesUpdate,
   UserProfile,
   VerificationPending,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 
 export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean }
 export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null }

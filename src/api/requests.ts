@@ -14,8 +14,8 @@ import type {
   FlixerApiRouteBody,
   FlixerApiRouteData,
   FlixerApiRouteQuery,
-} from '@flixermedia/flixer-api-client'
-import type { RequestServiceInput } from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
+import type { RequestServiceInput } from 'flixer-api-client'
 export type {
   ExternalMediaCard,
   ExternalMediaDetail,
@@ -29,7 +29,7 @@ export type {
   RequestUserView,
   RequestsConfig,
   RequestSource,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 
 /** Cached TMDB images are served by the API as relative paths; other (absolute) URLs pass through. */
 function withApiBase(url: string | null): string | null {

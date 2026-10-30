@@ -1,7 +1,7 @@
 /** Notification and push-subscription operations. */
 import { api } from './client'
-import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from '@flixermedia/flixer-api-client'
-export type { AppNotification, NotificationConfig } from '@flixermedia/flixer-api-client'
+import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
+export type { AppNotification, NotificationConfig } from 'flixer-api-client'
 
 export async function listNotifications(): Promise<FlixerApiRouteData<'get', '/notifications'>> {
   const response = await api.get<FlixerApiRouteData<'get', '/notifications'>>('/notifications')

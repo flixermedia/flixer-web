@@ -36,6 +36,7 @@ const pageIcons: Record<AdminPageId, string> = {
   server: 'lucide:server',
   users: 'lucide:users-round',
   networking: 'lucide:network',
+  search: 'lucide:search',
   updates: 'lucide:refresh-cw',
   backups: 'lucide:archive',
 }
@@ -148,24 +149,8 @@ watch(
 
 <style scoped>
 .admin-nav-scroll {
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    13px,
-    black 20px,
-    black calc(100% - 20px),
-    calc(100% - 13px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    13px,
-    black 20px,
-    black calc(100% - 20px),
-    calc(100% - 13px),
-    transparent 100%
-  );
+  mask-image: linear-gradient(to bottom, transparent 0, 13px, black 20px, black calc(100% - 20px), calc(100% - 13px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, 13px, black 20px, black calc(100% - 20px), calc(100% - 13px), transparent 100%);
 }
 
 .admin-nav-item {

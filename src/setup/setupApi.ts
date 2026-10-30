@@ -8,7 +8,7 @@ import type {
   SetupState,
   SetupStatus,
   SetupStepResult,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 export type {
   SetupConfigField as ConfigField,
   SetupFlow,
@@ -16,7 +16,7 @@ export type {
   SetupState,
   SetupStatus,
   SetupStepResult as StepResult,
-} from '@flixermedia/flixer-api-client'
+} from 'flixer-api-client'
 /** The wizard also has a recovery flow, chosen by the server's state rather than by the user. */
 export type WizardFlow = SetupFlow | 'recovery'
 

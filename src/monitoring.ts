@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/vue'
 import type { App } from 'vue'
-import type { SentryConfig } from '@flixermedia/flixer-api-client'
+import type { SentryConfig } from 'flixer-api-client'
 import { api } from './api'
 import { catchError } from './utils/catchError'
 

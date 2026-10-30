@@ -1,7 +1,7 @@
 /** Shared HTTP transport, generated API dispatch, and session handling. */
 
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import { createFlixerApiClient } from '@flixermedia/flixer-api-client'
+import { createFlixerApiClient } from 'flixer-api-client'
 import { forgetNativeServerUrl, getApiBaseUrl, saveNativeServerUrl } from '../platform/serverConnection'
 
 export const ACCESS_TOKEN_KEY = 'flixer.accessToken'

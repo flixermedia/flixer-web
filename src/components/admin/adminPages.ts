@@ -21,6 +21,7 @@ const General = lazy(() => import('./GeneralPanel.vue'))
 const Users = lazy(() => import('./UsersPanel.vue'))
 const Networking = lazy(() => import('./NetworkingSection.vue'))
 const Connections = lazy(() => import('./ConnectionsSection.vue'))
+const Search = lazy(() => import('./MediaSearchSettingsSection.vue'))
 const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
 const Plugins = lazy(() => import('./PluginsPanel.vue'))
@@ -47,6 +48,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   server: [{ component: General }],
   users: [{ component: Users }, { component: Devices, props: { part: 'devices' } }],
   networking: [{ component: Networking }, { component: Connections }],
+  search: [{ component: Search }],
   updates: [{ component: Updates }],
   backups: [{ component: Backups }],
   plugins: [{ component: Plugins }],

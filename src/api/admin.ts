@@ -1,7 +1,7 @@
 /** Administrative stream, user, API-key, and indexer operations. */
 import { api, apiRequest } from './client'
-import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from '@flixermedia/flixer-api-client'
-export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskLogEntry, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from '@flixermedia/flixer-api-client'
+import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
+export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskLogEntry, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
 
 export type AdminScheduledTaskState = 'running' | 'queued' | 'completed' | 'failed' | 'cancelled' | 'never'
 
@@ -122,8 +122,108 @@ export async function revokeApiKey(id: string): Promise<void> {
   await api.delete(`/admin/api-keys/${encodeURIComponent(id)}`)
 }
 
+export interface MediaSearchTask {
+  uid: number
+  indexUid: string | null
+  status: string
+  type: string
+  enqueuedAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  duration: string | null
+  error: {
+    message?: string
+    code?: string
+    type?: string
+    link?: string
+  } | null
+}
+
+export interface MediaSearchTaskDetails extends MediaSearchTask {
+  details: Record<string, unknown> | null
+}
+
+export interface MediaSearchAdminStatus {
+  enabled: boolean
+  url: string
+  customUrl: string
+  urlSource: 'database' | 'environment' | 'default'
+  apiKeyConfigured: boolean
+  connected: boolean | null
+  indexExists: boolean | null
+  documentCount: number | null
+  outboxPending: number
+  outboxFailed: number
+  lastOutboxError: string | null
+  tasks: MediaSearchTask[]
+  tasksError: string | null
+  error: string | null
+}
+
+export async function getMediaSearchAdminStatus(): Promise<MediaSearchAdminStatus> {
+  const response = await apiRequest<MediaSearchAdminStatus>({ method: 'GET', url: '/admin/search/status' })
+  return response.data
+}
+
+export async function getMediaSearchTask(uid: number): Promise<MediaSearchTaskDetails> {
+  const response = await apiRequest<MediaSearchTaskDetails>({
+    method: 'GET',
+    url: `/admin/search/tasks/${encodeURIComponent(uid)}`,
+  })
+  return response.data
+}
+
+export async function saveMediaSearchAdminSettings(settings: Pick<MediaSearchAdminStatus, 'enabled' | 'customUrl'>): Promise<MediaSearchAdminStatus> {
+  const response = await apiRequest<MediaSearchAdminStatus>({
+    method: 'PUT',
+    url: '/admin/search/settings',
+    data: {
+      enabled: settings.enabled,
+      url: settings.customUrl,
+    },
+  })
+  return response.data
+}
+
 export async function rebuildMediaSearchIndex(): Promise<{ queued: boolean }> {
-  const response = await api.post<{ queued: boolean }>('/admin/search/rebuild')
+  const response = await apiRequest<{ queued: boolean }>({ method: 'POST', url: '/admin/search/rebuild' })
+  return response.data
+}
+
+export async function resetMediaSearchIndex(): Promise<{ queued: boolean }> {
+  const response = await apiRequest<{ queued: boolean }>({ method: 'POST', url: '/admin/search/reset' })
+  return response.data
+}
+
+export interface DatabaseTransferStatus {
+  state: 'idle' | 'running' | 'failed' | 'interrupted' | 'completed'
+  phase: string
+  message: string
+  sourceLocked: boolean
+  startedAt: string | null
+  finishedAt: string | null
+  currentDatabaseUrl: string | null
+}
+
+export async function getDatabaseTransferStatus(): Promise<DatabaseTransferStatus> {
+  const response = await apiRequest<DatabaseTransferStatus>({ method: 'GET', url: '/admin/database-transfer' })
+  return response.data
+}
+
+export async function startDatabaseTransfer(databaseUrl: string, replaceTarget = false): Promise<DatabaseTransferStatus> {
+  const response = await apiRequest<DatabaseTransferStatus>({
+    method: 'POST',
+    url: '/admin/database-transfer',
+    data: { databaseUrl, replaceTarget },
+  })
+  return response.data
+}
+
+export async function restoreDatabaseSourceWrites(): Promise<DatabaseTransferStatus> {
+  const response = await apiRequest<DatabaseTransferStatus>({
+    method: 'POST',
+    url: '/admin/database-transfer/restore-writes',
+  })
   return response.data
 }
 
