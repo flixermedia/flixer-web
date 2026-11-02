@@ -32,7 +32,7 @@ defineExpose({ submit })
   <StepFrame :title="t('setup.secrets.title')" :description="t('setup.secrets.description')">
     <SetupNotice v-if="allLocked" kind="info">{{ t('setup.lockedByEnvironment') }}</SetupNotice>
     <ul v-else class="flex flex-col gap-2" :aria-busy="busy">
-      <li v-for="name in secrets" :key="name" class="flex items-start justify-between gap-4 rounded-lg border border-flixer-border bg-flixer-surface/60 px-4 py-3 text-sm">
+      <li v-for="name in secrets" :key="name" class="flex items-start justify-between gap-4 rounded border border-flixer-border bg-flixer-surface/60 px-4 py-3 text-sm">
         <div class="min-w-0">
           <p class="font-semibold">{{ t(`setup.secrets.${name}`) }}</p>
           <p class="text-xs text-flixer-muted">{{ config[name]?.locked ? t('setup.secrets.fromEnvironment') : config[name]?.set ? t('setup.secrets.generated') : t('setup.secrets.pending') }}</p>

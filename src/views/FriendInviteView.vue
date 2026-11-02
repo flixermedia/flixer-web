@@ -9,7 +9,7 @@ import MobileTabBar from '../components/home/MobileTabBar.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()

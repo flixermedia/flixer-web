@@ -297,7 +297,7 @@ onMounted(async () => {
 <template>
   <AdminSection :title="t('admin.media.title')" :description="t('admin.media.description')">
     <template #actions>
-      <button type="button" :disabled="rebuildingSearchIndex" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="rebuildSearchIndex">
+      <button type="button" :disabled="rebuildingSearchIndex" class="rounded bg-white/10 px-3 py-2 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="rebuildSearchIndex">
         {{ t(rebuildingSearchIndex ? 'admin.media.searchRebuilding' : 'admin.media.searchRebuild') }}
       </button>
     </template>
@@ -343,7 +343,7 @@ onMounted(async () => {
     </p>
 
     <div v-if="loading && result.items.length === 0" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-      <div v-for="n in 6" :key="`skeleton-${n}`" class="overflow-hidden rounded-xl border border-flixer-border bg-flixer-background/60" role="status" :aria-label="t('common.loading')" aria-busy="true">
+      <div v-for="n in 6" :key="`skeleton-${n}`" class="overflow-hidden rounded border border-flixer-border bg-flixer-background/60" role="status" :aria-label="t('common.loading')" aria-busy="true">
         <Skeleton class="aspect-[2/3] w-full" />
         <div class="space-y-3 p-3">
           <Skeleton class="h-4 w-4/5" />
@@ -360,14 +360,14 @@ onMounted(async () => {
       <section v-for="group in groups" :key="group.id" class="space-y-3">
         <div class="flex items-center gap-3 border-b border-flixer-border pb-2">
           <h2 class="text-lg font-semibold tracking-tight">
-            <button type="button" class="flex items-center gap-3 rounded-sm text-left transition hover:text-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="type === group.id" @click="type = type === group.id ? '' : group.id">
+            <button type="button" class="flex items-center gap-3 rounded text-left transition hover:text-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="type === group.id" @click="type = type === group.id ? '' : group.id">
               {{ group.title }}
               <span class="text-xs text-flixer-muted">{{ result.categoryCounts[group.id] }}</span>
             </button>
           </h2>
         </div>
         <TransitionGroup tag="div" name="media-result" appear class="relative grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          <article v-for="(item, index) in group.items" :key="item.id" :style="{ '--i': Math.min(index, 14) }" class="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-flixer-border bg-flixer-background/60 transition-colors hover:border-flixer-accent/40 hover:bg-flixer-background">
+          <article v-for="(item, index) in group.items" :key="item.id" :style="{ '--i': Math.min(index, 14) }" class="flex h-full min-w-0 flex-col overflow-hidden rounded border border-flixer-border bg-flixer-background/60 transition-colors hover:border-flixer-accent/40 hover:bg-flixer-background">
             <div class="relative overflow-hidden bg-white/5" :class="item.type === 'album' ? 'aspect-square' : 'aspect-[2/3]'">
               <AuthImage v-if="posterSource(item)" :item-id="posterSource(item)?.itemId ?? item.id" :index="posterSource(item)?.index ?? 0" :width="300" :alt="item.title" :version="item.updatedAt" />
               <span v-else class="flex size-full items-center justify-center px-2 text-center text-xs text-flixer-muted">{{ t('admin.media.noPoster') }}</span>
@@ -407,7 +407,7 @@ onMounted(async () => {
       </section>
     </div>
 
-    <p v-else-if="!error" class="rounded-xl border border-dashed border-flixer-border p-8 text-center text-sm text-flixer-muted">
+    <p v-else-if="!error" class="rounded border border-dashed border-flixer-border p-8 text-center text-sm text-flixer-muted">
       {{ hasFilters ? t('admin.media.noResults') : t('admin.media.empty') }}
     </p>
 

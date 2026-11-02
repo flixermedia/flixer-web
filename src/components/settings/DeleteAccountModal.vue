@@ -34,7 +34,7 @@ async function submit() {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+    <ModalContent class="flixer-modal-card w-full max-w-md rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <div class="flex size-11 items-center justify-center rounded bg-rose-400/10 text-rose-300">
         <Icon icon="lucide:circle-alert" class="size-5" aria-hidden="true" />
       </div>
@@ -45,8 +45,8 @@ async function submit() {
         <TextInput v-model="password" :label="t('settings.profile.passwordLabel')" type="password" name="deletePassword" autocomplete="current-password" maxlength="128" required autofocus />
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" class="flex h-11 items-center justify-center rounded-lg border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="isDeleting" @click="close()">{{ t('common.cancel') }}</button>
-          <button type="submit" class="flex h-11 items-center justify-center rounded-lg bg-rose-500 px-6 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-wait disabled:opacity-60" :disabled="isDeleting || !password">
+          <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="isDeleting" @click="close()">{{ t('common.cancel') }}</button>
+          <button type="submit" class="flex h-11 items-center justify-center rounded bg-rose-500 px-6 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-wait disabled:opacity-60" :disabled="isDeleting || !password">
             {{ isDeleting ? t('settings.profile.deleting') : t('settings.profile.deleteAccountButton') }}
           </button>
         </div>

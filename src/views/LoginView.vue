@@ -439,7 +439,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
       <!-- Logo and navigation -->
       <RouterLink class="mx-auto lg:mx-0 relative z-10 inline-flex w-fit items-center lg:gap-3 text-flixer-text no-underline" to="/" :aria-label="t('auth.flixerHome')">
-        <img :src="logo" alt="" class="size-20 mt-15 lg:mt-0 lg:size-10 rounded-xl shadow-lg" aria-hidden="true" />
+        <img :src="logo" alt="" class="size-20 mt-15 lg:mt-0 lg:size-10 rounded shadow-lg" aria-hidden="true" />
         <span class="hidden lg:inline text-2xl font-bold tracking-tight">{{ t('auth.brandName') }}</span>
       </RouterLink>
 
@@ -470,9 +470,9 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
         {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
 
-      <p v-if="loginBanner" class="w-full max-w-md whitespace-pre-line rounded-xl border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">{{ loginBanner }}</p>
+      <p v-if="loginBanner" class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">{{ loginBanner }}</p>
 
-      <div class="w-full mt-0 lg:mt-4 max-w-md rounded-2xl border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+      <div class="w-full mt-0 lg:mt-4 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
           <div :key="pendingVerificationEmail ? 'verification' : passkeyTicket ? 'second-factor' : isRegistration ? 'registration' : 'login'">
             <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />

@@ -12,7 +12,7 @@ withDefaults(defineProps<{ rows?: number }>(), { rows: 3 })
     <section v-for="row in rows" :key="row" class="page-gutter">
       <Skeleton class="mb-3 h-5 w-40" />
       <div class="flex gap-3 overflow-hidden">
-        <Skeleton v-for="n in 8" :key="n" class="aspect-[2/3] w-36 shrink-0 rounded-lg sm:w-44" />
+        <Skeleton v-for="n in 8" :key="n" class="aspect-[2/3] w-36 shrink-0 rounded sm:w-44" />
       </div>
     </section>
   </div>

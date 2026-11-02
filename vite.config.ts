@@ -95,6 +95,10 @@ const workboxOptions: Partial<GenerateSWOptions> = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    dedupe: ['vue', 'vue-router'],
+    extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'],
+  },
   plugins: [
     vue(),
     tailwindcss(),

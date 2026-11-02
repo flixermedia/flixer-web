@@ -15,7 +15,7 @@ import MusicBanner from '../components/ui/MusicBanner.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()

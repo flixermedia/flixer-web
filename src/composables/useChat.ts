@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { getAccessToken, getChatUnread, type ChatConversation, type ChatMessage } from '../api'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
 import { catchError } from '../utils/catchError'
-import { useNotifications } from './useNotifications'
+import { useNotifications } from './useNotifications.ts'
 import { useProfile } from './useProfile'
 
 export type ChatEvent = { type: 'message'; conversationId: string; message: ChatMessage } | { type: 'changed'; conversationId: string } | { type: 'resync' }

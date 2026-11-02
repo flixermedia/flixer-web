@@ -168,10 +168,10 @@ onMounted(load)
 
 <template>
   <main class="fixed inset-0 flex items-center justify-center overflow-hidden bg-flixer-background text-flixer-text md:p-8" :aria-label="t('setup.title')">
-    <div class="flex h-full w-full flex-col overflow-hidden bg-flixer-background md:rounded-2xl md:border md:border-flixer-border md:bg-flixer-surface md:shadow-2xl md:shadow-black/60" :class="compact ? 'md:h-auto md:max-w-md' : 'md:h-[min(46rem,100%)] md:max-w-3xl'">
+    <div class="flex h-full w-full flex-col overflow-hidden bg-flixer-background md:rounded md:border md:border-flixer-border md:bg-flixer-surface md:shadow-2xl md:shadow-black/60" :class="compact ? 'md:h-auto md:max-w-md' : 'md:h-[min(46rem,100%)] md:max-w-3xl'">
       <header class="relative flex shrink-0 flex-col gap-4 px-6 pt-6 sm:px-10">
-        <button v-if="index === 0 && progress" type="button" class="absolute top-5 right-6 flex h-9 items-center gap-2 rounded-lg border border-flixer-border px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-10" :aria-label="t('languageModal.title')" @click="openLanguage">
-          <span v-if="localeCountry(locale)" class="fi rounded-sm" :class="`fi-${localeCountry(locale)}`" aria-hidden="true"></span>
+        <button v-if="index === 0 && progress" type="button" class="absolute top-5 right-6 flex h-9 items-center gap-2 rounded border border-flixer-border px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-10" :aria-label="t('languageModal.title')" @click="openLanguage">
+          <span v-if="localeCountry(locale)" class="fi rounded" :class="`fi-${localeCountry(locale)}`" aria-hidden="true"></span>
           <Icon v-else icon="lucide:globe" class="size-4" aria-hidden="true" />
           {{ localeName(locale) }}
         </button>
@@ -194,9 +194,9 @@ onMounted(load)
           <p class="text-sm leading-6 text-flixer-muted">{{ loadError === 'locked' ? t('setup.locked') : t('setup.loadFailed') }}</p>
         </div>
         <div class="flex gap-3">
-          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110" @click="router.push({ name: 'login' })">{{ t('setup.signIn') }}</button>
-          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded-lg border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="useRecoveryKey">{{ t('setup.key.use') }}</button>
-          <button type="button" class="h-11 rounded-lg border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="load">{{ t('setup.retry') }}</button>
+          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110" @click="router.push({ name: 'login' })">{{ t('setup.signIn') }}</button>
+          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="useRecoveryKey">{{ t('setup.key.use') }}</button>
+          <button type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="load">{{ t('setup.retry') }}</button>
         </div>
       </div>
 
@@ -226,8 +226,8 @@ onMounted(load)
         </div>
 
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-flixer-border/60 px-6 py-4 sm:px-10">
-          <button type="button" class="h-11 rounded-lg px-5 text-sm font-semibold text-flixer-muted transition hover:text-flixer-text disabled:invisible" :disabled="index === 0 || submitting" @click="back">{{ t('setup.back') }}</button>
-          <button type="button" class="h-11 min-w-32 rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="submitting || !canContinue" @click="advance">
+          <button type="button" class="h-11 rounded px-5 text-sm font-semibold text-flixer-muted transition hover:text-flixer-text disabled:invisible" :disabled="index === 0 || submitting" @click="back">{{ t('setup.back') }}</button>
+          <button type="button" class="h-11 min-w-32 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="submitting || !canContinue" @click="advance">
             {{ submitting ? t('setup.working') : isLast ? t('setup.finish') : t('setup.continue') }}
           </button>
         </footer>

@@ -9,6 +9,7 @@ describe('admin navigation', () => {
 
   it('opens the first page of a tab, or the requested one', () => {
     expect(resolveAdminLocation('library')).toEqual({ tab: 'library', page: 'libraries' })
+    expect(resolveAdminLocation('guide')).toEqual({ tab: 'guide', page: 'guide' })
     expect(resolveAdminLocation('library', 'tasks')).toEqual({ tab: 'library', page: 'tasks' })
     expect(resolveAdminLocation('library', 'themes')).toEqual({ tab: 'library', page: 'libraries' })
     expect(resolveAdminLocation(['providers', 'x'], ['themes'])).toEqual({ tab: 'providers', page: 'themes' })

@@ -12,7 +12,7 @@ import { getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id?: string }>()
@@ -406,7 +406,7 @@ onBeforeUnmount(() => {
           </div>
           <ul v-else class="min-h-0 flex-1 overflow-y-auto p-2">
             <li v-for="conversation in conversations" :key="conversation.id">
-              <RouterLink :to="{ name: 'chat', params: { id: conversation.id } }" class="flex items-center gap-3 rounded-lg px-2 py-2.5 transition motion-reduce:transition-none hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="conversation.id === props.id ? 'bg-white/10' : ''">
+              <RouterLink :to="{ name: 'chat', params: { id: conversation.id } }" class="flex items-center gap-3 rounded px-2 py-2.5 transition motion-reduce:transition-none hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="conversation.id === props.id ? 'bg-white/10' : ''">
                 <span class="relative block size-11 shrink-0 overflow-hidden rounded">
                   <UserAvatar v-if="conversation.kind === 'direct'" :avatar-url="otherMember(conversation)?.avatarUrl" :name="title(conversation)" />
                   <span v-else class="grid size-full place-items-center bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true">
@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
             </div>
             <template v-else>
               <header class="flex items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4">
-                <RouterLink :to="{ name: 'chat' }" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 md:hidden" :aria-label="t('chat.back')">
+                <RouterLink :to="{ name: 'chat' }" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 md:hidden" :aria-label="t('chat.back')">
                   <Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" />
                 </RouterLink>
                 <template v-if="active">
@@ -452,10 +452,10 @@ onBeforeUnmount(() => {
                     <h2 v-else class="truncate text-sm font-semibold text-white">{{ title(active) }}</h2>
                     <p v-if="active.kind === 'group'" class="truncate text-xs text-flixer-muted">{{ t('chat.memberCount', { count: active.members.length }, active.members.length) }}</p>
                   </div>
-                  <button v-if="active.kind === 'direct' || isOwner" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
+                  <button v-if="active.kind === 'direct' || isOwner" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
                     <Icon icon="lucide:trash" class="size-5" aria-hidden="true" />
                   </button>
-                  <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
+                  <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
                     <Icon icon="lucide:circle-question-mark" class="size-5" aria-hidden="true" />
                   </button>
                 </template>
@@ -464,8 +464,8 @@ onBeforeUnmount(() => {
 
               <div v-if="infoOpen && active?.kind === 'group'" class="max-h-64 shrink-0 space-y-3 overflow-y-auto border-b border-white/10 bg-white/[0.03] p-4">
                 <form class="flex gap-2" @submit.prevent="rename">
-                  <input v-model="renameDraft" maxlength="60" class="min-w-0 flex-1 rounded-lg border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :aria-label="t('chat.groupName')" />
-                  <button type="submit" class="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="!renameDraft.trim() || renameDraft.trim() === active.name">{{ t('chat.rename') }}</button>
+                  <input v-model="renameDraft" maxlength="60" class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :aria-label="t('chat.groupName')" />
+                  <button type="submit" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="!renameDraft.trim() || renameDraft.trim() === active.name">{{ t('chat.rename') }}</button>
                 </form>
                 <div class="flex items-center justify-between">
                   <h3 class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('chat.members') }}</h3>
@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
                     <div v-else class="flex" :class="message.sender?.username === self ? 'justify-end' : 'justify-start'">
                       <div class="max-w-[85%] sm:max-w-[70%]">
                         <p v-if="active?.kind === 'group' && message.sender?.username !== self && messages[index - 1]?.sender?.username !== message.sender?.username" class="mb-0.5 px-1 text-xs font-semibold text-flixer-muted">{{ message.sender?.displayName }}</p>
-                        <p class="whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm" :class="message.sender?.username === self ? 'bg-flixer-accent text-flixer-background' : 'bg-white/10 text-white'" :title="fullTime(message.createdAt)">{{ message.body }}</p>
+                        <p class="whitespace-pre-wrap break-words rounded px-3 py-2 text-sm" :class="message.sender?.username === self ? 'bg-flixer-accent text-flixer-background' : 'bg-white/10 text-white'" :title="fullTime(message.createdAt)">{{ message.body }}</p>
                         <p class="mt-0.5 px-1 text-[10px] text-flixer-muted" :class="message.sender?.username === self ? 'text-right' : ''">{{ shortTime(message.createdAt) }}</p>
                       </div>
                     </div>
@@ -503,8 +503,8 @@ onBeforeUnmount(() => {
               <form class="border-t border-white/10 p-3" @submit.prevent="send">
                 <p v-if="sendError" class="mb-2 text-xs text-red-400" role="alert">{{ sendError }}</p>
                 <div class="flex items-end gap-2">
-                  <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
-                  <button type="submit" class="h-10 shrink-0 rounded-lg bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending">{{ t('chat.send') }}</button>
+                  <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
+                  <button type="submit" class="h-10 shrink-0 rounded bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending">{{ t('chat.send') }}</button>
                 </div>
               </form>
             </template>

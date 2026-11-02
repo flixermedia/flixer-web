@@ -28,6 +28,6 @@ async function send(): Promise<void> {
     <p class="text-sm text-flixer-muted">{{ description ?? t('setup.recovery.description') }}</p>
     <TextInput v-model.trim="code" :label="t('setup.recovery.code')" :hint="hint ?? t('setup.recovery.hint')" placeholder="ABCD-EFGH-JKMN-PQRS" autocomplete="off" spellcheck="false" autocapitalize="characters" />
     <SetupNotice v-if="message" kind="error">{{ message }}</SetupNotice>
-    <button type="submit" class="h-11 rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="!code.trim() || busy">{{ t('setup.continue') }}</button>
+    <button type="submit" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="!code.trim() || busy">{{ t('setup.continue') }}</button>
   </form>
 </template>

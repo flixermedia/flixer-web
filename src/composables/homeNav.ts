@@ -15,6 +15,7 @@ export function getNavLinks(): NavLink[] {
     { label: i18n.global.t('home.nav.movies'), to: '/movies' },
     { label: i18n.global.t('home.nav.tvShows'), to: '/tv' },
     { label: i18n.global.t('home.nav.music'), to: '/music' },
+    { label: i18n.global.t('home.nav.guide'), to: '/guide' },
     ...(enabled.value
       ? [
           { label: i18n.global.t('requests.nav.discover'), to: '/discover' },
@@ -35,6 +36,7 @@ export function getMobileTabs(): NavTab[] {
     { label: i18n.global.t('home.nav.movies'), to: '/movies', icon: 'lucide:film' },
     { label: i18n.global.t('home.nav.tv'), to: '/tv', icon: 'lucide:tv' },
     { label: i18n.global.t('home.nav.music'), to: '/music', icon: 'lucide:music-2' },
+    { label: i18n.global.t('home.nav.guide'), to: '/guide', icon: 'lucide:calendar-days' },
     { label: i18n.global.t('home.nav.search'), to: '/search', icon: 'lucide:search' },
     ...(enabled.value
       ? [

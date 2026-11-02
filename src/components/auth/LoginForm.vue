@@ -54,7 +54,7 @@ function handleSubmit() {
       <span class="text-flixer-accent">.</span>
     </h1>
     <p class="mt-2 text-sm text-flixer-muted">{{ t('auth.signInDescription') }}</p>
-    <output v-if="sessionCheckUnavailable" class="mt-4 block rounded-lg border border-flixer-accent/20 bg-flixer-primary/10 px-4 py-3 text-sm leading-6 text-flixer-accent">{{ t('auth.sessionCheckUnavailable') }}</output>
+    <output v-if="sessionCheckUnavailable" class="mt-4 block rounded border border-flixer-accent/20 bg-flixer-primary/10 px-4 py-3 text-sm leading-6 text-flixer-accent">{{ t('auth.sessionCheckUnavailable') }}</output>
 
     <form class="mt-8 flex flex-col" @submit.prevent="handleSubmit">
       <AuthField id="login-username" :label="t('auth.username')">
@@ -86,17 +86,17 @@ function handleSubmit() {
       </label>
 
       <div class="mt-6 flex flex-col gap-3">
-        <button class="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting">
+        <button class="flex h-12 w-full items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting">
           <span>
             {{ isSubmitting ? t('auth.signingIn') : t('auth.signInToFlixer') }}
           </span>
           <Icon v-if="!isSubmitting" icon="lucide:arrow-right" class="size-[17px]" aria-hidden="true" />
           <span v-else class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
         </button>
-        <button v-if="biometricLoginAvailable" class="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('biometric')">
+        <button v-if="biometricLoginAvailable" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('biometric')">
           {{ t('auth.signInWithBiometrics') }}
         </button>
-        <button v-if="passkeysSupported" class="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('passkey')">
+        <button v-if="passkeysSupported" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('passkey')">
           <Icon icon="lucide:key-round" class="size-[17px]" aria-hidden="true" />
           {{ t('auth.signInWithPasskey') }}
         </button>
@@ -112,8 +112,8 @@ function handleSubmit() {
       <span class="h-px flex-1 bg-flixer-border"></span>
     </div>
 
-    <button class="flex w-full items-center gap-3 rounded-xl border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-55" type="button" :disabled="registrationEnabled !== true" @click="emit('switchMode')">
-      <span class="grid size-[34px] shrink-0 place-items-center rounded-lg border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
+    <button class="flex w-full items-center gap-3 rounded border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-55" type="button" :disabled="registrationEnabled !== true" @click="emit('switchMode')">
+      <span class="grid size-[34px] shrink-0 place-items-center rounded border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
         <Icon icon="lucide:user-round-plus" class="size-[17px]" aria-hidden="true" />
       </span>
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -1,0 +1,32 @@
+diff --git a/node_modules/@capgo/capacitor-video-player/ios/Sources/VideoPlayerPlugin/FullscreenVideoPlayer.swift b/node_modules/@capgo/capacitor-video-player/ios/Sources/VideoPlayerPlugin/FullscreenVideoPlayer.swift
+index 88d87fc..db6362e 100644
+--- a/node_modules/@capgo/capacitor-video-player/ios/Sources/VideoPlayerPlugin/FullscreenVideoPlayer.swift
++++ b/node_modules/@capgo/capacitor-video-player/ios/Sources/VideoPlayerPlugin/FullscreenVideoPlayer.swift
+@@ -27,6 +27,7 @@ class FullscreenVideoPlayer: NSObject {
+     private var didEmitReady: Bool = false
+     private var exitEmission = ExitEmissionGuard()
+     private var isTransitioningToPictureInPicture = false
++    private var isRestoringPictureInPicture = false
+     private var suppressDismissExit = false
+     private var timeObserver: Any?
+     private var onPlay: (() -> Void)?
+@@ -986,6 +987,11 @@ extension FullscreenVideoPlayer: AVPlayerViewControllerDelegate {
+ 
+     func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+         isTransitioningToPictureInPicture = false
++        let isRestoring = isRestoringPictureInPicture
++        isRestoringPictureInPicture = false
++        if !isRestoring && playerViewController.presentingViewController == nil {
++            emitExitIfNeeded()
++        }
+     }
+ 
+     func playerViewControllerShouldAutomaticallyDismissAtPictureInPictureStart(
+@@ -1002,6 +1008,7 @@ extension FullscreenVideoPlayer: AVPlayerViewControllerDelegate {
+             completionHandler(false)
+             return
+         }
++        isRestoringPictureInPicture = true
+ 
+         if playerViewController.presentingViewController == nil {
+             DispatchQueue.main.async {

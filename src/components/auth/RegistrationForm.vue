@@ -126,7 +126,7 @@ function handleSubmit() {
       <p v-else-if="registrationEnabled === false" class="mt-3 text-xs leading-5 text-flixer-muted" role="status">{{ t('auth.registrationDisabled') }}</p>
       <p v-else-if="registrationEnabled === null" class="mt-3 text-xs leading-5 text-flixer-muted" role="status">{{ t('auth.checkingRegistration') }}</p>
 
-      <button class="mt-5 flex h-12 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting || registrationEnabled !== true" :aria-busy="isSubmitting">
+      <button class="mt-5 flex h-12 items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting || registrationEnabled !== true" :aria-busy="isSubmitting">
         <span>{{ isSubmitting ? t('auth.creatingAccount') : t('auth.createAccount') }}</span>
         <Icon v-if="!isSubmitting" icon="lucide:arrow-right" class="size-[17px]" aria-hidden="true" />
         <span v-else class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
@@ -139,8 +139,8 @@ function handleSubmit() {
       <span class="h-px flex-1 bg-flixer-border"></span>
     </div>
 
-    <button class="flex w-full items-center gap-3 rounded-xl border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" @click="emit('switchMode')">
-      <span class="grid size-[34px] shrink-0 place-items-center rounded-lg border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
+    <button class="flex w-full items-center gap-3 rounded border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" @click="emit('switchMode')">
+      <span class="grid size-[34px] shrink-0 place-items-center rounded border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
         <Icon icon="lucide:repeat" class="size-[17px]" aria-hidden="true" />
       </span>
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">

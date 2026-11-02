@@ -10,6 +10,7 @@ const openSection = ref<AdminTabId | null>(props.active.tab)
 
 const icons: Record<AdminTabId, string> = {
   dashboard: 'lucide:layout-dashboard',
+  guide: 'lucide:tv',
   library: 'lucide:library',
   providers: 'lucide:plug',
   requests: 'lucide:message-square',
@@ -21,6 +22,7 @@ const icons: Record<AdminTabId, string> = {
 
 const pageIcons: Record<AdminPageId, string> = {
   overview: 'lucide:layout-dashboard',
+  guide: 'lucide:calendar-days',
   libraries: 'lucide:library',
   tasks: 'lucide:list-checks',
   media: 'lucide:film',
@@ -32,6 +34,7 @@ const pageIcons: Record<AdminPageId, string> = {
   notifications: 'lucide:bell',
   smtp: 'lucide:mail',
   apikeys: 'lucide:key-round',
+  ai: 'lucide:brain-circuit',
   plugins: 'lucide:puzzle',
   server: 'lucide:server',
   users: 'lucide:users-round',

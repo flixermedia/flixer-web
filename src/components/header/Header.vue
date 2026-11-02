@@ -1,156 +1,198 @@
 <script setup lang="ts">
-import { openModal } from '@kolirt/vue-modal'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
-import logoUrl from '../../../resources/logo/flixer-logo.svg'
-import { isActivePath } from '../../composables/homeNav'
-import { useProfile } from '../../composables/useProfile'
-import type { NavLink } from '../../types/media'
-import ChatButton from './ChatButton.vue'
-import NotificationBell from './NotificationBell.vue'
-import PartyButton from './PartyButton.vue'
-import LanguageModal from '../ui/LanguageModal.vue'
-import ThemeModal from '../ui/ThemeModal.vue'
-import UserAvatar from '../ui/UserAvatar.vue'
+import { openModal } from "@kolirt/vue-modal";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { RouterLink, useRoute } from "vue-router";
+import logoUrl from "../../../resources/logo/flixer-logo.svg";
+import { isActivePath } from "../../composables/homeNav";
+import { useProfile } from "../../composables/useProfile";
+import { nativeNavigationEnabled } from "../../platform/nativeNavigation";
+import type { NavLink } from "../../types/media";
+import ChatButton from "./ChatButton.vue";
+import NotificationBell from "./NotificationBell.vue";
+import PartyButton from "./PartyButton.vue";
+import LanguageModal from "../ui/LanguageModal.vue";
+import ThemeModal from "../ui/ThemeModal.vue";
+import UserAvatar from "../ui/UserAvatar.vue";
 
 const props = withDefaults(
-  defineProps<{
-    links: NavLink[]
-    isSigningOut: boolean
-    navPosition?: 'center' | 'start'
-    navBackground?: boolean
-    docked?: boolean
-  }>(),
-  { navPosition: 'center', navBackground: true, docked: false },
-)
+	defineProps<{
+		links: NavLink[];
+		isSigningOut: boolean;
+		navPosition?: "center" | "start";
+		navBackground?: boolean;
+		docked?: boolean;
+		disableScrollCollapse?: boolean;
+	}>(),
+	{ navPosition: "center", navBackground: true, docked: false, disableScrollCollapse: false },
+);
 
-const emit = defineEmits<{ logout: [] }>()
+const emit = defineEmits<{ logout: [] }>();
 
-const { t } = useI18n()
-const { profile, load: loadProfile } = useProfile()
-const menuOpen = ref(false)
-const scrolledPast = ref(false)
-const scrolled = computed(() => props.docked || scrolledPast.value)
-const menuRoot = ref<HTMLElement | null>(null)
-const route = useRoute()
+const { t } = useI18n();
+const { profile, load: loadProfile } = useProfile();
+const menuOpen = ref(false);
+const scrolledPast = ref(false);
+const scrolled = computed(() => props.docked || (!props.disableScrollCollapse && scrolledPast.value));
+const menuRoot = ref<HTMLElement | null>(null);
+const menuPanel = ref<HTMLElement | null>(null);
+const route = useRoute();
 
 function openLanguage() {
-  menuOpen.value = false
-  void openModal(LanguageModal).catch(() => undefined)
+	menuOpen.value = false;
+	void openModal(LanguageModal).catch(() => undefined);
 }
 
 function openTheme() {
-  menuOpen.value = false
-  void openModal(ThemeModal).catch(() => undefined)
+	menuOpen.value = false;
+	void openModal(ThemeModal).catch(() => undefined);
 }
 
 function onScroll() {
-  scrolledPast.value = window.scrollY > 24
+	scrolledPast.value = window.scrollY > 24;
 }
 
 function onPointerDown(event: PointerEvent) {
-  if (menuOpen.value && menuRoot.value && !menuRoot.value.contains(event.target as Node)) {
-    menuOpen.value = false
-  }
+	const target = event.target as Node;
+	if (menuOpen.value && !menuRoot.value?.contains(target) && !menuPanel.value?.contains(target)) {
+		menuOpen.value = false;
+	}
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    menuOpen.value = false
-  }
+	if (event.key === "Escape") {
+		menuOpen.value = false;
+	}
 }
 
 onMounted(() => {
-  void loadProfile()
-  onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true })
-  document.addEventListener('pointerdown', onPointerDown)
-  document.addEventListener('keydown', onKeydown)
-})
+	void loadProfile();
+	onScroll();
+	window.addEventListener("scroll", onScroll, { passive: true });
+	document.addEventListener("pointerdown", onPointerDown);
+	document.addEventListener("keydown", onKeydown);
+});
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', onScroll)
-  document.removeEventListener('pointerdown', onPointerDown)
-  document.removeEventListener('keydown', onKeydown)
-})
+	window.removeEventListener("scroll", onScroll);
+	document.removeEventListener("pointerdown", onPointerDown);
+	document.removeEventListener("keydown", onKeydown);
+});
 
-const iconButton = 'grid size-10 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent'
+const iconButton = "grid size-10 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent";
 </script>
 
 <template>
-  <header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="scrolled ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
-    <nav data-haptic class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'md:grid-cols-[auto_auto_1fr]' : 'md:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded-lg border-white/10 bg-flixer-background/30']" :aria-label="t('header.mainNavigation')">
-      <RouterLink class="flex items-center gap-2.5 justify-self-start rounded-lg pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
-        <img :src="logoUrl" alt="" class="size-10" />
-        <span class="text-xl font-semibold tracking-tight text-white">Flixer</span>
-      </RouterLink>
+	<header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="scrolled ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
+		<nav data-haptic class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'lg:grid-cols-[auto_auto_1fr]' : 'lg:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded border-white/10 bg-flixer-background/30']" :aria-label="t('header.mainNavigation')">
+			<RouterLink class="flex items-center gap-2.5 justify-self-start rounded pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
+				<img :src="logoUrl" alt="" class="size-10" />
+				<span class="text-xl font-semibold tracking-tight text-white">Flixer</span>
+			</RouterLink>
 
-      <div class="hidden md:block" :class="navPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
-        <slot name="nav">
-          <ul v-if="links.length" class="flex items-center gap-1 rounded-lg p-1" :class="navBackground ? 'bg-white/5' : ''">
-            <li v-for="link in links" :key="link.to">
-              <RouterLink :to="link.to" class="block rounded-md px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'bg-white/15 text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
-            </li>
-          </ul>
-        </slot>
-      </div>
+			<div class="hidden lg:block" :class="navPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
+				<slot name="nav">
+					<ul v-if="links.length" class="flex items-center gap-1 rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
+						<li v-for="link in links" :key="link.to">
+							<RouterLink :to="link.to" class="block rounded px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'bg-white/15 text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
+						</li>
+					</ul>
+				</slot>
+			</div>
 
-      <div class="flex items-center justify-self-end gap-1">
-        <RouterLink :to="{ name: 'search' }" :class="iconButton" :aria-label="t('header.search')">
-          <Icon icon="lucide:search" class="size-5" aria-hidden="true" />
-        </RouterLink>
+			<div class="flex items-center justify-self-end gap-1">
+				<RouterLink :to="{ name: 'search' }" :class="`hidden lg:grid ${iconButton}`" :aria-label="t('header.search')">
+					<Icon icon="lucide:search" class="size-5" aria-hidden="true" />
+				</RouterLink>
 
-        <ChatButton :button-class="`relative ${iconButton}`" />
+				<ChatButton :button-class="`hidden lg:grid relative ${iconButton}`" />
 
-        <PartyButton :button-class="`relative ${iconButton}`" />
+				<PartyButton :button-class="`relative ${iconButton}`" />
 
-        <NotificationBell :button-class="`relative ${iconButton}`" />
+				<NotificationBell :button-class="`relative ${iconButton}`" />
 
-        <div ref="menuRoot" class="relative">
-          <button type="button" class="grid size-10 place-items-center rounded-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-            <span class="block size-10 overflow-hidden rounded-lg text-sm">
-              <UserAvatar :avatar-url="profile?.avatarUrl" :name="profile?.displayName" />
-            </span>
-          </button>
+				<div ref="menuRoot" class="relative">
+					<button type="button" class="grid size-10 place-items-center rounded transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+						<span class="block size-10 overflow-hidden rounded text-sm">
+							<UserAvatar :avatar-url="profile?.avatarUrl" :name="profile?.displayName" />
+						</span>
+					</button>
 
-          <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="translate-y-1 opacity-0" leave-active-class="transition duration-100 ease-in" leave-to-class="translate-y-1 opacity-0">
-            <div v-if="menuOpen" class="absolute right-0 top-full mt-3 w-56 origin-top-right rounded-lg border border-white/10 bg-flixer-surface/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl" role="menu">
-              <div v-if="profile" class="px-3 py-2.5">
-                <p class="truncate text-sm font-semibold text-white">{{ profile.displayName }}</p>
-                <p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
-              </div>
-              <div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
-              <RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.profile') }}</RouterLink>
-              <RouterLink to="/people" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.people') }}</RouterLink>
-              <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t('header.language') }}</button>
-              <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t('header.theme') }}</button>
-              <RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.administration') }}</RouterLink>
-              <RouterLink to="/settings" class="flex items-center rounded-md px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t('header.settings') }}</RouterLink>
-              <div class="my-1.5 h-px bg-white/10"></div>
-              <button type="button" class="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
-                {{ isSigningOut ? t('header.signingOut') : t('header.signOut') }}
-              </button>
-            </div>
-          </Transition>
-        </div>
-      </div>
-    </nav>
-  </header>
+					<Teleport to="body" :disabled="!nativeNavigationEnabled">
+						<Transition enter-active-class="transition duration-150 ease-out" enter-from-class="translate-y-1 opacity-0" leave-active-class="transition duration-100 ease-in" leave-to-class="translate-y-1 opacity-0">
+							<div v-if="menuOpen" ref="menuPanel" class="w-56 origin-top-right rounded border border-white/10 bg-flixer-surface/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl" :class="nativeNavigationEnabled ? 'fixed right-4 z-[70]' : 'absolute right-0 top-full z-50 mt-3'" :style="nativeNavigationEnabled ? { top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' } : undefined" role="menu">
+								<div v-if="profile" class="px-3 py-2.5">
+									<p class="truncate text-sm font-semibold text-white">{{ profile.displayName }}</p>
+									<p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
+								</div>
+								<div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
+								<RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.profile") }}</RouterLink>
+								<RouterLink to="/people" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.people") }}</RouterLink>
+								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t("header.language") }}</button>
+								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t("header.theme") }}</button>
+								<RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.administration") }}</RouterLink>
+								<RouterLink to="/settings" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.settings") }}</RouterLink>
+								<div class="my-1.5 h-px bg-white/10"></div>
+								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
+									{{ isSigningOut ? t("header.signingOut") : t("header.signOut") }}
+								</button>
+							</div>
+						</Transition>
+					</Teleport>
+				</div>
+			</div>
+		</nav>
+	</header>
 </template>
 
 <style scoped>
 html.capacitor .app-header {
-  top: max(env(safe-area-inset-top, 0px), 3.5rem);
+	top: 0;
+	padding-top: env(safe-area-inset-top, 0px) !important;
 }
 
 html.capacitor .app-header.is-scrolled {
-  top: 0;
-  padding-top: max(env(safe-area-inset-top, 0px), 3.5rem);
-  background: var(--color-flixer-background);
+	top: 0;
+	padding-top: env(safe-area-inset-top, 0px) !important;
 }
 
 html.capacitor .app-header.is-scrolled nav {
-  padding-bottom: 10px;
+	padding-bottom: 10px;
+}
+
+@media (orientation: portrait) {
+	html.capacitor .app-header::before {
+		position: absolute;
+		inset: 0 0 auto;
+		z-index: -1;
+		height: max(env(safe-area-inset-top, 0px), 3rem);
+		background: var(--color-flixer-background);
+		content: "";
+		pointer-events: none;
+	}
+}
+
+@media (orientation: landscape) {
+	html.capacitor .app-header {
+		position: fixed !important;
+		top: 0 !important;
+		right: 0 !important;
+		left: 0 !important;
+		padding: 0 !important;
+		transition: none;
+	}
+
+	html.capacitor .app-header nav {
+		width: 100vw;
+		max-width: none;
+		margin-inline: 0;
+		padding-inline: max(6vw, env(safe-area-inset-left, 0px)) max(6vw, env(safe-area-inset-right, 0px));
+		border-radius: 0;
+		border-right: 0;
+		border-left: 0;
+		border-top: 0;
+		padding-bottom: 0 !important;
+		transition: none;
+	}
 }
 </style>

@@ -44,7 +44,7 @@ async function leave() {
     <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.members') }} · {{ party.party.value.members.length }}</p>
     <ul :aria-label="t('party.members')">
       <li v-for="member in party.party.value.members" :key="member.id">
-        <RouterLink :to="{ name: 'profile', params: { username: member.username } }" class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10">
+        <RouterLink :to="{ name: 'profile', params: { username: member.username } }" class="flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10">
           <span class="block size-6 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="member.avatarUrl" :name="member.displayName" class="text-[10px]" /></span>
           <span class="truncate">{{ member.displayName }}</span>
           <span v-if="member.id === party.party.value.host.id" class="ml-auto text-xs text-flixer-accent">{{ t('party.host') }}</span>
@@ -54,8 +54,8 @@ async function leave() {
 
     <div class="my-2 border-t border-flixer-border"></div>
 
-    <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10" @click="copyLink">{{ t('party.copyLink') }}</button>
-    <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="leave">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</button>
+    <button type="button" class="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10" @click="copyLink">{{ t('party.copyLink') }}</button>
+    <button type="button" class="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="leave">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</button>
     <p v-if="party.isGuest.value" class="px-3 pb-2 pt-2 text-xs text-flixer-muted">{{ t('party.guestHint') }}</p>
   </section>
 </template>

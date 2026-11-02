@@ -7,7 +7,7 @@ import MediaCard from '../components/home/MediaCard.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()
@@ -47,7 +47,7 @@ function subtitle(item: ExternalMediaCard) {
           <div class="mb-4 h-6 w-48 animate-pulse rounded bg-white/[0.07]" />
           <div class="flex gap-4 overflow-hidden">
             <div v-for="n in 6" :key="n" class="w-36 shrink-0 animate-pulse sm:w-44">
-              <div class="aspect-[2/3] rounded-xl bg-white/[0.06]" />
+              <div class="aspect-[2/3] rounded bg-white/[0.06]" />
               <div class="mt-3 h-3 rounded bg-white/[0.06]" />
             </div>
           </div>
@@ -67,7 +67,7 @@ function subtitle(item: ExternalMediaCard) {
           </ul>
         </section>
       </div>
-      <div v-else class="page-gutter mx-auto mt-10 max-w-4xl rounded-2xl border border-dashed border-flixer-border bg-flixer-surface/30 px-5 py-14 text-center">
+      <div v-else class="page-gutter mx-auto mt-10 max-w-4xl rounded border border-dashed border-flixer-border bg-flixer-surface/30 px-5 py-14 text-center">
         <p class="text-sm text-flixer-muted">{{ t('requests.noDiscover') }}</p>
       </div>
     </main>

@@ -1,14 +1,14 @@
+/// <reference types="@capawesome/capacitor-badge" />
+
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.flixermedia.flixer',
   appName: 'Flixer',
   webDir: 'dist',
-  iosScheme: 'https',
-  androidScheme: 'https',
   plugins: {
     TextInteraction: {
-      enabled: false,
+      enabled: true,
     },
     SplashScreen: {
       launchAutoHide: true,
@@ -16,6 +16,13 @@ const config: CapacitorConfig = {
       launchFadeOutDuration: 200,
       backgroundColor: '#080811',
       androidScaleType: 'CENTER_CROP',
+    },
+    LocalNotifications: {
+      presentationOptions: ['badge', 'sound', 'banner', 'list'],
+    },
+    Badge: {
+      persist: true,
+      autoClear: false,
     },
   },
   server: {

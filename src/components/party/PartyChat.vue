@@ -36,7 +36,7 @@ watch(input, (el) => el?.focus(), { once: true })
   <section class="flex size-full flex-col" :aria-label="t('party.chat')">
     <header class="flex items-center justify-between px-3 pb-1 pt-2">
       <h2 class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.chat') }}</h2>
-      <button type="button" class="grid size-7 place-items-center rounded-lg text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('party.chatClose')" @click="emit('close')">
+      <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('party.chatClose')" @click="emit('close')">
         <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
       </button>
     </header>
@@ -56,8 +56,8 @@ watch(input, (el) => el?.focus(), { once: true })
     </ol>
 
     <form class="flex gap-2 border-t border-flixer-border p-2" @submit.prevent="submit">
-      <input ref="input" v-model="draft" type="text" maxlength="500" autocomplete="off" class="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm text-flixer-text placeholder:text-flixer-muted focus:outline-2 focus:outline-flixer-accent" :placeholder="t('party.chatPlaceholder')" :aria-label="t('party.chatPlaceholder')" />
-      <button type="submit" class="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/85 disabled:opacity-40" :disabled="!draft.trim()">{{ t('party.chatSend') }}</button>
+      <input ref="input" v-model="draft" type="text" maxlength="500" autocomplete="off" class="min-w-0 flex-1 rounded bg-white/10 px-3 py-2 text-sm text-flixer-text placeholder:text-flixer-muted focus:outline-2 focus:outline-flixer-accent" :placeholder="t('party.chatPlaceholder')" :aria-label="t('party.chatPlaceholder')" />
+      <button type="submit" class="rounded bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/85 disabled:opacity-40" :disabled="!draft.trim()">{{ t('party.chatSend') }}</button>
     </form>
   </section>
 </template>

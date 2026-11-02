@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getSamplePlaybackInfo, getStreamInfo, listSampleVideos, type PlaybackInfo, type SampleVideo, type StreamInfo } from '../api'
 import Header from '../components/header/Header.vue'
 import VideoPlayer from '../components/player/VideoPlayer.vue'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
@@ -66,14 +66,14 @@ async function load() {
       <p class="mt-2 text-sm text-flixer-muted">{{ t('player.testDescription') }}</p>
 
       <div class="mt-6">
-        <select v-model="selectedId" class="min-w-72 rounded-lg border border-flixer-border bg-flixer-surface px-3 py-2 text-sm" :disabled="loading" @change="load">
+        <select v-model="selectedId" class="min-w-72 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm" :disabled="loading" @change="load">
           <option v-for="sample in samples" :key="sample.id" :value="sample.id">{{ sample.title }} ({{ sample.container }})</option>
         </select>
       </div>
 
       <p v-if="error" class="mt-4 text-sm text-red-400" role="alert">{{ error }}</p>
 
-      <div v-if="playback && info" class="mt-6 h-[calc(100vh-14rem)] min-h-80 w-full overflow-hidden rounded-xl border border-flixer-border bg-black">
+      <div v-if="playback && info" class="mt-6 h-[calc(100vh-14rem)] min-h-80 w-full overflow-hidden rounded border border-flixer-border bg-black">
         <VideoPlayer :stream-url="playback.mediaSource.streamUrl" :info="info" :title="selectedTitle" />
       </div>
 

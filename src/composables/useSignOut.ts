@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { logout } from '../api'
+import { clearAccessToken, logout } from '../api'
 import { i18n } from '../i18n'
 import { notify } from './notify'
 import { useAudioPlayer } from './useAudioPlayer'
@@ -20,34 +19,38 @@ function notifySignOutError(error: unknown) {
 }
 
 export function useSignOut() {
-  const router = useRouter()
   const isSigningOut = ref(false)
 
   async function signOut() {
     isSigningOut.value = true
 
     try {
+      let signOutError: unknown
+
       try {
         useAudioPlayer().stop()
         useVideoOverlay().close()
       } catch (error: unknown) {
-        notifySignOutError(error)
-        return
+        signOutError = error
       }
-      const [partyError] = await catchError(useParty().leave())
-      if (partyError) {
-        notifySignOutError(partyError)
-        return
-      }
+
+      const [partyError] = await catchError(Promise.resolve().then(() => useParty().leave()))
+      signOutError ??= partyError
+
       const [logoutError] = await catchError(logout())
-      if (logoutError) {
-        notifySignOutError(logoutError)
-        return
-      }
-      useProfile().clear()
-      clearPluginPages()
-      const [navigationError] = await catchError(router.replace({ name: 'login' }))
-      if (navigationError) notifySignOutError(navigationError)
+      signOutError ??= logoutError
+
+      const [cleanupError] = await catchError(
+        Promise.resolve().then(() => {
+          clearAccessToken()
+          useProfile().clear()
+          clearPluginPages()
+        }),
+      )
+      signOutError ??= cleanupError
+
+      if (signOutError) notifySignOutError(signOutError)
+      window.location.replace('/login')
     } finally {
       isSigningOut.value = false
     }

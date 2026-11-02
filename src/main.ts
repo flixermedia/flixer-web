@@ -12,11 +12,12 @@ import { AUTH_INVALID_EVENT } from './api'
 import { toastContainerOptions } from './composables/notify'
 import { initTheme } from './composables/useTheme'
 import { initButtonHaptics } from './platform/haptics'
-import { initNativeTextInteraction } from './platform/textInteraction'
+import { initNativeTextInteraction } from './platform/textInteraction.ts'
 import { NATIVE_PASSKEY_CALLBACK_SCHEME } from './platform/passkeyHandoff'
+import { initializeNativeNavigation } from './platform/nativeNavigation'
 import { i18n, initLocale, syncLocaleFromAccount } from './i18n'
 import { initMonitoring } from './monitoring'
-import router from './router'
+import router from './router/index.ts'
 import { restoreNativeAccount } from './platform/nativeAccount'
 import { catchError } from './utils/catchError'
 import './tailwind.css'
@@ -34,7 +35,7 @@ app.component('Icon', Icon)
 let lastPasskeyCallbackUrl = ''
 document.documentElement.classList.toggle('capacitor', Capacitor.isNativePlatform())
 initButtonHaptics()
-initNativeTextInteraction()
+await initNativeTextInteraction()
 initTheme()
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
@@ -91,6 +92,11 @@ if (Capacitor.isNativePlatform()) {
 app.mount('#app')
 if (Capacitor.isNativePlatform()) {
   await router.isReady()
+  try {
+    await initializeNativeNavigation(router)
+  } catch (error) {
+    console.error('[native-navigation] Could not initialize native navigation', error)
+  }
   if (launchUrl) await handleAppUrl(launchUrl)
   await SplashScreen.hide()
 }

@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { VideoPlayer, type VideoSubtitle, type capVideoPlayerResult } from '@capgo/capacitor-video-player'
 import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleTracks, type StreamInfo } from '../../api'
+import { preferredAudioTrack, selectedAudioStreamIndex } from '../../composables/audioTracks'
 import { catchError } from '../../utils/catchError'
 
 const props = withDefaults(
@@ -10,13 +11,15 @@ const props = withDefaults(
     streamUrl: string
     container: string
     info: StreamInfo
+    live?: boolean
+    defaultAudioLanguage?: string
     title?: string
     autoplay?: boolean
     startAt?: number
     nextLabel?: string
     locked?: boolean
   }>(),
-  { autoplay: true, startAt: 0 },
+  { autoplay: true, startAt: 0, defaultAudioLanguage: '' },
 )
 
 const emit = defineEmits<{
@@ -114,6 +117,7 @@ function subtitleUrl(streamUrl: string, id: string) {
 }
 
 async function loadSubtitleTracks(streamUrl: string): Promise<VideoSubtitle[]> {
+  if (props.live) return []
   const [error, tracks] = await catchError(Promise.resolve().then(() => getSubtitleTracks(streamUrl)))
   if (error) {
     console.error('Could not load native video subtitles', error)
@@ -237,19 +241,22 @@ async function loadPlayer(): Promise<Error | undefined> {
   seekOnReady = 0
   const start = props.locked ? 0 : Math.max(0, props.startAt)
   let url: string
+  const audioTrack = selectedAudioStreamIndex(props.info.source.audioTracks ?? [], preferredAudioTrack(props.info.source.audioTracks ?? [], props.defaultAudioLanguage)?.index ?? null)
 
   const container = props.container.toLowerCase()
   const videoCodec = props.info.source.videoCodec.toLowerCase()
   const audioCodec = props.info.source.audioCodec?.toLowerCase()
   const isKnownIosCompatibleSource = (container === 'mp4' || container === 'm4v') && videoCodec === 'h264' && (!audioCodec || audioCodec === 'aac')
-  const useIosHls = Capacitor.getPlatform() === 'ios' && !isKnownIosCompatibleSource
+  const useIosHls = !props.live && Capacitor.getPlatform() === 'ios' && !isKnownIosCompatibleSource
 
-  if (useIosHls) {
+  if (props.live) {
+    url = props.streamUrl
+  } else if (useIosHls) {
     // Use the streamer's H.264/AAC rendition unless the source is known to be AVPlayer-compatible.
-    url = buildHlsUrl(props.streamUrl)
+    url = buildHlsUrl(props.streamUrl, { audioTrack })
     seekOnReady = start
   } else if (props.info.playMethod === 'DirectPlay') {
-    url = props.streamUrl
+    url = buildStreamUrl(props.streamUrl, { audioTrack })
     seekOnReady = start
   } else {
     let serverStart = start
@@ -263,7 +270,7 @@ async function loadPlayer(): Promise<Error | undefined> {
         }
       }
     }
-    url = buildStreamUrl(props.streamUrl, { start: serverStart })
+    url = buildStreamUrl(props.streamUrl, { start: serverStart, audioTrack })
     offset = serverStart
     if (props.info.playMethod === 'DirectStream') seekOnReady = start - serverStart
   }
@@ -271,18 +278,22 @@ async function loadPlayer(): Promise<Error | undefined> {
   const subtitles = await loadSubtitleTracks(props.streamUrl)
   if (disposed) return
   playerOpen = true
-  const [initError, result] = await catchError(Promise.resolve().then(() => VideoPlayer.initPlayer({
-    playerId: PLAYER_ID,
-    mode: 'fullscreen',
-    url,
-    title: props.title,
-    subtitles,
-    exitOnEnd: !props.nextLabel,
-    loopOnEnd: false,
-    pipEnabled: true,
-    bkmodeEnabled: true,
-    showControls: true,
-  })))
+  const [initError, result] = await catchError(
+    Promise.resolve().then(() =>
+      VideoPlayer.initPlayer({
+        playerId: PLAYER_ID,
+        mode: 'fullscreen',
+        url,
+        title: props.title,
+        subtitles,
+        exitOnEnd: !props.nextLabel,
+        loopOnEnd: false,
+        pipEnabled: true,
+        bkmodeEnabled: true,
+        showControls: true,
+      }),
+    ),
+  )
   if (initError) return initError
   const [validationError] = await catchError(requireSuccess('initialize', result))
   return validationError
@@ -344,18 +355,36 @@ function applyRemote(state: { playing: boolean; position: number }) {
       remoteSeekTarget = target
       remoteSeekUntil = performance.now() + 10_000
       const localTarget = Math.max(0, target - offset)
-      if (!(await runRemoteCommand('remote seek', Promise.resolve().then(() => VideoPlayer.setCurrentTime({ ...PLAYER_ID_OPTIONS, seektime: localTarget }))))) return
+      if (
+        !(await runRemoteCommand(
+          'remote seek',
+          Promise.resolve().then(() => VideoPlayer.setCurrentTime({ ...PLAYER_ID_OPTIONS, seektime: localTarget })),
+        ))
+      )
+        return
       position.value = localTarget
     }
     if (state.playing && !playing.value) {
       remotePlaybackTarget = true
       remotePlaybackUntil = performance.now() + 10_000
-      if (!(await runRemoteCommand('remote play', Promise.resolve().then(() => VideoPlayer.play(PLAYER_ID_OPTIONS))))) return
+      if (
+        !(await runRemoteCommand(
+          'remote play',
+          Promise.resolve().then(() => VideoPlayer.play(PLAYER_ID_OPTIONS)),
+        ))
+      )
+        return
       playing.value = true
     } else if (!state.playing && playing.value) {
       remotePlaybackTarget = false
       remotePlaybackUntil = performance.now() + 10_000
-      if (!(await runRemoteCommand('remote pause', Promise.resolve().then(() => VideoPlayer.pause(PLAYER_ID_OPTIONS))))) return
+      if (
+        !(await runRemoteCommand(
+          'remote pause',
+          Promise.resolve().then(() => VideoPlayer.pause(PLAYER_ID_OPTIONS)),
+        ))
+      )
+        return
       playing.value = false
     }
     lastPolledPosition = absolutePosition()

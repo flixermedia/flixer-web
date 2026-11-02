@@ -47,7 +47,7 @@ async function save() {
       <TextInput v-model="newPassword" :label="t('settings.password.newPassword')" type="password" name="newPassword" autocomplete="new-password" minlength="8" maxlength="128" required />
       <TextInput v-model="confirmPassword" :label="t('settings.password.confirmPassword')" type="password" name="confirmPassword" autocomplete="new-password" minlength="8" maxlength="128" required />
 
-      <button type="submit" class="flex h-12 w-fit items-center justify-center rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary px-8 text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="isSaving">
+      <button type="submit" class="flex h-12 w-fit items-center justify-center rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary px-8 text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="isSaving">
         {{ isSaving ? t('settings.password.changing') : t('settings.password.title') }}
       </button>
     </form>

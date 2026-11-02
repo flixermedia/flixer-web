@@ -11,7 +11,7 @@ import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t, te } = useI18n()
@@ -90,10 +90,10 @@ onBeforeUnmount(() => controller?.abort())
           :has-image="hasImage"
           :width="256"
           :fallback="fallbackArt"
-          class="shrink-0 rounded-xl shadow-lg shadow-black/40"
+          class="shrink-0 rounded shadow-lg shadow-black/40"
           :class="isArtist ? 'size-40 sm:size-52' : 'aspect-[2/3] w-32 sm:w-44'"
         />
-        <Skeleton v-else-if="isLoading" class="aspect-[2/3] w-32 shrink-0 rounded-xl sm:w-44" />
+        <Skeleton v-else-if="isLoading" class="aspect-[2/3] w-32 shrink-0 rounded sm:w-44" />
         <div class="min-w-0">
           <h1 class="break-words text-3xl font-bold text-white sm:text-5xl">{{ name }}</h1>
           <template v-if="!isLoading && !notFound && !failed">

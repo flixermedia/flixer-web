@@ -9,7 +9,7 @@ import PluginSettingsPage from '../components/admin/PluginSettingsPage.vue'
 import Header from '../components/header/Header.vue'
 import { useAdminTabs } from '../composables/useAdminTabs'
 import { useAdminSidebar } from '../composables/useAdminSidebar'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 
 const route = useRoute()
 const router = useRouter()

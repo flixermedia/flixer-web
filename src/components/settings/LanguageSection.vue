@@ -17,7 +17,7 @@ const selected = computed({
     <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.language.description') }}</p>
     <label class="mt-6 block text-sm font-medium">
       {{ t('settings.language.label') }}
-      <select v-model="selected" class="mt-2 w-full rounded-lg border border-flixer-border bg-flixer-surface px-3 py-3 text-sm focus-visible:outline-2 focus-visible:outline-flixer-accent">
+      <select v-model="selected" class="mt-2 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-3 text-sm focus-visible:outline-2 focus-visible:outline-flixer-accent">
         <option v-for="o in options" :key="o.code" :value="o.code">{{ o.name }} ({{ o.code }})</option>
       </select>
     </label>

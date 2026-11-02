@@ -8,7 +8,7 @@ import AuthImage from '../components/ui/AuthImage.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { useParty } from '../composables/useParty'
 import { getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id: string }>()

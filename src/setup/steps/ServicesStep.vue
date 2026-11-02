@@ -38,7 +38,7 @@ defineExpose({ submit, canContinue })
       <TextInput v-model.trim="streamerInternalUrl" :label="t('setup.services.streamerInternalUrl')" :hint="fieldErrors.streamerInternalUrl" placeholder="http://streamer:8091" autocomplete="off" spellcheck="false" :disabled="busy" />
       <TextInput v-model.trim="streamerPublicUrl" :label="t('setup.services.streamerPublicUrl')" :hint="fieldErrors.streamerPublicUrl || t('setup.services.streamerPublicHint')" placeholder="Leave empty to use this site's address" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded-lg border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl" @click="test(values())">{{ t('setup.testConnection') }}</button>
+        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl" @click="test(values())">{{ t('setup.testConnection') }}</button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

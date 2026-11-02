@@ -6,7 +6,7 @@ import { createMediaRequest, deleteMediaRequest, getExternalMediaDetail, listReq
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { notify } from '../composables/notify'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import ClampedText from '../components/ui/ClampedText.vue'
 import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
@@ -101,14 +101,14 @@ watch(
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main v-if="loading" class="page-gutter pt-32" role="status" :aria-label="t('common.loading')" aria-busy="true">
       <div class="flex flex-col gap-6 sm:flex-row">
-        <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded-lg sm:w-56" />
+        <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded sm:w-56" />
         <div class="min-w-0 flex-1 space-y-3">
           <Skeleton class="h-9 w-2/3" />
           <Skeleton class="h-4 w-1/3" />
           <Skeleton class="mt-4 h-4 w-full" />
           <Skeleton class="h-4 w-full" />
           <Skeleton class="h-4 w-4/5" />
-          <Skeleton class="mt-4 h-11 w-36 rounded-lg" />
+          <Skeleton class="mt-4 h-11 w-36 rounded" />
         </div>
       </div>
     </main>
@@ -121,7 +121,7 @@ watch(
         <div class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
         <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44">
-          <div v-if="detail.poster || !detail.backdrop" class="w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56" :class="detail.type === 'music' ? 'aspect-square' : 'aspect-[2/3]'">
+          <div v-if="detail.poster || !detail.backdrop" class="w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56" :class="detail.type === 'music' ? 'aspect-square' : 'aspect-[2/3]'">
             <img v-if="detail.poster" :src="detail.poster" :alt="detail.title" class="size-full object-cover" />
             <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ detail.title }}</span>
           </div>
@@ -150,22 +150,22 @@ watch(
               <span class="font-medium text-flixer-text/80">{{ t('requests.cast') }}:</span> {{ detail.cast.join(' · ') }}
             </p>
 
-            <p v-if="!requestAllowed && !detail.libraryItemId && (activeStatus === 'none' || activeStatus === 'declined')" class="mt-4 max-w-xl rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-200">{{ config.config.value?.canRequest ? t('requests.quotaReached') : t('requests.notAllowed') }}</p>
+            <p v-if="!requestAllowed && !detail.libraryItemId && (activeStatus === 'none' || activeStatus === 'declined')" class="mt-4 max-w-xl rounded border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-200">{{ config.config.value?.canRequest ? t('requests.quotaReached') : t('requests.notAllowed') }}</p>
             <p v-else-if="config.config.value?.quota.remaining !== null && config.config.value?.quota.remaining !== undefined && !detail.libraryItemId" class="mt-4 text-xs text-flixer-muted">{{ t('requests.quotaHint', { remaining: config.config.value.quota.remaining }) }}</p>
 
             <div class="mt-6 flex flex-wrap items-center gap-3">
-              <RouterLink v-if="detail.libraryItemId" :to="{ name: 'media-item', params: { id: detail.libraryItemId } }" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <RouterLink v-if="detail.libraryItemId" :to="{ name: 'media-item', params: { id: detail.libraryItemId } }" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                 <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 {{ t('requests.play') }}
               </RouterLink>
-              <button v-else-if="activeStatus === 'none' || activeStatus === 'declined'" type="button" :disabled="!requestAllowed || submitting || (tv && selectedSeasons.length === 0)" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" @click="submit">
+              <button v-else-if="activeStatus === 'none' || activeStatus === 'declined'" type="button" :disabled="!requestAllowed || submitting || (tv && selectedSeasons.length === 0)" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" @click="submit">
                 <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
                 {{ submitting ? t('common.loading') : t('requests.request') }}
               </button>
-              <button v-else type="button" disabled aria-disabled="true" class="inline-flex cursor-default items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white/80">
+              <button v-else type="button" disabled aria-disabled="true" class="inline-flex cursor-default items-center gap-2 rounded border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white/80">
                 {{ t(`requests.status.${activeStatus}`) }}
               </button>
-              <button v-if="ownRequest?.status === 'pending'" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="cancelRequest">{{ t('requests.cancelRequest') }}</button>
+              <button v-if="ownRequest?.status === 'pending'" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="cancelRequest">{{ t('requests.cancelRequest') }}</button>
             </div>
           </div>
         </div>
@@ -175,9 +175,9 @@ watch(
         <section v-if="tv && detail.seasons?.length" :aria-label="t('requests.seasons')" class="page-gutter">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-xl font-semibold text-white">{{ t('requests.seasons') }}</h2>
-            <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"><input type="checkbox" class="size-4 rounded accent-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :checked="selectedAll" :aria-label="t('requests.selectAllSeasons')" @change="toggleAll(($event.target as HTMLInputElement).checked)" />{{ t('requests.selectAllSeasons') }}</label>
+            <label class="inline-flex cursor-pointer items-center gap-2 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"><input type="checkbox" class="size-4 rounded accent-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :checked="selectedAll" :aria-label="t('requests.selectAllSeasons')" @change="toggleAll(($event.target as HTMLInputElement).checked)" />{{ t('requests.selectAllSeasons') }}</label>
           </div>
-          <ul class="divide-y divide-flixer-border overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface/40">
+          <ul class="divide-y divide-flixer-border overflow-hidden rounded border border-flixer-border bg-flixer-surface/40">
             <li v-for="season in detail.seasons" :key="season.number" class="flex items-center gap-3 p-3" :class="season.status !== 'none' ? 'opacity-60' : ''">
               <input v-model="selectedSeasons" type="checkbox" :value="season.number" :disabled="season.status !== 'none'" :aria-label="season.name" class="size-4 shrink-0 rounded accent-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" />
               <span class="min-w-0 flex-1">
@@ -191,7 +191,7 @@ watch(
 
         <section v-if="detail.tracklist?.length" :aria-label="t('requests.tracklist')" class="page-gutter">
           <h2 class="mb-3 text-xl font-semibold text-white">{{ t('requests.tracklist') }}</h2>
-          <ol class="divide-y divide-flixer-border overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface/40">
+          <ol class="divide-y divide-flixer-border overflow-hidden rounded border border-flixer-border bg-flixer-surface/40">
             <li v-for="(track, index) in detail.tracklist" :key="track" class="flex gap-4 p-3 text-sm">
               <span class="w-6 text-right text-flixer-muted">{{ index + 1 }}</span>
               <span class="text-white">{{ track }}</span>
@@ -201,15 +201,15 @@ watch(
 
         <section v-if="config.config.value?.isAdmin && services.length" :aria-label="t('requests.advanced')" class="page-gutter">
           <h2 class="mb-3 text-xl font-semibold text-white">{{ t('requests.advanced') }}</h2>
-          <div class="grid gap-4 rounded-lg border border-flixer-border bg-flixer-surface/40 p-4 sm:grid-cols-2">
+          <div class="grid gap-4 rounded border border-flixer-border bg-flixer-surface/40 p-4 sm:grid-cols-2">
             <label class="text-xs font-medium text-flixer-muted"
               >{{ t('requests.server') }}
-              <select v-model="serviceId" class="mt-1.5 w-full rounded-lg border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <select v-model="serviceId" class="mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
                 <option value="">{{ t('requests.defaultServer') }}</option>
                 <option v-for="service in services" :key="service.id" :value="service.id">{{ service.name }}</option>
               </select>
             </label>
-            <label class="text-xs font-medium text-flixer-muted">{{ t('requests.rootFolder') }}<input v-model="rootFolder" class="mt-1.5 w-full rounded-lg border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent" /></label>
+            <label class="text-xs font-medium text-flixer-muted">{{ t('requests.rootFolder') }}<input v-model="rootFolder" class="mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent" /></label>
           </div>
         </section>
       </div>

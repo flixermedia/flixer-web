@@ -2,36 +2,11 @@
 import { startAuthentication, startRegistration, type PublicKeyCredentialCreationOptionsJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import { api, clearAccessToken } from './client'
 import { catchError } from '../utils/catchError'
-import type {
-  AuthResult,
-  AuthSession,
-  Passkey,
-  PasskeyRequired,
-  RegistrationStatus,
-  ServerSetting,
-  FlixerApiRouteBody,
-  FlixerApiRouteData,
-  UserPreferences,
-  UserPreferencesUpdate,
-  UserProfile,
-  VerificationPending,
-} from 'flixer-api-client'
-export type {
-  AuthResult,
-  AuthSession,
-  Passkey,
-  PasskeyRequired,
-  RegistrationStatus,
-  SettingRequestValue,
-  ServerSetting,
-  UserPreferences,
-  UserPreferencesUpdate,
-  UserProfile,
-  VerificationPending,
-} from 'flixer-api-client'
+import type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, ServerSetting, FlixerApiRouteBody, FlixerApiRouteData, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from 'flixer-api-client'
+export type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, SettingRequestValue, ServerSetting, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from 'flixer-api-client'
 
-export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean }
-export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null }
+export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; audioLanguage?: string }
+export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; audioLanguage?: string | null }
 
 export async function getPreferences(): Promise<AppPreferences> {
   const response = await api.get<AppPreferences>('/preferences')
@@ -127,10 +102,7 @@ export async function listSettings(): Promise<ServerSetting[]> {
   return response.data
 }
 
-export async function updateSetting(
-  key: string,
-  value: FlixerApiRouteBody<'put', '/settings/{param}'>['value'],
-): Promise<ServerSetting> {
+export async function updateSetting(key: string, value: FlixerApiRouteBody<'put', '/settings/{param}'>['value']): Promise<ServerSetting> {
   const request: FlixerApiRouteBody<'put', '/settings/{param}'> = { value }
   const response = await api.put<ServerSetting>(`/settings/${encodeURIComponent(key)}`, request)
   return response.data
@@ -197,10 +169,7 @@ export async function getNativePasskeyHandoffOptions(handoffId: string): Promise
   return response.data
 }
 
-export async function verifyNativePasskeyHandoff(
-  handoffId: string,
-  assertion: FlixerApiRouteBody<'post', '/auth/passkeys/native-handoff/verify'>['response'],
-): Promise<FlixerApiRouteData<'post', '/auth/passkeys/native-handoff/verify'>> {
+export async function verifyNativePasskeyHandoff(handoffId: string, assertion: FlixerApiRouteBody<'post', '/auth/passkeys/native-handoff/verify'>['response']): Promise<FlixerApiRouteData<'post', '/auth/passkeys/native-handoff/verify'>> {
   const request: FlixerApiRouteBody<'post', '/auth/passkeys/native-handoff/verify'> = { handoffId, response: assertion }
   const response = await api.post<FlixerApiRouteData<'post', '/auth/passkeys/native-handoff/verify'>>('/auth/passkeys/native-handoff/verify', request)
   return response.data

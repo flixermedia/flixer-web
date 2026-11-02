@@ -52,7 +52,7 @@ defineExpose({ submit, canContinue })
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="databaseUrl" :label="t('setup.database.url')" :hint="fieldErrors.databaseUrl || t('setup.database.hint')" placeholder="postgres://user:password@host:5432/flixer" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded-lg border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !databaseUrl" @click="test({ databaseUrl })">{{ t('setup.testConnection') }}</button>
+        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !databaseUrl" @click="test({ databaseUrl })">{{ t('setup.testConnection') }}</button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

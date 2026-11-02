@@ -68,7 +68,7 @@ async function updateFriend(username: string, accept: boolean) {
     <p class="mt-1 text-sm text-flixer-muted">{{ t('social.privacyDescription') }}</p>
     <label class="mt-5 block max-w-sm text-sm font-medium text-white" :class="{ 'opacity-60': !ready }">
       <span class="mb-2 block">{{ t('social.profileVisibility') }}</span>
-      <select :value="visibility" class="w-full rounded-lg border border-flixer-border bg-flixer-background px-3 py-2.5 text-sm text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :disabled="!ready || saving" @change="changeVisibility">
+      <select :value="visibility" class="w-full rounded border border-flixer-border bg-flixer-background px-3 py-2.5 text-sm text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :disabled="!ready || saving" @change="changeVisibility">
         <option value="public">{{ t('social.visibility.public') }}</option>
         <option value="friends">{{ t('social.visibility.friends') }}</option>
         <option value="hidden">{{ t('social.visibility.hidden') }}</option>

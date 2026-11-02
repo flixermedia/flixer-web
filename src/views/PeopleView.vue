@@ -8,7 +8,7 @@ import MobileTabBar from '../components/home/MobileTabBar.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 const { t } = useI18n()
 const { isSigningOut, signOut } = useSignOut()

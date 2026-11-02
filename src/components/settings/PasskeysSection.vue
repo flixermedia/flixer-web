@@ -118,7 +118,7 @@ onMounted(() => {
     <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.passkeys.description') }}</p>
 
     <div class="mt-6 flex flex-col gap-8">
-      <div class="flex items-center justify-between gap-4 rounded-lg border border-flixer-border bg-flixer-surface/60 p-4">
+      <div class="flex items-center justify-between gap-4 rounded border border-flixer-border bg-flixer-surface/60 p-4">
         <div>
           <h3 id="passkey-required-label" class="text-sm font-semibold">{{ t('settings.passkeys.requiredTitle') }}</h3>
           <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.passkeys.requiredDescription') }}</p>
@@ -129,7 +129,7 @@ onMounted(() => {
         </button>
       </div>
       <div>
-        <p v-if="!supported" class="rounded-lg border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-200" role="alert">{{ t('settings.passkeys.unsupported') }}</p>
+        <p v-if="!supported" class="rounded border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-200" role="alert">{{ t('settings.passkeys.unsupported') }}</p>
         <AddPasskeyForm v-else :is-registering="isRegistering" @add="handleAdd" />
       </div>
 

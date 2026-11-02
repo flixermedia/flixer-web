@@ -1,7 +1,11 @@
 import { computed, ref } from 'vue'
-import { deleteNotification, getAccessToken, getNotificationConfig, getPushPublicKey, getPushStatus, listNotifications, markNotificationsRead, removePushSubscription, savePushSubscription, type AppNotification, type NotificationConfig } from '../api'
+import type { PermissionState } from '@capacitor/core'
+import { AUTH_TOKEN_CHANGED_EVENT, deleteNotification, getAccessToken, getNotificationConfig, getPushPublicKey, getPushStatus, listNotifications, markNotificationsRead, removePushSubscription, savePushSubscription, type AppNotification, type NotificationConfig } from '../api'
 import { isNativeApp } from '../platform/serverConnection'
+import { checkNativeNotificationPermission, NATIVE_NOTIFICATIONS_ENABLED_KEY, newNotificationsSince, prepareNativeNotifications, requestNativeNotificationPermission, setNativeAppBadge, showNativeNotifications, supportsNativeLocalNotifications } from '../platform/nativeNotifications.ts'
 import { catchError } from '../utils/catchError'
+import { notify } from './notify'
+import { i18n } from '../i18n'
 
 const items = ref<AppNotification[]>([])
 const unread = ref(0)
@@ -12,8 +16,28 @@ const enabled = ref(true)
 const promptMode = ref<NotificationConfig['permissionPrompt']>('button')
 let promptedThisSession = false
 const permission = ref<NotificationPermission>(typeof Notification === 'undefined' ? 'denied' : Notification.permission)
+const nativeNotificationsSupported = supportsNativeLocalNotifications()
+const nativeNotificationsEnabled = ref(false)
+const nativeNotificationsBusy = ref(false)
+const nativeNotificationPermission = ref<PermissionState>('prompt')
+let observedNotificationIds = new Set<string>()
+let hasObservedNotifications = false
+let badgeSyncQueue = Promise.resolve()
+let badgeSyncQueueCount: number | undefined
 
 const pushSupported = !isNativeApp() && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined'
+
+function syncNativeBadge(count: number, force = false) {
+  if (!nativeNotificationsSupported || (!nativeNotificationsEnabled.value && !force)) return
+  if (badgeSyncQueueCount === count) return
+  badgeSyncQueueCount = count
+  badgeSyncQueue = badgeSyncQueue
+    .then(() => setNativeAppBadge(count))
+    .catch((error: unknown) => {
+      if (badgeSyncQueueCount === count) badgeSyncQueueCount = undefined
+      console.error('[notifications] native app badge update failed', error)
+    })
+}
 
 function keyBytes(base64Url: string): Uint8Array<ArrayBuffer> {
   const padded = base64Url
@@ -51,10 +75,84 @@ async function refresh() {
   try {
     const [error, result] = await catchError(listNotifications())
     if (error) return // The bell just keeps its last known state.
+    const newItems = hasObservedNotifications ? newNotificationsSince(observedNotificationIds, result.items) : []
+    observedNotificationIds = new Set(result.items.map((item) => item.id))
+    hasObservedNotifications = true
     items.value = result.items
     unread.value = result.unread
+    syncNativeBadge(result.unread)
+    if (nativeNotificationsEnabled.value && newItems.length > 0) {
+      const [localError] = await catchError(showNativeNotifications(newItems))
+      if (localError) {
+        console.error('[notifications] native local notification delivery failed', localError)
+        notify.error(i18n.global.t('notifications.localDeliveryError'))
+      }
+    }
   } finally {
     isLoading.value = false
+  }
+}
+
+async function refreshNativeNotificationState() {
+  if (!nativeNotificationsSupported) return
+  let saved = false
+  try {
+    saved = localStorage.getItem(NATIVE_NOTIFICATIONS_ENABLED_KEY) === 'true'
+  } catch (error) {
+    console.error('[notifications] native notification preference could not be read', error)
+  }
+  const [permissionError, status] = await catchError(checkNativeNotificationPermission())
+  if (permissionError) {
+    console.error('[notifications] native notification permission could not be checked', permissionError)
+    return
+  }
+  nativeNotificationPermission.value = status.display
+  nativeNotificationsEnabled.value = saved && status.display === 'granted'
+  if (nativeNotificationsEnabled.value) syncNativeBadge(unread.value)
+}
+
+async function enableNativeNotifications(): Promise<boolean> {
+  if (!nativeNotificationsSupported) return false
+  nativeNotificationsBusy.value = true
+  try {
+    const [permissionError, status] = await catchError(requestNativeNotificationPermission())
+    if (permissionError) {
+      console.error('[notifications] native notification permission request failed', permissionError)
+      notify.error(i18n.global.t('notifications.localPermissionError'))
+      return false
+    }
+    nativeNotificationPermission.value = status.display
+    if (status.display !== 'granted') return false
+    const [setupError] = await catchError(prepareNativeNotifications())
+    if (setupError) {
+      console.error('[notifications] native notification channel setup failed', setupError)
+      notify.error(i18n.global.t('notifications.localSetupError'))
+      return false
+    }
+    try {
+      localStorage.setItem(NATIVE_NOTIFICATIONS_ENABLED_KEY, 'true')
+    } catch (error) {
+      console.error('[notifications] native notification preference could not be saved', error)
+      notify.error(i18n.global.t('notifications.localSetupError'))
+      return false
+    }
+    nativeNotificationsEnabled.value = true
+    syncNativeBadge(unread.value)
+    return true
+  } finally {
+    nativeNotificationsBusy.value = false
+  }
+}
+
+function disableNativeNotifications() {
+  if (!nativeNotificationsSupported) return
+  syncNativeBadge(0, true)
+  try {
+    localStorage.setItem(NATIVE_NOTIFICATIONS_ENABLED_KEY, 'false')
+    nativeNotificationsEnabled.value = false
+  } catch (error) {
+    console.error('[notifications] native notification preference could not be saved', error)
+    notify.error(i18n.global.t('notifications.localSetupError'))
   }
 }
 
@@ -143,6 +241,7 @@ async function markAllRead() {
   if (unread.value === 0) return
   items.value = items.value.map((item) => ({ ...item, read: true }))
   unread.value = 0
+  syncNativeBadge(0)
   const [error] = await catchError(markNotificationsRead())
   if (error) await refresh()
 }
@@ -152,6 +251,7 @@ async function markRead(id: string) {
   if (!target || target.read) return
   target.read = true
   unread.value = Math.max(0, unread.value - 1)
+  syncNativeBadge(unread.value)
   const [error] = await catchError(markNotificationsRead([id]))
   if (error) await refresh()
 }
@@ -160,6 +260,7 @@ async function dismiss(id: string) {
   const target = items.value.find((item) => item.id === id)
   items.value = items.value.filter((item) => item.id !== id)
   if (target && !target.read) unread.value = Math.max(0, unread.value - 1)
+  syncNativeBadge(unread.value)
   const [error] = await catchError(deleteNotification(id))
   if (error) await refresh()
 }
@@ -171,6 +272,10 @@ export function useNotifications() {
     isLoading,
     hasUnread: computed(() => unread.value > 0),
     pushSupported,
+    nativeNotificationsSupported,
+    nativeNotificationsEnabled,
+    nativeNotificationsBusy,
+    nativeNotificationPermission,
     enabled,
     promptMode,
     loadConfig,
@@ -180,10 +285,20 @@ export function useNotifications() {
     permission,
     refresh,
     refreshPushState,
+    refreshNativeNotificationState,
+    enableNativeNotifications,
+    disableNativeNotifications,
     enablePush,
     disablePush,
     markAllRead,
     markRead,
     dismiss,
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, () => {
+    if (getAccessToken()) void refresh()
+    else if (nativeNotificationsEnabled.value) syncNativeBadge(0)
+  })
 }

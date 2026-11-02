@@ -61,11 +61,11 @@ function cancel() {
       <span class="text-flixer-accent">.</span>
     </h1>
     <p class="mt-2 text-sm leading-6 text-flixer-muted">{{ t('auth.nativePasskeyHandoffDescription') }}</p>
-    <p v-if="error" class="mt-4 rounded-lg border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-200" role="alert">{{ error }}</p>
+    <p v-if="error" class="mt-4 rounded border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-200" role="alert">{{ error }}</p>
 
-    <button class="mt-8 flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-60" type="button" :disabled="isSubmitting" @click="verify">
+    <button class="mt-8 flex h-12 w-full items-center justify-center rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-60" type="button" :disabled="isSubmitting" @click="verify">
       {{ isSubmitting ? t('auth.waitingForPasskey') : t('auth.continueWithPasskey') }}
     </button>
-    <button class="mt-3 flex h-12 w-full items-center justify-center rounded-lg border border-flixer-border text-sm font-semibold text-flixer-text transition hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" :disabled="isSubmitting" @click="cancel">{{ t('auth.backToSignIn') }}</button>
+    <button class="mt-3 flex h-12 w-full items-center justify-center rounded border border-flixer-border text-sm font-semibold text-flixer-text transition hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" :disabled="isSubmitting" @click="cancel">{{ t('auth.backToSignIn') }}</button>
   </div>
 </template>

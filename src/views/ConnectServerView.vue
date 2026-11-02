@@ -65,17 +65,17 @@ function resetServer() {
 
 <template>
   <main class="flex min-h-screen items-center justify-center bg-flixer-background px-5 py-10 text-flixer-text">
-    <section class="w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface/80 p-7 shadow-2xl sm:p-9" aria-labelledby="connect-title">
-      <img :src="logo" alt="" class="mx-auto mb-5 size-16 rounded-xl" aria-hidden="true" />
+    <section class="w-full max-w-md rounded border border-flixer-border bg-flixer-surface/80 p-7 shadow-2xl sm:p-9" aria-labelledby="connect-title">
+      <img :src="logo" alt="" class="mx-auto mb-5 size-16 rounded" aria-hidden="true" />
       <h1 id="connect-title" class="text-center text-2xl font-bold">{{ t('native.connectTitle') }}</h1>
       <p class="mt-3 text-center text-sm leading-6 text-flixer-muted">{{ t('native.connectDescription') }}</p>
 
       <form class="mt-7 space-y-4" @submit.prevent="connect">
         <label for="server-url" class="block text-sm font-medium">{{ t('native.serverUrlLabel') }}</label>
-        <input id="server-url" v-model="serverUrl" type="url" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" required placeholder="https://flixer.example.com" class="w-full rounded-xl border border-flixer-border bg-flixer-background px-4 py-3 text-flixer-text outline-none focus:border-flixer-accent" />
+        <input id="server-url" v-model="serverUrl" type="url" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" required placeholder="https://flixer.example.com" class="w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-flixer-text outline-none focus:border-flixer-accent" />
         <p class="text-xs leading-5 text-flixer-muted">{{ t('native.serverUrlHelp') }}</p>
         <p v-if="error" class="text-sm text-red-400" role="alert">{{ error }}</p>
-        <button type="submit" :disabled="isConnecting" class="w-full rounded-xl bg-flixer-primary px-5 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">
+        <button type="submit" :disabled="isConnecting" class="w-full rounded bg-flixer-primary px-5 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">
           {{ isConnecting ? t('native.connecting') : t('native.connectButton') }}
         </button>
       </form>

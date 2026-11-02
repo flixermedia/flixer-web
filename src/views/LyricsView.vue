@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-flixer-background/60 to-flixer-background"></div>
 
     <header class="relative shrink-0 flex items-center justify-between p-4 md:px-8">
-      <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close">
+      <button type="button" class="inline-flex items-center gap-2 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close">
         <Icon icon="lucide:chevron-down" class="size-4" aria-hidden="true" />
         {{ t('music.closeLyrics') }}
       </button>
@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
 
     <main class="relative flex min-h-0 flex-1 flex-col gap-6 px-4 md:flex-row md:items-start md:gap-12 md:pt-[12vh] md:px-12 lg:px-24">
       <div class="flex shrink-0 items-center gap-4 md:w-72 md:flex-col md:items-start lg:w-96">
-        <div class="aspect-square w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60 md:w-[min(100%,38vh)]">
+        <div class="aspect-square w-20 shrink-0 overflow-hidden rounded border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60 md:w-[min(100%,38vh)]">
           <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="512" :alt="current.album ?? current.title" />
         </div>
         <div class="min-w-0">

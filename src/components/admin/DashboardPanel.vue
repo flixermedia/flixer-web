@@ -25,7 +25,7 @@ import { DEFAULT_GRID, addWidget, isDefaultGrid, normalizeGrid, placeWidget, rem
 import ServerWidget from './dashboard/ServerWidget.vue'
 import StatsWidget from './dashboard/StatsWidget.vue'
 import StorageWidget from './dashboard/StorageWidget.vue'
-import AdminSkeleton from './AdminSkeleton.vue'
+import DashboardWidgetSkeleton from './DashboardWidgetSkeleton.vue'
 import LogsPanel from './LogsPanel.vue'
 import StreamSessionsPanel from './StreamSessionsPanel.vue'
 
@@ -38,6 +38,7 @@ const EXTRA_ROWS = 6
 
 const overview = ref<AdminOverview | null>(null)
 const isLoading = ref(true)
+const isLayoutLoading = ref(true)
 const loadError = ref('')
 
 const saved = ref<GridItem[]>(normalizeGrid(undefined))
@@ -232,6 +233,9 @@ onMounted(() => {
       if (!editing.value) saved.value = normalizeGrid(preferences.adminDashboardGrid)
     })
     .catch((error: unknown) => console.error('[dashboard] failed to load layout', error))
+    .finally(() => {
+      isLayoutLoading.value = false
+    })
 })
 
 onBeforeUnmount(() => stopGesture?.())
@@ -291,9 +295,9 @@ watch(live.data, (value) => {
         </div>
 
         <div :class="editing && 'pointer-events-none select-none'" class="h-full lg:*:h-full lg:*:overflow-auto" :inert="editing">
-          <template v-if="needsOverview(item.id)">
-            <AdminSkeleton v-if="!overview && isLoading" variant="stats" />
-            <component :is="COMPONENTS[item.id]" v-else-if="overview" :overview="overview" />
+          <DashboardWidgetSkeleton v-if="!overview && (isLoading || isLayoutLoading)" :widget="item.id" />
+          <template v-else-if="needsOverview(item.id)">
+            <component :is="COMPONENTS[item.id]" v-if="overview" :overview="overview" />
           </template>
           <component :is="STANDALONE[item.id]" v-else-if="standalone(item.id)" />
           <StreamSessionsPanel v-else-if="item.id === 'streams'" />

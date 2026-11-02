@@ -4,6 +4,7 @@ import type { AdminPageId } from './adminNav'
 const lazy = (load: () => Promise<{ default: Component }>) => defineAsyncComponent(load)
 
 const Dashboard = lazy(() => import('./DashboardPanel.vue'))
+const Guide = lazy(() => import('./GuidePanel.vue'))
 const Libraries = lazy(() => import('./LibrariesPanel.vue'))
 const IndexerQueues = lazy(() => import('./IndexerQueuesSection.vue'))
 const IndexerTasks = lazy(() => import('./IndexerTasksSection.vue'))
@@ -24,6 +25,7 @@ const Connections = lazy(() => import('./ConnectionsSection.vue'))
 const Search = lazy(() => import('./MediaSearchSettingsSection.vue'))
 const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
+const Ai = lazy(() => import('./AiPanel.vue'))
 const Plugins = lazy(() => import('./PluginsPanel.vue'))
 
 export interface PageBlock {
@@ -34,6 +36,7 @@ export interface PageBlock {
 /** What each page shows, top to bottom. */
 export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   overview: [{ component: Dashboard }],
+  guide: [{ component: Guide }],
   libraries: [{ component: Libraries }],
   tasks: [{ component: IndexerQueues }, { component: IndexerTasks }, { component: Tasks }],
   media: [{ component: Media }],
@@ -46,6 +49,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   smtp: [{ component: EmailSettings }],
   apikeys: [{ component: Devices, props: { part: 'keys' } }],
   server: [{ component: General }],
+  ai: [{ component: Ai }],
   users: [{ component: Users }, { component: Devices, props: { part: 'devices' } }],
   networking: [{ component: Networking }, { component: Connections }],
   search: [{ component: Search }],

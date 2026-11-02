@@ -1,5 +1,20 @@
 {
-  "singleQuote": true,
-  "semi": false,
-  "printWidth": 860
+  "singleQuote": false,
+  "semi": true,
+  "printWidth": 860,
+  "tabWidth": 4,
+  "useTabs": true,
+  "trailingComma": "all",
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": [
+        "tsconfig.json",
+        "tsconfig.*.json"
+      ],
+      "options": {
+        "parser": "jsonc"
+      }
+    }
+  ]
 }

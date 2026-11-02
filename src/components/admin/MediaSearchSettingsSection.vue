@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
         <span class="mt-1 block">{{ t('admin.search.urlHelp') }}</span>
       </label>
 
-      <div class="mt-5 rounded-lg border border-flixer-border bg-white/[0.03] p-4">
+      <div class="mt-5 rounded border border-flixer-border bg-white/[0.03] p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-sm font-semibold">{{ t('admin.search.statusTitle') }}</h3>
           <StatusPill :tone="connectionTone">{{ connectionLabel }}</StatusPill>
@@ -244,7 +244,7 @@ onBeforeUnmount(() => {
         </template>
       </div>
 
-      <div class="mt-4 rounded-lg border border-flixer-border bg-white/[0.03] p-4">
+      <div class="mt-4 rounded border border-flixer-border bg-white/[0.03] p-4">
         <h3 class="text-sm font-semibold">{{ t('admin.search.tasksTitle') }}</h3>
         <p v-if="status?.tasksError" role="alert" class="mt-3 break-words text-sm text-red-300">{{ t('admin.search.tasksError') }}: {{ status.tasksError }}</p>
         <p v-else-if="!status?.tasks.length" class="mt-3 text-sm text-flixer-muted">{{ t('admin.search.noTasks') }}</p>
@@ -293,7 +293,7 @@ onBeforeUnmount(() => {
     </template>
   </AdminSection>
   <div v-if="selectedTask" class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" @click.self="closeTask" @keydown.esc="closeTask">
-    <section class="theme-dark max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-flixer-border bg-flixer-surface p-5 shadow-2xl" role="dialog" aria-modal="true" :aria-label="t('admin.search.taskDetailsTitle', { id: selectedTask.uid })">
+    <section class="theme-dark max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded border border-flixer-border bg-flixer-surface p-5 shadow-2xl" role="dialog" aria-modal="true" :aria-label="t('admin.search.taskDetailsTitle', { id: selectedTask.uid })">
       <header class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold">{{ t('admin.search.taskDetailsTitle', { id: selectedTask.uid }) }}</h2>

@@ -22,7 +22,7 @@ import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
 
@@ -289,25 +289,25 @@ watch(
     <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main>
-      <div v-if="isLoading" class="page-gutter pt-32" role="status" :aria-label="t('mediaItem.loading')" aria-busy="true">
+      <div v-if="isLoading" class="media-item-state page-gutter pt-32" role="status" :aria-label="t('mediaItem.loading')" aria-busy="true">
         <div class="flex flex-col gap-6 sm:flex-row">
-          <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded-lg sm:w-56" />
+          <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded sm:w-56" />
           <div class="min-w-0 flex-1 space-y-3">
             <Skeleton class="h-9 w-2/3" />
             <Skeleton class="h-4 w-1/3" />
             <Skeleton class="mt-4 h-4 w-full" />
             <Skeleton class="h-4 w-full" />
             <Skeleton class="h-4 w-4/5" />
-            <Skeleton class="mt-4 h-11 w-36 rounded-lg" />
+            <Skeleton class="mt-4 h-11 w-36 rounded" />
           </div>
         </div>
       </div>
 
-      <div v-else-if="failure" class="page-gutter pt-32">
+      <div v-else-if="failure" class="media-item-state page-gutter pt-32">
         <h1 class="text-2xl font-semibold text-white">{{ failure === 'missing' ? t('mediaItem.notFound') : t('mediaItem.loadError') }}</h1>
         <div class="mt-4 flex gap-3">
-          <RouterLink to="/" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15">{{ t('mediaItem.backHome') }}</RouterLink>
-          <button v-if="failure === 'error'" type="button" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="load(String(route.params.id))">{{ t('home.retry') }}</button>
+          <RouterLink to="/" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15">{{ t('mediaItem.backHome') }}</RouterLink>
+          <button v-if="failure === 'error'" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="load(String(route.params.id))">{{ t('home.retry') }}</button>
         </div>
       </div>
 
@@ -320,12 +320,12 @@ watch(
           <div class="absolute inset-0 bg-gradient-to-t from-flixer-background" :class="usesBanner ? 'via-flixer-background/10 to-transparent' : 'via-flixer-background/70 to-flixer-background/30'"></div>
           <div v-if="!usesBanner" class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
-          <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly && !usesBanner ? 'bg-flixer-surface/20' : ''">
-            <div v-if="isMusic" class="aspect-square w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
+          <div class="media-item-hero relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44" :class="isPortraitOnly && !usesBanner ? 'bg-flixer-surface/20' : ''">
+            <div v-if="isMusic" class="aspect-square w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
               <AuthImage v-if="cover" scope="library" :item-id="cover.itemId" :index="cover.index" :version="cover.version" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
-            <div v-else-if="item.poster !== null || item.backdrop === null" class="aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
+            <div v-else-if="item.poster !== null || item.backdrop === null" class="aspect-[2/3] w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
               <AuthImage v-if="item.poster !== null" scope="library" :item-id="item.id" :index="item.poster" :version="item.updatedAt" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
@@ -359,25 +359,25 @@ watch(
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
 
               <div class="mt-6 flex flex-wrap items-center gap-3">
-                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
+                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('music.playAlbum') }}
                 </button>
-                <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
+                <button v-else-if="isTrack" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playTrackPage()">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
-                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
+                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
-                <button v-if="partyItemId" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
-                <button v-if="isMusic" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
-                <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
+                <button v-if="partyItemId" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
+                <button v-if="isMusic" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
+                <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
                   {{ itemWatched ? t('mediaItem.markUnwatched') : t('mediaItem.markWatched') }}
                 </button>
-                <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
+                <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
                   <Icon icon="lucide:captions" class="size-5" aria-hidden="true" />
                   {{ t('subtitles.manage') }}
                 </button>
@@ -389,7 +389,7 @@ watch(
         <div class="space-y-10 pt-4">
           <MediaRow v-if="playTarget && item.chapters.length > 0 && PLAYABLE.includes(item.type)" :title="t('mediaItem.chapters')">
             <li v-for="(chapter, index) in item.chapters" :key="chapter.startMs" class="shrink-0 snap-start">
-              <button type="button" class="group relative block aspect-video w-56 overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface text-left transition duration-300 hover:-translate-y-1 hover:border-white/30 hover:shadow-xl hover:shadow-black/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent sm:w-64" :style="chapterThumbStyle(chapter.startMs)" @click="play({ ...playTarget, startAt: chapter.startMs / 1000 })">
+              <button type="button" class="group relative block aspect-video w-56 overflow-hidden rounded border border-flixer-border bg-flixer-surface text-left transition duration-300 hover:-translate-y-1 hover:border-white/30 hover:shadow-xl hover:shadow-black/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent sm:w-64" :style="chapterThumbStyle(chapter.startMs)" @click="play({ ...playTarget, startAt: chapter.startMs / 1000 })">
                 <span class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                 <span class="absolute inset-x-0 bottom-0 p-3">
                   <span class="block truncate text-sm font-semibold text-white">{{ chapter.title || t('mediaItem.chapterN', { n: index + 1 }) }}</span>
@@ -402,7 +402,7 @@ watch(
           <section v-if="isShow && seasons.length > 0" :aria-label="t('mediaItem.seasons')" class="page-gutter">
             <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.seasons') }}</h2>
             <div class="flex flex-wrap gap-2" role="tablist">
-              <button v-for="(season, index) in seasons" :key="season.id" type="button" role="tab" :aria-selected="index === activeSeason" class="rounded-lg px-4 py-2 text-sm font-semibold transition" :class="index === activeSeason ? 'bg-white text-flixer-background' : 'bg-white/10 text-white hover:bg-white/15'" @click="activeSeason = index">
+              <button v-for="(season, index) in seasons" :key="season.id" type="button" role="tab" :aria-selected="index === activeSeason" class="rounded px-4 py-2 text-sm font-semibold transition" :class="index === activeSeason ? 'bg-white text-flixer-background' : 'bg-white/10 text-white hover:bg-white/15'" @click="activeSeason = index">
                 {{ seasonLabel(season) }}
               </button>
             </div>
@@ -410,7 +410,7 @@ watch(
 
           <section v-if="episodes.length > 0" :aria-label="listTitle" class="page-gutter">
             <h2 v-if="!isShow" class="mb-3 text-xl font-semibold text-white">{{ listTitle }}</h2>
-            <ul class="divide-y divide-flixer-border overflow-hidden rounded-lg border border-flixer-border bg-flixer-surface/40">
+            <ul class="divide-y divide-flixer-border overflow-hidden rounded border border-flixer-border bg-flixer-surface/40">
               <li v-for="episode in episodes" :key="episode.id" class="flex items-center transition motion-reduce:transition-none hover:bg-white/5">
                 <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                   <div v-if="episode.type !== 'track'" class="aspect-video w-32 shrink-0 overflow-hidden rounded bg-flixer-surface sm:w-44">
@@ -442,7 +442,7 @@ watch(
           <section v-if="item.cast.length > 0" :aria-label="t('mediaItem.cast')" class="page-gutter">
             <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.cast') }}</h2>
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <li v-for="person in item.cast" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded-lg border border-flixer-border bg-flixer-surface/40 px-3 py-2">
+              <li v-for="person in item.cast" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded border border-flixer-border bg-flixer-surface/40 px-3 py-2">
                 <PersonAvatar :person-id="person.id" :name="person.name" :has-image="person.hasImage" :width="40" class="size-10 shrink-0 rounded" />
                 <div class="min-w-0">
                   <RouterLink :to="{ name: 'person', params: { id: person.id } }" class="block truncate text-sm font-medium text-white hover:underline">{{ person.name }}</RouterLink>
@@ -455,7 +455,7 @@ watch(
           <section v-if="item.crew.length > 0" :aria-label="t('mediaItem.crew')" class="page-gutter">
             <h2 class="mb-3 text-xl font-semibold text-white">{{ t('mediaItem.crew') }}</h2>
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <li v-for="person in item.crew" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded-lg border border-flixer-border bg-flixer-surface/40 px-3 py-2">
+              <li v-for="person in item.crew" :key="`${person.name}-${person.role}`" class="flex items-center gap-3 rounded border border-flixer-border bg-flixer-surface/40 px-3 py-2">
                 <PersonAvatar :person-id="person.id" :name="person.name" :has-image="person.hasImage" :width="40" class="size-10 shrink-0 rounded" />
                 <div class="min-w-0">
                   <RouterLink :to="{ name: 'person', params: { id: person.id } }" class="block truncate text-sm font-medium text-white hover:underline">{{ person.name }}</RouterLink>
@@ -471,8 +471,23 @@ watch(
           </section>
         </div>
       </template>
+
     </main>
 
     <MobileTabBar :tabs="mobileTabs" />
   </div>
 </template>
+
+<style scoped>
+html.capacitor .media-item-hero,
+html.capacitor .media-item-state {
+  padding-top: max(10rem, calc(max(env(safe-area-inset-top, 0px), 3.5rem) + 6.5rem));
+}
+
+@media (min-width: 40rem) {
+  html.capacitor .media-item-hero,
+  html.capacitor .media-item-state {
+    padding-top: 11rem;
+  }
+}
+</style>

@@ -32,7 +32,7 @@ defineExpose({ submit, canContinue })
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="redisUrl" :label="t('setup.redis.url')" :hint="fieldErrors.redisUrl || t('setup.redis.hint')" placeholder="redis://redis:6379" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded-lg border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !redisUrl" @click="test({ redisUrl })">{{ t('setup.testConnection') }}</button>
+        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !redisUrl" @click="test({ redisUrl })">{{ t('setup.testConnection') }}</button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

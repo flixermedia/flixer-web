@@ -34,7 +34,7 @@ const date = () => now.value.toLocaleDateString(locale.value, { weekday: 'long',
           <p class="text-3xl font-light tabular-nums text-white/90">{{ time() }}</p>
           <p class="mt-1 text-sm text-flixer-muted">{{ date() }}</p>
         </div>
-        <div v-if="current && isPlaying" class="flex max-w-xs items-center gap-3 rounded-lg bg-white/5 p-2 pr-4 text-left backdrop-blur">
+        <div v-if="current && isPlaying" class="flex max-w-xs items-center gap-3 rounded bg-white/5 p-2 pr-4 text-left backdrop-blur">
           <div class="size-12 shrink-0 overflow-hidden rounded bg-flixer-surface">
             <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="96" alt="" />
           </div>

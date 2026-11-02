@@ -1,13 +1,14 @@
 /** Each top-level tab holds one or more pages. The first page is the tab's own; the others appear in its dropdown. */
 export const ADMIN_TABS = {
   dashboard: ['overview'],
+  guide: ['guide'],
   library: ['libraries', 'tasks', 'media', 'transcoding'],
   providers: ['metadata', 'subtitles', 'themes'],
   requests: ['requests'],
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
   plugins: ['plugins'],
-  settings: ['server', 'users', 'networking', 'search', 'updates', 'backups'],
+  settings: ['server', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS

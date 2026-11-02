@@ -7,10 +7,10 @@ import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getHomeContent, setItemWatched, type HomeContent } from '../api'
+import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation } from '../api'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { notify } from '../composables/notify'
-import { useSignOut } from '../composables/useSignOut'
+import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
@@ -19,12 +19,16 @@ const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const content = ref<HomeContent | null>(null)
+const recommendations = ref<HomeRecommendation[]>([])
+const recommendationsLoading = ref(false)
+const musicRecommendations = ref<HomeMusicRecommendation[]>([])
+const musicRecommendationsLoading = ref(false)
 const isLoading = ref(true)
 const loadFailed = ref(false)
 
 const isEmpty = computed(() => {
   const home = content.value
-  return !!home && home.libraries.length === 0 && home.featured.length === 0 && home.recentMovies.length === 0 && home.recentShows.length === 0 && home.recentAlbums.length === 0
+  return !!home && !recommendationsLoading.value && !musicRecommendationsLoading.value && home.libraries.length === 0 && home.featured.length === 0 && home.continueWatching.length === 0 && home.recentMovies.length === 0 && home.recentShows.length === 0 && home.recentAlbums.length === 0 && recommendations.value.length === 0 && musicRecommendations.value.length === 0
 })
 
 // Libraries open the section that matches their content type.
@@ -46,11 +50,45 @@ async function markWatched(id: string) {
   home.recentMovies = home.recentMovies.filter((entry) => entry.id !== id)
   home.recentShows = home.recentShows.filter((entry) => entry.id !== id)
   home.featured = home.featured.filter((entry) => entry.id !== id)
+  recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
+  musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+}
+
+async function loadRecommendations() {
+  recommendationsLoading.value = true
+  try {
+    const [error, result] = await catchError(getHomeRecommendations())
+    if (error) {
+      (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
+      return
+    }
+    recommendations.value = result.enabled ? result.items : []
+  } finally {
+    recommendationsLoading.value = false
+  }
+}
+
+async function loadMusicRecommendations() {
+  musicRecommendationsLoading.value = true
+  try {
+    const [error, result] = await catchError(getHomeMusicRecommendations())
+    if (error) {
+      (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
+      return
+    }
+    musicRecommendations.value = result.enabled ? result.items : []
+  } finally {
+    musicRecommendationsLoading.value = false
+  }
 }
 
 async function load() {
   isLoading.value = true
   loadFailed.value = false
+  recommendations.value = []
+  musicRecommendations.value = []
+  recommendationsLoading.value = false
+  musicRecommendationsLoading.value = false
   try {
     const [error, home] = await catchError(getHomeContent())
     if (error) {
@@ -59,6 +97,8 @@ async function load() {
       return
     }
     content.value = home
+    void loadRecommendations()
+    void loadMusicRecommendations()
   } finally {
     isLoading.value = false
   }
@@ -79,7 +119,9 @@ onMounted(load)
 
       <div v-else-if="loadFailed" class="page-gutter py-10">
         <p class="text-sm text-flixer-muted">{{ t('home.loadError') }}</p>
-        <button type="button" class="mt-3 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
+        <button type="button"
+          class="mt-3 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+          @click="load">{{ t('home.retry') }}</button>
       </div>
 
       <div v-else-if="isEmpty" class="page-gutter py-10">
@@ -89,19 +131,50 @@ onMounted(load)
 
       <TransitionGroup v-else-if="content" tag="div" name="home-row" class="relative flex flex-col gap-8 pt-2">
         <MediaRow key="libraries" v-if="content.libraries.length > 0" :title="t('home.myMedia')">
-          <MediaCard v-for="library in content.libraries" :key="library.id" variant="library" :title="library.name" :to="libraryRoute(library.type)" :item-id="library.cover?.itemId" :image-index="library.cover?.index" :version="library.cover?.updatedAt" />
+          <MediaCard v-for="library in content.libraries" :key="library.id" variant="library" :title="library.name"
+            :to="libraryRoute(library.type)" :item-id="library.cover?.itemId" :image-index="library.cover?.index"
+            :version="library.cover?.updatedAt" />
         </MediaRow>
         <MediaRow key="continue" v-if="content.continueWatching.length > 0" :title="t('home.continueWatching')">
-          <MediaCard v-for="entry in content.continueWatching" :key="entry.id" variant="landscape" :title="entry.title" :subtitle="entry.subtitle ?? undefined" :to="{ name: 'media-item', params: { id: entry.id } }" :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt" :progress="entry.progress" markable @watched="markWatched(entry.id)" />
+          <MediaCard v-for="entry in content.continueWatching" :key="entry.id" variant="landscape" :title="entry.title"
+            :subtitle="entry.subtitle ?? undefined" :to="{ name: 'media-item', params: { id: entry.id } }"
+            :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt"
+            :progress="entry.progress" markable @watched="markWatched(entry.id)" />
+        </MediaRow>
+        <MediaRow key="recommendations" v-if="recommendations.length > 0 || recommendationsLoading"
+          :title="t('home.recommendedForYou')">
+          <template v-if="recommendationsLoading">
+            <li v-for="index in 6" :key="`ai-skeleton-${index}`"
+              class="aspect-[2/3] w-36 shrink-0 animate-pulse rounded bg-white/10 sm:w-44" />
+          </template>
+          <MediaCard v-for="item in recommendations" :key="item.id" :title="item.title"
+            :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
+            :version="item.updatedAt" />
         </MediaRow>
         <MediaRow key="movies" v-if="content.recentMovies.length > 0" :title="t('home.recentMovies')">
-          <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" markable @watched="markWatched(item.id)" />
+          <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title"
+            :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
+            :version="item.updatedAt" markable @watched="markWatched(item.id)" />
         </MediaRow>
         <MediaRow key="shows" v-if="content.recentShows.length > 0" :title="t('home.recentTvShows')">
-          <MediaCard v-for="item in content.recentShows" :key="item.id" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" markable @watched="markWatched(item.id)" />
+          <MediaCard v-for="item in content.recentShows" :key="item.id" :title="item.title"
+            :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
+            :version="item.updatedAt" markable @watched="markWatched(item.id)" />
+        </MediaRow>
+        <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0 || musicRecommendationsLoading"
+          :title="t('home.musicRecommendations')">
+          <template v-if="musicRecommendationsLoading">
+            <li v-for="index in 6" :key="`music-ai-skeleton-${index}`"
+              class="aspect-square w-36 shrink-0 animate-pulse rounded bg-white/10 sm:w-44" />
+          </template>
+          <MediaCard v-for="item in musicRecommendations" :key="item.id" variant="square" :title="item.title"
+            :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
+            :version="item.updatedAt" />
         </MediaRow>
         <MediaRow key="music" v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
-          <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title" :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster" :version="item.updatedAt" />
+          <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title"
+            :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
+            :version="item.updatedAt" />
         </MediaRow>
       </TransitionGroup>
     </main>
@@ -117,14 +190,18 @@ onMounted(load)
     transform 0.3s ease,
     opacity 0.25s ease;
 }
+
 .home-row-leave-active {
   position: absolute;
   inset-inline: 0;
 }
+
 .home-row-leave-to {
   opacity: 0;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .home-row-move,
   .home-row-leave-active {
     transition: none;

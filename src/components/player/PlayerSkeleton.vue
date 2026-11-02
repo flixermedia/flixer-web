@@ -17,7 +17,7 @@ const { t } = useI18n()
       <div class="size-16 animate-pulse rounded-full bg-white/10 motion-reduce:animate-none sm:size-20"></div>
     </div>
 
-    <div class="absolute bottom-28 right-4 flex h-10 w-36 animate-pulse items-center justify-between rounded-lg border border-white/15 bg-white/10 px-4 motion-reduce:animate-none sm:right-8">
+    <div class="absolute bottom-28 right-4 flex h-10 w-36 animate-pulse items-center justify-between rounded border border-white/15 bg-white/10 px-4 motion-reduce:animate-none sm:right-8">
       <div class="h-3 w-16 rounded bg-white/15"></div>
       <div class="h-4 w-3 rounded bg-white/20"></div>
     </div>

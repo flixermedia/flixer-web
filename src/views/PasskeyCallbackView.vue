@@ -76,11 +76,11 @@ async function completeHandoff() {
 
 <template>
   <main class="passkey-main grid min-h-[100dvh] place-items-center bg-flixer-background p-6 text-flixer-text">
-    <section class="w-full max-w-md rounded-2xl border border-flixer-border bg-flixer-surface p-6 text-center">
+    <section class="w-full max-w-md rounded border border-flixer-border bg-flixer-surface p-6 text-center">
       <p v-if="isCompleting" class="text-sm text-flixer-muted" role="status">{{ t('auth.passkeyHandoffCompleting') }}</p>
       <template v-else>
         <p class="text-sm text-flixer-muted" role="alert">{{ error }}</p>
-        <button type="button" class="mt-5 rounded-lg border border-flixer-border px-4 py-2 text-sm font-semibold hover:bg-white/5" @click="router.replace({ name: 'login' })">{{ t('auth.backToSignIn') }}</button>
+        <button type="button" class="mt-5 rounded border border-flixer-border px-4 py-2 text-sm font-semibold hover:bg-white/5" @click="router.replace({ name: 'login' })">{{ t('auth.backToSignIn') }}</button>
       </template>
     </section>
   </main>

@@ -33,8 +33,8 @@ onMounted(async () => {
 
 <template>
   <main class="grid min-h-screen place-items-center bg-flixer-background px-6 font-sans text-flixer-text">
-    <div class="w-full max-w-md rounded-2xl border border-flixer-border/70 bg-flixer-surface/70 p-8 text-center shadow-2xl">
-      <img :src="logo" alt="" class="mx-auto size-14 rounded-xl shadow-lg" aria-hidden="true" />
+    <div class="w-full max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-8 text-center shadow-2xl">
+      <img :src="logo" alt="" class="mx-auto size-14 rounded shadow-lg" aria-hidden="true" />
 
       <template v-if="status === 'loading'">
         <h1 class="mt-6 text-2xl font-semibold tracking-tight">{{ t('verify.verifying') }}</h1>
@@ -47,14 +47,14 @@ onMounted(async () => {
           <span class="text-flixer-accent">.</span>
         </h1>
         <p class="mt-2 text-sm text-flixer-muted">{{ t('verify.accountReady') }}</p>
-        <RouterLink :to="{ name: 'login' }" class="mt-8 flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110">{{ t('verify.goToSignIn') }}</RouterLink>
+        <RouterLink :to="{ name: 'login' }" class="mt-8 flex h-12 w-full items-center justify-center rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110">{{ t('verify.goToSignIn') }}</RouterLink>
       </template>
 
       <template v-else>
         <h1 class="mt-6 text-2xl font-semibold tracking-tight">{{ t('verify.failed') }}</h1>
         <p class="mt-2 text-sm text-rose-300" role="alert">{{ errorMessage }}</p>
         <p class="mt-2 text-xs text-flixer-muted">{{ t('verify.requestAnotherEmail') }}</p>
-        <RouterLink :to="{ name: 'login' }" class="mt-8 flex h-12 w-full items-center justify-center rounded-lg border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40">{{ t('verify.goToSignIn') }}</RouterLink>
+        <RouterLink :to="{ name: 'login' }" class="mt-8 flex h-12 w-full items-center justify-center rounded border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40">{{ t('verify.goToSignIn') }}</RouterLink>
       </template>
     </div>
   </main>

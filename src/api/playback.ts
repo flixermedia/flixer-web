@@ -8,28 +8,43 @@ export type { NextEpisode, PlaybackInfo, PlayerChapter, PlayerSegment, SampleVid
 
 export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
 
+export interface AudioTrack {
+  /** Absolute stream index reported by ffprobe and accepted by flixer-streamer. */
+  index: number
+  codec: string
+  language?: string
+  title?: string
+  channels?: number
+  default: boolean
+}
+
 export interface StreamInfo {
   playMethod: PlayMethod
-  source: { videoCodec: string; audioCodec?: string; width: number; height: number; durationSeconds: number }
+  source: { videoCodec: string; audioCodec?: string; audioTracks?: AudioTrack[]; width: number; height: number; durationSeconds: number }
   availableHeights: number[]
   /** Where a stream-copy stream requested at `start` really begins (the preceding keyframe). */
   keyframeStart?: number
 }
 
-export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number } = {}): string {
+export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number } = {}): string {
   const params = new URLSearchParams()
   if (options.height) params.set('height', String(options.height))
   if (options.start && options.start > 0) params.set('start', options.start.toFixed(2))
+  if (options.audioTrack !== undefined) params.set('audioTrack', String(options.audioTrack))
   const query = params.toString()
   return query ? `${streamUrl}?${query}` : streamUrl
 }
 
-export function buildHlsUrl(streamUrl: string, options: { height?: number } = {}): string {
+export function buildHlsUrl(streamUrl: string, options: { height?: number; audioTrack?: number } = {}): string {
   const base = `${streamUrl.replace('/streamer/stream/', '/streamer/hls/')}/index.m3u8`
-  return options.height ? `${base}?height=${options.height}` : base
+  const params = new URLSearchParams()
+  if (options.height) params.set('height', String(options.height))
+  if (options.audioTrack !== undefined) params.set('audioTrack', String(options.audioTrack))
+  const query = params.toString()
+  return query ? `${base}?${query}` : base
 }
 
-// Only WebKit plays HLS natively; Chromium browsers fall back to the progressive MP4/WebM stream.
+// WebKit can play HLS natively; Chromium browsers use hls.js when available.
 export function supportsNativeHls(): boolean {
   if (typeof document === 'undefined') return false
   const canPlay = document.createElement('video').canPlayType('application/vnd.apple.mpegurl')
@@ -37,7 +52,7 @@ export function supportsNativeHls(): boolean {
 }
 
 // The streamer is reached through the same-origin proxy (/streamer), not the Flixer API; the token in the URL is the credential.
-export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number } = {}): Promise<StreamInfo> {
+export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number } = {}): Promise<StreamInfo> {
   const url = buildStreamUrl(streamUrl.replace('/streamer/stream/', '/streamer/info/'), options)
   const response = await axios.get<StreamInfo>(url, { timeout: 20_000 })
   return response.data

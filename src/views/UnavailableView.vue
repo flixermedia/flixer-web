@@ -41,6 +41,6 @@ onBeforeUnmount(() => clearTimeout(timer))
       <h1 class="text-2xl font-semibold tracking-tight">{{ starting ? t('setup.unavailable.startingTitle') : t('setup.unavailable.title') }}</h1>
       <p class="mt-2 text-sm leading-6 text-flixer-muted" role="status">{{ starting ? t('setup.unavailable.startingDescription') : t('setup.unavailable.description') }}</p>
     </div>
-    <button type="button" class="h-11 rounded-lg bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="checking" @click="retry">{{ t('setup.retry') }}</button>
+    <button type="button" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="checking" @click="retry">{{ t('setup.retry') }}</button>
   </main>
 </template>

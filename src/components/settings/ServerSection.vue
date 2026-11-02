@@ -76,7 +76,7 @@ onMounted(load)
 
     <ListSkeleton v-if="isLoading" class="mt-6" />
     <ul v-else class="mt-6 flex max-w-2xl flex-col gap-3">
-      <li v-for="field in fields" :key="field.key" class="rounded-lg border border-flixer-border bg-flixer-surface/50 p-4">
+      <li v-for="field in fields" :key="field.key" class="rounded border border-flixer-border bg-flixer-surface/50 p-4">
         <div v-if="field.type === 'boolean'" class="flex items-center justify-between gap-4">
           <div>
             <p class="text-sm font-semibold">{{ t(field.labelKey) }}</p>
@@ -89,7 +89,7 @@ onMounted(load)
         <label v-else class="flex flex-col gap-2">
           <span class="text-sm font-semibold">{{ t(field.labelKey) }}</span>
           <span class="text-xs text-flixer-muted">{{ t(field.descriptionKey) }}</span>
-          <input type="text" :value="(values[field.key] as string | null) ?? ''" :disabled="savingKey === field.key" class="h-11 rounded-lg border border-flixer-border bg-flixer-background/60 px-3 text-sm text-flixer-text outline-none focus:border-flixer-accent/60 disabled:opacity-60" @change="saveText(field, $event)" />
+          <input type="text" :value="(values[field.key] as string | null) ?? ''" :disabled="savingKey === field.key" class="h-11 rounded border border-flixer-border bg-flixer-background/60 px-3 text-sm text-flixer-text outline-none focus:border-flixer-accent/60 disabled:opacity-60" @change="saveText(field, $event)" />
         </label>
       </li>
     </ul>

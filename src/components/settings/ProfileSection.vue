@@ -84,7 +84,7 @@ async function save() {
         <TextInput :model-value="profile?.username ?? ''" :label="t('settings.profile.username')" type="text" disabled />
         <TextInput v-model.trim="email" :label="t('settings.profile.email')" type="email" maxlength="254" autocomplete="email" autocapitalize="none" :hint="profile?.pendingEmail ? t('settings.profile.pendingEmailHint', { email: profile.pendingEmail }) : undefined" />
 
-        <button type="submit" class="flex h-12 w-fit items-center justify-center rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary px-8 text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="isSaving">
+        <button type="submit" class="flex h-12 w-fit items-center justify-center rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary px-8 text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="isSaving">
           {{ isSaving ? t('settings.profile.saving') : t('common.save') }}
         </button>
       </form>
@@ -94,10 +94,10 @@ async function save() {
 
     <PrivacySection />
 
-    <section class="rounded-lg border border-rose-400/20 bg-rose-400/5 p-5 lg:col-span-2" aria-labelledby="danger-heading">
+    <section class="rounded border border-rose-400/20 bg-rose-400/5 p-5 lg:col-span-2" aria-labelledby="danger-heading">
       <h2 id="danger-heading" class="text-lg font-semibold text-rose-200">{{ t('settings.profile.deleteAccountTitle') }}</h2>
       <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.profile.deleteAccountDescription') }}</p>
-      <button type="button" class="mt-4 flex h-11 items-center justify-center rounded-lg border border-rose-400/40 px-6 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300" @click="confirmDeleteAccount">{{ t('settings.profile.deleteAccountButton') }}</button>
+      <button type="button" class="mt-4 flex h-11 items-center justify-center rounded border border-rose-400/40 px-6 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300" @click="confirmDeleteAccount">{{ t('settings.profile.deleteAccountButton') }}</button>
     </section>
   </div>
 </template>

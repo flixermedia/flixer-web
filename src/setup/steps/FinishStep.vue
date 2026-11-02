@@ -47,7 +47,7 @@ defineExpose({ submit })
 <template>
   <StepFrame :title="t('setup.finish_.title')" :description="t('setup.finish_.description')">
     <ul class="flex flex-col gap-2" :aria-busy="busy">
-      <li v-for="item in summary" :key="item.label" class="flex items-center justify-between rounded-lg border border-flixer-border bg-flixer-surface/60 px-4 py-3 text-sm">
+      <li v-for="item in summary" :key="item.label" class="flex items-center justify-between rounded border border-flixer-border bg-flixer-surface/60 px-4 py-3 text-sm">
         <span>{{ item.label }}</span>
         <span :class="item.ok ? 'text-emerald-300' : 'text-amber-300'">{{ item.ok ? t('setup.finish_.configured') : t('setup.finish_.missing') }}</span>
       </li>

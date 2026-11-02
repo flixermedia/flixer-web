@@ -21,6 +21,6 @@ const emit = defineEmits<{ back: [] }>()
     </p>
     <p class="mt-4 text-xs text-flixer-muted">{{ t('auth.cantFindEmail') }}</p>
 
-    <button class="mt-8 flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" @click="emit('back')">{{ t('auth.goToSignIn') }}</button>
+    <button class="mt-8 flex h-12 w-full items-center justify-center rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" type="button" @click="emit('back')">{{ t('auth.goToSignIn') }}</button>
   </div>
 </template>

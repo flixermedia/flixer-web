@@ -20,7 +20,7 @@ withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [id: string] }>()
 const { t } = useI18n()
 
-const baseClass = 'shrink-0 rounded-md px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent'
+const baseClass = 'shrink-0 rounded px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent'
 const idleClass = 'text-flixer-text/70 hover:text-white'
 
 function isExternal(url: string): boolean {
@@ -29,7 +29,7 @@ function isExternal(url: string): boolean {
 </script>
 
 <template>
-  <div class="flex gap-1 overflow-x-auto rounded-lg p-1" :class="background && 'bg-white/5'" role="tablist" :aria-label="t('settings.tabs.ariaLabel')">
+  <div class="flex gap-1 overflow-x-auto rounded p-1" :class="background && 'bg-white/5'" role="tablist" :aria-label="t('settings.tabs.ariaLabel')">
     <template v-for="tab in tabs" :key="tab.id">
       <a v-if="tab.url && isExternal(tab.url)" :href="tab.url" :class="[baseClass, idleClass]">{{ tab.label }}</a>
       <RouterLink v-else-if="tab.url" :to="tab.url" :class="[baseClass, idleClass]">{{ tab.label }}</RouterLink>

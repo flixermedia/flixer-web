@@ -1,4 +1,4 @@
-import { openModal } from '@kolirt/vue-modal'
+import { ModalClosedError, openModal } from '@kolirt/vue-modal'
 import ConfirmModal from '../components/ui/ConfirmModal.vue'
 
 export interface ConfirmOptions {
@@ -9,6 +9,12 @@ export interface ConfirmOptions {
 
 /** Modal replacement for window.confirm; resolves true only when confirmed. */
 export async function confirmAction(message: string, options: ConfirmOptions = {}): Promise<boolean> {
-  const result = await openModal<boolean>(ConfirmModal, { props: { message, ...options } }).catch(() => false)
-  return result === true
+  try {
+    const result = await openModal<boolean>(ConfirmModal, { group: 'default', props: { message, ...options } })
+    return result === true
+  } catch (error) {
+    if (error instanceof ModalClosedError) return false
+    console.error('[confirm] Could not open confirmation modal', error)
+    return false
+  }
 }

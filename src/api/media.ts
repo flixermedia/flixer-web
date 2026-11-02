@@ -1,9 +1,14 @@
 /** Media-library browsing, item metadata, artwork, and network-share operations. */
-import { api } from './client'
+import { api, apiRequest } from './client'
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
 import type { BrowseKind, BrowseSort, HomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from 'flixer-api-client'
 export type { BrowseKind, BrowseSort, ContinueCard, HomeCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SubtitleFile, SubtitleSearchResult } from 'flixer-api-client'
 export type SearchFilters = ApiSearchFilters & { includeChildren?: boolean }
+
+export type HomeRecommendations = FlixerApiRouteData<'get', '/recommendations/home'>
+export type HomeRecommendation = HomeRecommendations['items'][number]
+export type HomeMusicRecommendation = HomeRecommendation
+export type HomeMusicRecommendations = { enabled: boolean; items: HomeMusicRecommendation[] }
 
 export type MediaItemChanges = Omit<ApiMediaItemChanges, 'providerIds'> & {
   providerIds?: Record<string, string | null>
@@ -88,6 +93,20 @@ export async function deleteItemSubtitle(id: string, file: string): Promise<void
 
 export async function getHomeContent(): Promise<HomeContent> {
   const response = await api.get<HomeContent>('/media/home')
+  return response.data
+}
+
+export async function getHomeRecommendations(): Promise<HomeRecommendations> {
+  const response = await api.get<HomeRecommendations>('/recommendations/home', { timeout: 125_000 })
+  return response.data
+}
+
+export async function getHomeMusicRecommendations(): Promise<HomeMusicRecommendations> {
+  const response = await apiRequest<HomeMusicRecommendations>({
+    method: 'GET',
+    url: '/recommendations/home/music',
+    timeout: 125_000,
+  })
   return response.data
 }
 

@@ -5,6 +5,98 @@ export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, Admin
 
 export type AdminScheduledTaskState = 'running' | 'queued' | 'completed' | 'failed' | 'cancelled' | 'never'
 
+export type AiProfile = 'auto' | 'classic' | 'micro' | 'mini'
+
+export interface AiAdminConfiguration {
+  enabled: boolean
+  profile: AiProfile
+  allowDownloads: boolean
+  cacheRefreshIntervalMinutes: number
+}
+
+export interface AiActivityEvent {
+  id: number
+  timestamp: string
+  level: string
+  message: string
+}
+
+export interface AiAdminStatus {
+  configuration: AiAdminConfiguration
+  available: boolean
+  error?: string | null
+  service: {
+    enabled: boolean
+    requestedProfile: string
+    activeProfile: string
+    modelReady: boolean
+    loadingProfile: string | null
+    downloadState: string
+    fallbackReason: string | null
+    allowDownloads: boolean
+    availableMemoryBytes: number
+    recommendationCache?: {
+      entries: number
+      refreshesInProgress: number
+      refreshIntervalMinutes: number
+    }
+  } | null
+  events: AiActivityEvent[]
+  nextEventId: number
+}
+
+export interface AiCachedRecommendationItem {
+  id: string
+  title: string
+  type: string | null
+  score: number
+  reason?: string | null
+}
+
+export interface AiCachedRecommendationSet {
+  key: string
+  items: AiCachedRecommendationItem[]
+}
+
+export interface AiRecommendationCacheUser {
+  userId: string
+  username: string
+  displayName: string
+  lastRefreshAt: string | null
+  entries: AiCachedRecommendationSet[]
+}
+
+export async function getAiAdminStatus(): Promise<AiAdminStatus> {
+  const response = await apiRequest<AiAdminStatus>({ method: 'GET', url: '/admin/ai/status' })
+  return response.data
+}
+
+export async function getAiRecommendationCaches(): Promise<AiRecommendationCacheUser[]> {
+  const response = await apiRequest<AiRecommendationCacheUser[]>({ method: 'GET', url: '/admin/ai/recommendations' })
+  return response.data
+}
+
+export async function forceRefreshAiRecommendations(userId: string): Promise<{ items: Array<{ id: string; score: number; reason?: string | null }> }> {
+  const response = await apiRequest<{ items: Array<{ id: string; score: number; reason?: string | null }> }>({
+    method: 'POST',
+    url: `/admin/ai/users/${encodeURIComponent(userId)}/recommendations/refresh`,
+  })
+  return response.data
+}
+
+export async function saveAiAdminConfiguration(configuration: AiAdminConfiguration): Promise<{ applied: boolean; configuration: AiAdminConfiguration }> {
+  const response = await apiRequest<{ applied: boolean; configuration: AiAdminConfiguration }>({
+    method: 'PUT',
+    url: '/admin/ai/configuration',
+    data: configuration,
+  })
+  return response.data
+}
+
+export async function retryAiModel(): Promise<void> {
+  await apiRequest({ method: 'POST', url: '/admin/ai/retry' })
+}
+
 export interface AdminScheduledTask {
   id: string
   name: string
