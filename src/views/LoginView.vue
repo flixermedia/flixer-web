@@ -10,6 +10,7 @@ import LoginForm from '../components/auth/LoginForm.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
 import VerificationNotice from '../components/auth/VerificationNotice.vue'
 import { notify } from '../composables/notify'
+import { clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { clearAccessToken, getAccessToken, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult } from '../api'
@@ -153,12 +154,24 @@ async function promptNativePasswordSave(username: string, password: string) {
   }
 }
 
-async function completeAuthentication(result: AuthResult, biometricCredentials?: { username: string; password: string }) {
+async function completeAuthentication(
+  result: AuthResult,
+  biometricCredentials?: { username: string; password: string },
+  chatHistoryPassword?: string,
+) {
+  clearChatMlsHistoryBackupPassword()
   try {
     useProfile().clear()
     saveAccessToken(result.accessToken)
   } catch (error) {
     return error instanceof Error ? error : new Error(String(error))
+  }
+  if (chatHistoryPassword) {
+    const [backupError] = await catchError(syncChatMlsHistoryBackup(result.user.id, chatHistoryPassword))
+    if (backupError) {
+      console.error('[chat encryption] account history could not be synchronized', backupError)
+      notify.error(backupError instanceof Error ? backupError.message : t('settings.chatEncryption.historySyncFailed'))
+    }
   }
   if (isNativeApp()) {
     if (!nativeUsername.value) {
@@ -227,7 +240,7 @@ async function handleLogin(credentials: { username: string; password: string; re
       return
     }
     await promptNativePasswordSave(credentials.username, credentials.password)
-    const authenticationError = await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined)
+    const authenticationError = await completeAuthentication(result, credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : undefined, credentials.password)
     if (authenticationError) handleLoginError(authenticationError)
   } finally {
     isSubmitting.value = false
@@ -270,7 +283,7 @@ async function handleSecondFactor() {
       return
     }
     passkeyTicket.value = ''
-    const authenticationError = await completeAuthentication(result, biometricCredentialsForSecondFactor.value ?? undefined)
+    const authenticationError = await completeAuthentication(result, biometricCredentialsForSecondFactor.value ?? undefined, lastCredentials?.password)
     if (authenticationError) {
       handleSecondFactorError(authenticationError)
       return
@@ -357,7 +370,7 @@ async function handleBiometricLogin() {
       passkeyTicket.value = result.ticket
       return
     }
-    const authenticationError = await completeAuthentication(result)
+    const authenticationError = await completeAuthentication(result, undefined, credentials.password)
     if (authenticationError) await handleBiometricLoginError(authenticationError)
   } finally {
     isSubmitting.value = false
@@ -405,7 +418,7 @@ async function handleRegistration(credentials: { username: string; password: str
       pendingVerificationEmail.value = result.email
       return
     }
-    const authenticationError = await completeAuthentication(result)
+    const authenticationError = await completeAuthentication(result, undefined, credentials.password)
     if (authenticationError) notify.error(getRequestErrorMessage(authenticationError, true))
   } finally {
     isSubmitting.value = false

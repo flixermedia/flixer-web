@@ -17,10 +17,7 @@ export function getNavLinks(): NavLink[] {
     { label: i18n.global.t('home.nav.music'), to: '/music' },
     { label: i18n.global.t('home.nav.guide'), to: '/guide' },
     ...(enabled.value
-      ? [
-          { label: i18n.global.t('requests.nav.discover'), to: '/discover' },
-          { label: i18n.global.t('requests.nav.requests'), to: '/requests' },
-        ]
+      ? [{ label: i18n.global.t('requests.nav.discover'), to: '/discover' }]
       : []),
     ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page) })),
   ]
@@ -39,10 +36,7 @@ export function getMobileTabs(): NavTab[] {
     { label: i18n.global.t('home.nav.guide'), to: '/guide', icon: 'lucide:calendar-days' },
     { label: i18n.global.t('home.nav.search'), to: '/search', icon: 'lucide:search' },
     ...(enabled.value
-      ? [
-          { label: i18n.global.t('requests.nav.discover'), to: '/discover', icon: 'lucide:sparkles' },
-          { label: i18n.global.t('requests.nav.requests'), to: '/requests', icon: 'lucide:clipboard-list' },
-        ]
+      ? [{ label: i18n.global.t('requests.nav.discover'), to: '/discover', icon: 'lucide:sparkles' }]
       : []),
     ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page), icon: PLUGIN_PAGE_ICON })),
   ]

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/locales/**'
-      - 'scripts/check-locales.mjs'
+      - 'scripts/check-locales.ts'
   push:
     branches:
       - main
@@ -19,4 +19,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/check-locales.mjs
+      - run: node --experimental-strip-types scripts/check-locales.ts

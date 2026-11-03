@@ -144,7 +144,7 @@ const hoverTime = ref<number | null>(null)
 // Hover previews; null until the streamer has sheets for this video.
 const trickplay = shallowRef<Trickplay | null>(null)
 const THUMB_WIDTH = 176
-let warmedSheets = false
+let warmedSheets = new Set<number>()
 
 let nativeStart = 0
 let hideTimer: ReturnType<typeof setTimeout> | undefined
@@ -257,16 +257,18 @@ async function loadTrickplay() {
   }
   const url = props.streamUrl
   trickplay.value = null
-  warmedSheets = false
+  warmedSheets = new Set()
   const loaded = await getTrickplay(url)
   if (url === props.streamUrl) trickplay.value = loaded
 }
 
-// Fetch every sheet once the viewer first points at the bar, so dragging never waits on an image.
-function warmTrickplay() {
-  if (warmedSheets || !trickplay.value) return
-  warmedSheets = true
-  for (let sheet = 0; sheet < trickplay.value.manifest.sheets; sheet++) new Image().src = trickplay.value.sheetUrl(sheet)
+// Warm only the image under the pointer; BIF-backed playlists expose one image per frame.
+function warmTrickplay(seconds: number) {
+  if (!trickplay.value) return
+  const sheet = thumbnailAt(trickplay.value.manifest, seconds, THUMB_WIDTH).sheet
+  if (warmedSheets.has(sheet)) return
+  warmedSheets.add(sheet)
+  new Image().src = trickplay.value.sheetUrl(sheet)
 }
 
 async function loadSubtitleTracks() {
@@ -880,7 +882,7 @@ function onBarMove(event: PointerEvent) {
   if (duration.value <= 0) return
   const time = timeFromPointer(event)
   hoverTime.value = time
-  warmTrickplay()
+  warmTrickplay(time)
   if (scrubbing.value) scrubTime.value = time
 }
 

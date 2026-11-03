@@ -379,7 +379,7 @@ export async function clearFailedIndexerTasks(queue: IndexerTaskQueueName): Prom
 }
 
 export async function clearAllFailedIndexerTasks(): Promise<number> {
-  const cleared = await Promise.all(INDEXER_TASK_QUEUES.map((queue) => clearFailedIndexerTasks(queue)))
+  const cleared = await Promise.all(INDEXER_QUEUES.map((queue) => clearFailedIndexerTasks(queue)))
   return cleared.reduce((total, count) => total + count, 0)
 }
 

@@ -6,6 +6,7 @@ import { RouterLink, useRoute } from "vue-router";
 import logoUrl from "../../../resources/logo/flixer-logo.svg";
 import { isActivePath } from "../../composables/homeNav";
 import { useProfile } from "../../composables/useProfile";
+import { useRequestsConfig } from "../../composables/useRequestsConfig";
 import { nativeNavigationEnabled } from "../../platform/nativeNavigation";
 import type { NavLink } from "../../types/media";
 import ChatButton from "./ChatButton.vue";
@@ -31,6 +32,7 @@ const emit = defineEmits<{ logout: [] }>();
 
 const { t } = useI18n();
 const { profile, load: loadProfile } = useProfile();
+const { enabled: requestsEnabled, load: loadRequestsConfig } = useRequestsConfig();
 const menuOpen = ref(false);
 const scrolledPast = ref(false);
 const scrolled = computed(() => props.docked || (!props.disableScrollCollapse && scrolledPast.value));
@@ -67,6 +69,7 @@ function onKeydown(event: KeyboardEvent) {
 
 onMounted(() => {
 	void loadProfile();
+	void loadRequestsConfig();
 	onScroll();
 	window.addEventListener("scroll", onScroll, { passive: true });
 	document.addEventListener("pointerdown", onPointerDown);
@@ -128,9 +131,12 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 								<div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
 								<RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.profile") }}</RouterLink>
 								<RouterLink to="/people" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.people") }}</RouterLink>
+								<RouterLink to="/issues" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("issues.myReports") }}</RouterLink>
+								<RouterLink v-if="requestsEnabled" to="/requests" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("requests.nav.requests") }}</RouterLink>
 								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t("header.language") }}</button>
 								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t("header.theme") }}</button>
 								<RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.administration") }}</RouterLink>
+								<RouterLink v-if="profile?.role === 'admin'" :to="{ name: 'admin', query: { tab: 'issues', page: 'tickets' } }" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.manageIssues") }}</RouterLink>
 								<RouterLink to="/settings" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.settings") }}</RouterLink>
 								<div class="my-1.5 h-px bg-white/10"></div>
 								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">

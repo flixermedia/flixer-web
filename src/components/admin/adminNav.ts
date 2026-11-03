@@ -5,6 +5,7 @@ export const ADMIN_TABS = {
   library: ['libraries', 'tasks', 'media', 'transcoding'],
   providers: ['metadata', 'subtitles', 'themes'],
   requests: ['requests'],
+  issues: ['tickets', 'issueReports'],
   notifications: ['notifications', 'smtp'],
   apikeys: ['apikeys'],
   plugins: ['plugins'],
@@ -47,6 +48,8 @@ const LEGACY: Record<string, AdminLocation> = {
   updates: { tab: 'settings', page: 'updates' },
   backups: { tab: 'settings', page: 'backups' },
   plugins: { tab: 'plugins', page: 'plugins' },
+  tickets: { tab: 'issues', page: 'tickets' },
+  issueReports: { tab: 'issues', page: 'issueReports' },
 }
 
 function text(value: unknown): string {
@@ -57,6 +60,8 @@ function text(value: unknown): string {
 export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): AdminLocation {
   const tab = text(tabQuery)
   const page = text(pageQuery)
+  if (tab === 'requests' && page === 'tickets') return { tab: 'issues', page: 'tickets' }
+  if (tab === 'settings' && page === 'issueReports') return { tab: 'issues', page: 'issueReports' }
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
     const pages = pagesOf(id) as readonly string[]

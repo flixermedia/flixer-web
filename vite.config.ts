@@ -59,7 +59,7 @@ const manifestOptions: Partial<ManifestOptions> | false = {
 }
 
 const workboxOptions: Partial<GenerateSWOptions> = {
-  globPatterns: ['**/*.{js,css,html,png,woff2}', 'favicon.svg', 'icons.svg'],
+  globPatterns: ['**/*.{js,css,html,png,woff2,mp3}', 'favicon.svg', 'icons.svg'],
   navigateFallback: '/index.html',
   navigateFallbackDenylist: [/^\/api\//],
   cleanupOutdatedCaches: true,
@@ -95,6 +95,17 @@ const workboxOptions: Partial<GenerateSWOptions> = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        app: 'index.html',
+        'push-sw': 'src/push-sw.ts',
+      },
+      output: {
+        entryFileNames: (chunk) => chunk.name === 'push-sw' ? 'push-sw.js' : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   resolve: {
     dedupe: ['vue', 'vue-router'],
     extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'],

@@ -15,7 +15,7 @@ const props = defineProps<{ itemId: string }>()
 
 defineOptions({ modalGroup: 'default' })
 
-const { close, confirm } = useModalContext<boolean>()
+const { close, confirm } = useModalContext<boolean | 'chapters'>()
 const { t } = useI18n()
 
 const ACCEPTED_IMAGES = 'image/png,image/jpeg,image/webp,image/gif'
@@ -44,12 +44,26 @@ const newProviderName = ref('')
 
 const inputClass = 'rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text'
 const hasSubtitles = computed(() => ['movie', 'episode', 'video'].includes(item.value?.type ?? ''))
+const hasChapterEditor = computed(() => ['movie', 'episode', 'video'].includes(item.value?.type ?? ''))
 
 const hasEpisodeNumbers = computed(() => item.value?.type === 'episode' || item.value?.type === 'track')
 const hasSeasonNumber = computed(() => item.value?.type === 'season' || item.value?.type === 'episode')
 const canSave = computed(() => title.value.trim().length > 0 && !saving.value)
 const images = computed(() => item.value?.images ?? [])
 const providerFields = computed(() => [...new Set([...COMMON_PROVIDER_IDS, ...Object.keys(providerIds.value)])])
+const hasUnsavedFormChanges = computed(() => {
+  if (!item.value) return false
+  const current = item.value
+  const previousOverview = typeof current.metadata.overview === 'string' ? current.metadata.overview : ''
+  return title.value.trim() !== current.title ||
+    (sortTitle.value.trim() || null) !== current.sortTitle ||
+    numberOrNull(year.value) !== current.year ||
+    numberOrNull(seasonNumber.value) !== current.seasonNumber ||
+    numberOrNull(episodeNumber.value) !== current.episodeNumber ||
+    numberOrNull(episodeEndNumber.value) !== current.episodeEndNumber ||
+    overview.value !== previousOverview ||
+    providerFields.value.some((provider) => (providerIds.value[provider]?.trim() ?? '') !== (current.providerIds[provider] ?? ''))
+})
 
 // A cleared number box is v-model.number's empty string; treat it as "no value".
 function numberOrNull(value: unknown): number | null {
@@ -186,6 +200,11 @@ async function removeImage(index: number) {
   }
 }
 
+async function openChapters() {
+  if (hasUnsavedFormChanges.value && !(await confirmAction(t('admin.media.chaptersDiscardWarning')))) return
+  confirm('chapters')
+}
+
 function imageLabel(image: MediaItemDetail['images'][number]) {
   const size = image.width && image.height ? ` · ${image.width}×${image.height}` : ''
   return `${t(`admin.media.imageTypes.${image.type}`, image.type)}${size}`
@@ -295,6 +314,7 @@ void load()
       </form>
 
       <div class="mt-5 flex shrink-0 justify-end gap-2">
+        <button v-if="hasChapterEditor" type="button" class="mr-auto rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="openChapters">{{ t('mediaItem.manageChapters') }}</button>
         <button v-if="item" type="submit" form="media-item-form" :disabled="!canSave" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50">{{ t('admin.media.save') }}</button>
         <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="changed ? confirm(true) : close()">{{ t('admin.media.cancel') }}</button>
       </div>

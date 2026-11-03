@@ -61,11 +61,11 @@ function onVolume(event: Event) {
 </script>
 
 <template>
-  <div v-if="visible && current" data-haptic class="fixed inset-x-0 bottom-[calc(var(--tabbar-height,0px)+0.5rem)] z-40 px-2 md:bottom-0 md:px-0" role="region" :aria-label="t('music.player')">
+  <div v-if="visible && current" data-haptic class="fixed inset-x-0 bottom-[calc(var(--tabbar-height,0px)+0.5rem)] z-40 px-4 lg:bottom-0 lg:px-0" role="region" :aria-label="t('music.player')">
     <div class="rounded border border-white/10 bg-flixer-surface/95 shadow-2xl shadow-black/60 backdrop-blur-xl md:rounded-none md:border-x-0 md:border-b-0">
-      <div class="mx-auto flex max-w-[110rem] items-center gap-3 p-2 md:gap-6 md:px-6">
-        <div class="flex min-w-0 flex-1 items-center gap-3 md:w-1/4 md:flex-none">
-          <div class="size-12 shrink-0 overflow-hidden rounded bg-flixer-background">
+      <div class="mx-auto flex max-w-[110rem] items-center gap-1 p-2 sm:gap-3 md:gap-6 md:px-6">
+        <div class="flex min-w-0 flex-1 items-center gap-2 md:w-1/4 md:flex-none md:gap-3">
+          <div class="size-9 shrink-0 overflow-hidden rounded bg-flixer-background md:size-12">
             <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="96" alt="" />
           </div>
           <div class="min-w-0">
@@ -81,15 +81,15 @@ function onVolume(event: Event) {
             <button type="button" class="hidden size-9 place-items-center rounded transition hover:bg-white/10 sm:grid" :class="shuffle ? 'text-flixer-accent' : 'text-white'" :aria-pressed="shuffle" :aria-label="t('music.shuffle')" @click="player.toggleShuffle()">
               <Icon icon="lucide:shuffle" class="size-5" aria-hidden="true" />
             </button>
-            <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('music.previous')" @click="player.previous()">
+            <button type="button" class="grid size-7 place-items-center rounded text-white transition hover:bg-white/10 sm:size-8 md:size-9" :aria-label="t('music.previous')" @click="player.previous()">
               <Icon icon="lucide:skip-back" class="size-5" aria-hidden="true" />
             </button>
-            <button type="button" class="grid size-10 place-items-center rounded bg-white text-flixer-background transition hover:bg-white/85" :aria-label="isPlaying ? t('music.pause') : t('music.play')" @click="player.toggle()">
+            <button type="button" class="grid size-8 place-items-center rounded bg-white text-flixer-background transition hover:bg-white/85 sm:size-9 md:size-10" :aria-label="isPlaying ? t('music.pause') : t('music.play')" @click="player.toggle()">
               <span v-if="isLoading" class="size-4 animate-spin rounded-full border-2 border-flixer-background/30 border-t-flixer-background" aria-hidden="true"></span>
               <Icon v-else-if="isPlaying" icon="lucide:pause" class="size-5" aria-hidden="true" />
               <Icon v-else icon="lucide:play" class="size-5" aria-hidden="true" />
             </button>
-            <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10 disabled:opacity-40" :disabled="!player.hasNext.value" :aria-label="t('music.next')" @click="player.next()">
+            <button type="button" class="grid size-7 place-items-center rounded text-white transition hover:bg-white/10 disabled:opacity-40 sm:size-8 md:size-9" :disabled="!player.hasNext.value" :aria-label="t('music.next')" @click="player.next()">
               <Icon icon="lucide:skip-forward" class="size-5" aria-hidden="true" />
             </button>
             <button type="button" class="hidden size-9 place-items-center rounded transition hover:bg-white/10 sm:grid" :class="repeat === 'off' ? 'text-white' : 'text-flixer-accent'" :aria-label="repeat === 'one' ? t('music.repeatOne') : repeat === 'all' ? t('music.repeatAll') : t('music.repeat')" @click="player.cycleRepeat()">
@@ -103,19 +103,19 @@ function onVolume(event: Event) {
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-1 md:w-1/4">
-          <button type="button" class="grid size-9 place-items-center rounded text-white transition hover:bg-white/10" :aria-label="t('social.addToPlaylistFor', { title: current.title })" :title="t('social.addToPlaylist')" @click="addCurrentToPlaylist">
+        <div class="flex items-center justify-end gap-0.5 sm:gap-1 md:w-1/4">
+          <button type="button" class="hidden size-8 place-items-center rounded text-white transition hover:bg-white/10 sm:grid md:size-9" :aria-label="t('social.addToPlaylistFor', { title: current.title })" :title="t('social.addToPlaylist')" @click="addCurrentToPlaylist">
             <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
           </button>
-          <button v-if="canParty" type="button" class="grid size-9 place-items-center rounded transition hover:bg-white/10 disabled:opacity-60" :class="hostingListen ? 'text-flixer-accent' : 'text-white'" :disabled="partyBusy" :aria-label="hostingListen ? t('party.copyLink') : t('party.startListen')" :title="hostingListen ? t('party.copyLink') : t('party.startListen')" @click="onParty">
+          <button v-if="canParty" type="button" class="hidden size-8 place-items-center rounded transition hover:bg-white/10 disabled:opacity-60 sm:grid md:size-9" :class="hostingListen ? 'text-flixer-accent' : 'text-white'" :disabled="partyBusy" :aria-label="hostingListen ? t('party.copyLink') : t('party.startListen')" :title="hostingListen ? t('party.copyLink') : t('party.startListen')" @click="onParty">
             <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
           </button>
-          <button type="button" class="grid h-9 place-items-center rounded px-3 text-sm font-semibold text-white transition hover:bg-white/10" :aria-label="t('music.lyrics')" @click="lyricsOpen = true">
+          <button type="button" class="grid size-7 place-items-center rounded text-sm font-semibold text-white transition hover:bg-white/10 sm:size-8 md:h-9 md:w-auto md:px-3" :aria-label="t('music.lyrics')" @click="lyricsOpen = true">
             <Icon icon="lucide:list-music" class="size-5 md:hidden" aria-hidden="true" />
             <span class="hidden md:inline">{{ t('music.lyrics') }}</span>
           </button>
           <input type="range" min="0" max="1" step="0.01" class="hidden h-1 w-24 cursor-pointer accent-flixer-accent lg:block" :aria-label="t('music.volume')" :value="volume" @input="onVolume" />
-          <button type="button" class="grid size-9 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('music.close')" @click="player.stop()">
+          <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white sm:size-8 md:size-9" :aria-label="t('music.close')" @click="player.stop()">
             <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
           </button>
         </div>

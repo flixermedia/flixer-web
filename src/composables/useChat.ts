@@ -1,11 +1,11 @@
 import { computed, ref } from 'vue'
-import { getAccessToken, getChatUnread, type ChatConversation, type ChatMessage } from '../api'
+import { getAccessToken, getChatUnread, type ChatConversation, type ChatMessageWithSequence } from '../api'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
 import { catchError } from '../utils/catchError'
 import { useNotifications } from './useNotifications.ts'
 import { useProfile } from './useProfile'
 
-export type ChatEvent = { type: 'message'; conversationId: string; message: ChatMessage } | { type: 'changed'; conversationId: string } | { type: 'resync' }
+export type ChatEvent = { type: 'message'; conversationId: string; message: ChatMessageWithSequence } | { type: 'changed'; conversationId: string } | { type: 'resync' }
 
 const unread = ref(0)
 /** Conversation currently open and visible in the chat page; its messages don't alert. */
@@ -19,6 +19,11 @@ let retryTimer: ReturnType<typeof setTimeout> | undefined
 let attempts = 0
 let connectedBefore = false
 let audioContext: AudioContext | null = null
+const fallbackChime = typeof Audio === 'undefined' ? null : new Audio('/chat-chime.mp3')
+let fallbackUnlocked = false
+let fallbackUnlocking = false
+
+if (fallbackChime) fallbackChime.preload = 'auto'
 
 /** Subscribes to realtime chat events; returns an unsubscribe function. */
 export function onChatEvent(handler: (event: ChatEvent) => void): () => void {
@@ -32,15 +37,39 @@ function buildUrl(): string {
 
 function unlockAudio() {
   try {
-    audioContext ??= new AudioContext()
-    if (audioContext.state === 'suspended') void audioContext.resume()
+    if (typeof AudioContext !== 'undefined') {
+      audioContext ??= new AudioContext()
+      if (audioContext.state === 'suspended') void audioContext.resume().catch(unlockFallbackAudio)
+    }
   } catch {
-    // Audio is unavailable; alerts stay silent.
+    unlockFallbackAudio()
   }
+  if (!audioContext || audioContext.state !== 'running') unlockFallbackAudio()
+}
+
+function unlockFallbackAudio() {
+  if (!fallbackChime || fallbackUnlocked || fallbackUnlocking) return
+  fallbackUnlocking = true
+  fallbackChime.muted = true
+  void fallbackChime.play().then(() => {
+    fallbackChime.pause()
+    fallbackChime.currentTime = 0
+    fallbackChime.muted = false
+    fallbackUnlocked = true
+  }).catch(() => {
+    fallbackChime.muted = false
+  }).finally(() => {
+    fallbackUnlocking = false
+  })
 }
 
 function playChime() {
-  if (!audioContext || audioContext.state !== 'running') return
+  if (!audioContext || audioContext.state !== 'running') {
+    if (!fallbackChime) return
+    fallbackChime.currentTime = 0
+    void fallbackChime.play().catch(() => undefined)
+    return
+  }
   const start = audioContext.currentTime
   for (const [offset, freq] of [
     [0, 880],

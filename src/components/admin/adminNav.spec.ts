@@ -15,6 +15,19 @@ describe('admin navigation', () => {
     expect(resolveAdminLocation(['providers', 'x'], ['themes'])).toEqual({ tab: 'providers', page: 'themes' })
   })
 
+  it('groups ticket management and issue report settings together', () => {
+    expect(ADMIN_TABS.issues).toEqual(['tickets', 'issueReports'])
+    expect(ADMIN_TABS.requests).not.toContain('tickets')
+    expect(ADMIN_TABS.settings).not.toContain('issueReports')
+    expect(resolveAdminLocation('issues', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
+    expect(resolveAdminLocation('issues', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })
+  })
+
+  it('redirects existing issue-report admin links to the new category', () => {
+    expect(resolveAdminLocation('requests', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
+    expect(resolveAdminLocation('settings', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })
+  })
+
   it('keeps old links working', () => {
     expect(resolveAdminLocation('indexer')).toEqual({ tab: 'library', page: 'tasks' })
     expect(resolveAdminLocation('tasks')).toEqual({ tab: 'library', page: 'tasks' })

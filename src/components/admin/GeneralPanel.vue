@@ -5,6 +5,7 @@ import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import ErrorMonitoringSection from './ErrorMonitoringSection.vue'
 import ServerSettingsSection from './ServerSettingsSection.vue'
+import ChatEncryptionSettingsSection from './ChatEncryptionSettingsSection.vue'
 
 const { t } = useI18n()
 
@@ -18,6 +19,7 @@ const form = reactive({
 <template>
   <div class="flex flex-col gap-6">
     <ServerSettingsSection />
+    <ChatEncryptionSettingsSection />
 
     <AdminSection :title="t('admin.general.notificationsTitle')" :description="t('admin.general.notificationsDescription')">
       <AdminToggle v-model="form.notifyNewUser" :label="t('admin.general.newUserAwaitingApproval')" />

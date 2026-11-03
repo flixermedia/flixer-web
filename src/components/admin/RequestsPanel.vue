@@ -2,7 +2,7 @@
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { deleteRequestService, getRequestsConfig, listMediaLibraries, listRequestServices, listRequestUsers, listSettings, updateRequestUser, updateSetting, type MediaLibrary, type RequestServiceView, type RequestUserView, type SettingRequestValue } from '../../api'
+import { api, deleteRequestService, getRequestWebhookCredentials, getRequestsConfig, listMediaLibraries, listRequestServices, listRequestUsers, listSettings, rotateRequestWebhookCredentials, updateRequestUser, updateSetting, type MediaLibrary, type RequestServiceView, type RequestUserView, type RequestWebhookCredentials, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -17,20 +17,46 @@ const settings = ref<Record<string, unknown>>({})
 const services = ref<RequestServiceView[]>([])
 const libraries = ref<MediaLibrary[]>([])
 const users = ref<RequestUserView[]>([])
+const webhookCredentials = ref<RequestWebhookCredentials | null>(null)
 const overrides: Record<string, RequestUserView> = reactive({})
 const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
 async function load() {
-  const [error, result] = await catchError(Promise.all([listSettings(), listRequestServices(), listRequestUsers(), getRequestsConfig(), listMediaLibraries()]))
+  const [error, result] = await catchError(Promise.all([listSettings(), listRequestServices(), listRequestUsers(), getRequestsConfig(), listMediaLibraries(), getRequestWebhookCredentials()]))
   if (error) {
     notify.error(describeRequestError(error, t('admin.requests.loadError')))
   } else {
-    const [settingList, serviceList, userList, requestConfig, libraryList] = result
+    const [settingList, serviceList, userList, requestConfig, libraryList, credentials] = result
     settings.value = Object.fromEntries(settingList.map(({ key, value }) => [key, value]))
     services.value = serviceList
     libraries.value = libraryList
     users.value = userList
+    webhookCredentials.value = credentials
     config.value = requestConfig
     for (const user of userList) overrides[user.id] = { ...user }
+  }
+}
+function webhookUrl(service: RequestServiceView) {
+  const base = new URL(api.defaults.baseURL || '/api', window.location.origin)
+  base.pathname = `${base.pathname.replace(/\/+$/, '')}/requests/webhook/${service.kind}/${service.id}`
+  return base.toString()
+}
+async function copyWebhookValue(value: string) {
+  const [error] = await catchError(Promise.resolve().then(() => navigator.clipboard.writeText(value)))
+  if (error) {
+    notify.error(describeRequestError(error, t('admin.requests.webhookCopyFailed')))
+  } else {
+    notify.success(t('admin.requests.webhookCopied'))
+  }
+}
+async function rotateWebhook() {
+  const confirmed = await openModal<boolean>(ConfirmModal, { props: { message: t('admin.requests.confirmRotateWebhook'), confirmLabel: t('admin.requests.rotateWebhook'), danger: true } }).catch(() => false)
+  if (!confirmed) return
+  const [error, credentials] = await catchError(rotateRequestWebhookCredentials())
+  if (error) {
+    notify.error(describeRequestError(error, t('admin.requests.saveError')))
+  } else {
+    webhookCredentials.value = credentials
+    notify.success(t('admin.requests.webhookRotated'))
   }
 }
 async function saveGlobal(key: string, value: SettingRequestValue) {
@@ -124,12 +150,30 @@ onMounted(load)
               </div>
             </div>
           </div>
+          <div v-if="webhookCredentials && service.enabled && service.libraryId" class="mt-4 rounded border border-flixer-border bg-black/10 p-3">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h4 class="text-xs font-semibold text-white">{{ t('admin.requests.webhookTitle') }}</h4>
+                <p class="mt-1 text-[11px] leading-5 text-flixer-muted">{{ t('admin.requests.webhookHint') }}</p>
+              </div>
+              <button type="button" class="rounded px-2 py-1 text-xs font-semibold text-flixer-accent transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="copyWebhookValue(webhookUrl(service))">{{ t('admin.requests.copyWebhookUrl') }}</button>
+            </div>
+            <label class="mt-3 block text-[11px] font-medium text-flixer-muted">{{ t('admin.requests.webhookUrl') }}<input :value="webhookUrl(service)" readonly :class="inputClass" autocomplete="off" /></label>
+            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+              <label class="text-[11px] font-medium text-flixer-muted">{{ t('admin.requests.webhookUsername') }}<input :value="webhookCredentials.username" readonly :class="inputClass" autocomplete="off" /></label>
+              <label class="text-[11px] font-medium text-flixer-muted">{{ t('admin.requests.webhookPassword') }}<input :value="webhookCredentials.password" readonly :class="inputClass" autocomplete="off" /></label>
+            </div>
+          </div>
           <div class="mt-4 flex justify-end gap-2 border-t border-flixer-border pt-3">
             <button type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openEditor(service)">{{ t('admin.requests.editService') }}</button><button type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="removeService(service.id)">{{ t('admin.requests.removeService') }}</button>
           </div>
         </li>
       </ul>
       <p v-else class="rounded border border-dashed border-flixer-border px-4 py-8 text-center text-sm text-flixer-muted">{{ t('admin.requests.noServices') }}</p>
+      <div v-if="webhookCredentials" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-amber-300/20 bg-amber-300/[0.05] p-3">
+        <p class="max-w-3xl text-xs leading-5 text-amber-100/80">{{ t('admin.requests.webhookSecurity') }}</p>
+        <button type="button" class="rounded border border-white/15 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="rotateWebhook">{{ t('admin.requests.rotateWebhook') }}</button>
+      </div>
     </AdminSection>
 
     <AdminSection :title="t('admin.requests.usersTitle')" :description="t('admin.requests.usersDescription')">

@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { createRouter, createWebHistory } from "vue-router";
 import { clearAccessToken, getAccessToken, validateAccessToken } from "../api";
 import { useProfile } from "../composables/useProfile";
+import { initializeChatMlsDevice } from "../composables/chatMlsClient";
 import { i18n } from "../i18n";
 import { setupGuard } from "../setup/setupGate";
 import { getNativeServerUrl } from "../platform/serverConnection";
@@ -127,6 +128,13 @@ const router = createRouter({
 			path: "/chat/:id?",
 			name: "chat",
 			component: () => import("../views/ChatView.vue"),
+			props: true,
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/issues/:id?",
+			name: "issues",
+			component: () => import("../views/IssueReportsView.vue"),
 			props: true,
 			meta: { requiresAuth: true },
 		},
@@ -284,6 +292,16 @@ router.beforeEach(async (to) => {
 		await load();
 		if (profile.value?.role !== "admin") {
 			return { name: "home" };
+		}
+	}
+
+	if (!isAuthRoute) {
+		const { profile, load } = useProfile();
+		await load();
+		if (profile.value?.id) {
+			void initializeChatMlsDevice(profile.value.id).catch((error: unknown) => {
+				console.error("[chat encryption] device provisioning failed", error);
+			});
 		}
 	}
 

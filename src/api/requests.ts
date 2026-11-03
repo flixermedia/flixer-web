@@ -31,6 +31,11 @@ export type {
   RequestSource,
 } from 'flixer-api-client'
 
+export interface RequestWebhookCredentials {
+  username: string
+  password: string
+}
+
 /** Cached TMDB images are served by the API as relative paths; other (absolute) URLs pass through. */
 function withApiBase(url: string | null): string | null {
   return url?.startsWith('/') ? `${api.defaults.baseURL ?? ''}${url}` : url
@@ -91,6 +96,14 @@ export async function listRequestUsers(): Promise<RequestUserView[]> {
 }
 export async function updateRequestUser(id: string, patch: FlixerApiRouteBody<'put', '/admin/requests/users/{param}'>): Promise<RequestUserView> {
   return (await api.put<RequestUserView>(`/admin/requests/users/${encodeURIComponent(id)}`, patch)).data
+}
+
+export async function getRequestWebhookCredentials(): Promise<RequestWebhookCredentials> {
+  return (await api.get<RequestWebhookCredentials>('/admin/requests/webhook')).data
+}
+
+export async function rotateRequestWebhookCredentials(): Promise<RequestWebhookCredentials> {
+  return (await api.post<RequestWebhookCredentials>('/admin/requests/webhook/rotate')).data
 }
 
 export async function getItemTheme(id: string): Promise<Blob | null> {

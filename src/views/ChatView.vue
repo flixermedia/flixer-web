@@ -3,19 +3,22 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
-import { getChatConversation, getChatConversations, getChatMessages, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessage } from '../api'
+import { getChatConversation, getChatConversations, getChatMessages, getChatEncryptionStatus, downgradeChatToPlaintext, upgradeChatToEncrypted, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessageWithSequence } from '../api'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
+import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id?: string }>()
+type ChatPreviewMessage = NonNullable<ChatConversation['lastMessage']> & { encrypted?: boolean }
+type SupportChatConversation = Omit<ChatConversation, 'lastMessage'> & { lastMessage: ChatPreviewMessage | null; supportChatOpen?: boolean | null }
 const { t } = useI18n()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
@@ -23,11 +26,21 @@ const navLinks = computed(getNavLinks)
 const { profile, load: loadProfile } = useProfile()
 const unread = useChatUnread()
 
-const conversations = ref<ChatConversation[]>([])
+const conversations = ref<SupportChatConversation[]>([])
 const listLoading = ref(true)
 const listFailed = ref(false)
-const active = ref<ChatConversation | null>(null)
-const messages = ref<ChatMessage[]>([])
+const active = ref<SupportChatConversation | null>(null)
+const messages = ref<ChatMessageWithSequence[]>([])
+const decryptedBodies = ref(new Map<string, string>())
+const previewBodies = ref(new Map<string, string>())
+const decryptingPreviewIds = new Set<string>()
+const unavailableMessageIds = ref(new Set<string>())
+const encryptionMode = ref<'unknown' | 'plain' | 'encrypted' | 'error'>('unknown')
+const encryptionError = ref('')
+const allowUserDowngrade = ref(false)
+const canUseEncryptedChat = ref(false)
+const downgrading = ref(false)
+const historyWarning = ref('')
 const hasMore = ref(false)
 const threadLoading = ref(false)
 const threadMissing = ref(false)
@@ -95,10 +108,98 @@ const otherMember = (conversation: ChatConversation) => conversation.members.fin
 function preview(conversation: ChatConversation) {
   const last = conversation.lastMessage
   if (!last) return t('chat.noMessages')
+  if (last.kind === 'text' && 'encrypted' in last && last.encrypted === true) {
+    const text = previewBodies.value.get(last.id)
+    if (text === undefined) return t('chat.encryptedMessage')
+    const mine = last.sender?.username === self.value
+    const prefix = mine ? `${t('chat.you')}: ` : conversation.kind === 'group' && last.sender ? `${last.sender.displayName}: ` : ''
+    return prefix + text
+  }
   if (last.kind === 'system') return last.body
   const mine = last.sender?.username === self.value
   const prefix = mine ? `${t('chat.you')}: ` : conversation.kind === 'group' && last.sender ? `${last.sender.displayName}: ` : ''
   return prefix + last.body
+}
+
+function messageBody(message: ChatMessageWithSequence) {
+  if (message.encrypted !== true) return message.body
+  if (decryptedBodies.value.has(message.id)) return decryptedBodies.value.get(message.id) ?? ''
+  return unavailableMessageIds.value.has(message.id) ? t('chat.encryptedMessageUnavailable') : t('chat.encryptedMessage')
+}
+
+function mergeDecrypted(incoming: Map<string, string>) {
+  if (incoming.size === 0) return
+  decryptedBodies.value = new Map([...decryptedBodies.value, ...incoming])
+}
+
+async function configureEncryption() {
+  try {
+    await loadProfile()
+    const userId = profile.value?.id
+    if (!userId) throw new Error('Your account profile is unavailable.')
+    const status = await getChatEncryptionStatus()
+    allowUserDowngrade.value = status.allowUserDowngrade
+    const device = status.supported ? await initializeChatMlsDevice(userId) : null
+    canUseEncryptedChat.value = device?.status === 'active'
+    const conversationIsEncrypted = active.value?.encryptionMode === 'encrypted'
+    encryptionMode.value = conversationIsEncrypted ? 'encrypted' : 'plain'
+    if (conversationIsEncrypted && !device) {
+      throw new Error(t('chat.encryptionUnavailable'))
+    }
+    if (conversationIsEncrypted && device?.status === 'pending') {
+      encryptionError.value = t('chat.deviceApprovalRequired')
+    } else {
+      encryptionError.value = ''
+    }
+    return device
+  } catch (error) {
+    canUseEncryptedChat.value = false
+    encryptionMode.value = 'error'
+    encryptionError.value = describeRequestError(error, t('chat.encryptionUnavailable'))
+    console.error('[chat encryption] initialization failed', error)
+    return null
+  }
+}
+
+async function decryptForDisplay(incoming: ChatMessageWithSequence[], userId: string) {
+  if (!incoming.some((message) => message.encrypted === true)) return
+  try {
+    const result = await decryptChatMessages(userId, active.value?.id ?? props.id ?? '', incoming)
+    mergeDecrypted(result.messages)
+    const unavailable = new Set(unavailableMessageIds.value)
+    for (const id of result.unavailableMessageIds) unavailable.add(id)
+    for (const id of result.messages.keys()) unavailable.delete(id)
+    unavailableMessageIds.value = unavailable
+    historyWarning.value = unavailable.size > 0 ? t('chat.encryptedHistoryUnavailable') : ''
+    encryptionError.value = ''
+  } catch (error) {
+    encryptionError.value = describeRequestError(error, t('chat.encryptionUnavailable'))
+    console.error('[chat encryption] message decryption failed', error)
+  }
+}
+
+async function decryptConversationPreviews(items: SupportChatConversation[]) {
+  try {
+    if (!profile.value?.id) await loadProfile()
+    const userId = profile.value?.id
+    if (!userId) return
+    await Promise.all(items.map(async (conversation) => {
+      const last = conversation.lastMessage
+      if (!last || last.kind !== 'text' || last.encrypted !== true || previewBodies.value.has(last.id) || decryptingPreviewIds.has(last.id)) return
+      decryptingPreviewIds.add(last.id)
+      try {
+        const result = await decryptChatMessages(userId, conversation.id, [last], false, false)
+        const text = result.messages.get(last.id)
+        if (text !== undefined) previewBodies.value = new Map(previewBodies.value).set(last.id, text)
+      } catch (error) {
+        console.error('[chat encryption] conversation preview could not be decrypted', { conversationId: conversation.id, messageId: last.id, error })
+      } finally {
+        decryptingPreviewIds.delete(last.id)
+      }
+    }))
+  } catch (error) {
+    console.error('[chat encryption] conversation previews could not be loaded', error)
+  }
 }
 
 function shortTime(iso: string) {
@@ -114,6 +215,7 @@ const fullTime = (iso: string) => new Date(iso).toLocaleString()
 function applyList(next: { conversations: ChatConversation[]; unread: number }) {
   conversations.value = next.conversations.map((conversation) => (conversation.id === props.id ? { ...conversation, unread: 0 } : conversation))
   unread.set(conversations.value.reduce((total, conversation) => total + conversation.unread, 0))
+  void decryptConversationPreviews(conversations.value)
 }
 
 async function refreshList(silent = true) {
@@ -142,11 +244,15 @@ function scrollToEnd() {
   })
 }
 
-function merge(incoming: ChatMessage[]) {
+function merge(incoming: ChatMessageWithSequence[]) {
   const seen = new Set(messages.value.map((message) => message.id))
   const fresh = incoming.filter((message) => !seen.has(message.id))
   if (!fresh.length) return false
-  messages.value = [...messages.value, ...fresh].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  messages.value = [...messages.value, ...fresh].sort((a, b) => {
+    const left = BigInt(a.sequence)
+    const right = BigInt(b.sequence)
+    return left < right ? -1 : left > right ? 1 : 0
+  })
   return true
 }
 
@@ -154,6 +260,11 @@ async function openThread(id: string | undefined) {
   const token = ++threadToken
   active.value = null
   messages.value = []
+  decryptedBodies.value = new Map()
+  unavailableMessageIds.value = new Set()
+  historyWarning.value = ''
+  encryptionMode.value = 'unknown'
+  encryptionError.value = ''
   hasMore.value = false
   threadMissing.value = false
   infoOpen.value = false
@@ -172,6 +283,11 @@ async function openThread(id: string | undefined) {
     renameDraft.value = conversation.name ?? ''
     messages.value = page.messages
     hasMore.value = page.hasMore
+    const device = await configureEncryption()
+    if (token !== threadToken) return
+    if (device?.status === 'active' && profile.value?.id) {
+      await decryptForDisplay(page.messages, profile.value.id)
+    }
     conversations.value = conversations.value.map((entry) => (entry.id === id ? { ...entry, unread: 0 } : entry))
     unread.set(conversations.value.reduce((total, entry) => total + entry.unread, 0))
     scrollToEnd()
@@ -184,9 +300,13 @@ async function pollThread(id: string, token: number) {
   if (token !== threadToken) return
   const last = messages.value[messages.value.length - 1]
   const stick = nearBottom()
-  const [pageError, page] = await catchError(getChatMessages(id, last ? { after: last.createdAt } : {}))
+  const [pageError, page] = await catchError(getChatMessages(id, last ? { afterSequence: last.sequence } : {}))
   if (pageError) return // The next tick retries.
   if (token !== threadToken) return
+  if (profile.value?.id) {
+    await decryptForDisplay(page.messages, profile.value.id)
+    if (token !== threadToken) return
+  }
   if (merge(page.messages)) {
     if (page.messages.some((message) => message.kind === 'system')) {
       const [conversationError, conversation] = await catchError(getChatConversation(id))
@@ -205,6 +325,11 @@ function onEvent(event: ChatEvent) {
     return
   }
   if (event.type === 'message' && id && event.conversationId === id) {
+    if (encryptionMode.value === 'encrypted') {
+      void pollThread(id, threadToken)
+      void refreshList()
+      return
+    }
     const stick = nearBottom()
     if (merge([event.message]) && stick) scrollToEnd()
     if (!document.hidden && event.message.kind === 'text') void markChatRead(id).catch(() => undefined)
@@ -223,7 +348,9 @@ async function syncThread(id: string) {
     return
   }
   if (token !== threadToken) return
+  threadMissing.value = false
   active.value = conversation
+  encryptionMode.value = conversation.encryptionMode === 'encrypted' ? 'encrypted' : 'plain'
   renameDraft.value = conversation.name ?? ''
   await pollThread(id, token)
 }
@@ -233,11 +360,64 @@ async function loadEarlier() {
   if (!first || !props.id) return
   const el = scroller.value
   const previous = el?.scrollHeight ?? 0
-  const page = await getChatMessages(props.id, { before: first.createdAt })
-  merge(page.messages)
-  hasMore.value = page.hasMore
-  await nextTick()
-  if (el) el.scrollTop = el.scrollHeight - previous
+  try {
+    const page = await getChatMessages(props.id, { beforeSequence: first.sequence })
+    if (profile.value?.id) {
+      await decryptForDisplay(page.messages, profile.value.id)
+    }
+    merge(page.messages)
+    hasMore.value = page.hasMore
+    await nextTick()
+    if (el) el.scrollTop = el.scrollHeight - previous
+  } catch (error) {
+    encryptionError.value = describeRequestError(error, t('chat.loadError'))
+  }
+}
+
+async function downgradeActiveToPlaintext() {
+  const conversation = active.value
+  if (!conversation || conversation.encryptionMode !== 'encrypted' || !allowUserDowngrade.value || downgrading.value) return
+  const ok = await confirmAction(t('chat.downgradeConfirmMessage'), {
+    title: t('chat.downgradeConfirmTitle'),
+    confirmLabel: t('chat.downgradeConfirm'),
+    danger: true,
+  })
+  if (!ok) return
+
+  downgrading.value = true
+  const [error, downgraded] = await catchError(downgradeChatToPlaintext(conversation.id))
+  downgrading.value = false
+  if (error) {
+    sendError.value = describeRequestError(error, t('chat.downgradeError'))
+    return
+  }
+  active.value = downgraded
+  encryptionMode.value = 'plain'
+  encryptionError.value = ''
+  void refreshList()
+}
+
+async function upgradeActiveToEncrypted() {
+  const conversation = active.value
+  if (!conversation || conversation.encryptionMode !== 'plaintext' || !canUseEncryptedChat.value || downgrading.value) return
+  const ok = await confirmAction(t('chat.upgradeConfirmMessage'), {
+    title: t('chat.upgradeConfirmTitle'),
+    confirmLabel: t('chat.upgradeConfirm'),
+  })
+  if (!ok) return
+
+  downgrading.value = true
+  const [error, upgraded] = await catchError(upgradeChatToEncrypted(conversation.id))
+  downgrading.value = false
+  if (error) {
+    sendError.value = describeRequestError(error, t('chat.upgradeError'))
+    return
+  }
+  active.value = upgraded
+  encryptionMode.value = 'encrypted'
+  encryptionError.value = ''
+  void pollThread(upgraded.id, threadToken)
+  void refreshList()
 }
 
 async function send() {
@@ -246,15 +426,31 @@ async function send() {
   sending.value = true
   sendError.value = ''
   try {
-    const [error, message] = await catchError(sendChatMessage(props.id, body))
-    if (error) {
-      sendError.value = describeRequestError(error, t('chat.sendError'))
+    if (encryptionMode.value === 'unknown' || encryptionMode.value === 'error') {
+      sendError.value = encryptionError.value || t('chat.encryptionUnavailable')
       return
+    }
+    let message: ChatMessageWithSequence
+    if (encryptionMode.value === 'encrypted') {
+      const userId = profile.value?.id
+      if (!userId) throw new Error(t('chat.encryptionUnavailable'))
+      const result = await sendEncryptedChatMessage(userId, props.id, body)
+      message = result.message
+      decryptedBodies.value = new Map(decryptedBodies.value).set(message.id, result.plaintext)
+    } else {
+      const [error, sent] = await catchError(sendChatMessage(props.id, body))
+      if (error) {
+        sendError.value = describeRequestError(error, t('chat.sendError'))
+        return
+      }
+      message = sent
     }
     draft.value = ''
     merge([message])
     scrollToEnd()
     void refreshList()
+  } catch (error) {
+    sendError.value = describeRequestError(error, t('chat.sendError'))
   } finally {
     sending.value = false
     void nextTick(() => composer.value?.focus())
@@ -452,7 +648,19 @@ onBeforeUnmount(() => {
                     <h2 v-else class="truncate text-sm font-semibold text-white">{{ title(active) }}</h2>
                     <p v-if="active.kind === 'group'" class="truncate text-xs text-flixer-muted">{{ t('chat.memberCount', { count: active.members.length }, active.members.length) }}</p>
                   </div>
-                  <button v-if="active.kind === 'direct' || isOwner" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
+                  <button v-if="active.encryptionMode === 'encrypted' && allowUserDowngrade" type="button" class="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-amber-200 transition hover:bg-white/10 disabled:opacity-50" :disabled="downgrading" @click="downgradeActiveToPlaintext">
+                    <Icon icon="lucide:lock-open" class="size-3.5" aria-hidden="true" />
+                    {{ t('chat.downgradeToPlaintext') }}
+                  </button>
+                  <button v-if="active.encryptionMode === 'plaintext' && canUseEncryptedChat" type="button" class="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-200 transition hover:bg-white/10 disabled:opacity-50" :disabled="downgrading" @click="upgradeActiveToEncrypted">
+                    <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
+                    {{ t('chat.upgradeToEncrypted') }}
+                  </button>
+                  <span v-if="encryptionMode === 'encrypted' && !encryptionError" class="hidden shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-300 sm:flex" :aria-label="t('chat.encrypted')">
+                    <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
+                    {{ t('chat.encrypted') }}
+                  </span>
+                  <button v-if="active.kind === 'direct' || isOwner || typeof active.supportChatOpen === 'boolean'" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
                     <Icon icon="lucide:trash" class="size-5" aria-hidden="true" />
                   </button>
                   <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
@@ -483,6 +691,8 @@ onBeforeUnmount(() => {
               </div>
 
               <div ref="scroller" class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-4" role="log" aria-live="polite" :aria-label="t('chat.messages')">
+                <p v-if="encryptionError" class="mx-auto mb-3 max-w-lg rounded border border-amber-300/30 bg-amber-400/10 p-3 text-center text-xs text-amber-100" role="status">{{ encryptionError }}</p>
+                <p v-if="historyWarning" class="mx-auto mb-3 max-w-lg rounded border border-amber-300/30 bg-amber-400/10 p-3 text-center text-xs text-amber-100" role="status">{{ historyWarning }}</p>
                 <p v-if="threadLoading" class="py-8 text-center text-sm text-flixer-muted">{{ t('common.loading') }}</p>
                 <template v-else>
                   <button v-if="hasMore" type="button" class="mx-auto mb-3 block rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20" @click="loadEarlier">{{ t('chat.loadEarlier') }}</button>
@@ -492,7 +702,7 @@ onBeforeUnmount(() => {
                     <div v-else class="flex" :class="message.sender?.username === self ? 'justify-end' : 'justify-start'">
                       <div class="max-w-[85%] sm:max-w-[70%]">
                         <p v-if="active?.kind === 'group' && message.sender?.username !== self && messages[index - 1]?.sender?.username !== message.sender?.username" class="mb-0.5 px-1 text-xs font-semibold text-flixer-muted">{{ message.sender?.displayName }}</p>
-                        <p class="whitespace-pre-wrap break-words rounded px-3 py-2 text-sm" :class="message.sender?.username === self ? 'bg-flixer-accent text-flixer-background' : 'bg-white/10 text-white'" :title="fullTime(message.createdAt)">{{ message.body }}</p>
+                        <p class="whitespace-pre-wrap break-words rounded px-3 py-2 text-sm" :class="message.sender?.username === self ? 'bg-flixer-accent text-flixer-background' : 'bg-white/10 text-white'" :title="fullTime(message.createdAt)">{{ messageBody(message) }}</p>
                         <p class="mt-0.5 px-1 text-[10px] text-flixer-muted" :class="message.sender?.username === self ? 'text-right' : ''">{{ shortTime(message.createdAt) }}</p>
                       </div>
                     </div>
@@ -501,11 +711,17 @@ onBeforeUnmount(() => {
               </div>
 
               <form class="border-t border-white/10 p-3" @submit.prevent="send">
-                <p v-if="sendError" class="mb-2 text-xs text-red-400" role="alert">{{ sendError }}</p>
-                <div class="flex items-end gap-2">
-                  <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
-                  <button type="submit" class="h-10 shrink-0 rounded bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending">{{ t('chat.send') }}</button>
+                <div v-if="active?.supportChatOpen === false" class="rounded border border-amber-300/30 bg-amber-400/10 p-3" role="status">
+                  <p class="text-sm font-semibold text-amber-100">{{ t('chat.issueChatClosedTitle') }}</p>
+                  <p class="mt-1 text-sm leading-5 text-amber-100/80">{{ t('chat.issueChatClosedDescription') }}</p>
                 </div>
+                <template v-else>
+                  <p v-if="sendError" class="mb-2 text-xs text-red-400" role="alert">{{ sendError }}</p>
+                  <div class="flex items-end gap-2">
+                    <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
+                    <button type="submit" class="h-10 shrink-0 rounded bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending || encryptionMode === 'unknown' || encryptionMode === 'error' || (encryptionMode === 'encrypted' && !!encryptionError)">{{ t('chat.send') }}</button>
+                  </div>
+                </template>
               </form>
             </template>
           </div>

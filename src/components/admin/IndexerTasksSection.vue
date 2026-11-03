@@ -61,7 +61,7 @@ async function clearFailed() {
   try {
     const [error, n] = await catchError(clearFailedIndexerTasks(queue.value))
     if (error) {
-      notify.error(describeRequestError(error, t('admin.indexer.taskError')))
+      notify.error(describeRequestError(error, t('admin.indexer.clearFailedError')))
     } else {
       notify.success(t('admin.indexer.clearedFailed', { n }))
       await load()
@@ -77,7 +77,7 @@ async function clearAllFailed() {
   try {
     const [error, n] = await catchError(clearAllFailedIndexerTasks())
     if (error) {
-      notify.error(describeRequestError(error, t('admin.indexer.taskError')))
+      notify.error(describeRequestError(error, t('admin.indexer.clearFailedError')))
     } else {
       notify.success(t('admin.indexer.clearedAllFailed', { n }))
       await load()

@@ -5,7 +5,7 @@ import { RouterLink } from 'vue-router'
 import AuthImage from '../components/ui/AuthImage.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { formatTime } from '../components/player/formatTime'
-import { activeLineIndex } from '../composables/lrc'
+import { activeLineIndex, instrumentalDotCount, isInstrumentalCue, karaokeWordState } from '../composables/lrc.ts'
 import { useAudioPlayer } from '../composables/useAudioPlayer'
 
 const { t } = useI18n()
@@ -16,8 +16,7 @@ const lineRefs = ref<HTMLElement[]>([])
 const scroller = ref<HTMLElement | null>(null)
 const progress = computed(() => (duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0))
 const activeIndex = computed(() => (lyrics.value?.synced ? activeLineIndex(lyrics.value.lines, currentTime.value) : -1))
-// Pauses auto-follow while the user scrolls by hand.
-let manualScrollUntil = 0
+const noLyrics = computed(() => !lyricsLoading.value && (!lyrics.value || lyrics.value.lines.length === 0))
 
 function close() {
   lyricsOpen.value = false
@@ -27,32 +26,41 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') close()
 }
 
-function onUserScroll() {
-  manualScrollUntil = Date.now() + 4000
-}
-
 function seekToLine(time: number | null) {
   if (time !== null) player.seek(time)
-  manualScrollUntil = 0
+}
+
+function updateScrollPadding() {
+  const box = scroller.value
+  if (!box) return
+  const padding = `${Math.ceil(box.clientHeight / 2)}px`
+  box.style.paddingTop = padding
+  box.style.paddingBottom = padding
+}
+
+async function centerActiveLine(index = activeIndex.value) {
+  if (index < 0) return
+  await nextTick()
+  const box = scroller.value
+  const line = lineRefs.value[index]
+  if (!box || !line) return
+  updateScrollPadding()
+  const boxRect = box.getBoundingClientRect()
+  const lineRect = line.getBoundingClientRect()
+  const lineTop = box.scrollTop + lineRect.top - boxRect.top
+  const top = lineTop + line.offsetHeight / 2 - box.clientHeight / 2
+  box.scrollTo({ top, behavior: 'smooth' })
+}
+
+function onResize() {
+  void centerActiveLine()
 }
 
 function onSeek(event: Event) {
   player.seek((Number((event.target as HTMLInputElement).value) / 100) * duration.value)
 }
 
-watch(activeIndex, async (index) => {
-  if (index < 0 || Date.now() < manualScrollUntil) return
-  await nextTick()
-  const box = scroller.value
-  const line = lineRefs.value[index]
-  if (!box || !line) return
-  // Scroll only the lyrics box; scrollIntoView would also move the page on iOS.
-  // Phones keep the current line near the top so the opening lines don't sit under a big gap.
-  // Desktop keeps the current line near the top, level with the cover art.
-  const desktop = window.matchMedia('(min-width: 768px)').matches
-  const top = desktop ? line.offsetTop - box.clientHeight * 0.1 : line.offsetTop - box.clientHeight * 0.3 + line.offsetHeight / 2
-  box.scrollTo({ top, behavior: 'smooth' })
-})
+watch(activeIndex, (index) => void centerActiveLine(index), { immediate: true, flush: 'post' })
 
 watch(
   current,
@@ -65,10 +73,12 @@ watch(
 onMounted(() => {
   document.body.style.overflow = 'hidden'
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', onResize)
 })
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
@@ -86,7 +96,19 @@ onBeforeUnmount(() => {
       </button>
     </header>
 
-    <main class="relative flex min-h-0 flex-1 flex-col gap-6 px-4 md:flex-row md:items-start md:gap-12 md:pt-[12vh] md:px-12 lg:px-24">
+    <main v-if="noLyrics" class="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-[8vh]">
+      <div class="w-[min(72vw,38vh)] text-center">
+        <div class="aspect-square w-full overflow-hidden rounded border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60">
+          <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="512" :alt="current.album ?? current.title" />
+        </div>
+        <h1 class="mt-3 break-words text-xl font-bold text-white md:text-3xl">{{ current.title }}</h1>
+        <RouterLink v-if="current.artist && current.artistId" :to="{ name: 'person', params: { id: current.artistId } }" class="mt-1 block truncate text-sm text-flixer-text/90 hover:underline md:text-base" @click="lyricsOpen = false">{{ current.artist }}</RouterLink>
+        <p v-else-if="current.artist" class="mt-1 truncate text-sm text-flixer-text/90 md:text-base">{{ current.artist }}</p>
+        <p v-if="current.album" class="truncate text-xs text-flixer-muted md:text-sm">{{ current.album }}</p>
+      </div>
+    </main>
+
+    <main v-else class="relative flex min-h-0 flex-1 flex-col gap-6 px-4 md:flex-row md:items-start md:gap-12 md:pt-[12vh] md:px-12 lg:px-24">
       <div class="flex shrink-0 items-center gap-4 md:w-72 md:flex-col md:items-start lg:w-96">
         <div class="aspect-square w-20 shrink-0 overflow-hidden rounded border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60 md:w-[min(100%,38vh)]">
           <AuthImage v-if="current.art" scope="library" :item-id="current.art.itemId" :index="current.art.index" :version="current.art.version" :width="512" :alt="current.album ?? current.title" />
@@ -98,12 +120,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <section ref="scroller" class="relative min-h-0 flex-1 self-stretch overflow-y-auto overscroll-contain pt-4 pb-[40vh] [scrollbar-width:none] md:pt-0 md:pb-[60vh] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)] md:[mask-image:linear-gradient(to_bottom,black,black_75%,transparent)]" :aria-label="t('music.lyrics')" @wheel.passive="onUserScroll" @touchmove.passive="onUserScroll">
+      <section ref="scroller" class="relative min-h-0 flex-1 self-stretch overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)]" :aria-label="t('music.lyrics')">
         <div v-if="lyricsLoading" class="w-full max-w-md space-y-4" role="status" :aria-label="t('music.loadingLyrics')">
           <Skeleton v-for="width in ['w-3/4', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2']" :key="width" class="h-6" :class="width" />
         </div>
-        <p v-else-if="!lyrics || lyrics.lines.length === 0" class="text-lg text-flixer-muted">{{ t('music.noLyrics') }}</p>
-        <template v-else>
+        <template v-else-if="lyrics">
           <p v-if="!lyrics.synced" class="mb-4 text-sm text-flixer-muted">{{ t('music.plainLyrics') }}</p>
           <ul class="space-y-3 md:space-y-5">
             <li
@@ -115,8 +136,23 @@ onBeforeUnmount(() => {
                 }
               "
             >
-              <button type="button" class="block w-full origin-left text-left text-2xl font-bold leading-snug transition duration-300 md:text-4xl" :class="lyrics.synced ? (index === activeIndex ? 'scale-100 text-white' : index < activeIndex ? 'scale-95 text-white/30 hover:text-white/60' : 'scale-95 text-white/40 hover:text-white/70') : 'cursor-default text-white/80'" :disabled="line.time === null" @click="seekToLine(line.time)">
-                {{ line.text || '♪' }}
+              <button type="button" class="block w-full text-center text-2xl font-bold leading-snug transition duration-300 md:text-4xl" :class="lyrics.synced ? (index === activeIndex ? 'scale-100 text-white' : index < activeIndex ? 'scale-95 text-white/30 hover:text-white/60' : 'scale-95 text-white/40 hover:text-white/70') : 'cursor-default text-white/80'" :disabled="line.time === null" @click="seekToLine(line.time)">
+                <template v-if="line.words">
+                  <span
+                    v-for="(word, wordIndex) in line.words"
+                    :key="wordIndex"
+                    class="transition-colors duration-200"
+                    :class="index === activeIndex
+                      ? karaokeWordState(line.words, wordIndex, currentTime) === 'upcoming'
+                        ? 'text-white/40'
+                        : 'text-white'
+                      : ''"
+                  >{{ word.text }}</span>
+                </template>
+                <span v-else-if="isInstrumentalCue(line.text)" class="inline-flex items-center gap-1.5" :aria-label="line.text || t('music.instrumental')">
+                  <span v-for="dot in 3" :key="dot" class="inline-block transition duration-300 ease-out motion-reduce:transition-none" :class="dot <= instrumentalDotCount(lyrics.lines, index, currentTime) ? 'scale-110 opacity-100' : 'opacity-30'" aria-hidden="true">•</span>
+                </span>
+                <template v-else>{{ line.text || '♪' }}</template>
               </button>
             </li>
           </ul>

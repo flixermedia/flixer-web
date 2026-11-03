@@ -22,6 +22,23 @@ const apiTransport = axios.create({
 })
 const generatedApi = createFlixerApiClient(apiTransport)
 
+function generatedOrTransport<T>(
+  generated: () => Promise<AxiosResponse<T>>,
+  fallback: () => Promise<AxiosResponse<T>>,
+): Promise<AxiosResponse<T>> {
+  const useFallback = (error: unknown) => {
+    if (error instanceof Error && error.message.startsWith('No generated Flixer API operation matches ')) {
+      return fallback()
+    }
+    return Promise.reject(error)
+  }
+  try {
+    return generated().catch(useFallback)
+  } catch (error) {
+    return useFallback(error)
+  }
+}
+
 /** Sends API calls that may not yet exist in the installed generated client version. */
 export function apiRequest<T = unknown>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
   return apiTransport.request<T>(config)
@@ -32,21 +49,29 @@ export const api = new Proxy(apiTransport, {
   get(_target, property) {
     switch (property) {
       case 'get':
-        return generatedApi.get
+        return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.get<T>(url, config), () => apiTransport.get<T>(url, config))
       case 'delete':
-        return generatedApi.delete
+        return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.delete<T>(url, config), () => apiTransport.delete<T>(url, config))
       case 'head':
-        return generatedApi.head
+        return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.head<T>(url, config), () => apiTransport.head<T>(url, config))
       case 'options':
-        return generatedApi.options
+        return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.options<T>(url, config), () => apiTransport.options<T>(url, config))
       case 'post':
-        return generatedApi.post
+        return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.post<T>(url, data, config), () => apiTransport.post<T>(url, data, config))
       case 'put':
-        return generatedApi.put
+        return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.put<T>(url, data, config), () => apiTransport.put<T>(url, data, config))
       case 'patch':
-        return generatedApi.patch
+        return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.patch<T>(url, data, config), () => apiTransport.patch<T>(url, data, config))
       case 'request':
-        return generatedApi.request
+        return <T = unknown>(config: AxiosRequestConfig) =>
+          generatedOrTransport(() => generatedApi.request<T>(config), () => apiTransport.request<T>(config))
       default:
         return Reflect.get(apiTransport, property, apiTransport)
     }

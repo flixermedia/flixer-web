@@ -2,15 +2,18 @@
 import { openModal } from '@kolirt/vue-modal'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
-import { getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { fetchHomeImage, getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
+import MediaChapterModal from '../components/admin/MediaChapterModal.vue'
+import MediaItemModal from '../components/admin/MediaItemModal.vue'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
+import EpisodeTrickplayThumb from '../components/media/EpisodeTrickplayThumb.vue'
 import ClampedText from '../components/ui/ClampedText.vue'
 import Header from '../components/header/Header.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MediaRow from '../components/home/MediaRow.vue'
-import { thumbnailAt } from '../composables/trickplay'
+import { thumbnailStyle } from '../composables/trickplay.ts'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import MusicBanner from '../components/ui/MusicBanner.vue'
@@ -25,9 +28,16 @@ import { useProfile } from '../composables/useProfile'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
+import { fetchCachedImageBlob } from '../composables/imageBlobCache'
+import { limitedImageLoad } from '../composables/imageQueue'
+import IssueReportModal from '../components/issues/IssueReportModal.vue'
+import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
 
 const { t, te } = useI18n()
 const route = useRoute()
+const router = useRouter()
+const issueReports = useIssueReportsConfig()
+void issueReports.load()
 const { profile } = useProfile()
 const isAdmin = computed(() => profile.value?.role === 'admin')
 const { isSigningOut, signOut } = useSignOut()
@@ -60,9 +70,25 @@ const ratings = computed(() => Object.entries(item.value?.ratings ?? {}).filter(
 const PLAYABLE = ['movie', 'episode', 'video']
 const videoOverlay = useVideoOverlay()
 const canManageSubtitles = computed(() => isAdmin.value && item.value !== null && PLAYABLE.includes(item.value.type))
+const canManageChapters = computed(() => isAdmin.value && item.value !== null && PLAYABLE.includes(item.value.type))
 function manageSubtitles() {
   if (!item.value) return
   void openModal(SubtitleModal, { props: { itemId: item.value.id, title: item.value.title } }).catch(() => undefined)
+}
+async function manageMedia() {
+  const current = item.value
+  if (!current) return
+  const result = await openModal<boolean | 'chapters'>(MediaItemModal, { props: { itemId: current.id } }).catch(() => false)
+  if (result === 'chapters') {
+    await openModal<boolean>(MediaChapterModal, { props: { itemId: current.id } }).catch(() => false)
+    await load(current.id)
+  } else if (result) {
+    await load(current.id)
+  }
+}
+function manageChapters() {
+  if (!item.value) return
+  void openModal<boolean>(MediaChapterModal, { props: { itemId: item.value.id } }).catch(() => false)
 }
 const showTitle = computed(() => {
   const current = item.value
@@ -99,6 +125,15 @@ const isMusic = computed(() => isAlbum.value || isTrack.value)
 const usesBanner = computed(() => isMusic.value && item.value !== null && item.value.backdrop === null)
 const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
 const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
+const canReportIssue = computed(() => issueReports.enabled.value && !!item.value)
+async function reportIssue() {
+  const current = item.value
+  if (!current) return
+  const report = await openModal<import('../api').IssueReport>(IssueReportModal, {
+    props: { mediaItemId: current.id, mediaTitle: current.title },
+  }).catch(() => null)
+  if (report) void router.push({ name: 'issues', params: { id: report.id } })
+}
 const party = useParty()
 const partyItemId = computed(() => (isTrack.value ? (item.value?.id ?? null) : (playTarget.value?.id ?? null)))
 const partyBusy = ref(false)
@@ -124,12 +159,44 @@ function addToPlaylist(id: string, title: string, album = false) {
 }
 // Tracks have no artwork of their own, so they show their album's cover.
 const trackAlbumArt = ref<{ itemId: string; index: number; version: string } | null>(null)
+const seasonPosterArt = ref<{ itemId: string; index: number; version: string } | null>(null)
 const cover = computed(() => {
   const current = item.value
   if (!current) return null
   if (current.type === 'track') return trackAlbumArt.value
   return current.poster !== null ? { itemId: current.id, index: current.poster, version: current.updatedAt } : null
 })
+const poster = computed(() => {
+  const current = item.value
+  if (!current) return null
+  if (current.type === 'series') {
+    const season = seasons.value[activeSeason.value]
+    if (season?.poster !== null && season?.poster !== undefined) {
+      return { itemId: season.id, index: season.poster, version: season.updatedAt }
+    }
+  }
+  if (current.poster !== null) return { itemId: current.id, index: current.poster, version: current.updatedAt }
+  return current.type === 'episode' ? seasonPosterArt.value : null
+})
+function preloadSeasonPosters(series: ItemDetail) {
+  if (series.type !== 'series') return
+  const width = Math.ceil(320 * Math.min(window.devicePixelRatio || 1, 2))
+  for (const season of series.children) {
+    if (season.poster === null) continue
+    const index = season.poster
+    const cacheKey = JSON.stringify(['library', season.id, index, width, season.updatedAt])
+    void (async () => {
+      const [error] = await catchError(
+        fetchCachedImageBlob(
+          cacheKey,
+          () => limitedImageLoad(() => fetchHomeImage(season.id, index, width, season.updatedAt).catch(() => fetchHomeImage(season.id, index, width, season.updatedAt))),
+          season.updatedAt,
+        ),
+      )
+      if (error) return // AuthImage retries the request if this season is selected.
+    })()
+  }
+}
 function queueTrack(track: { id: string; title: string }, album: ItemDetail): QueueTrack {
   return {
     id: track.id,
@@ -196,12 +263,7 @@ watch(
 function chapterThumbStyle(startMs: number) {
   const sheets = trickplay.value
   if (!sheets) return {}
-  const place = thumbnailAt(sheets.manifest, startMs / 1000 + 1, CHAPTER_THUMB_WIDTH)
-  return {
-    backgroundImage: `url(${sheets.sheetUrl(place.sheet)})`,
-    backgroundSize: `${(place.sheetWidth / place.width) * 100}% ${(place.sheetHeight / place.height) * 100}%`,
-    backgroundPosition: `${place.width === place.sheetWidth ? 0 : (place.x / (place.sheetWidth - place.width)) * 100}% ${place.height === place.sheetHeight ? 0 : (place.y / (place.sheetHeight - place.height)) * 100}%`,
-  }
+  return thumbnailStyle(sheets, startMs / 1000 + 1, CHAPTER_THUMB_WIDTH)
 }
 
 function chapterTime(ms: number) {
@@ -261,12 +323,22 @@ async function load(id: string) {
     }
     item.value = loaded
     document.title = `${loaded.title} · Flixer`
+    preloadSeasonPosters(loaded)
     trackAlbumArt.value = null
+    seasonPosterArt.value = null
     if (loaded.type === 'track' && loaded.parent?.type === 'album') {
       const albumId = loaded.parent.id
       void getItemDetail(albumId)
         .then((album) => {
           if (item.value?.id === id && album.poster !== null) trackAlbumArt.value = { itemId: album.id, index: album.poster, version: album.updatedAt }
+        })
+        .catch(() => undefined)
+    }
+    if (loaded.type === 'episode' && loaded.poster === null && loaded.parent?.type === 'season') {
+      const seasonId = loaded.parent.id
+      void getItemDetail(seasonId)
+        .then((season) => {
+          if (item.value?.id === id && season.poster !== null) seasonPosterArt.value = { itemId: season.id, index: season.poster, version: season.updatedAt }
         })
         .catch(() => undefined)
     }
@@ -325,8 +397,10 @@ watch(
               <AuthImage v-if="cover" scope="library" :item-id="cover.itemId" :index="cover.index" :version="cover.version" :width="320" :alt="item.title" />
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
-            <div v-else-if="item.poster !== null || item.backdrop === null" class="aspect-[2/3] w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
-              <AuthImage v-if="item.poster !== null" scope="library" :item-id="item.id" :index="item.poster" :version="item.updatedAt" :width="320" :alt="item.title" />
+            <div v-else-if="poster !== null || item.backdrop === null" class="aspect-[2/3] w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56">
+              <Transition v-if="poster" name="poster-fade" mode="out-in">
+                <AuthImage :key="`${poster.itemId}:${poster.index}:${poster.version}`" scope="library" :item-id="poster.itemId" :index="poster.index" :version="poster.version" :width="320" :alt="item.title" />
+              </Transition>
               <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ item.title }}</span>
             </div>
 
@@ -372,6 +446,10 @@ watch(
                   {{ t('mediaItem.play') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
+                <button v-if="canReportIssue" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="reportIssue">
+                  <Icon icon="lucide:flag" class="size-5" aria-hidden="true" />
+                  {{ t('issues.reportIssue') }}
+                </button>
                 <button v-if="partyItemId" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="partyBusy" @click="startParty">{{ t(isTrack ? 'party.startListen' : 'party.startWatch') }}</button>
                 <button v-if="isMusic" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addToPlaylist(item.id, item.title, isAlbum)">{{ t('social.addToPlaylist') }}</button>
                 <button v-if="canMarkWatched" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="itemWatched" @click="toggleWatched(item.id, !itemWatched)">
@@ -380,6 +458,14 @@ watch(
                 <button v-if="canManageSubtitles" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageSubtitles">
                   <Icon icon="lucide:captions" class="size-5" aria-hidden="true" />
                   {{ t('subtitles.manage') }}
+                </button>
+                <button v-if="isAdmin" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageMedia">
+                  <Icon icon="lucide:pencil" class="size-5" aria-hidden="true" />
+                  {{ t('admin.media.edit') }}
+                </button>
+                <button v-if="canManageChapters" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="manageChapters">
+                  <Icon icon="lucide:clapperboard" class="size-5" aria-hidden="true" />
+                  {{ t('mediaItem.manageChapters') }}
                 </button>
               </div>
             </div>
@@ -415,6 +501,7 @@ watch(
                 <RouterLink :to="{ name: 'media-item', params: { id: episode.id } }" class="flex min-w-0 flex-1 items-center gap-4 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
                   <div v-if="episode.type !== 'track'" class="aspect-video w-32 shrink-0 overflow-hidden rounded bg-flixer-surface sm:w-44">
                     <AuthImage v-if="episode.thumb !== null" scope="library" :item-id="episode.id" :index="episode.thumb" :version="episode.updatedAt" :width="320" alt="" />
+                    <EpisodeTrickplayThumb v-else-if="PLAYABLE.includes(episode.type)" :item-id="episode.id" />
                   </div>
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-semibold text-white">{{ episodeLabel(episode) }}</p>
@@ -482,6 +569,23 @@ watch(
 html.capacitor .media-item-hero,
 html.capacitor .media-item-state {
   padding-top: max(10rem, calc(max(env(safe-area-inset-top, 0px), 3.5rem) + 6.5rem));
+}
+
+.poster-fade-enter-active,
+.poster-fade-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.poster-fade-enter-from,
+.poster-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poster-fade-enter-active,
+  .poster-fade-leave-active {
+    transition: none;
+  }
 }
 
 @media (min-width: 40rem) {

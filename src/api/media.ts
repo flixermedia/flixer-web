@@ -12,6 +12,7 @@ export type HomeMusicRecommendations = { enabled: boolean; items: HomeMusicRecom
 
 export type MediaItemChanges = Omit<ApiMediaItemChanges, 'providerIds'> & {
   providerIds?: Record<string, string | null>
+  chapters?: Array<{ title: string; startMs: number; endMs: number }>
 }
 
 export const MEDIA_ITEM_TYPES: MediaItemType[] = ['movie', 'series', 'season', 'episode', 'album', 'track', 'video']

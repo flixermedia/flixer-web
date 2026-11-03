@@ -12,6 +12,7 @@ import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AuthImage from '../ui/AuthImage.vue'
+import MediaChapterModal from './MediaChapterModal.vue'
 import MediaItemModal from './MediaItemModal.vue'
 import StatusPill from './StatusPill.vue'
 
@@ -22,6 +23,7 @@ const router = useRouter()
 const PAGE_SIZE = 25
 const SEARCH_DEBOUNCE_MS = 300
 const CONTAINER_TYPES: MediaItemType[] = ['series', 'season', 'album']
+const CHAPTER_TYPES: MediaItemType[] = ['movie', 'episode', 'video']
 
 const libraries = ref<MediaLibrary[]>([])
 const albumPosters = ref<Record<string, number | null>>({})
@@ -189,8 +191,17 @@ function openChildren(item: MediaItemSummary) {
 }
 
 async function edit(item: MediaItemSummary) {
-  const refresh = await openModal<boolean>(MediaItemModal, { props: { itemId: item.id } }).catch(() => false)
-  if (refresh) await load()
+  const result = await openModal<boolean | 'chapters'>(MediaItemModal, { props: { itemId: item.id } }).catch(() => false)
+  if (result === 'chapters') {
+    await openModal<boolean>(MediaChapterModal, { props: { itemId: item.id } }).catch(() => false)
+    await load()
+  } else if (result) {
+    await load()
+  }
+}
+
+function editChapters(item: MediaItemSummary) {
+  void openModal<boolean>(MediaChapterModal, { props: { itemId: item.id } }).catch(() => false)
 }
 
 async function rescan(item: MediaItemSummary) {
@@ -394,6 +405,9 @@ onMounted(async () => {
               </button>
               <button type="button" :aria-label="t('admin.media.edit')" :title="t('admin.media.edit')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="edit(item)">
                 <Icon icon="lucide:pencil" class="size-4" aria-hidden="true" />
+              </button>
+              <button v-if="CHAPTER_TYPES.includes(item.type)" type="button" :aria-label="t('mediaItem.manageChapters')" :title="t('mediaItem.manageChapters')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="editChapters(item)">
+                <Icon icon="lucide:clapperboard" class="size-4" aria-hidden="true" />
               </button>
               <button type="button" :aria-label="t('admin.media.rescan')" :title="t('admin.media.rescan')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="rescan(item)">
                 <Icon icon="lucide:refresh-cw" class="size-4" aria-hidden="true" />

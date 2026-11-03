@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import Header from "../components/header/Header.vue";
+import ChatEncryptionSection from "../components/settings/ChatEncryptionSection.vue";
 import DefaultPlaybackOptionsSection from "../components/settings/DefaultPlaybackOptionsSection.vue";
 import LanguageSection from "../components/settings/LanguageSection.vue";
 import PasskeysSection from "../components/settings/PasskeysSection.vue";
@@ -22,10 +23,11 @@ const tabIcons: Record<string, string> = {
 	passkeys: "lucide:fingerprint",
 	language: "lucide:languages",
 	defaultPlayback: "lucide:play",
+	chatEncryption: "lucide:lock-keyhole",
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }];
 });
 
 const activeTab = computed({
@@ -82,6 +84,7 @@ function selectTab(id: string) {
 							<PasskeysSection v-else-if="activeTab === 'passkeys'" />
 							<LanguageSection v-else-if="activeTab === 'language'" />
 							<DefaultPlaybackOptionsSection v-else-if="activeTab === 'defaultPlayback'" />
+							<ChatEncryptionSection v-else-if="activeTab === 'chatEncryption'" />
 							<ServerSection v-else-if="activeTab === 'server'" />
 						</div>
 					</Transition>

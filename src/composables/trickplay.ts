@@ -31,3 +31,13 @@ export function thumbnailAt(manifest: TrickplayManifest, seconds: number, displa
     height,
   }
 }
+
+/** CSS background styles for displaying one thumbnail from a trickplay sheet. */
+export function thumbnailStyle(trickplay: { manifest: TrickplayManifest; sheetUrl: (sheet: number) => string }, seconds: number, displayWidth: number): Record<string, string> {
+  const place = thumbnailAt(trickplay.manifest, seconds, displayWidth)
+  return {
+    backgroundImage: `url(${trickplay.sheetUrl(place.sheet)})`,
+    backgroundSize: `${(place.sheetWidth / place.width) * 100}% ${(place.sheetHeight / place.height) * 100}%`,
+    backgroundPosition: `${place.width === place.sheetWidth ? 0 : (place.x / (place.sheetWidth - place.width)) * 100}% ${place.height === place.sheetHeight ? 0 : (place.y / (place.sheetHeight - place.height)) * 100}%`,
+  }
+}

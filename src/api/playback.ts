@@ -89,7 +89,7 @@ export async function getSubtitleTracks(streamUrl: string): Promise<PlayerSubtit
   return response.data.tracks ?? []
 }
 
-/** How the streamer's hover-preview sheets are laid out; see `/streamer/trickplay/{token}/index.json`. */
+/** How the streamer's HLS image-playlist hover previews are laid out. */
 export interface TrickplayManifest {
   intervalMs: number
   thumbWidth: number
@@ -105,14 +105,70 @@ export interface Trickplay {
   sheetUrl: (sheet: number) => string
 }
 
+/** Parse an HLS image playlist, resolving its tile-sheet URLs against the playlist URL. */
+export function parseTrickplayPlaylist(playlist: string, playlistUrl: string): Trickplay | null {
+  const baseUrl = new URL(playlistUrl, typeof window === 'undefined' ? 'http://localhost' : window.location.href)
+  const lines = playlist
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  let intervalMs = 0
+  let thumbWidth = 0
+  let thumbHeight = 0
+  let columns = 0
+  let rows = 0
+  let count = 0
+  let pendingDuration = 0
+  const sheetUrls: string[] = []
+
+  for (const line of lines) {
+    if (line.startsWith('#EXT-X-TILES:')) {
+      const attributes = line.slice('#EXT-X-TILES:'.length)
+      const resolution = attributes.match(/(?:^|,)RESOLUTION=(\d+)x(\d+)(?:,|$)/)
+      const layout = attributes.match(/(?:^|,)LAYOUT=(\d+)x(\d+)(?:,|$)/)
+      const duration = attributes.match(/(?:^|,)DURATION=([\d.]+)(?:,|$)/)
+      if (!resolution || !layout || !duration) return null
+      thumbWidth = Number(resolution[1])
+      thumbHeight = Number(resolution[2])
+      columns = Number(layout[1])
+      rows = Number(layout[2])
+      intervalMs = Number(duration[1]) * 1000
+    } else if (line.startsWith('#EXTINF:')) {
+      pendingDuration = Number(line.slice('#EXTINF:'.length).split(',')[0])
+    } else if (!line.startsWith('#')) {
+      if (!pendingDuration || !intervalMs) return null
+      count += Math.round((pendingDuration * 1000) / intervalMs)
+      pendingDuration = 0
+      sheetUrls.push(new URL(line, baseUrl).toString())
+    }
+  }
+
+  if (!intervalMs || !thumbWidth || !thumbHeight || !columns || !rows || !count || !sheetUrls.length) return null
+  const manifest: TrickplayManifest = {
+    intervalMs,
+    thumbWidth,
+    thumbHeight,
+    columns,
+    rows,
+    count,
+    sheets: sheetUrls.length,
+  }
+  return { manifest, sheetUrl: (sheet) => sheetUrls[sheet] ?? '' }
+}
+
 /** Hover-preview thumbnails for a video, or null when none have been generated for it yet. */
 export async function getTrickplay(streamUrl: string): Promise<Trickplay | null> {
   const base = streamUrl.replace('/streamer/stream/', '/streamer/trickplay/')
-  const [error, response] = await catchError(axios.get<TrickplayManifest>(`${base}/index.json`, { timeout: 10_000 }))
+  const playlistUrl = `${base}/tiles.m3u8`
+  const [error, response] = await catchError(
+    axios.get<string>(playlistUrl, {
+      responseType: 'text',
+      transformResponse: (data: string) => data,
+      timeout: 10_000,
+    }),
+  )
   if (error) return null
-  const manifest = response.data
-  if (!manifest || manifest.count <= 0 || manifest.intervalMs <= 0 || manifest.columns <= 0 || manifest.rows <= 0) return null
-  return { manifest, sheetUrl: (sheet) => `${base}/${sheet}.jpg` }
+  return parseTrickplayPlaylist(response.data, playlistUrl)
 }
 
 /** WebVTT text for one subtitle file. */

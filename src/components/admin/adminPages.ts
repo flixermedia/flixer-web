@@ -15,6 +15,8 @@ const Providers = lazy(() => import('./IndexerProvidersSection.vue'))
 const Subtitles = lazy(() => import('./IndexerSubtitlesSection.vue'))
 const ThemeSongs = lazy(() => import('./ThemeSongsSection.vue'))
 const Requests = lazy(() => import('./RequestsPanel.vue'))
+const IssueReports = lazy(() => import('./IssueReportsPanel.vue'))
+const IssueReportSettings = lazy(() => import('./IssueReportSettingsPanel.vue'))
 const Notifications = lazy(() => import('./NotificationsPanel.vue'))
 const EmailSettings = lazy(() => import('./EmailSettingsSection.vue'))
 const Devices = lazy(() => import('./DevicesPanel.vue'))
@@ -45,11 +47,13 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   subtitles: [{ component: Subtitles }],
   themes: [{ component: ThemeSongs }],
   requests: [{ component: Requests }],
+  tickets: [{ component: IssueReports }],
   notifications: [{ component: Notifications }],
   smtp: [{ component: EmailSettings }],
   apikeys: [{ component: Devices, props: { part: 'keys' } }],
   server: [{ component: General }],
   ai: [{ component: Ai }],
+  issueReports: [{ component: IssueReportSettings }],
   users: [{ component: Users }, { component: Devices, props: { part: 'devices' } }],
   networking: [{ component: Networking }, { component: Connections }],
   search: [{ component: Search }],
