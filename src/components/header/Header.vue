@@ -1,21 +1,17 @@
 <script setup lang="ts">
-import { openModal } from "@kolirt/vue-modal";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink, useRoute } from "vue-router";
 import logoUrl from "../../../resources/logo/flixer-logo.svg";
 import { isActivePath } from "../../composables/homeNav";
 import { useProfile } from "../../composables/useProfile";
-import { useMailSummary } from "../../composables/useMailSummary";
-import { notify } from "../../composables/notify";
 import { useRequestsConfig } from "../../composables/useRequestsConfig";
 import { nativeNavigationEnabled } from "../../platform/nativeNavigation";
 import type { NavLink } from "../../types/media";
 import ChatButton from "./ChatButton.vue";
 import NotificationBell from "./NotificationBell.vue";
 import PartyButton from "./PartyButton.vue";
-import LanguageModal from "../ui/LanguageModal.vue";
-import ThemeModal from "../ui/ThemeModal.vue";
+import UserMenuContent from "./UserMenuContent.vue";
 import UserAvatar from "../ui/UserAvatar.vue";
 
 const props = withDefaults(
@@ -34,34 +30,13 @@ const emit = defineEmits<{ logout: [] }>();
 
 const { t } = useI18n();
 const { profile, load: loadProfile } = useProfile();
-const { info: mailInfo } = useMailSummary();
-const { enabled: requestsEnabled, load: loadRequestsConfig } = useRequestsConfig();
+const { load: loadRequestsConfig } = useRequestsConfig();
 const menuOpen = ref(false);
 const scrolledPast = ref(false);
 const scrolled = computed(() => props.docked || (!props.disableScrollCollapse && scrolledPast.value));
 const menuRoot = ref<HTMLElement | null>(null);
 const menuPanel = ref<HTMLElement | null>(null);
 const route = useRoute();
-
-async function copyMailAddress() {
-	if (!mailInfo.value?.address) return;
-	try {
-		await navigator.clipboard.writeText(mailInfo.value.address);
-		notify.success(t("inbox.addressCopied"));
-	} catch {
-		notify.error(t("inbox.copyFailed"));
-	}
-}
-
-function openLanguage() {
-	menuOpen.value = false;
-	void openModal(LanguageModal).catch(() => undefined);
-}
-
-function openTheme() {
-	menuOpen.value = false;
-	void openModal(ThemeModal).catch(() => undefined);
-}
 
 function onScroll() {
 	scrolledPast.value = window.scrollY > 24;
@@ -136,34 +111,8 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 
 					<Teleport to="body" :disabled="!nativeNavigationEnabled">
 						<Transition enter-active-class="transition duration-150 ease-out" enter-from-class="translate-y-1 opacity-0" leave-active-class="transition duration-100 ease-in" leave-to-class="translate-y-1 opacity-0">
-							<div v-if="menuOpen" ref="menuPanel" class="w-56 origin-top-right rounded border border-white/10 bg-flixer-surface/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl" :class="nativeNavigationEnabled ? 'fixed right-4 z-[70]' : 'absolute right-0 top-full z-50 mt-3'" :style="nativeNavigationEnabled ? { top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' } : undefined" role="menu">
-								<div v-if="profile" class="px-3 py-2.5">
-									<p class="truncate text-sm font-semibold text-white">{{ profile.displayName }}</p>
-									<p class="truncate text-xs text-flixer-muted">{{ profile.username }}</p>
-								</div>
-								<div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
-								<RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.profile") }}</RouterLink>
-								<div v-if="mailInfo?.enabled" class="flex items-center rounded hover:bg-white/10">
-									<RouterLink to="/inbox" class="flex min-w-0 flex-1 items-center rounded px-3 py-2.5 text-sm text-flixer-text" role="menuitem" @click="menuOpen = false">
-										<span class="min-w-0">
-											<span class="flex items-center gap-2"><Icon icon="lucide:inbox" class="size-4" aria-hidden="true" />{{ t("inbox.title") }}<span v-if="mailInfo.unread" class="rounded bg-flixer-accent px-1.5 text-[10px] font-bold text-flixer-background">{{ mailInfo.unread }}</span></span>
-											<span v-if="mailInfo.address" class="mt-0.5 block truncate text-[11px] text-flixer-muted">{{ mailInfo.address }}</span>
-										</span>
-									</RouterLink>
-									<button v-if="mailInfo.address" type="button" class="mr-1 grid size-8 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :aria-label="t('inbox.copyAddress')" @click="copyMailAddress"><Icon icon="lucide:copy" class="size-4" aria-hidden="true" /></button>
-								</div>
-								<RouterLink to="/people" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.people") }}</RouterLink>
-								<RouterLink to="/issues" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("issues.myReports") }}</RouterLink>
-								<RouterLink v-if="requestsEnabled" to="/requests" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("requests.nav.requests") }}</RouterLink>
-								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openLanguage">{{ t("header.language") }}</button>
-								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="openTheme">{{ t("header.theme") }}</button>
-								<RouterLink v-if="profile?.role === 'admin'" to="/admin" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.administration") }}</RouterLink>
-								<RouterLink v-if="profile?.role === 'admin'" :to="{ name: 'admin', query: { tab: 'issues', page: 'tickets' } }" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.manageIssues") }}</RouterLink>
-								<RouterLink to="/settings" class="flex items-center rounded px-3 py-2.5 text-sm text-flixer-text transition hover:bg-white/10" role="menuitem" @click="menuOpen = false">{{ t("header.settings") }}</RouterLink>
-								<div class="my-1.5 h-px bg-white/10"></div>
-								<button type="button" class="flex w-full items-center rounded px-3 py-2.5 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70" role="menuitem" :disabled="isSigningOut" @click="emit('logout')">
-									{{ isSigningOut ? t("header.signingOut") : t("header.signOut") }}
-								</button>
+							<div v-if="menuOpen" ref="menuPanel" class="w-64 origin-top-right rounded border border-white/10 bg-flixer-surface/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl" :class="nativeNavigationEnabled ? 'fixed right-4 z-[70]' : 'absolute right-0 top-full z-50 mt-3'" :style="nativeNavigationEnabled ? { top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' } : undefined" role="menu">
+								<UserMenuContent :is-signing-out="isSigningOut" @close="menuOpen = false" @logout="emit('logout')" />
 							</div>
 						</Transition>
 					</Teleport>

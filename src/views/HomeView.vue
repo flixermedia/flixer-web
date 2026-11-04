@@ -6,6 +6,7 @@ import MediaRow from '../components/home/MediaRow.vue'
 import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { computed, onMounted, ref } from 'vue'
+import { useAccess } from '../composables/useAccess'
 import { useI18n } from 'vue-i18n'
 import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation } from '../api'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
@@ -104,7 +105,12 @@ async function load() {
   }
 }
 
-onMounted(load)
+const { me: access, refresh: refreshAccess } = useAccess()
+const pausedUntil = computed(() => (access.value?.schedule.nextAllowedAt ? new Date(access.value.schedule.nextAllowedAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null))
+onMounted(() => {
+  void refreshAccess()
+  void load()
+})
 </script>
 
 <template>
@@ -114,6 +120,10 @@ onMounted(load)
     <main>
       <HeroCarousel v-if="content && content.featured.length > 0" :items="content.featured" />
       <div v-else class="h-24 sm:h-28"></div>
+
+      <div v-if="access && access.enforced && !access.schedule.allowed" class="page-gutter pt-4" role="status">
+        <p class="flex items-center gap-2 rounded border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100"><Icon icon="lucide:moon" class="size-4 shrink-0" aria-hidden="true" />{{ pausedUntil ? t('access.outsideHours', { when: pausedUntil }) : t('access.outsideHoursNoTime') }}</p>
+      </div>
 
       <HomeSkeleton v-if="isLoading" />
 

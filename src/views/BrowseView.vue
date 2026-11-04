@@ -133,7 +133,7 @@ onBeforeUnmount(() => controller?.abort())
         <p v-else-if="items.length === 0" class="text-sm text-flixer-muted">{{ t('browse.empty') }}</p>
 
         <ul v-else :style="gridStyle" :class="['grid gap-x-4 gap-y-6', browseColumns ? 'browse-grid-preferred' : 'grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]']">
-          <MediaCard v-for="item in items" :key="item.id" class="!w-auto" :variant="kind === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" />
+          <MediaCard v-for="item in items" :key="item.id" class="!w-auto" :variant="kind === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" :locked="item.locked" />
           <li v-for="n in isLoading ? 6 : 0" :key="`more-${n}`" aria-hidden="true">
             <Skeleton :class="kind === 'music' ? 'aspect-square' : 'aspect-[2/3]'" class="w-full rounded" />
           </li>

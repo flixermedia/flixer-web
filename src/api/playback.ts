@@ -22,6 +22,9 @@ export interface StreamInfo {
   playMethod: PlayMethod
   source: { videoCodec: string; audioCodec?: string; audioTracks?: AudioTrack[]; width: number; height: number; durationSeconds: number }
   availableHeights: number[]
+  /** Set for audio files: the container type the streamer serves them as. */
+  mimeType?: string
+  directAllowed?: boolean
   /** Where a stream-copy stream requested at `start` really begins (the preceding keyframe). */
   keyframeStart?: number
 }

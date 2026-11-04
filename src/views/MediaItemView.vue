@@ -25,6 +25,7 @@ import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
+import { useAccess } from '../composables/useAccess'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
@@ -34,6 +35,7 @@ import IssueReportModal from '../components/issues/IssueReportModal.vue'
 import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
 
 const { t, te } = useI18n()
+const { requestUnlock, refresh: refreshAccess, canUnlock } = useAccess()
 const route = useRoute()
 const router = useRouter()
 const issueReports = useIssueReportsConfig()
@@ -50,7 +52,7 @@ const themeMusic = useThemeMusic(
   computed(() => item.value !== null && ['movie', 'series'].includes(item.value.type)),
 )
 const isLoading = ref(true)
-const failure = ref<'missing' | 'error' | null>(null)
+const failure = ref<'missing' | 'error' | 'locked' | null>(null)
 const activeSeason = ref(0)
 
 const isShow = computed(() => item.value?.type === 'series')
@@ -247,7 +249,7 @@ const trickplay = shallowRef<Trickplay | null>(null)
 const CHAPTER_THUMB_WIDTH = 256
 
 watch(
-  () => (item.value && PLAYABLE.includes(item.value.type) && item.value.chapters.length > 0 ? item.value.id : null),
+  () => (item.value && PLAYABLE.includes(item.value.type) && item.value.chapters?.length > 0 ? item.value.id : null),
   async (id) => {
     trickplay.value = null
     if (!id) return
@@ -321,6 +323,15 @@ async function load(id: string) {
       failure.value = (error as { response?: { status?: number } }).response?.status === 404 ? 'missing' : 'error'
       return
     }
+    // Restricted titles come back as a stub without genres, children or playback data.
+    if ((loaded as { locked?: boolean }).locked || !Array.isArray(loaded.genres)) {
+      item.value = null
+      failure.value = 'locked'
+      document.title = `${loaded.title} · Flixer`
+      // A successful unlock reloads the page, so only a dismissed prompt falls through to the message.
+      if ((await refreshAccess())?.hasPin) void requestUnlock()
+      return
+    }
     item.value = loaded
     document.title = `${loaded.title} · Flixer`
     preloadSeasonPosters(loaded)
@@ -376,9 +387,10 @@ watch(
       </div>
 
       <div v-else-if="failure" class="media-item-state page-gutter pt-32">
-        <h1 class="text-2xl font-semibold text-white">{{ failure === 'missing' ? t('mediaItem.notFound') : t('mediaItem.loadError') }}</h1>
+        <h1 class="text-2xl font-semibold text-white">{{ failure === 'missing' ? t('mediaItem.notFound') : failure === 'locked' ? t('mediaItem.restricted') : t('mediaItem.loadError') }}</h1>
         <div class="mt-4 flex gap-3">
           <RouterLink to="/" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15">{{ t('mediaItem.backHome') }}</RouterLink>
+          <button v-if="failure === 'locked' && canUnlock" type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:brightness-110" @click="requestUnlock()">{{ t('access.unlock') }}</button>
           <button v-if="failure === 'error'" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/15" @click="load(String(route.params.id))">{{ t('home.retry') }}</button>
         </div>
       </div>

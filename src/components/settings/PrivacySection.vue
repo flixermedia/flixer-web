@@ -82,7 +82,7 @@ async function updateFriend(username: string, accept: boolean) {
         <ul class="mt-2 divide-y divide-white/5 rounded border border-white/10">
           <li v-for="person in friends.incoming" :key="person.id" class="flex items-center justify-between gap-3 p-3">
             <span class="min-w-0 truncate text-sm text-white"
-              >{{ person.displayName }} <span class="text-flixer-muted">@{{ person.username }}</span></span
+              >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
             <span class="flex shrink-0 gap-2">
               <button type="button" class="rounded bg-white px-3 py-1.5 text-xs font-semibold text-flixer-background disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, true)">{{ t('social.acceptFriend') }}</button>
@@ -97,7 +97,7 @@ async function updateFriend(username: string, accept: boolean) {
         <ul class="mt-2 divide-y divide-white/5 rounded border border-white/10">
           <li v-for="person in friends.outgoing" :key="person.id" class="flex items-center justify-between gap-3 p-3">
             <span class="min-w-0 truncate text-sm text-white"
-              >{{ person.displayName }} <span class="text-flixer-muted">@{{ person.username }}</span></span
+              >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
             <button type="button" class="shrink-0 rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.cancelFriendRequest') }}</button>
           </li>
@@ -109,7 +109,7 @@ async function updateFriend(username: string, accept: boolean) {
         <ul class="mt-2 divide-y divide-white/5 rounded border border-white/10">
           <li v-for="person in friends.friends" :key="person.id" class="flex items-center justify-between gap-3 p-3">
             <span class="min-w-0 truncate text-sm text-white"
-              >{{ person.displayName }} <span class="text-flixer-muted">@{{ person.username }}</span></span
+              >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
             <button type="button" class="shrink-0 rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.removeFriend') }}</button>
           </li>

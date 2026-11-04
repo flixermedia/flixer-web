@@ -2,7 +2,7 @@
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AVATAR_TYPES, MAX_AVATAR_BYTES, deleteAdminUser, removeAdminUserAvatar, revokeAdminUserSessions, setAdminUserAvatar, setAdminUserPassword, updateAdminUser, type AdminUser, type AdminUserChanges } from '../../api'
+import { AVATAR_TYPES, MAX_AVATAR_BYTES, deleteAdminUser, removeAdminUserAvatar, revokeAdminUserSessions, setAdminUserAvatar, setAdminUserPassword, updateAdminUser, type AdminUser, type OriginalAccess, type AdminUserChanges } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
@@ -30,8 +30,9 @@ const form = reactive<{
   email: string
   role: NonNullable<AdminUserChanges['role']>
   enabled: boolean
+  originalAccess: OriginalAccess
   newPassword: string
-}>({ displayName: props.user.displayName, email: props.user.email ?? '', role: props.user.role, enabled: !props.user.disabled, newPassword: '' })
+}>({ displayName: props.user.displayName, email: props.user.email ?? '', role: props.user.role, enabled: !props.user.disabled, originalAccess: props.user.originalAccess ?? 'inherit', newPassword: '' })
 const canSave = computed(() => !busy.value && form.displayName.trim() !== '')
 
 const secondaryButton = 'flex h-11 items-center justify-center rounded border border-flixer-border px-5 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60'
@@ -89,6 +90,7 @@ async function save() {
     if (form.role !== props.user.role) changes.role = form.role
     if (form.enabled === props.user.disabled) changes.disabled = !form.enabled
   }
+  if (form.originalAccess !== (props.user.originalAccess ?? 'inherit')) changes.originalAccess = form.originalAccess
   if (Object.keys(changes).length === 0) {
     confirm(changed.value)
     return
@@ -165,6 +167,16 @@ async function remove() {
             <AdminToggle :model-value="form.role === 'admin'" :label="t('admin.users.administrator')" :description="t('admin.users.fullDashboardAccess')" @update:model-value="form.role = $event ? 'admin' : 'user'" />
             <AdminToggle v-model="form.enabled" :label="t('admin.users.accountEnabled')" :description="t('admin.users.accountEnabledDescription')" />
           </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-flixer-muted" for="original-access">{{ t('admin.users.originalAccess') }}</label>
+          <p class="mt-1 text-xs text-flixer-muted">{{ t('admin.users.originalAccessUserDescription') }}</p>
+          <select id="original-access" v-model="form.originalAccess" class="mt-2 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm">
+            <option value="inherit">{{ t('admin.users.originalAccessInherit') }}</option>
+            <option value="allow">{{ t('admin.users.originalAccessAllow') }}</option>
+            <option value="deny">{{ t('admin.users.originalAccessDeny') }}</option>
+          </select>
         </div>
 
         <div class="border-t border-flixer-border pt-4">

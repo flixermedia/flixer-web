@@ -1,8 +1,10 @@
 /** Media-library browsing, item metadata, artwork, and network-share operations. */
 import { api, apiRequest } from './client'
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
-import type { BrowseKind, BrowseSort, HomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from 'flixer-api-client'
-export type { BrowseKind, BrowseSort, ContinueCard, HomeCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SubtitleFile, SubtitleSearchResult } from 'flixer-api-client'
+import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from 'flixer-api-client'
+export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SubtitleFile, SubtitleSearchResult } from 'flixer-api-client'
+/** A card as returned for the current viewer; `locked` is set for restricted titles when the server shows them locked. */
+export type HomeCard = ApiHomeCard & { locked?: boolean; lockReason?: 'rating' | 'unrated' | 'tags' }
 export type SearchFilters = ApiSearchFilters & { includeChildren?: boolean }
 
 export type HomeRecommendations = FlixerApiRouteData<'get', '/recommendations/home'>

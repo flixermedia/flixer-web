@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
 import { listAdminUsers, listSettings, updateSetting, type AdminUser } from '../../api'
+import { getMailStatus } from '../../api/mail'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -11,6 +12,7 @@ import UserAvatar from '../ui/UserAvatar.vue'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import CreateUserModal from './CreateUserModal.vue'
+import AccessControlsModal from './AccessControlsModal.vue'
 import EditUserModal from './EditUserModal.vue'
 import StatusPill from './StatusPill.vue'
 
@@ -52,16 +54,19 @@ function relativeTime(iso: string | null) {
 
 async function load() {
   try {
-    const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings()]))
+    const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings(), getMailStatus().catch(() => null)]))
     if (error) {
       console.error('[users] failed to load', error)
       loadError.value = describeRequestError(error, t('admin.users.loadError'))
     } else {
-      const [list, settings] = result
+      const [list, settings, mail] = result
       users.value = list
       registrationEnabled.value = settings.find((setting) => setting.key === 'registration_enabled')?.value !== false
       const host = settings.find((setting) => setting.key === 'smtp_host')?.value
-      smtpConfigured.value = typeof host === 'string' && host.trim() !== ''
+      smtpConfigured.value = Boolean(mail?.outboundReady) || (typeof host === 'string' && host.trim() !== '')
+      const policy = settings.find((setting) => setting.key === 'original_quality_access')?.value
+      originalAccess.value = policy === 'everyone' || policy === 'nobody' ? policy : 'admins'
+      restrictedDisplay.value = settings.find((setting) => setting.key === 'restricted_media_display')?.value === 'locked' ? 'locked' : 'hidden'
       verificationEnabled.value = settings.find((setting) => setting.key === 'email_verification_required')?.value !== false
       loadError.value = ''
     }
@@ -73,6 +78,20 @@ async function load() {
 async function openEdit(user: AdminUser) {
   const refresh = await openModal<boolean>(EditUserModal, { props: { user } }).catch(() => false)
   if (refresh) await load()
+}
+
+async function openAccess(user: AdminUser) {
+  await openModal<boolean>(AccessControlsModal, { props: { user } }).catch(() => false)
+}
+
+async function setRestrictedDisplay(value: 'hidden' | 'locked') {
+  const previous = restrictedDisplay.value
+  restrictedDisplay.value = value
+  const [error] = await catchError(updateSetting('restricted_media_display', value))
+  if (error) {
+    restrictedDisplay.value = previous
+    notify.error(describeRequestError(error, t('admin.access.displayError')))
+  }
 }
 
 async function openCreate() {
@@ -89,6 +108,16 @@ async function setRegistration(enabled: boolean) {
   }
 }
 
+async function setOriginalAccess(value: string) {
+  const previous = originalAccess.value
+  originalAccess.value = value
+  const [error] = await catchError(updateSetting('original_quality_access', value))
+  if (error) {
+    originalAccess.value = previous
+    notify.error(describeRequestError(error, t('admin.users.originalAccessError')))
+  }
+}
+
 async function setVerification(enabled: boolean) {
   const previous = verificationEnabled.value
   verificationEnabled.value = enabled
@@ -98,6 +127,9 @@ async function setVerification(enabled: boolean) {
     notify.error(describeRequestError(error, t('admin.users.verificationError')))
   }
 }
+
+const originalAccess = ref('admins')
+const restrictedDisplay = ref<'hidden' | 'locked'>('hidden')
 
 onMounted(load)
 </script>
@@ -148,7 +180,10 @@ onMounted(load)
               <td class="text-flixer-muted">{{ user.passkeys }}</td>
               <td class="text-flixer-muted">{{ relativeTime(user.lastActiveAt) }}</td>
               <td class="text-right">
-                <button type="button" :class="secondaryButton" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
+                <div class="flex justify-end gap-2">
+                  <button type="button" :class="secondaryButton" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
+                  <button type="button" :class="secondaryButton" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
+                </div>
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
@@ -164,6 +199,23 @@ onMounted(load)
       <div :class="{ 'pointer-events-none opacity-60': !smtpConfigured }">
         <AdminToggle :model-value="verificationEnabled" :label="t('admin.users.requireEmailVerification')" :description="smtpConfigured ? t('admin.users.requireEmailVerificationDescription') : t('admin.users.emailVerificationOff')" @update:model-value="setVerification" />
       </div>
+    </AdminSection>
+
+    <AdminSection :title="t('admin.access.displayTitle')" :description="t('admin.access.displayDescription')">
+      <div class="grid gap-2 sm:grid-cols-2">
+        <button v-for="mode in ['hidden', 'locked'] as const" :key="mode" type="button" class="flex items-start gap-3 rounded border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="restrictedDisplay === mode ? 'border-flixer-primary bg-flixer-primary/10' : 'border-flixer-border hover:bg-white/5'" :aria-pressed="restrictedDisplay === mode" @click="setRestrictedDisplay(mode)">
+          <Icon :icon="mode === 'hidden' ? 'lucide:eye-off' : 'lucide:lock'" class="mt-0.5 size-5 shrink-0" :class="restrictedDisplay === mode ? 'text-flixer-accent' : 'text-flixer-muted'" aria-hidden="true" />
+          <span><span class="block text-sm font-semibold">{{ t(`admin.access.display.${mode}`) }}</span><span class="mt-0.5 block text-xs text-flixer-muted">{{ t(`admin.access.display.${mode}Description`) }}</span></span>
+        </button>
+      </div>
+    </AdminSection>
+
+    <AdminSection :title="t('admin.users.originalAccess')" :description="t('admin.users.originalAccessDescription')">
+      <select :value="originalAccess" class="w-full max-w-xs rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm" @change="setOriginalAccess(($event.target as HTMLSelectElement).value)">
+        <option value="admins">{{ t('admin.users.originalAccessAdmins') }}</option>
+        <option value="everyone">{{ t('admin.users.originalAccessEveryone') }}</option>
+        <option value="nobody">{{ t('admin.users.originalAccessNobody') }}</option>
+      </select>
     </AdminSection>
   </div>
 </template>

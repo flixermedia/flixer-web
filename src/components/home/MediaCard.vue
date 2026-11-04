@@ -5,6 +5,7 @@ import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
 import type { ExternalRequestStatus } from '../../api'
 import { requestStatusLabelKey } from '../../composables/requestStatus'
+import { useAccess } from '../../composables/useAccess'
 import { badgeToneClasses } from '../plugins/classes'
 import type { BadgeTone } from '../../plugins/viewTypes'
 
@@ -26,14 +27,17 @@ const props = withDefaults(
     requestStatus?: ExternalRequestStatus
     /** A small corner label, e.g. a plugin-provided status. */
     badge?: { text: string; tone: BadgeTone }
+    /** The item is blocked by the viewer's limits and can only be opened after a PIN unlock. */
+    locked?: boolean
   }>(),
   { variant: 'poster' },
 )
 
 const emit = defineEmits<{ watched: [] }>()
 const { t } = useI18n()
+const { requestUnlock, canUnlock } = useAccess()
 
-const linkTo = computed(() => props.to ?? (props.variant !== 'library' && props.itemId ? { name: 'media-item', params: { id: props.itemId } } : null))
+const linkTo = computed(() => (props.locked ? null : props.to) ?? (props.variant !== 'library' && props.itemId ? { name: 'media-item', params: { id: props.itemId } } : null))
 const statusClass = computed(
   () =>
     ({
@@ -56,7 +60,7 @@ const statusClass = computed(
       'w-56 sm:w-64': variant === 'library',
     }"
   >
-    <component :is="linkTo ? RouterLink : 'a'" v-bind="linkTo ? { to: linkTo } : { href: '#' }" class="group block rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
+    <component :is="linkTo ? RouterLink : 'a'" v-bind="linkTo ? { to: linkTo } : { href: '#' }" :aria-label="locked ? t('access.restrictedTitle', { title }) : undefined" @click="locked && ($event.preventDefault(), canUnlock && requestUnlock())" class="group block rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">
       <div class="relative overflow-hidden rounded border border-flixer-border bg-flixer-surface transition duration-300 group-hover:-translate-y-1 group-hover:border-white/30 group-hover:shadow-xl group-hover:shadow-black/50" :class="variant === 'poster' ? 'aspect-[2/3]' : variant === 'square' ? 'aspect-square' : 'aspect-video'">
         <img v-if="posterUrl" :src="posterUrl" alt="" loading="lazy" referrerpolicy="no-referrer" class="size-full object-cover transition duration-500 group-hover:scale-105" />
         <AuthImage v-else-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library" :item-id="itemId" :index="imageIndex" :version="version" :width="variant === 'landscape' ? 300 : variant === 'library' ? 260 : 200" :alt="variant === 'library' ? '' : title" img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
@@ -75,6 +79,9 @@ const statusClass = computed(
               <Icon v-if="posterUrl" icon="lucide:plus" class="size-6" aria-hidden="true" />
               <Icon v-else icon="lucide:play" class="ml-0.5 size-5" aria-hidden="true" />
             </span>
+          </div>
+          <div v-if="locked" class="theme-dark absolute inset-0 grid place-items-center bg-black/65 backdrop-blur-md">
+            <span class="flex flex-col items-center gap-2 text-white"><Icon icon="lucide:lock" class="size-8" aria-hidden="true" /><span class="rounded-full border border-white/25 bg-black/50 px-2.5 py-1 text-[10px] font-bold">{{ t('access.restrictedBadge') }}</span></span>
           </div>
           <span v-if="requestStatus && requestStatus !== 'none'" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="statusClass" :aria-label="t(requestStatusLabelKey(requestStatus))">{{ t(requestStatusLabelKey(requestStatus)) }}</span>
           <span v-if="badge && (!requestStatus || requestStatus === 'none')" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="badgeToneClasses[badge.tone]">{{ badge.text }}</span>

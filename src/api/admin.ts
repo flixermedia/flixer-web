@@ -1,7 +1,70 @@
 /** Administrative stream, user, API-key, and indexer operations. */
 import { api, apiRequest } from './client'
-import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
-export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser, AdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskLogEntry, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
+import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser as ApiAdminUser, AdminUserChanges as ApiAdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
+export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview,  ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskLogEntry, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
+
+export type OriginalAccess = 'inherit' | 'allow' | 'deny'
+
+export type AdminUser = ApiAdminUser & { originalAccess?: OriginalAccess }
+export type AdminUserChanges = ApiAdminUserChanges & { originalAccess?: OriginalAccess }
+
+export type LibraryAccessMode = 'all' | 'selected'
+export type BlockReason = 'library' | 'rating' | 'unrated' | 'tags'
+export type RestrictedDisplay = 'hidden' | 'locked'
+
+export interface ScheduleWindow {
+  days: number[]
+  from: string
+  to: string
+}
+
+export interface AccessSchedule {
+  timezone: string
+  windows: ScheduleWindow[]
+}
+
+export interface AccessPolicy {
+  libraryMode: LibraryAccessMode
+  libraryIds: string[]
+  maxAge: number | null
+  blockUnrated: boolean
+  allowedTags: string[]
+  blockedTags: string[]
+  schedule: AccessSchedule | null
+  requireRequestApproval: boolean
+  hasPin: boolean
+}
+
+/** A policy to save; `pin` is a new PIN, null to remove it, or left out to keep it. */
+export type AccessPolicyChanges = Partial<Omit<AccessPolicy, 'hasPin'>> & { pin?: string | null }
+
+export interface AccessOptions {
+  ratings: Array<{ age: number; label: string; examples: string }>
+  tags: string[]
+}
+
+export interface AccessPreview {
+  libraries: Array<{ id: string; name: string; type: string; total: number; visible: number; hidden: boolean }>
+  blocked: Array<{ id: string; title: string; type: string; year: number | null; reason: BlockReason }>
+  schedule: { configured: boolean; allowedNow: boolean; nextAllowedAt: string | null }
+}
+
+export async function getAccessOptions(): Promise<AccessOptions> {
+  return (await api.get<AccessOptions>('/admin/access/options')).data
+}
+
+export async function getUserAccess(id: string): Promise<AccessPolicy> {
+  return (await api.get<AccessPolicy>(`/admin/access/users/${encodeURIComponent(id)}`)).data
+}
+
+export async function saveUserAccess(id: string, changes: AccessPolicyChanges): Promise<AccessPolicy> {
+  return (await api.put<AccessPolicy>(`/admin/access/users/${encodeURIComponent(id)}`, changes)).data
+}
+
+/** What the user would see under `draft` (unsaved), or under their saved policy when it is empty. */
+export async function previewUserAccess(id: string, draft: AccessPolicyChanges = {}): Promise<AccessPreview> {
+  return (await api.post<AccessPreview>(`/admin/access/users/${encodeURIComponent(id)}/preview`, draft)).data
+}
 
 export type AdminScheduledTaskState = 'running' | 'queued' | 'completed' | 'failed' | 'cancelled' | 'never'
 
