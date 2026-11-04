@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
+import { Keyboard } from '@capacitor/keyboard'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getChatConversation, getChatConversations, getChatMessages, getChatEncryptionStatus, downgradeChatToPlaintext, upgradeChatToEncrypted, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessageWithSequence } from '../api'
 import NewChatModal from '../components/chat/NewChatModal.vue'
+import MobileTabBar from '../components/home/MobileTabBar.vue'
 import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
-import { getNavLinks } from '../composables/homeNav'
+import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
 import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
@@ -23,6 +26,7 @@ const { t } = useI18n()
 const router = useRouter()
 const { isSigningOut, signOut } = useSignOut()
 const navLinks = computed(getNavLinks)
+const mobileTabs = computed(getMobileTabs)
 const { profile, load: loadProfile } = useProfile()
 const unread = useChatUnread()
 
@@ -51,50 +55,110 @@ const infoOpen = ref(false)
 const renameDraft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 const composer = ref<HTMLTextAreaElement | null>(null)
+const composerInsets = ref<{ paddingLeft?: string; paddingRight?: string }>({})
 
-// On phones the chat is locked below the header (the tab bar is hidden on this page) and the page itself never scrolls.
-// While typing it follows the visual viewport so the iOS keyboard can't shift the page.
-const typing = ref(false)
+// Keep the fixed chat frame above the keyboard on platforms where the viewport does not resize.
+const composerFocused = ref(false)
 const frame = ref({ top: 0, height: 0 })
-const headerShift = ref(0)
 let headerHeight = 64
-const phone = window.matchMedia('(max-width: 767px)')
-const isPhone = ref(phone.matches)
-const locked = computed(() => isPhone.value)
+let composerBlurTimer: ReturnType<typeof setTimeout> | undefined
+let composerAlignmentObserver: ResizeObserver | undefined
+let keyboardBottom: number | undefined
+let viewportBottomBeforeKeyboard: number | undefined
+let keyboardListeners: PluginListenerHandle[] = []
+let chatViewUnmounted = false
+const compactScreen = window.matchMedia('(max-width: 1023px)')
+const isCompact = ref(compactScreen.matches)
+const locked = computed(() => isCompact.value)
 
-function onPhoneChange() {
-  isPhone.value = phone.matches
+function onCompactScreenChange() {
+  isCompact.value = compactScreen.matches
+  if (!isCompact.value) {
+    clearTimeout(composerBlurTimer)
+    composerFocused.value = false
+  }
   syncViewport()
+}
+
+function bottomNavigationInset() {
+  if (document.documentElement.classList.contains('native-navigation')) {
+    const app = document.querySelector<HTMLElement>('#app')
+    const rootStyle = getComputedStyle(document.documentElement)
+    const appInset = app ? Number.parseFloat(getComputedStyle(app).paddingBottom) || 0 : 0
+    const navigationInset = Number.parseFloat(rootStyle.getPropertyValue('--cap-native-navigation-bottom')) || 0
+    const systemTabBarInset = Number.parseFloat(rootStyle.getPropertyValue('--cap-native-system-tabbar-height')) || 0
+    return Math.max(appInset, navigationInset, systemTabBarInset)
+  }
+  const tabBar = document.querySelector<HTMLElement>('.mobile-tab-bar')
+  if (!tabBar || getComputedStyle(tabBar).display === 'none') return 0
+  return Math.max(0, window.innerHeight - tabBar.getBoundingClientRect().top)
+}
+
+function syncComposerAlignment() {
+  const grid = document.querySelector<HTMLElement>('.chat-grid')
+  const nav = document.querySelector<HTMLElement>('.mobile-tab-bar')
+  const navSurface = document.querySelector<HTMLElement>('.mobile-tab-bar__surface')
+  if (!grid || !nav || !navSurface || getComputedStyle(nav).display === 'none') {
+    composerInsets.value = {}
+    return
+  }
+  const gridRect = grid.getBoundingClientRect()
+  const navRect = navSurface.getBoundingClientRect()
+  if (navRect.width === 0 || navRect.height === 0) {
+    composerInsets.value = {}
+    return
+  }
+  composerInsets.value = {
+    paddingLeft: `${Math.max(12, navRect.left - gridRect.left)}px`,
+    paddingRight: `${Math.max(12, gridRect.right - navRect.right)}px`
+  }
 }
 
 function syncViewport() {
   // The chat scrolls inside its own panes, so the page itself never scrolls at any size.
   document.documentElement.style.overflow = 'hidden'
-  if (!isPhone.value) return
-  const vv = window.visualViewport
+  if (!isCompact.value) return
   const headerEl = document.querySelector('header.fixed')
-  if (headerEl && !typing.value) headerHeight = headerEl.getBoundingClientRect().height
-  const viewTop = vv?.offsetTop ?? 0
-  const viewBottom = viewTop + (vv?.height ?? window.innerHeight)
-  // iOS scrolls the visual viewport when the keyboard opens, so the navbar rides along with it.
-  headerShift.value = typing.value ? viewTop : 0
-  const top = viewTop + headerHeight
-  const bottom = typing.value ? viewBottom : window.innerHeight
+  if (headerEl) headerHeight = headerEl.getBoundingClientRect().bottom
+  const top = headerHeight
+  const layoutBottom = window.innerHeight - bottomNavigationInset()
+  const visualViewport = window.visualViewport
+  const visibleBottom = visualViewport ? visualViewport.offsetTop + visualViewport.height : window.innerHeight
+  const bottom = Math.min(layoutBottom, visibleBottom, keyboardBottom ?? window.innerHeight)
   frame.value = { top, height: Math.max(0, bottom - top) }
-  if (typing.value) window.scrollTo(0, 0)
+}
+
+function onKeyboardWillShow({ keyboardHeight }: { keyboardHeight: number }) {
+  const visualViewport = window.visualViewport
+  const visibleBottom = viewportBottomBeforeKeyboard
+    ?? (visualViewport ? visualViewport.offsetTop + visualViewport.height : window.innerHeight)
+  keyboardBottom = visibleBottom - keyboardHeight
+  syncViewport()
+}
+
+function onKeyboardWillHide() {
+  keyboardBottom = undefined
+  viewportBottomBeforeKeyboard = undefined
+  syncViewport()
 }
 
 function onComposerFocus() {
-  typing.value = isPhone.value
+  clearTimeout(composerBlurTimer)
+  if (keyboardBottom === undefined) {
+    const visualViewport = window.visualViewport
+    viewportBottomBeforeKeyboard = visualViewport ? visualViewport.offsetTop + visualViewport.height : window.innerHeight
+  }
+  composerFocused.value = isCompact.value
   syncViewport()
-  setTimeout(syncViewport, 300)
-  scrollToEnd()
+  scrollToEnd('smooth')
 }
 
 function onComposerBlur() {
-  typing.value = false
-  syncViewport()
-  setTimeout(syncViewport, 300)
+  clearTimeout(composerBlurTimer)
+  composerBlurTimer = setTimeout(() => {
+    composerFocused.value = false
+    syncViewport()
+  }, 300)
 }
 
 let stopEvents: (() => void) | undefined
@@ -183,20 +247,22 @@ async function decryptConversationPreviews(items: SupportChatConversation[]) {
     if (!profile.value?.id) await loadProfile()
     const userId = profile.value?.id
     if (!userId) return
-    await Promise.all(items.map(async (conversation) => {
-      const last = conversation.lastMessage
-      if (!last || last.kind !== 'text' || last.encrypted !== true || previewBodies.value.has(last.id) || decryptingPreviewIds.has(last.id)) return
-      decryptingPreviewIds.add(last.id)
-      try {
-        const result = await decryptChatMessages(userId, conversation.id, [last], false, false)
-        const text = result.messages.get(last.id)
-        if (text !== undefined) previewBodies.value = new Map(previewBodies.value).set(last.id, text)
-      } catch (error) {
-        console.error('[chat encryption] conversation preview could not be decrypted', { conversationId: conversation.id, messageId: last.id, error })
-      } finally {
-        decryptingPreviewIds.delete(last.id)
-      }
-    }))
+    await Promise.all(
+      items.map(async (conversation) => {
+        const last = conversation.lastMessage
+        if (!last || last.kind !== 'text' || last.encrypted !== true || previewBodies.value.has(last.id) || decryptingPreviewIds.has(last.id)) return
+        decryptingPreviewIds.add(last.id)
+        try {
+          const result = await decryptChatMessages(userId, conversation.id, [last], false, false)
+          const text = result.messages.get(last.id)
+          if (text !== undefined) previewBodies.value = new Map(previewBodies.value).set(last.id, text)
+        } catch (error) {
+          console.error('[chat encryption] conversation preview could not be decrypted', { conversationId: conversation.id, messageId: last.id, error })
+        } finally {
+          decryptingPreviewIds.delete(last.id)
+        }
+      })
+    )
   } catch (error) {
     console.error('[chat encryption] conversation previews could not be loaded', error)
   }
@@ -238,11 +304,23 @@ function nearBottom() {
   return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 120
 }
 
-function scrollToEnd() {
+function scrollToEnd(behavior: ScrollBehavior = 'instant') {
   void nextTick(() => {
-    if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
+    const element = scroller.value
+    if (!element) return
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : behavior
+    })
   })
 }
+
+watch(
+  () => frame.value.height,
+  () => {
+    if (composerFocused.value) scrollToEnd()
+  }
+)
 
 function merge(incoming: ChatMessageWithSequence[]) {
   const seen = new Set(messages.value.map((message) => message.id))
@@ -380,7 +458,7 @@ async function downgradeActiveToPlaintext() {
   const ok = await confirmAction(t('chat.downgradeConfirmMessage'), {
     title: t('chat.downgradeConfirmTitle'),
     confirmLabel: t('chat.downgradeConfirm'),
-    danger: true,
+    danger: true
   })
   if (!ok) return
 
@@ -402,7 +480,7 @@ async function upgradeActiveToEncrypted() {
   if (!conversation || conversation.encryptionMode !== 'plaintext' || !canUseEncryptedChat.value || downgrading.value) return
   const ok = await confirmAction(t('chat.upgradeConfirmMessage'), {
     title: t('chat.upgradeConfirmTitle'),
-    confirmLabel: t('chat.upgradeConfirm'),
+    confirmLabel: t('chat.upgradeConfirm')
   })
   if (!ok) return
 
@@ -550,16 +628,50 @@ watch(
     viewingChat.value = id ?? null
     void openThread(id)
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 onMounted(() => {
   void loadProfile()
   void refreshList(false)
   stopEvents = onChatEvent(onEvent)
-  phone.addEventListener('change', onPhoneChange)
+  compactScreen.addEventListener('change', onCompactScreenChange)
   window.addEventListener('resize', syncViewport)
+  if (Capacitor.isNativePlatform()) {
+    void Keyboard.addListener('keyboardWillShow', onKeyboardWillShow).then((handle) => {
+      if (chatViewUnmounted) {
+        void handle.remove().catch((error: unknown) => {
+          console.error('[chat] Could not remove native keyboard listener', error)
+        })
+      } else {
+        keyboardListeners.push(handle)
+      }
+    }).catch((error: unknown) => {
+      console.error('[chat] Could not listen for the native keyboard show event', error)
+    })
+    void Keyboard.addListener('keyboardWillHide', onKeyboardWillHide).then((handle) => {
+      if (chatViewUnmounted) {
+        void handle.remove().catch((error: unknown) => {
+          console.error('[chat] Could not remove native keyboard listener', error)
+        })
+      } else {
+        keyboardListeners.push(handle)
+      }
+    }).catch((error: unknown) => {
+      console.error('[chat] Could not listen for the native keyboard hide event', error)
+    })
+  }
   syncViewport()
+  void nextTick(() => {
+    syncComposerAlignment()
+    const grid = document.querySelector<HTMLElement>('.chat-grid')
+    const navSurface = document.querySelector<HTMLElement>('.mobile-tab-bar__surface')
+    if (typeof ResizeObserver !== 'undefined' && grid && navSurface) {
+      composerAlignmentObserver = new ResizeObserver(syncComposerAlignment)
+      composerAlignmentObserver.observe(grid)
+      composerAlignmentObserver.observe(navSurface)
+    }
+  })
   setTimeout(syncViewport, 300)
   window.visualViewport?.addEventListener('resize', syncViewport)
   window.visualViewport?.addEventListener('scroll', syncViewport)
@@ -567,10 +679,17 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  chatViewUnmounted = true
   viewingChat.value = null
   threadToken++
+  clearTimeout(composerBlurTimer)
+  composerAlignmentObserver?.disconnect()
+  void Promise.all(keyboardListeners.map((handle) => handle.remove())).catch((error: unknown) => {
+    console.error('[chat] Could not remove native keyboard listeners', error)
+  })
+  keyboardListeners = []
   stopEvents?.()
-  phone.removeEventListener('change', onPhoneChange)
+  compactScreen.removeEventListener('change', onCompactScreenChange)
   window.removeEventListener('resize', syncViewport)
   document.documentElement.style.overflow = ''
   window.visualViewport?.removeEventListener('resize', syncViewport)
@@ -580,14 +699,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text md:pb-0">
-    <Header :docked="isPhone" :style="headerShift ? { transform: `translateY(${headerShift}px)` } : undefined" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
-    <main class="page-gutter pt-28 sm:pt-32">
-      <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 md:h-[calc(100dvh-11rem)] md:grid-cols-[20rem_minmax(0,1fr)] md:rounded md:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
-        <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-md:absolute max-md:inset-0 md:border-r" :class="props.id ? 'max-md:-translate-x-1/4 max-md:opacity-0 max-md:pointer-events-none' : ''" :inert="isPhone && !!props.id" :aria-label="t('chat.conversations')">
-          <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-            <h1 class="text-lg font-bold text-white">{{ t('chat.title') }}</h1>
-            <button type="button" class="flex items-center gap-1.5 rounded bg-white px-3 py-1.5 text-xs font-bold text-flixer-background transition hover:bg-white/85" @click="newChat">
+  <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
+    <Header :docked="isCompact" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+    <main class="chat-main mx-auto w-full max-w-[110rem] px-3 pb-6 pt-24 sm:px-6 sm:pt-28 lg:pt-32">
+      <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 lg:h-[calc(100dvh-11rem)] lg:grid-cols-[21rem_minmax(0,1fr)] lg:rounded lg:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
+        <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-lg:absolute max-lg:inset-0 lg:border-r" :class="props.id ? 'max-lg:-translate-x-1/4 max-lg:pointer-events-none max-lg:opacity-0' : ''" :inert="isCompact && !!props.id" :aria-label="t('chat.conversations')">
+          <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
+            <div class="min-w-0">
+              <h1 class="text-lg font-bold tracking-tight text-white">{{ t('chat.title') }}</h1>
+              <p class="mt-0.5 text-xs text-flixer-muted">{{ t('chat.conversations') }}</p>
+            </div>
+            <button type="button" class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="newChat">
               <Icon icon="lucide:plus" class="size-3.5" aria-hidden="true" />
               {{ t('chat.new') }}
             </button>
@@ -600,10 +722,10 @@ onBeforeUnmount(() => {
             <p class="text-sm text-flixer-muted">{{ t('chat.empty') }}</p>
             <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="newChat">{{ t('chat.startChat') }}</button>
           </div>
-          <ul v-else class="min-h-0 flex-1 overflow-y-auto p-2">
+          <ul v-else class="min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
             <li v-for="conversation in conversations" :key="conversation.id">
-              <RouterLink :to="{ name: 'chat', params: { id: conversation.id } }" class="flex items-center gap-3 rounded px-2 py-2.5 transition motion-reduce:transition-none hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="conversation.id === props.id ? 'bg-white/10' : ''">
-                <span class="relative block size-11 shrink-0 overflow-hidden rounded">
+              <RouterLink :to="{ name: 'chat', params: { id: conversation.id } }" class="flex items-center gap-3 rounded border border-transparent px-2.5 py-3 transition motion-reduce:transition-none hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="conversation.id === props.id ? 'border-white/10 bg-white/[0.08]' : ''">
+                <span class="relative block size-11 shrink-0 overflow-hidden rounded-lg">
                   <UserAvatar v-if="conversation.kind === 'direct'" :avatar-url="otherMember(conversation)?.avatarUrl" :name="title(conversation)" />
                   <span v-else class="grid size-full place-items-center bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true">
                     <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
@@ -624,7 +746,7 @@ onBeforeUnmount(() => {
           </ul>
         </aside>
 
-        <section class="chat-pane flex min-h-0 min-w-0 flex-col bg-flixer-background max-md:absolute max-md:inset-0" :class="props.id ? '' : 'max-md:translate-x-full max-md:pointer-events-none'" :inert="isPhone && !props.id" :aria-label="t('chat.thread')">
+        <section class="chat-pane flex min-h-0 min-w-0 flex-col bg-flixer-background max-lg:absolute max-lg:inset-0" :class="props.id ? '' : 'max-lg:pointer-events-none max-lg:translate-x-full'" :inert="isCompact && !props.id" :aria-label="t('chat.thread')">
           <div :key="props.id ?? 'none'" class="chat-fade flex min-h-0 flex-1 flex-col">
             <div v-if="!props.id" class="m-auto p-6 text-center text-sm text-flixer-muted">{{ t('chat.selectPrompt') }}</div>
             <div v-else-if="threadMissing" class="m-auto p-6 text-center">
@@ -632,12 +754,12 @@ onBeforeUnmount(() => {
               <RouterLink :to="{ name: 'chat' }" class="mt-3 inline-block rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">{{ t('chat.back') }}</RouterLink>
             </div>
             <template v-else>
-              <header class="flex items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4">
-                <RouterLink :to="{ name: 'chat' }" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 md:hidden" :aria-label="t('chat.back')">
+              <header class="flex items-center gap-2 border-b border-white/10 bg-flixer-background/80 px-2.5 py-3 sm:gap-3 sm:px-4">
+                <RouterLink :to="{ name: 'chat' }" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 lg:hidden" :aria-label="t('chat.back')">
                   <Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" />
                 </RouterLink>
                 <template v-if="active">
-                  <span class="block size-9 shrink-0 overflow-hidden rounded">
+                  <span class="block size-10 shrink-0 overflow-hidden rounded-lg">
                     <UserAvatar v-if="active.kind === 'direct'" :avatar-url="otherMember(active)?.avatarUrl" :name="title(active)" />
                     <span v-else class="grid size-full place-items-center bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true">
                       <Icon icon="lucide:users-round" class="size-4" aria-hidden="true" />
@@ -648,24 +770,26 @@ onBeforeUnmount(() => {
                     <h2 v-else class="truncate text-sm font-semibold text-white">{{ title(active) }}</h2>
                     <p v-if="active.kind === 'group'" class="truncate text-xs text-flixer-muted">{{ t('chat.memberCount', { count: active.members.length }, active.members.length) }}</p>
                   </div>
-                  <button v-if="active.encryptionMode === 'encrypted' && allowUserDowngrade" type="button" class="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-amber-200 transition hover:bg-white/10 disabled:opacity-50" :disabled="downgrading" @click="downgradeActiveToPlaintext">
+                  <button v-if="active.encryptionMode === 'encrypted' && allowUserDowngrade" type="button" class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium text-amber-200 transition hover:bg-white/10 disabled:opacity-50" :aria-label="t('chat.downgradeToPlaintext')" :title="t('chat.downgradeToPlaintext')" :disabled="downgrading" @click="downgradeActiveToPlaintext">
                     <Icon icon="lucide:lock-open" class="size-3.5" aria-hidden="true" />
-                    {{ t('chat.downgradeToPlaintext') }}
+                    <span class="hidden lg:inline">{{ t('chat.downgradeToPlaintext') }}</span>
                   </button>
-                  <button v-if="active.encryptionMode === 'plaintext' && canUseEncryptedChat" type="button" class="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-200 transition hover:bg-white/10 disabled:opacity-50" :disabled="downgrading" @click="upgradeActiveToEncrypted">
+                  <button v-if="active.encryptionMode === 'plaintext' && canUseEncryptedChat" type="button" class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium text-emerald-200 transition hover:bg-white/10 disabled:opacity-50" :aria-label="t('chat.upgradeToEncrypted')" :title="t('chat.upgradeToEncrypted')" :disabled="downgrading" @click="upgradeActiveToEncrypted">
                     <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
-                    {{ t('chat.upgradeToEncrypted') }}
+                    <span class="hidden lg:inline">{{ t('chat.upgradeToEncrypted') }}</span>
                   </button>
-                  <span v-if="encryptionMode === 'encrypted' && !encryptionError" class="hidden shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-300 sm:flex" :aria-label="t('chat.encrypted')">
+                  <span v-if="encryptionMode === 'encrypted' && !encryptionError" class="flex shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-300" :aria-label="t('chat.encrypted')" :title="t('chat.encrypted')">
                     <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
-                    {{ t('chat.encrypted') }}
+                    <span class="hidden lg:inline">{{ t('chat.encrypted') }}</span>
                   </span>
-                  <button v-if="active.kind === 'direct' || isOwner || typeof active.supportChatOpen === 'boolean'" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
-                    <Icon icon="lucide:trash" class="size-5" aria-hidden="true" />
-                  </button>
-                  <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
-                    <Icon icon="lucide:circle-question-mark" class="size-5" aria-hidden="true" />
-                  </button>
+                  <span class="flex shrink-0 items-center gap-0.5">
+                    <button v-if="active.kind === 'direct' || isOwner || typeof active.supportChatOpen === 'boolean'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
+                      <Icon icon="lucide:trash" class="size-4.5" aria-hidden="true" />
+                    </button>
+                    <button v-if="active.kind === 'group'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white" :class="infoOpen ? 'bg-white/10' : ''" :aria-label="t('chat.groupInfo')" :aria-expanded="infoOpen" @click="infoOpen = !infoOpen">
+                      <Icon icon="lucide:circle-question-mark" class="size-4.5" aria-hidden="true" />
+                    </button>
+                  </span>
                 </template>
                 <Skeleton v-else class="h-5 w-40" />
               </header>
@@ -690,7 +814,7 @@ onBeforeUnmount(() => {
                 <button v-if="self" type="button" class="text-xs font-semibold text-red-400 hover:underline" @click="leaveOrRemove(self)">{{ t('chat.leaveGroup') }}</button>
               </div>
 
-              <div ref="scroller" class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-4" role="log" aria-live="polite" :aria-label="t('chat.messages')">
+              <div ref="scroller" class="min-h-0 flex-1 space-y-1 overflow-y-auto bg-[radial-gradient(ellipse_at_top,rgba(167,137,255,0.055),transparent_60%)] px-3 py-4 sm:px-6 sm:py-6" role="log" aria-live="polite" :aria-label="t('chat.messages')">
                 <p v-if="encryptionError" class="mx-auto mb-3 max-w-lg rounded border border-amber-300/30 bg-amber-400/10 p-3 text-center text-xs text-amber-100" role="status">{{ encryptionError }}</p>
                 <p v-if="historyWarning" class="mx-auto mb-3 max-w-lg rounded border border-amber-300/30 bg-amber-400/10 p-3 text-center text-xs text-amber-100" role="status">{{ historyWarning }}</p>
                 <p v-if="threadLoading" class="py-8 text-center text-sm text-flixer-muted">{{ t('common.loading') }}</p>
@@ -700,9 +824,9 @@ onBeforeUnmount(() => {
                   <template v-for="(message, index) in messages" :key="message.id">
                     <p v-if="message.kind === 'system'" class="py-1 text-center text-xs text-flixer-muted">{{ message.sender ? `${message.sender.displayName} ` : '' }}{{ message.body }}</p>
                     <div v-else class="flex" :class="message.sender?.username === self ? 'justify-end' : 'justify-start'">
-                      <div class="max-w-[85%] sm:max-w-[70%]">
+                      <div class="max-w-[88%] sm:max-w-[70%]">
                         <p v-if="active?.kind === 'group' && message.sender?.username !== self && messages[index - 1]?.sender?.username !== message.sender?.username" class="mb-0.5 px-1 text-xs font-semibold text-flixer-muted">{{ message.sender?.displayName }}</p>
-                        <p class="whitespace-pre-wrap break-words rounded px-3 py-2 text-sm" :class="message.sender?.username === self ? 'bg-flixer-accent text-flixer-background' : 'bg-white/10 text-white'" :title="fullTime(message.createdAt)">{{ messageBody(message) }}</p>
+                        <p class="whitespace-pre-wrap break-words rounded px-3.5 py-2.5 text-sm leading-5" :class="message.sender?.username === self ? 'rounded-br-md bg-flixer-accent text-flixer-background' : 'rounded-bl-md bg-white/[0.08] text-white'" :title="fullTime(message.createdAt)">{{ messageBody(message) }}</p>
                         <p class="mt-0.5 px-1 text-[10px] text-flixer-muted" :class="message.sender?.username === self ? 'text-right' : ''">{{ shortTime(message.createdAt) }}</p>
                       </div>
                     </div>
@@ -710,7 +834,7 @@ onBeforeUnmount(() => {
                 </template>
               </div>
 
-              <form class="border-t border-white/10 p-3" @submit.prevent="send">
+              <form class="border-t border-white/10 bg-flixer-background/90 px-3 py-3 sm:px-5 sm:py-4" :style="composerInsets" @submit.prevent="send">
                 <div v-if="active?.supportChatOpen === false" class="rounded border border-amber-300/30 bg-amber-400/10 p-3" role="status">
                   <p class="text-sm font-semibold text-amber-100">{{ t('chat.issueChatClosedTitle') }}</p>
                   <p class="mt-1 text-sm leading-5 text-amber-100/80">{{ t('chat.issueChatClosedDescription') }}</p>
@@ -718,8 +842,11 @@ onBeforeUnmount(() => {
                 <template v-else>
                   <p v-if="sendError" class="mb-2 text-xs text-red-400" role="alert">{{ sendError }}</p>
                   <div class="flex items-end gap-2">
-                    <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
-                    <button type="submit" class="h-10 shrink-0 rounded bg-white px-4 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!draft.trim() || sending || encryptionMode === 'unknown' || encryptionMode === 'error' || (encryptionMode === 'encrypted' && !!encryptionError)">{{ t('chat.send') }}</button>
+                    <textarea ref="composer" v-model="draft" rows="1" maxlength="2000" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-base text-white placeholder:text-flixer-muted focus:border-flixer-accent/60 focus:outline-none focus:ring-2 focus:ring-flixer-accent/40" :placeholder="t('chat.writeMessage')" :aria-label="t('chat.writeMessage')" @keydown="onComposerKey" @focus="onComposerFocus" @blur="onComposerBlur"></textarea>
+                    <button type="submit" class="grid h-11 shrink-0 place-items-center gap-2 rounded bg-flixer-accent px-4 text-sm font-bold text-flixer-background transition hover:brightness-110 disabled:opacity-50 sm:flex sm:items-center" :aria-label="t('chat.send')" :disabled="!draft.trim() || sending || encryptionMode === 'unknown' || encryptionMode === 'error' || (encryptionMode === 'encrypted' && !!encryptionError)">
+                      <Icon icon="lucide:send-horizontal" class="size-4 sm:hidden" aria-hidden="true" />
+                      <span class="hidden sm:inline">{{ t('chat.send') }}</span>
+                    </button>
                   </div>
                 </template>
               </form>
@@ -728,6 +855,7 @@ onBeforeUnmount(() => {
         </section>
       </div>
     </main>
+    <MobileTabBar :tabs="mobileTabs" />
   </div>
 </template>
 
@@ -749,13 +877,20 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   :global(html.has-mini-player) .chat-grid {
     height: calc(100dvh - 11rem - 3rem);
   }
 
   .chat-pane {
     transition: none;
+  }
+}
+
+@media (max-width: 63.99rem) {
+  :global(html.capacitor) .chat-grid {
+    left: env(safe-area-inset-left, 0px);
+    right: env(safe-area-inset-right, 0px);
   }
 }
 

@@ -1,0 +1,1238 @@
+diff --git a/node_modules/@capgo/capacitor-native-navigation/android/src/main/java/app/capgo/nativenavigation/NativeNavigationPlugin.java b/node_modules/@capgo/capacitor-native-navigation/android/src/main/java/app/capgo/nativenavigation/NativeNavigationPlugin.java
+index f696300..8c7fd6f 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/android/src/main/java/app/capgo/nativenavigation/NativeNavigationPlugin.java
++++ b/node_modules/@capgo/capacitor-native-navigation/android/src/main/java/app/capgo/nativenavigation/NativeNavigationPlugin.java
+@@ -8,6 +8,7 @@ import android.content.Context;
+ import android.content.res.Configuration;
+ import android.content.res.Resources;
+ import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
+ import android.graphics.Canvas;
+ import android.graphics.Color;
+ import android.graphics.Outline;
+@@ -21,6 +22,7 @@ import android.graphics.drawable.ColorDrawable;
+ import android.graphics.drawable.Drawable;
+ import android.graphics.drawable.GradientDrawable;
+ import android.graphics.drawable.InsetDrawable;
++import android.net.Uri;
+ import android.os.Build;
+ import android.text.TextUtils;
+ import android.util.TypedValue;
+@@ -42,6 +44,7 @@ import android.view.animation.PathInterpolator;
+ import android.view.inputmethod.EditorInfo;
+ import android.widget.EditText;
+ import android.widget.FrameLayout;
++import android.widget.ImageButton;
+ import android.widget.ImageView;
+ import android.widget.LinearLayout;
+ import android.widget.TextView;
+@@ -98,6 +101,26 @@ public class NativeNavigationPlugin extends Plugin {
+     private NativeTabbarLayout tabbar;
+     private View navbarGlassSurface;
+     private View tabbarGlassSurface;
++    private LinearLayout musicPlayerSurface;
++    private LinearLayout musicPlayerDetails;
++    private ImageView musicPlayerArtwork;
++    private TextView musicPlayerTitle;
++    private TextView musicPlayerArtist;
++    private ImageButton musicPlayerPrevious;
++    private ImageButton musicPlayerToggle;
++    private ImageButton musicPlayerNext;
++    private boolean musicPlayerVisible = false;
++    private Boolean musicPlayerVisibilityAnimationTarget;
++    private boolean musicPlayerIsPlaying = false;
++    private boolean musicPlayerIsLoading = false;
++    private boolean musicPlayerHasPrevious = false;
++    private boolean musicPlayerHasNext = false;
++    private String musicPlayerArtworkUrl;
++    private String musicPlayerOpenLabel = "Open lyrics";
++    private String musicPlayerPreviousLabel = "Previous";
++    private String musicPlayerPlayLabel = "Play";
++    private String musicPlayerPauseLabel = "Pause";
++    private String musicPlayerNextLabel = "Next";
+     private ImageView transitionSnapshot;
+     private boolean enabled = true;
+     private boolean navbarVisible = false;
+@@ -196,6 +219,12 @@ public class NativeNavigationPlugin extends Plugin {
+     @Override
+     protected void handleOnDestroy() {
+         cancelPendingWebViewBoundsWatcherAttach();
++        if (musicPlayerSurface != null && musicPlayerSurface.getParent() instanceof ViewGroup) {
++            musicPlayerSurface.animate().cancel();
++            ((ViewGroup) musicPlayerSurface.getParent()).removeView(musicPlayerSurface);
++            musicPlayerSurface = null;
++            musicPlayerVisibilityAnimationTarget = null;
++        }
+         super.handleOnDestroy();
+     }
+ 
+@@ -218,6 +247,14 @@ public class NativeNavigationPlugin extends Plugin {
+             if (!enabled) {
+                 navbarVisible = false;
+                 tabbarVisible = false;
++                musicPlayerVisible = false;
++                if (musicPlayerSurface != null) {
++                    musicPlayerSurface.animate().cancel();
++                    musicPlayerSurface.setVisibility(View.GONE);
++                    musicPlayerSurface.setAlpha(1f);
++                    musicPlayerSurface.setTranslationY(0f);
++                    musicPlayerVisibilityAnimationTarget = false;
++                }
+                 if (navbarContainer != null) {
+                     navbarContainer.setVisibility(View.GONE);
+                 }
+@@ -531,6 +568,51 @@ public class NativeNavigationPlugin extends Plugin {
+         });
+     }
+ 
++    @PluginMethod
++    public void setMusicPlayer(PluginCall call) {
++        runOnUiThread(() -> {
++            if (!enabled) {
++                musicPlayerVisible = false;
++                if (musicPlayerSurface != null) {
++                    musicPlayerSurface.animate().cancel();
++                    musicPlayerSurface.setVisibility(View.GONE);
++                    musicPlayerSurface.setAlpha(1f);
++                    musicPlayerSurface.setTranslationY(0f);
++                    musicPlayerVisibilityAnimationTarget = false;
++                }
++                call.resolve(new JSObject().put("native", false));
++                return;
++            }
++
++            musicPlayerVisible = call.getBoolean("visible", false);
++            musicPlayerIsPlaying = call.getBoolean("isPlaying", false);
++            musicPlayerIsLoading = call.getBoolean("isLoading", false);
++            musicPlayerHasPrevious = call.getBoolean("hasPrevious", false);
++            musicPlayerHasNext = call.getBoolean("hasNext", false);
++            JSObject labels = call.getObject("labels", new JSObject());
++            musicPlayerOpenLabel = labels.getString("open", musicPlayerOpenLabel);
++            musicPlayerPreviousLabel = labels.getString("previous", musicPlayerPreviousLabel);
++            musicPlayerPlayLabel = labels.getString("play", musicPlayerPlayLabel);
++            musicPlayerPauseLabel = labels.getString("pause", musicPlayerPauseLabel);
++            musicPlayerNextLabel = labels.getString("next", musicPlayerNextLabel);
++            if (musicPlayerVisible) {
++                ensureMusicPlayer();
++                if (musicPlayerSurface == null) {
++                    call.resolve(new JSObject().put("native", false));
++                    return;
++                }
++            }
++            if (musicPlayerTitle != null) {
++                musicPlayerTitle.setText(call.getString("title", ""));
++                musicPlayerArtist.setText(call.getString("artist", ""));
++                updateMusicPlayerArtwork(call.getString("artworkUrl", null));
++                updateMusicPlayerControls();
++            }
++            layoutChrome();
++            call.resolve(new JSObject().put("native", true));
++        });
++    }
++
+     @PluginMethod
+     public void beginTransition(PluginCall call) {
+         runOnUiThread(() -> {
+@@ -1236,6 +1318,242 @@ public class NativeNavigationPlugin extends Plugin {
+         return toolbar;
+     }
+ 
++    private void ensureMusicPlayer() {
++        if (musicPlayerSurface != null) {
++            return;
++        }
++        FrameLayout root = contentRoot();
++        if (root == null) {
++            return;
++        }
++
++        LinearLayout surface = new LinearLayout(getContext());
++        surface.setOrientation(LinearLayout.HORIZONTAL);
++        surface.setGravity(Gravity.CENTER_VERTICAL);
++        surface.setPadding(dp(10), 0, dp(8), 0);
++        GradientDrawable background = new GradientDrawable();
++        background.setColor(0xE814131D);
++        background.setCornerRadius(dp(22));
++        background.setStroke(dp(1), 0x33FFFFFF);
++        surface.setBackground(background);
++        surface.setElevation(dp(18));
++        surface.setClipToOutline(true);
++        surface.setVisibility(View.GONE);
++        surface.setClickable(true);
++        surface.setFocusable(true);
++        surface.setOnClickListener((view) -> emitMusicPlayerAction("open"));
++        root.addView(surface);
++        musicPlayerSurface = surface;
++
++        LinearLayout details = new LinearLayout(getContext());
++        details.setGravity(Gravity.CENTER_VERTICAL);
++        details.setOrientation(LinearLayout.HORIZONTAL);
++        details.setClickable(true);
++        details.setFocusable(true);
++        details.setContentDescription(musicPlayerOpenLabel);
++        details.setOnClickListener((view) -> emitMusicPlayerAction("open"));
++        surface.addView(details, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
++        musicPlayerDetails = details;
++
++        ImageView artwork = new ImageView(getContext());
++        artwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
++        artwork.setImageResource(android.R.drawable.ic_media_play);
++        artwork.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
++        artwork.setBackground(makeMusicArtworkBackground());
++        artwork.setClipToOutline(true);
++        details.addView(artwork, new LinearLayout.LayoutParams(dp(46), dp(46)));
++        musicPlayerArtwork = artwork;
++
++        LinearLayout labels = new LinearLayout(getContext());
++        labels.setOrientation(LinearLayout.VERTICAL);
++        labels.setGravity(Gravity.CENTER_VERTICAL);
++        labels.setPadding(dp(10), 0, dp(6), 0);
++        details.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
++
++        TextView title = new TextView(getContext());
++        title.setTextColor(Color.WHITE);
++        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
++        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
++        title.setSingleLine(true);
++        title.setEllipsize(TextUtils.TruncateAt.END);
++        labels.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
++        musicPlayerTitle = title;
++
++        TextView artist = new TextView(getContext());
++        artist.setTextColor(0xCCFFFFFF);
++        artist.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
++        artist.setSingleLine(true);
++        artist.setEllipsize(TextUtils.TruncateAt.END);
++        labels.addView(artist, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
++        musicPlayerArtist = artist;
++
++        musicPlayerPrevious = createMusicPlayerButton(android.R.drawable.ic_media_previous, "Previous", "previous");
++        musicPlayerToggle = createMusicPlayerButton(android.R.drawable.ic_media_play, "Play", "playPause");
++        musicPlayerNext = createMusicPlayerButton(android.R.drawable.ic_media_next, "Next", "next");
++        GradientDrawable toggleBackground = new GradientDrawable();
++        toggleBackground.setColor(0xF5FFFFFF);
++        toggleBackground.setShape(GradientDrawable.OVAL);
++        musicPlayerToggle.setBackground(toggleBackground);
++        musicPlayerToggle.setImageTintList(android.content.res.ColorStateList.valueOf(Color.rgb(20, 19, 29)));
++        surface.addView(musicPlayerPrevious, new LinearLayout.LayoutParams(dp(38), dp(42)));
++        surface.addView(musicPlayerToggle, new LinearLayout.LayoutParams(dp(38), dp(38)));
++        LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(dp(38), dp(42));
++        nextParams.leftMargin = dp(2);
++        surface.addView(musicPlayerNext, nextParams);
++        updateMusicPlayerControls();
++    }
++
++    private Drawable makeMusicArtworkBackground() {
++        GradientDrawable background = new GradientDrawable();
++        background.setColor(0x33FFFFFF);
++        background.setCornerRadius(dp(7));
++        return background;
++    }
++
++    private ImageButton createMusicPlayerButton(int icon, String label, String action) {
++        ImageButton button = new ImageButton(getContext());
++        button.setImageResource(icon);
++        button.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
++        button.setBackgroundColor(Color.TRANSPARENT);
++        button.setContentDescription(label);
++        button.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
++        button.setOnClickListener((view) -> emitMusicPlayerAction(action));
++        return button;
++    }
++
++    private void updateMusicPlayerArtwork(String artworkUrl) {
++        if (artworkUrl != null && artworkUrl.equals(musicPlayerArtworkUrl)) {
++            return;
++        }
++        musicPlayerArtworkUrl = artworkUrl;
++        if (musicPlayerArtwork == null) {
++            return;
++        }
++        Bitmap artwork = null;
++        if (artworkUrl != null) {
++            Uri uri = Uri.parse(artworkUrl);
++            if ("file".equals(uri.getScheme())) {
++                artwork = BitmapFactory.decodeFile(uri.getPath());
++            }
++        }
++        if (artwork != null) {
++            musicPlayerArtwork.setImageBitmap(artwork);
++            musicPlayerArtwork.setImageTintList(null);
++        } else {
++            musicPlayerArtwork.setImageResource(android.R.drawable.ic_media_play);
++            musicPlayerArtwork.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
++        }
++    }
++
++    private void updateMusicPlayerControls() {
++        if (musicPlayerPrevious == null || musicPlayerToggle == null || musicPlayerNext == null) {
++            return;
++        }
++        musicPlayerPrevious.setEnabled(musicPlayerHasPrevious && !musicPlayerIsLoading);
++        musicPlayerNext.setEnabled(musicPlayerHasNext && !musicPlayerIsLoading);
++        musicPlayerPrevious.setContentDescription(musicPlayerPreviousLabel);
++        musicPlayerNext.setContentDescription(musicPlayerNextLabel);
++        musicPlayerPrevious.setAlpha(musicPlayerPrevious.isEnabled() ? 1f : 0.45f);
++        musicPlayerNext.setAlpha(musicPlayerNext.isEnabled() ? 1f : 0.45f);
++        musicPlayerToggle.setEnabled(!musicPlayerIsLoading);
++        musicPlayerToggle.setAlpha(musicPlayerIsLoading ? 0.62f : 1f);
++        musicPlayerToggle.setImageResource(musicPlayerIsPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
++        musicPlayerToggle.setContentDescription(musicPlayerIsPlaying ? musicPlayerPauseLabel : musicPlayerPlayLabel);
++        if (musicPlayerDetails != null && musicPlayerTitle != null && musicPlayerArtist != null) {
++            musicPlayerDetails.setContentDescription(
++                musicPlayerOpenLabel + ": " + musicPlayerTitle.getText() + ", " + musicPlayerArtist.getText()
++            );
++        }
++    }
++
++    private void emitMusicPlayerAction(String action) {
++        notifyListeners("musicPlayerAction", new JSObject().put("action", action));
++    }
++
++    private void layoutMusicPlayer() {
++        FrameLayout root = contentRoot();
++        if (root == null || musicPlayerSurface == null) {
++            return;
++        }
++        if (!musicPlayerVisible || !tabbarVisible || tabbarStyle.isSidebar() || tabbarContainer == null) {
++            setMusicPlayerSurfaceVisible(false);
++            return;
++        }
++        ViewGroup.LayoutParams current = tabbarContainer.getLayoutParams();
++        if (!(current instanceof FrameLayout.LayoutParams)) {
++            setMusicPlayerSurfaceVisible(false);
++            return;
++        }
++        FrameLayout.LayoutParams tabbarParams = (FrameLayout.LayoutParams) current;
++        int width = tabbarContainer.getWidth() > 0 ? tabbarContainer.getWidth() : tabbarParams.width;
++        int left = tabbarContainer.getWidth() > 0 ? tabbarContainer.getLeft() : tabbarParams.leftMargin;
++        int height = dp(66);
++        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height, Gravity.BOTTOM | Gravity.LEFT);
++        params.leftMargin = left;
++        params.bottomMargin = nativeNavigationBarInset() + dp(tabbarStyle.bottomGap) + Math.max(tabbarContainer.getHeight(), tabbarParams.height) + dp(10);
++        musicPlayerSurface.setLayoutParams(params);
++        setMusicPlayerSurfaceVisible(true);
++    }
++
++    private void setMusicPlayerSurfaceVisible(boolean visible) {
++        LinearLayout surface = musicPlayerSurface;
++        if (surface == null || (musicPlayerVisibilityAnimationTarget != null && musicPlayerVisibilityAnimationTarget == visible)) {
++            return;
++        }
++
++        boolean wasVisible = surface.getVisibility() == View.VISIBLE;
++        if (musicPlayerVisibilityAnimationTarget == null) {
++            if (visible && wasVisible && surface.getAlpha() >= 0.999f && surface.getTranslationY() == 0f) {
++                return;
++            }
++            if (!visible && !wasVisible) {
++                return;
++            }
++        }
++        musicPlayerVisibilityAnimationTarget = visible;
++        surface.animate().cancel();
++        if (!visible) {
++            if (!wasVisible) {
++                surface.setVisibility(View.GONE);
++                surface.setAlpha(1f);
++                surface.setTranslationY(0f);
++                return;
++            }
++            surface
++                .animate()
++                .alpha(0f)
++                .translationY(dp(12))
++                .setDuration(TabbarChromeSupport.TABBAR_VISIBILITY_ANIMATION_MS)
++                .withEndAction(() -> {
++                    if (musicPlayerSurface == surface && Boolean.FALSE.equals(musicPlayerVisibilityAnimationTarget)) {
++                        surface.setVisibility(View.GONE);
++                        surface.setAlpha(1f);
++                        surface.setTranslationY(0f);
++                        musicPlayerVisibilityAnimationTarget = null;
++                    }
++                })
++                .start();
++            return;
++        }
++
++        if (!wasVisible) {
++            surface.setVisibility(View.VISIBLE);
++            surface.setAlpha(0f);
++            surface.setTranslationY(dp(12));
++        }
++        surface
++            .animate()
++            .alpha(1f)
++            .translationY(0f)
++            .setDuration(TabbarChromeSupport.TABBAR_VISIBILITY_ANIMATION_MS)
++            .withEndAction(() -> {
++                if (musicPlayerSurface == surface && Boolean.TRUE.equals(musicPlayerVisibilityAnimationTarget)) {
++                    musicPlayerVisibilityAnimationTarget = null;
++                }
++            })
++            .start();
++    }
++
+     private NativeTabbarLayout ensureTabbar() {
+         if (tabbar != null) {
+             return tabbar;
+@@ -1456,6 +1774,7 @@ public class NativeNavigationPlugin extends Plugin {
+             }
+         }
+         layoutTabbarContainer();
++        layoutMusicPlayer();
+     }
+ 
+     private void applyTabButtonMinimize(TabButton button) {
+@@ -3090,6 +3409,7 @@ public class NativeNavigationPlugin extends Plugin {
+             tabbarBackdrop.setVisibility(tabbarLayoutVisible && backdropHeight > 0 ? View.VISIBLE : View.GONE);
+         }
+         layoutTabbarContainer();
++        layoutMusicPlayer();
+ 
+         if (tabbar != null) {
+             FrameLayout.LayoutParams tabbarParams = new FrameLayout.LayoutParams(
+@@ -3291,6 +3611,9 @@ public class NativeNavigationPlugin extends Plugin {
+         if (tabbarContainer != null) {
+             tabbarContainer.bringToFront();
+         }
++        if (musicPlayerSurface != null && musicPlayerSurface.getVisibility() == View.VISIBLE) {
++            musicPlayerSurface.bringToFront();
++        }
+     }
+ 
+     private void updateInsetsAndNotify() {
+diff --git a/node_modules/@capgo/capacitor-native-navigation/dist/esm/definitions.d.ts b/node_modules/@capgo/capacitor-native-navigation/dist/esm/definitions.d.ts
+index 6a40c74..33ea964 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/dist/esm/definitions.d.ts
++++ b/node_modules/@capgo/capacitor-native-navigation/dist/esm/definitions.d.ts
+@@ -1076,6 +1076,44 @@ export interface NativeNavigationTabSelectEvent {
+     index: number;
+     title?: string;
+ }
++export interface NativeNavigationMoreMenuItem {
++    id: string;
++    title: string;
++    icon?: NativeNavigationIcon;
++}
++export interface NativeNavigationMoreMenuOptions {
++    open: boolean;
++    items?: NativeNavigationMoreMenuItem[];
++    selectedId?: string;
++    closeLabel?: string;
++}
++export interface NativeNavigationMoreMenuResult {
++    native: boolean;
++    liquidGlass?: boolean;
++}
++export interface NativeNavigationMusicPlayerOptions {
++    visible: boolean;
++    title?: string;
++    artist?: string;
++    artworkUrl?: string;
++    labels?: {
++        open: string;
++        previous: string;
++        play: string;
++        pause: string;
++        next: string;
++    };
++    isPlaying?: boolean;
++    isLoading?: boolean;
++    hasPrevious?: boolean;
++    hasNext?: boolean;
++}
++export interface NativeNavigationMusicPlayerResult {
++    native: boolean;
++}
++export interface NativeNavigationMusicPlayerActionEvent {
++    action: 'open' | 'previous' | 'playPause' | 'next';
++}
+ export interface NativeNavigationSafeAreaChangedEvent {
+     insets: NativeNavigationInsets;
+ }
+@@ -1169,6 +1207,15 @@ export interface NativeNavigationPlugin {
+      * Render or update the native tabbar.
+      */
+     setTabbar(options: NativeNavigationTabbarOptions): Promise<NativeNavigationInsetsResult>;
++    /**
++     * Show or hide a native glass tray above the tabbar. `native` is false
++     * when the current native layout cannot host the tray.
++     */
++    setMoreMenu(options: NativeNavigationMoreMenuOptions): Promise<NativeNavigationMoreMenuResult>;
++    /**
++     * Show or update the native compact music player above the tabbar.
++     */
++    setMusicPlayer(options: NativeNavigationMusicPlayerOptions): Promise<NativeNavigationMusicPlayerResult>;
+     /**
+      * Capture the current WebView and prepare a native transition.
+      */
+@@ -1196,6 +1243,9 @@ export interface NativeNavigationPlugin {
+      */
+     addListener(eventName: 'navbarSegmentSelect', listenerFunc: (event: NativeNavigationNavbarSegmentSelectEvent) => void): Promise<PluginListenerHandle>;
+     addListener(eventName: 'tabSelect', listenerFunc: (event: NativeNavigationTabSelectEvent) => void): Promise<PluginListenerHandle>;
++    addListener(eventName: 'moreMenuSelect', listenerFunc: (event: { id: string }) => void): Promise<PluginListenerHandle>;
++    addListener(eventName: 'moreMenuDismiss', listenerFunc: () => void): Promise<PluginListenerHandle>;
++    addListener(eventName: 'musicPlayerAction', listenerFunc: (event: NativeNavigationMusicPlayerActionEvent) => void): Promise<PluginListenerHandle>;
+     addListener(eventName: 'safeAreaChanged', listenerFunc: (event: NativeNavigationSafeAreaChangedEvent) => void): Promise<PluginListenerHandle>;
+     /**
+      * Fired when the iPhone Duo vertical rail appears, disappears, or changes
+diff --git a/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.d.ts b/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.d.ts
+index 4b098ee..cc49901 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.d.ts
++++ b/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.d.ts
+@@ -1,5 +1,5 @@
+ import { WebPlugin } from '@capacitor/core';
+-import type { NativeNavigationBeginTransitionOptions, NativeNavigationConfigureOptions, NativeNavigationFinishTransitionOptions, NativeNavigationInsetsResult, NativeNavigationNavbarOptions, NativeNavigationNavbarScrollEvent, NativeNavigationPlugin, NativeNavigationPullToRefreshOptions, NativeNavigationTabbarOptions, NativeNavigationTransitionResult, PluginVersionResult } from './definitions';
++import type { NativeNavigationBeginTransitionOptions, NativeNavigationConfigureOptions, NativeNavigationFinishTransitionOptions, NativeNavigationInsetsResult, NativeNavigationMoreMenuOptions, NativeNavigationMoreMenuResult, NativeNavigationMusicPlayerOptions, NativeNavigationMusicPlayerResult, NativeNavigationNavbarOptions, NativeNavigationNavbarScrollEvent, NativeNavigationPlugin, NativeNavigationPullToRefreshOptions, NativeNavigationTabbarOptions, NativeNavigationTransitionResult, PluginVersionResult } from './definitions';
+ export declare class NativeNavigationWeb extends WebPlugin implements NativeNavigationPlugin {
+     private config;
+     private navbar;
+@@ -17,6 +17,8 @@ export declare class NativeNavigationWeb extends WebPlugin implements NativeNavi
+     setPullToRefresh(_options: NativeNavigationPullToRefreshOptions): Promise<void>;
+     endPullToRefresh(): Promise<void>;
+     setTabbar(options: NativeNavigationTabbarOptions): Promise<NativeNavigationInsetsResult>;
++    setMoreMenu(options: NativeNavigationMoreMenuOptions): Promise<NativeNavigationMoreMenuResult>;
++    setMusicPlayer(options: NativeNavigationMusicPlayerOptions): Promise<NativeNavigationMusicPlayerResult>;
+     beginTransition(options?: NativeNavigationBeginTransitionOptions): Promise<NativeNavigationTransitionResult>;
+     finishTransition(options?: NativeNavigationFinishTransitionOptions): Promise<NativeNavigationTransitionResult>;
+     getPluginVersion(): Promise<PluginVersionResult>;
+diff --git a/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.js b/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.js
+index 79a574b..3d176a1 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.js
++++ b/node_modules/@capgo/capacitor-native-navigation/dist/esm/web.js
+@@ -46,6 +46,12 @@ export class NativeNavigationWeb extends WebPlugin {
+         this.tabbar = Object.assign(Object.assign(Object.assign({}, this.tabbar), options), { colors: Object.assign(Object.assign({}, this.tabbar.colors), options.colors), style: Object.assign(Object.assign({}, this.tabbar.style), options.style), glass: Object.assign(Object.assign({}, this.tabbar.glass), options.glass) });
+         return this.applyInsets();
+     }
++    async setMoreMenu(_options) {
++        return { native: false };
++    }
++    async setMusicPlayer(_options) {
++        return { native: false };
++    }
+     async beginTransition(options = {}) {
+         const transition = this.createTransition(options.id, options.direction, options.duration);
+         this.activeTransition = transition;
+diff --git a/node_modules/@capgo/capacitor-native-navigation/dist/plugin.cjs.js b/node_modules/@capgo/capacitor-native-navigation/dist/plugin.cjs.js
+index d0e6901..d9bbd46 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/dist/plugin.cjs.js
++++ b/node_modules/@capgo/capacitor-native-navigation/dist/plugin.cjs.js
+@@ -316,6 +316,12 @@ class NativeNavigationWeb extends core.WebPlugin {
+         this.tabbar = Object.assign(Object.assign(Object.assign({}, this.tabbar), options), { colors: Object.assign(Object.assign({}, this.tabbar.colors), options.colors), style: Object.assign(Object.assign({}, this.tabbar.style), options.style), glass: Object.assign(Object.assign({}, this.tabbar.glass), options.glass) });
+         return this.applyInsets();
+     }
++    async setMoreMenu(_options) {
++        return { native: false };
++    }
++    async setMusicPlayer(_options) {
++        return { native: false };
++    }
+     async beginTransition(options = {}) {
+         const transition = this.createTransition(options.id, options.direction, options.duration);
+         this.activeTransition = transition;
+diff --git a/node_modules/@capgo/capacitor-native-navigation/dist/plugin.js b/node_modules/@capgo/capacitor-native-navigation/dist/plugin.js
+index a78b000..489a6c6 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/dist/plugin.js
++++ b/node_modules/@capgo/capacitor-native-navigation/dist/plugin.js
+@@ -315,6 +315,12 @@ var capacitorNativeNavigation = (function (exports, core) {
+             this.tabbar = Object.assign(Object.assign(Object.assign({}, this.tabbar), options), { colors: Object.assign(Object.assign({}, this.tabbar.colors), options.colors), style: Object.assign(Object.assign({}, this.tabbar.style), options.style), glass: Object.assign(Object.assign({}, this.tabbar.glass), options.glass) });
+             return this.applyInsets();
+         }
++        async setMoreMenu(_options) {
++            return { native: false };
++        }
++        async setMusicPlayer(_options) {
++            return { native: false };
++        }
+         async beginTransition(options = {}) {
+             const transition = this.createTransition(options.id, options.direction, options.duration);
+             this.activeTransition = transition;
+diff --git a/node_modules/@capgo/capacitor-native-navigation/ios/Sources/NativeNavigationPlugin/NativeNavigationPlugin.swift b/node_modules/@capgo/capacitor-native-navigation/ios/Sources/NativeNavigationPlugin/NativeNavigationPlugin.swift
+index ab4598a..826fe03 100644
+--- a/node_modules/@capgo/capacitor-native-navigation/ios/Sources/NativeNavigationPlugin/NativeNavigationPlugin.swift
++++ b/node_modules/@capgo/capacitor-native-navigation/ios/Sources/NativeNavigationPlugin/NativeNavigationPlugin.swift
+@@ -24,7 +24,7 @@ private struct NativeNavigationZoomTransitionContext {
+ 
+ // swiftlint:disable type_body_length
+ @objc(NativeNavigationPlugin)
+-public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarControllerDelegate, UITabBarDelegate, UISearchBarDelegate {
++public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarControllerDelegate, UITabBarDelegate, UISearchBarDelegate, UIGestureRecognizerDelegate {
+     public let identifier = "NativeNavigationPlugin"
+     public let jsName = "NativeNavigation"
+     public let pluginMethods: [CAPPluginMethod] = [
+@@ -34,6 +34,8 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+         CAPPluginMethod(name: "setPullToRefresh", returnType: CAPPluginReturnPromise),
+         CAPPluginMethod(name: "endPullToRefresh", returnType: CAPPluginReturnPromise),
+         CAPPluginMethod(name: "setTabbar", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "setMoreMenu", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "setMusicPlayer", returnType: CAPPluginReturnPromise),
+         CAPPluginMethod(name: "beginTransition", returnType: CAPPluginReturnPromise),
+         CAPPluginMethod(name: "finishTransition", returnType: CAPPluginReturnPromise),
+         CAPPluginMethod(name: "getPluginVersion", returnType: CAPPluginReturnPromise)
+@@ -60,6 +62,30 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+     private var tabbarMinimizeOnScroll = false
+     private var tabbarMinimized = false
+     private var floatingTabBar: NativeNavigationFloatingTabBar?
++    private var moreMenuBackdrop: UIButton?
++    private var moreMenuSurfaceContainer: UIView?
++    private var moreMenuEffectView: UIVisualEffectView?
++    private var moreMenuTabBar: NativeNavigationFloatingTabBar?
++    private var moreMenuItems: [[String: Any]] = []
++    private var moreMenuSelectedId: String?
++    private var moreMenuCloseLabel = "Close menu"
++    private var moreMenuOpen = false
++    private var musicPlayerSurface: UIVisualEffectView?
++    private var musicPlayerDetailsButton: UIButton?
++    private var musicPlayerArtworkView: UIImageView?
++    private var musicPlayerTitleLabel: UILabel?
++    private var musicPlayerArtistLabel: UILabel?
++    private var musicPlayerPreviousButton: UIButton?
++    private var musicPlayerToggleButton: UIButton?
++    private var musicPlayerNextButton: UIButton?
++    private var musicPlayerVisible = false
++    private var musicPlayerVisibilityAnimationTarget: Bool?
++    private var musicPlayerIsPlaying = false
++    private var musicPlayerIsLoading = false
++    private var musicPlayerHasPrevious = false
++    private var musicPlayerHasNext = false
++    private var musicPlayerArtworkURL: String?
++    private var musicPlayerLabels: [String: String] = [:]
+     private var tabbarStyle = NativeNavigationTabbarStyleConfig()
+     private var tabBarController: NativeNavigationTabController?
+     private var tabViewControllers: [UIViewController] = []
+@@ -223,6 +249,11 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+             if !self.isEnabled {
+                 self.navContainer?.isHidden = true
+                 self.tabContainer?.isHidden = true
++                self.musicPlayerSurface?.layer.removeAllAnimations()
++                self.musicPlayerSurface?.isHidden = true
++                self.musicPlayerSurface?.alpha = 0
++                self.musicPlayerSurface?.transform = .identity
++                self.musicPlayerVisibilityAnimationTarget = false
+                 self.restoreWebViewFromSystemTabController()
+                 self.tabBarController?.view.isHidden = true
+                 self.tabBar?.isHidden = true
+@@ -383,6 +414,7 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+         DispatchQueue.main.async {
+             guard self.isEnabled else {
+                 self.tabbarVisible = false
++                self.hideMoreMenu(notifyDismiss: false, animated: false)
+                 self.updateInsetsAndNotify()
+                 call.resolve(self.insetsResult())
+                 return
+@@ -399,7 +431,9 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+             self.tabbarMinimizeOnScroll = minimizeOnScroll
+ 
+             guard !hidden else {
++                self.hideMoreMenu(notifyDismiss: false, animated: false)
+                 self.hideTabBarChrome(animated: animated)
++                self.layoutMusicPlayer()
+                 self.updateInsetsAndNotify()
+                 call.resolve(self.insetsResult())
+                 return
+@@ -515,6 +549,76 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+         }
+     }
+ 
++    @objc func setMoreMenu(_ call: CAPPluginCall) {
++        DispatchQueue.main.async {
++            guard call.getBool("open", false) else {
++                self.hideMoreMenu(notifyDismiss: false)
++                call.resolve(["native": true])
++                return
++            }
++
++            guard self.isEnabled, self.tabbarVisible,
++                  let rootView = self.bridge?.viewController?.view else {
++                self.hideMoreMenu(notifyDismiss: false, animated: false)
++                call.resolve(["native": false])
++                return
++            }
++
++            self.moreMenuItems = call.getArray("items") as? [[String: Any]] ?? []
++            guard !self.moreMenuItems.isEmpty else {
++                self.hideMoreMenu(notifyDismiss: false, animated: false)
++                call.resolve(["native": false])
++                return
++            }
++
++            self.moreMenuSelectedId = call.getString("selectedId")
++            self.moreMenuCloseLabel = call.getString("closeLabel") ?? "Close menu"
++            self.layoutChrome()
++            guard !self.cachedRail.isVertical else {
++                self.hideMoreMenu(notifyDismiss: false, animated: false)
++                call.resolve(["native": false])
++                return
++            }
++
++            self.presentMoreMenu(in: rootView)
++            call.resolve([
++                "native": true,
++                "liquidGlass": !UIAccessibility.isReduceTransparencyEnabled && self.liquidGlassEffect() != nil
++            ])
++        }
++    }
++
++    @objc func setMusicPlayer(_ call: CAPPluginCall) {
++        DispatchQueue.main.async {
++            guard self.isEnabled else {
++                self.musicPlayerVisible = false
++                self.musicPlayerSurface?.layer.removeAllAnimations()
++                self.musicPlayerSurface?.isHidden = true
++                self.musicPlayerSurface?.alpha = 0
++                self.musicPlayerSurface?.transform = .identity
++                self.musicPlayerVisibilityAnimationTarget = false
++                call.resolve(["native": false])
++                return
++            }
++
++            self.musicPlayerVisible = call.getBool("visible", false)
++            self.musicPlayerIsPlaying = call.getBool("isPlaying", false)
++            self.musicPlayerIsLoading = call.getBool("isLoading", false)
++            self.musicPlayerHasPrevious = call.getBool("hasPrevious", false)
++            self.musicPlayerHasNext = call.getBool("hasNext", false)
++            self.musicPlayerLabels = call.getObject("labels") as? [String: String] ?? [:]
++            if self.musicPlayerVisible, let rootView = self.bridge?.viewController?.view {
++                self.ensureMusicPlayer(in: rootView)
++            }
++            self.musicPlayerTitleLabel?.text = call.getString("title") ?? ""
++            self.musicPlayerArtistLabel?.text = call.getString("artist") ?? ""
++            self.updateMusicPlayerArtwork(call.getString("artworkUrl"))
++            self.updateMusicPlayerControls()
++            self.layoutChrome()
++            call.resolve(["native": true])
++        }
++    }
++
+     @objc func beginTransition(_ call: CAPPluginCall) {
+         DispatchQueue.main.async {
+             guard let webView = self.webView,
+@@ -2749,6 +2853,8 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+             }
+         }
+ 
++        layoutMusicPlayer()
++        layoutMoreMenu()
+         bringChromeToFront()
+     }
+ 
+@@ -2761,6 +2867,7 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+                 (systemTabRootContainer ?? bridge?.viewController?.view)?.bringSubviewToFront(navContainer)
+             }
+             bringLiftedWebViewOverlaysToFront()
++            bringMoreMenuToFront()
+             return
+         }
+ 
+@@ -2773,6 +2880,510 @@ public class NativeNavigationPlugin: CAPPlugin, CAPBridgedPlugin, UITabBarContro
+         if let tabBarController = tabBarController {
+             bridge?.viewController?.view.bringSubviewToFront(tabBarController.view)
+         }
++        bringMoreMenuToFront()
++    }
++
++    private func bringMoreMenuToFront() {
++        guard let rootView = bridge?.viewController?.view else {
++            return
++        }
++        if let musicPlayerSurface, !musicPlayerSurface.isHidden {
++            rootView.bringSubviewToFront(musicPlayerSurface)
++        }
++        if let backdrop = moreMenuBackdrop {
++            rootView.bringSubviewToFront(backdrop)
++        }
++        if let surface = moreMenuSurfaceContainer {
++            rootView.bringSubviewToFront(surface)
++        }
++    }
++
++    private func ensureMusicPlayer(in rootView: UIView) {
++        guard musicPlayerSurface == nil else {
++            return
++        }
++
++        let effect = liquidGlassEffect() ?? UIBlurEffect(style: .systemChromeMaterial)
++        let surface = UIVisualEffectView(effect: effect)
++        surface.isHidden = true
++        surface.layer.cornerRadius = 22
++        surface.layer.cornerCurve = .continuous
++        surface.clipsToBounds = true
++        surface.layer.borderWidth = 1
++        surface.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
++        surface.layer.shadowColor = UIColor.black.cgColor
++        surface.layer.shadowOpacity = liquidGlassEffect() == nil ? 0.22 : 0
++        surface.layer.shadowRadius = 16
++        surface.layer.shadowOffset = CGSize(width: 0, height: 7)
++        surface.contentView.backgroundColor = colorValue((lastSetTabbarOptions["colors"] as? [String: Any])?["background"])?.withAlphaComponent(0.36)
++        rootView.addSubview(surface)
++        musicPlayerSurface = surface
++
++        let details = UIButton(type: .custom)
++        details.translatesAutoresizingMaskIntoConstraints = false
++        details.accessibilityTraits = .button
++        details.addTarget(self, action: #selector(openMusicPlayer), for: .touchUpInside)
++        surface.contentView.addSubview(details)
++        musicPlayerDetailsButton = details
++
++        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(openMusicPlayer))
++        tapGesture.delegate = self
++        tapGesture.cancelsTouchesInView = false
++        surface.addGestureRecognizer(tapGesture)
++
++        let artworkView = UIImageView()
++        artworkView.translatesAutoresizingMaskIntoConstraints = false
++        artworkView.contentMode = .scaleAspectFill
++        artworkView.clipsToBounds = true
++        artworkView.layer.cornerRadius = 7
++        artworkView.backgroundColor = UIColor.white.withAlphaComponent(0.12)
++        artworkView.image = UIImage(systemName: "music.note")
++        artworkView.tintColor = .white
++        artworkView.contentMode = .center
++        details.addSubview(artworkView)
++        musicPlayerArtworkView = artworkView
++
++        let titleLabel = UILabel()
++        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
++        titleLabel.textColor = .white
++        titleLabel.lineBreakMode = .byTruncatingTail
++        titleLabel.numberOfLines = 1
++        musicPlayerTitleLabel = titleLabel
++
++        let artistLabel = UILabel()
++        artistLabel.font = .systemFont(ofSize: 11, weight: .regular)
++        artistLabel.textColor = UIColor.white.withAlphaComponent(0.72)
++        artistLabel.lineBreakMode = .byTruncatingTail
++        artistLabel.numberOfLines = 1
++        musicPlayerArtistLabel = artistLabel
++
++        let labels = UIStackView(arrangedSubviews: [titleLabel, artistLabel])
++        labels.translatesAutoresizingMaskIntoConstraints = false
++        labels.axis = .vertical
++        labels.alignment = .leading
++        labels.distribution = .fill
++        labels.spacing = 3
++        details.addSubview(labels)
++
++        let previous = makeMusicPlayerButton(symbol: "backward.end.fill", action: #selector(previousMusicTrack))
++        let toggle = makeMusicPlayerButton(symbol: "play.fill", action: #selector(toggleMusicPlayback))
++        toggle.backgroundColor = UIColor.white.withAlphaComponent(0.94)
++        toggle.tintColor = UIColor(white: 0.08, alpha: 1)
++        toggle.layer.cornerRadius = 19
++        toggle.layer.cornerCurve = .continuous
++        let next = makeMusicPlayerButton(symbol: "forward.end.fill", action: #selector(nextMusicTrack))
++        musicPlayerPreviousButton = previous
++        musicPlayerToggleButton = toggle
++        musicPlayerNextButton = next
++
++        let controls = UIStackView(arrangedSubviews: [previous, toggle, next])
++        controls.translatesAutoresizingMaskIntoConstraints = false
++        controls.axis = .horizontal
++        controls.alignment = .center
++        controls.distribution = .equalSpacing
++        controls.spacing = 4
++        surface.contentView.addSubview(controls)
++
++        NSLayoutConstraint.activate([
++            details.leadingAnchor.constraint(equalTo: surface.contentView.leadingAnchor, constant: 12),
++            details.topAnchor.constraint(equalTo: surface.contentView.topAnchor, constant: 8),
++            details.bottomAnchor.constraint(equalTo: surface.contentView.bottomAnchor, constant: -8),
++            details.trailingAnchor.constraint(equalTo: controls.leadingAnchor, constant: -8),
++            artworkView.leadingAnchor.constraint(equalTo: details.leadingAnchor),
++            artworkView.centerYAnchor.constraint(equalTo: details.centerYAnchor),
++            artworkView.widthAnchor.constraint(equalToConstant: 46),
++            artworkView.heightAnchor.constraint(equalToConstant: 46),
++            labels.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 10),
++            labels.trailingAnchor.constraint(equalTo: details.trailingAnchor),
++            labels.centerYAnchor.constraint(equalTo: details.centerYAnchor),
++            controls.trailingAnchor.constraint(equalTo: surface.contentView.trailingAnchor, constant: -10),
++            controls.centerYAnchor.constraint(equalTo: surface.contentView.centerYAnchor),
++            controls.widthAnchor.constraint(equalToConstant: 138),
++            previous.widthAnchor.constraint(equalToConstant: 38),
++            previous.heightAnchor.constraint(equalToConstant: 42),
++            toggle.widthAnchor.constraint(equalToConstant: 38),
++            toggle.heightAnchor.constraint(equalToConstant: 38),
++            next.widthAnchor.constraint(equalToConstant: 38),
++            next.heightAnchor.constraint(equalToConstant: 42),
++        ])
++
++        updateMusicPlayerArtwork(musicPlayerArtworkURL)
++        updateMusicPlayerControls()
++    }
++
++    private func makeMusicPlayerButton(symbol: String, action: Selector) -> UIButton {
++        let button = UIButton(type: .system)
++        button.translatesAutoresizingMaskIntoConstraints = false
++        button.setImage(UIImage(systemName: symbol), for: .normal)
++        button.tintColor = .white
++        button.addTarget(self, action: action, for: .touchUpInside)
++        return button
++    }
++
++    private func updateMusicPlayerArtwork(_ artworkURL: String?) {
++        guard artworkURL != musicPlayerArtworkURL else {
++            return
++        }
++        musicPlayerArtworkURL = artworkURL
++        let artwork: UIImage?
++        if let artworkURL, let url = URL(string: artworkURL), url.isFileURL {
++            artwork = UIImage(contentsOfFile: url.path)
++        } else {
++            artwork = nil
++        }
++        musicPlayerArtworkView?.image = artwork ?? UIImage(systemName: "music.note")
++        musicPlayerArtworkView?.tintColor = .white
++        musicPlayerArtworkView?.contentMode = artwork == nil ? .center : .scaleAspectFill
++    }
++
++    private func updateMusicPlayerControls() {
++        musicPlayerPreviousButton?.isEnabled = musicPlayerHasPrevious && !musicPlayerIsLoading
++        musicPlayerNextButton?.isEnabled = musicPlayerHasNext && !musicPlayerIsLoading
++        musicPlayerPreviousButton?.alpha = musicPlayerPreviousButton?.isEnabled == true ? 1 : 0.45
++        musicPlayerNextButton?.alpha = musicPlayerNextButton?.isEnabled == true ? 1 : 0.45
++        musicPlayerPreviousButton?.accessibilityLabel = musicPlayerLabels["previous"] ?? "Previous"
++        musicPlayerNextButton?.accessibilityLabel = musicPlayerLabels["next"] ?? "Next"
++        musicPlayerToggleButton?.isEnabled = !musicPlayerIsLoading
++        musicPlayerToggleButton?.alpha = musicPlayerIsLoading ? 0.62 : 1
++        musicPlayerToggleButton?.setImage(
++            UIImage(systemName: musicPlayerIsPlaying ? "pause.fill" : "play.fill"),
++            for: .normal
++        )
++        musicPlayerToggleButton?.accessibilityLabel = musicPlayerLabels[musicPlayerIsPlaying ? "pause" : "play"] ?? (musicPlayerIsPlaying ? "Pause" : "Play")
++        let track = [musicPlayerTitleLabel?.text, musicPlayerArtistLabel?.text]
++            .compactMap { $0 }
++            .filter { !$0.isEmpty }
++            .joined(separator: ", ")
++        musicPlayerDetailsButton?.accessibilityLabel = [musicPlayerLabels["open"], track]
++            .compactMap { $0 }
++            .filter { !$0.isEmpty }
++            .joined(separator: ", ")
++    }
++
++    @objc private func openMusicPlayer() {
++        notifyListeners("musicPlayerAction", data: ["action": "open"])
++    }
++
++    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
++        guard gestureRecognizer.view === musicPlayerSurface else {
++            return true
++        }
++
++        var touchedView = touch.view
++        while let view = touchedView {
++            if view is UIControl {
++                return false
++            }
++            if view === musicPlayerSurface {
++                break
++            }
++            touchedView = view.superview
++        }
++        return true
++    }
++
++    @objc private func previousMusicTrack() {
++        notifyListeners("musicPlayerAction", data: ["action": "previous"])
++    }
++
++    @objc private func toggleMusicPlayback() {
++        notifyListeners("musicPlayerAction", data: ["action": "playPause"])
++    }
++
++    @objc private func nextMusicTrack() {
++        notifyListeners("musicPlayerAction", data: ["action": "next"])
++    }
++
++    private func layoutMusicPlayer() {
++        guard let rootView = bridge?.viewController?.view,
++              let surface = musicPlayerSurface else {
++            return
++        }
++        guard isEnabled, musicPlayerVisible, tabbarVisible, !cachedRail.isVertical else {
++            setMusicPlayerSurfaceVisible(false)
++            return
++        }
++
++        let safeInsets = rootView.safeAreaInsets
++        let margin = usesSystemLiquidGlass ? max(tabbarStyle.horizontalMargin, Self.systemLookSideMargin) : tabbarStyle.horizontalMargin
++        let availableWidth = max(0, rootView.bounds.width - safeInsets.left - safeInsets.right - margin * 2)
++        let maxWidth = tabbarStyle.maxWidth > 0 ? tabbarStyle.maxWidth : availableWidth
++        let width = min(availableWidth, maxWidth)
++        let barFrame: CGRect?
++        if usesSystemTabBar,
++           let tabBarController = tabBarController,
++           !tabBarController.tabBar.isHidden {
++            barFrame = rootView.convert(tabBarController.tabBar.frame, from: tabBarController.view)
++        } else if let tabContainer = tabContainer, !tabContainer.isHidden {
++            barFrame = tabContainer.frame
++        } else {
++            barFrame = nil
++        }
++        guard let barFrame else {
++            setMusicPlayerSurfaceVisible(false)
++            return
++        }
++        let height: CGFloat = 66
++        let gap: CGFloat = 10
++        surface.frame = CGRect(x: (rootView.bounds.width - width) / 2, y: barFrame.minY - height - gap, width: width, height: height)
++        setMusicPlayerSurfaceVisible(true)
++    }
++
++    private func setMusicPlayerSurfaceVisible(_ visible: Bool, animated: Bool = true) {
++        guard let surface = musicPlayerSurface else {
++            return
++        }
++        guard musicPlayerVisibilityAnimationTarget != visible else {
++            return
++        }
++        if musicPlayerVisibilityAnimationTarget == nil {
++            if visible, !surface.isHidden, surface.alpha >= 0.999, surface.transform.isIdentity {
++                return
++            }
++            if !visible, surface.isHidden {
++                return
++            }
++        }
++        musicPlayerVisibilityAnimationTarget = visible
++
++        if !animated {
++            surface.layer.removeAllAnimations()
++            surface.isHidden = !visible
++            surface.alpha = visible ? 1 : 0
++            surface.transform = .identity
++            return
++        }
++
++        if visible {
++            let wasHidden = surface.isHidden
++            surface.layer.removeAllAnimations()
++            surface.isHidden = false
++            if wasHidden {
++                surface.alpha = 0
++                surface.transform = CGAffineTransform(translationX: 0, y: 12).scaledBy(x: 0.98, y: 0.98)
++            }
++            UIView.animate(
++                withDuration: 0.22,
++                delay: 0,
++                options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseOut],
++                animations: {
++                    surface.alpha = 1
++                    surface.transform = .identity
++                },
++                completion: { _ in
++                    if self.musicPlayerVisibilityAnimationTarget == true {
++                        self.musicPlayerVisibilityAnimationTarget = nil
++                    }
++                }
++            )
++            return
++        }
++
++        guard !surface.isHidden else {
++            surface.alpha = 0
++            surface.transform = .identity
++            musicPlayerVisibilityAnimationTarget = nil
++            return
++        }
++        surface.layer.removeAllAnimations()
++        UIView.animate(
++            withDuration: 0.22,
++            delay: 0,
++            options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseIn],
++            animations: {
++                surface.alpha = 0
++                surface.transform = CGAffineTransform(translationX: 0, y: 12).scaledBy(x: 0.98, y: 0.98)
++            },
++            completion: { _ in
++                guard self.musicPlayerVisibilityAnimationTarget == false else {
++                    return
++                }
++                surface.isHidden = true
++                surface.transform = .identity
++                self.musicPlayerVisibilityAnimationTarget = nil
++            }
++        )
++    }
++
++    private func presentMoreMenu(in rootView: UIView) {
++        let menuItems = moreMenuItems
++        let selectedId = moreMenuSelectedId
++        hideMoreMenu(notifyDismiss: false, animated: false)
++        moreMenuItems = menuItems
++        moreMenuSelectedId = selectedId
++
++        let backdrop = UIButton(type: .custom)
++        backdrop.frame = rootView.bounds
++        backdrop.autoresizingMask = [.flexibleWidth, .flexibleHeight]
++        backdrop.backgroundColor = .clear
++        backdrop.accessibilityLabel = moreMenuCloseLabel
++        backdrop.addTarget(self, action: #selector(dismissMoreMenu), for: .touchUpInside)
++        rootView.addSubview(backdrop)
++        moreMenuBackdrop = backdrop
++
++        let surface = UIView()
++        surface.layer.cornerRadius = 28
++        surface.layer.cornerCurve = .continuous
++        surface.layer.shadowColor = UIColor.black.cgColor
++        surface.layer.shadowOpacity = liquidGlassEffect() == nil ? 0.14 : 0
++        surface.layer.shadowRadius = 18
++        surface.layer.shadowOffset = CGSize(width: 0, height: 10)
++        rootView.addSubview(surface)
++        moreMenuSurfaceContainer = surface
++
++        let effect: UIVisualEffect? = UIAccessibility.isReduceTransparencyEnabled
++            ? nil
++            : (liquidGlassEffect() ?? UIBlurEffect(style: .systemChromeMaterial))
++        let effectView = UIVisualEffectView(effect: effect)
++        effectView.frame = surface.bounds
++        effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
++        let systemLook = usesSystemLiquidGlass
++        let menuBarHeight = systemLook ? Self.systemLookBarHeight : max(tabbarStyle.height, 64)
++        effectView.layer.cornerRadius = menuBarHeight / 2
++        effectView.layer.cornerCurve = .continuous
++        effectView.clipsToBounds = true
++        let backgroundTint = colorValue((lastSetTabbarOptions["colors"] as? [String: Any])?["background"])
++        effectView.contentView.backgroundColor = effect == nil
++            ? (backgroundTint ?? UIColor(white: 0.1, alpha: 0.94))
++            : backgroundTint?.withAlphaComponent(0.4)
++        surface.addSubview(effectView)
++        moreMenuEffectView = effectView
++
++        let tint = colorValue((lastSetTabbarOptions["colors"] as? [String: Any])?["tint"]) ?? .white
++        let activeTab = moreMenuItems.firstIndex { ($0["id"] as? String) == moreMenuSelectedId }
++        let items = menuItems.enumerated().map { index, item in
++            let id = item["id"] as? String ?? "more-\(index)"
++            let title = item["title"] as? String ?? id
++            let image = image(from: item["icon"] as? [String: Any])
++            return NativeNavigationFloatingTabItem(
++                id: id,
++                title: title,
++                accessibilityTitle: title,
++                image: image,
++                selectedImage: image,
++                badge: nil,
++                enabled: true,
++                isDetachedTrailing: false,
++                sourceIndex: index
++            )
++        }
++
++        var menuStyle = tabbarStyle
++        menuStyle.shape = .floating
++        menuStyle.height = menuBarHeight
++        menuStyle.cornerRadius = menuBarHeight / 2
++        menuStyle.bottomGap = 0
++        menuStyle.centerItemId = nil
++        let menuBar = NativeNavigationFloatingTabBar()
++        menuBar.frame = effectView.contentView.bounds.insetBy(dx: 4, dy: 0)
++        menuBar.autoresizingMask = [.flexibleWidth, .flexibleHeight]
++        menuBar.systemLook = systemLook
++        menuBar.selectedTintColor = tint
++        menuBar.inactiveTintColor = colorValue((lastSetTabbarOptions["colors"] as? [String: Any])?["inactiveTint"]) ?? UIColor.secondaryLabel
++        menuBar.backgroundFillColor = .clear
++        menuBar.configure(
++            items: items,
++            selectedIndex: activeTab ?? 0,
++            labelVisibilityMode: "labeled",
++            icons: true,
++            style: menuStyle
++        )
++        menuBar.onSelect = { [weak self] _, item in
++            self?.hideMoreMenu(notifyDismiss: false)
++            self?.notifyListeners("moreMenuSelect", data: ["id": item.id])
++        }
++        effectView.contentView.addSubview(menuBar)
++        moreMenuTabBar = menuBar
++
++        moreMenuOpen = true
++        layoutMoreMenu()
++        surface.alpha = 0
++        surface.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
++        UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) {
++            surface.alpha = 1
++            surface.transform = .identity
++        }
++        bringMoreMenuToFront()
++    }
++
++    private func layoutMoreMenu() {
++        guard moreMenuOpen,
++              let rootView = bridge?.viewController?.view,
++              let surface = moreMenuSurfaceContainer,
++              let effectView = moreMenuEffectView else {
++            return
++        }
++        let safeInsets = rootView.safeAreaInsets
++        let systemLook = usesSystemLiquidGlass
++        let margin = systemLook ? max(tabbarStyle.horizontalMargin, Self.systemLookSideMargin) : tabbarStyle.horizontalMargin
++        let availableWidth = max(0, rootView.bounds.width - safeInsets.left - safeInsets.right - margin * 2)
++        let maxWidth = tabbarStyle.maxWidth > 0 ? tabbarStyle.maxWidth : availableWidth
++        let width = min(availableWidth, maxWidth)
++        let desiredHeight = systemLook ? Self.systemLookBarHeight : max(tabbarStyle.height, 64)
++        let maxHeight = max(96, rootView.bounds.height * 0.55)
++        let panelHeight = min(desiredHeight, maxHeight)
++        let barTop: CGFloat
++        if let musicPlayerSurface, !musicPlayerSurface.isHidden {
++            barTop = musicPlayerSurface.frame.minY
++        } else if usesSystemTabBar,
++           let tabBarController = tabBarController,
++           !tabBarController.tabBar.isHidden {
++            barTop = rootView.convert(tabBarController.tabBar.frame, from: tabBarController.view).minY
++        } else if !usesSystemTabBar, let tabContainer = tabContainer, !tabContainer.isHidden {
++            barTop = tabContainer.frame.minY
++        } else if systemLook {
++            barTop = rootView.bounds.height - systemLookBottomOffset(safeInsets) - Self.systemLookBarHeight
++        } else {
++            barTop = rootView.bounds.height - safeInsets.bottom - tabbarStyle.bottomGap - tabbarStyle.totalHeight
++        }
++        let panelBottom = barTop - 12
++        let panelY = max(safeInsets.top + 8, panelBottom - panelHeight)
++        surface.frame = CGRect(x: (rootView.bounds.width - width) / 2, y: panelY, width: width, height: panelBottom - panelY)
++        surface.layer.cornerRadius = desiredHeight / 2
++        surface.layer.shadowOpacity = liquidGlassEffect() == nil ? 0.14 : 0
++        effectView.frame = surface.bounds
++        moreMenuBackdrop?.frame = rootView.bounds
++        moreMenuTabBar?.frame = effectView.bounds.insetBy(dx: 4, dy: 0)
++    }
++
++    private func hideMoreMenu(notifyDismiss: Bool, animated: Bool = true) {
++        moreMenuOpen = false
++        moreMenuItems = []
++        moreMenuSelectedId = nil
++        guard let backdrop = moreMenuBackdrop, let surface = moreMenuSurfaceContainer else {
++            if notifyDismiss {
++                notifyListeners("moreMenuDismiss", data: [:])
++            }
++            return
++        }
++        backdrop.isUserInteractionEnabled = false
++        let removeViews = {
++            backdrop.removeFromSuperview()
++            surface.removeFromSuperview()
++            if self.moreMenuBackdrop === backdrop {
++                self.moreMenuBackdrop = nil
++                self.moreMenuSurfaceContainer = nil
++                self.moreMenuEffectView = nil
++                self.moreMenuTabBar = nil
++            }
++            if notifyDismiss {
++                self.notifyListeners("moreMenuDismiss", data: [:])
++            }
++        }
++        guard animated else {
++            removeViews()
++            return
++        }
++        UIView.animate(withDuration: 0.16, delay: 0, options: [.curveEaseIn, .beginFromCurrentState]) {
++            surface.alpha = 0
++            surface.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
++        } completion: { _ in
++            removeViews()
++        }
++    }
++
++    @objc private func dismissMoreMenu() {
++        hideMoreMenu(notifyDismiss: true)
+     }
+ 
+     private func colorValue(_ value: Any?) -> UIColor? {

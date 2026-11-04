@@ -117,6 +117,12 @@ function ago(iso: string) {
 	return formatter.format(0, "minute");
 }
 
+function notificationIcon(kind: string): string {
+	if (kind === "mail") return "lucide:mail";
+	if (kind === "friend_request") return "lucide:user-round-plus";
+	return "lucide:bell";
+}
+
 function openItem(id: string, url: string | null) {
 	void markRead(id);
 	if (url && url.startsWith("/") && !url.startsWith("//")) {
@@ -185,7 +191,8 @@ function toggleNativeNotifications() {
 							<span class="mt-1.5 size-2 shrink-0 rounded-full" :class="item.read ? 'bg-transparent' : 'bg-flixer-accent'" aria-hidden="true"></span>
 							<div class="min-w-0 flex-1">
 								<button type="button" class="w-full text-left" @click="openItem(item.id, item.url)">
-									<span class="block truncate text-sm font-semibold text-white">{{ item.title }}</span>
+									<span class="flex items-center gap-1.5 truncate text-sm font-semibold text-white"><Icon :icon="notificationIcon(String(item.kind))" class="size-3.5 shrink-0 text-flixer-muted" aria-hidden="true" />{{ item.title }}</span>
+									<span v-if="String(item.kind) === 'mail'" class="mt-1 inline-block rounded bg-flixer-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-flixer-accent">{{ t("notifications.kinds.mail") }}</span>
 									<span class="mt-0.5 line-clamp-2 block text-xs text-flixer-text/80">{{ item.body }}</span>
 									<span class="mt-1 block text-[11px] text-flixer-muted">{{ ago(item.createdAt) }}</span>
 								</button>

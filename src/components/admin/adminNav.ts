@@ -7,6 +7,7 @@ export const ADMIN_TABS = {
   requests: ['requests'],
   issues: ['tickets', 'issueReports'],
   notifications: ['notifications', 'smtp'],
+  mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
   apikeys: ['apikeys'],
   plugins: ['plugins'],
   settings: ['server', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
@@ -50,6 +51,7 @@ const LEGACY: Record<string, AdminLocation> = {
   plugins: { tab: 'plugins', page: 'plugins' },
   tickets: { tab: 'issues', page: 'tickets' },
   issueReports: { tab: 'issues', page: 'issueReports' },
+  mail: { tab: 'mail', page: 'mailOverview' },
 }
 
 function text(value: unknown): string {

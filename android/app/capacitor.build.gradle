@@ -21,7 +21,6 @@ dependencies {
     implementation project(':capacitor-splash-screen')
     implementation project(':capawesome-capacitor-badge')
     implementation project(':capgo-capacitor-autofill-save-password')
-    implementation project(':capgo-capacitor-native-audio')
     implementation project(':capgo-capacitor-native-biometric')
     implementation project(':capgo-capacitor-native-navigation')
     implementation project(':capgo-capacitor-persistent-account')

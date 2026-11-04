@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { parseTrickplayPlaylist } from './playback.ts'
+import { buildAudioBitrateUrl, parseTrickplayPlaylist } from './playback.ts'
+
+describe('buildAudioBitrateUrl', () => {
+  it('adds bitrate to relative and absolute stream URLs without dropping existing parameters', () => {
+    expect(buildAudioBitrateUrl('/streamer/stream/token?quality=high', 320)).toBe('/streamer/stream/token?quality=high&audioBitrate=320')
+    expect(buildAudioBitrateUrl('https://flixer.test/streamer/stream/token', 192)).toBe('https://flixer.test/streamer/stream/token?audioBitrate=192')
+  })
+})
 
 describe('parseTrickplayPlaylist', () => {
   it('reads HLS image tile metadata and resolves relative image URLs', () => {

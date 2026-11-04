@@ -1,17 +1,19 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { Capacitor } from '@capacitor/core'
 
 export const IDLE_MS = 5 * 60_000
 const MOVE_THRESHOLD_PX = 8
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
 /** DOM-free countdown: calls `onChange(true)` once idle and `onChange(false)` on the next activity. */
-export function createIdleTimer(options: { timeoutMs: number; suppressed: () => boolean; hidden: () => boolean; onChange: (idle: boolean) => void }) {
+export function createIdleTimer(options: { timeoutMs: number; suppressed: () => boolean; disabled?: () => boolean; hidden: () => boolean; onChange: (idle: boolean) => void }) {
   let timer: ReturnType<typeof setTimeout> | undefined
   let idle = false
 
   function arm() {
     clearTimeout(timer)
     timer = setTimeout(() => {
+      if (options.disabled?.()) return
       if (options.suppressed() || options.hidden()) {
         arm()
         return
@@ -34,6 +36,7 @@ export function createIdleTimer(options: { timeoutMs: number; suppressed: () => 
       arm()
     },
     show() {
+      if (options.disabled?.()) return
       if (idle) return
       idle = true
       options.onChange(true)
@@ -51,9 +54,12 @@ export function createIdleTimer(options: { timeoutMs: number; suppressed: () => 
 export function useIdleSplash(suppressed: () => boolean, timeoutMs = IDLE_MS) {
   const active = ref(false)
   let anchor: { x: number; y: number } | null = null
+  const mobileViewport = window.matchMedia('(max-width: 1023px)')
+  const disabled = () => Capacitor.isNativePlatform() || mobileViewport.matches
   const timer = createIdleTimer({
     timeoutMs,
     suppressed,
+    disabled,
     hidden: () => document.hidden,
     onChange: (idle) => {
       active.value = idle
@@ -77,12 +83,20 @@ export function useIdleSplash(suppressed: () => boolean, timeoutMs = IDLE_MS) {
   }
 
   const show = () => timer.show()
+  function onViewportChange() {
+    if (disabled()) {
+      timer.activity()
+    } else {
+      timer.arm()
+    }
+  }
 
   onMounted(() => {
     // Console: window.dispatchEvent(new Event('flixer:splash'))
     window.addEventListener('flixer:splash', show)
     for (const name of ACTIVITY_EVENTS) window.addEventListener(name, activity, { passive: true })
     window.addEventListener('pointermove', onMove, { passive: true })
+    mobileViewport.addEventListener('change', onViewportChange)
     document.addEventListener('visibilitychange', onVisible)
     timer.arm()
   })
@@ -92,6 +106,7 @@ export function useIdleSplash(suppressed: () => boolean, timeoutMs = IDLE_MS) {
     window.removeEventListener('flixer:splash', show)
     for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, activity)
     window.removeEventListener('pointermove', onMove)
+    mobileViewport.removeEventListener('change', onViewportChange)
     document.removeEventListener('visibilitychange', onVisible)
   })
 

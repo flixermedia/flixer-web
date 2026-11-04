@@ -1,20 +1,32 @@
 import { Capacitor } from "@capacitor/core";
-import { ActionSheet } from "@capacitor/action-sheet";
 import { NativeNavigation } from "@capgo/capacitor-native-navigation";
+import type { NativeNavigationMusicPlayerOptions } from "@capgo/capacitor-native-navigation";
 import { ref, watch } from "vue";
 import type { Router } from "vue-router";
+import { isActivePath } from "../composables/homeNav";
+import { useAudioPlayer } from "../composables/useAudioPlayer";
 import { i18n } from "../i18n";
 import type { NavTab } from "../types/media";
 
 export const nativeNavigationEnabled = ref(false);
+export const nativeMoreMenuOpen = ref(false);
+export const nativeMoreMenuNativeActive = ref(Capacitor.getPlatform() === "ios");
+export const nativeMusicPlayerNativeActive = ref(false);
+export const nativeMoreTabs = ref<NavTab[]>([]);
 
 let playerOpen = false;
+let lyricsOverlayOpen = false;
 let router: Router | null = null;
 let renderQueue = Promise.resolve();
-let moreTabs: NavTab[] = [];
-let moreActionSheetOpen = false;
-
+let nativeMenuIsPresented = false;
 const primaryTabPaths = new Set(["/", "/discover", "/search"]);
+const nativeMoreSymbols: Record<string, string> = {
+	"lucide:film": "film",
+	"lucide:tv": "tv",
+	"lucide:music-2": "music.note",
+	"lucide:messages-square": "bubble.left.and.bubble.right",
+	"lucide:calendar-days": "calendar",
+};
 
 const icon = (svg: string, sfSymbol: string) => ({
 	svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`,
@@ -37,27 +49,78 @@ function selectedTab(path: string): string {
 	return "more";
 }
 
-async function showNativeMoreActions(): Promise<void> {
-	if (!router || moreActionSheetOpen) return;
-	const options = moreTabs.filter((tab) => !primaryTabPaths.has(tab.to));
-	if (options.length === 0) return;
-
-	moreActionSheetOpen = true;
-	try {
-		const { index } = await ActionSheet.showActions({
-			title: i18n.global.t("home.nav.more"),
-			options: options.map((tab) => ({ title: tab.label })),
-			cancelable: true,
+export function closeNativeMoreMenu(): void {
+	const shouldHideNativeMenu = nativeMenuIsPresented;
+	nativeMenuIsPresented = false;
+	nativeMoreMenuOpen.value = false;
+	if (shouldHideNativeMenu) {
+		void NativeNavigation.setMoreMenu({ open: false }).catch((error: unknown) => {
+			console.error("[native-navigation] Could not close the native More menu", error);
 		});
-		const destination = options[index]?.to;
-		if (destination) {
-			await router.push(destination);
+	}
+}
+
+export async function setNativeMusicPlayer(options: NativeNavigationMusicPlayerOptions): Promise<void> {
+	try {
+		const result = await NativeNavigation.setMusicPlayer({
+			...options,
+			labels: {
+				open: i18n.global.t("music.lyrics"),
+				previous: i18n.global.t("music.previous"),
+				play: i18n.global.t("music.play"),
+				pause: i18n.global.t("music.pause"),
+				next: i18n.global.t("music.next"),
+			},
+		});
+		nativeMusicPlayerNativeActive.value = result.native;
+		if (result.native) {
+			document.documentElement.classList.toggle("has-mini-player", options.visible);
 		}
 	} catch (error) {
-		console.error("[native-navigation] Could not present the More action sheet", error);
-	} finally {
-		moreActionSheetOpen = false;
+		nativeMusicPlayerNativeActive.value = false;
+		console.error("[native-navigation] Could not update the native music player", error);
 	}
+}
+
+function nativeMoreMenuOptions(open: boolean) {
+	const currentPath = router?.currentRoute.value.path;
+	const activeMoreTab = currentPath ? nativeMoreTabs.value.find((tab) => isActivePath(currentPath, tab.to)) : undefined;
+	return {
+		open,
+		items: nativeMoreTabs.value.map((tab) => {
+			const icon = tab.icon.startsWith("M")
+				? {
+						svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${tab.icon}"/></svg>`,
+						width: 24,
+						height: 24,
+					}
+				: { ios: { sfSymbol: nativeMoreSymbols[tab.icon] ?? "square.grid.2x2" }, width: 24, height: 24 };
+			return { id: tab.to, title: tab.label, icon };
+		}),
+		selectedId: activeMoreTab?.to,
+		closeLabel: i18n.global.t("common.close"),
+	};
+}
+
+async function openNativeMoreMenu(): Promise<void> {
+	if (nativeMoreMenuNativeActive.value) {
+		try {
+			const result = await NativeNavigation.setMoreMenu(nativeMoreMenuOptions(true));
+			if (result.native) {
+				nativeMenuIsPresented = true;
+				nativeMoreMenuOpen.value = true;
+				if (Capacitor.getPlatform() === "ios" && !result.liquidGlass) {
+					console.warn("[native-navigation] The More tray is using the material fallback; Liquid Glass requires iOS 26+, a compatible Xcode SDK, and Reduce Transparency disabled.");
+				}
+				return;
+			}
+			nativeMoreMenuNativeActive.value = false;
+		} catch (error) {
+			console.error("[native-navigation] Could not present the native More menu", error);
+			nativeMoreMenuNativeActive.value = false;
+		}
+	}
+	nativeMoreMenuOpen.value = true;
 }
 
 function renderNativeChrome(): Promise<void> {
@@ -67,7 +130,7 @@ function renderNativeChrome(): Promise<void> {
 
 			const currentRoute = router.currentRoute.value;
 			const authenticated = currentRoute.matched.some((record) => record.meta.requiresAuth);
-			const hidden = !authenticated || playerOpen;
+			const hidden = !authenticated || playerOpen || lyricsOverlayOpen;
 
 			await NativeNavigation.setNavbar({ hidden: true });
 
@@ -103,6 +166,20 @@ export async function initializeNativeNavigation(appRouter: Router): Promise<voi
 	if (!Capacitor.isNativePlatform()) return;
 
 	router = appRouter;
+	const audio = useAudioPlayer();
+	const syncMusicPlayer = () => {
+		const current = audio.current.value;
+		void setNativeMusicPlayer({
+			visible: current !== null && !audio.lyricsOpen.value && !(nativeMoreMenuOpen.value && !nativeMoreMenuNativeActive.value),
+			title: current?.title ?? "",
+			artist: current?.artist ?? current?.album ?? "",
+			artworkUrl: audio.nativeNavigationArtworkUri.value ?? undefined,
+			isPlaying: audio.isPlaying.value,
+			isLoading: audio.isLoading.value,
+			hasPrevious: current !== null,
+			hasNext: audio.hasNext.value,
+		});
+	};
 	await NativeNavigation.configure({
 		enabled: true,
 		contentInsetMode: "css",
@@ -120,10 +197,14 @@ export async function initializeNativeNavigation(appRouter: Router): Promise<voi
 	await NativeNavigation.addListener("tabSelect", ({ id }) => {
 		if (!router) return;
 		if (id === "more") {
-			void showNativeMoreActions();
+			if (nativeMoreTabs.value.length > 0) {
+				if (nativeMoreMenuOpen.value) closeNativeMoreMenu();
+				else void openNativeMoreMenu();
+			}
 			return;
 		}
 
+		closeNativeMoreMenu();
 		const destinations: Record<string, string> = {
 			home: "/",
 			discover: "/discover",
@@ -132,17 +213,66 @@ export async function initializeNativeNavigation(appRouter: Router): Promise<voi
 		const destination = destinations[id];
 		if (destination) void router.push(destination);
 	});
-	appRouter.afterEach(() => void renderNativeChrome());
-	watch(i18n.global.locale, () => void renderNativeChrome());
+	await NativeNavigation.addListener("moreMenuSelect", ({ id }) => {
+		nativeMenuIsPresented = false;
+		nativeMoreMenuOpen.value = false;
+		if (router && id) void router.push(id);
+	});
+	await NativeNavigation.addListener("moreMenuDismiss", () => {
+		nativeMenuIsPresented = false;
+		nativeMoreMenuOpen.value = false;
+	});
+	await NativeNavigation.addListener("musicPlayerAction", ({ action }) => {
+		if (action === "previous") audio.previous();
+		else if (action === "playPause") audio.toggle();
+		else if (action === "next") audio.next();
+		else if (action === "open") audio.lyricsOpen.value = true;
+	});
+	watch(() => [audio.current.value, audio.isPlaying.value, audio.isLoading.value, audio.nativeNavigationArtworkUri.value, audio.hasNext.value, audio.lyricsOpen.value, nativeMoreMenuOpen.value, nativeMoreMenuNativeActive.value], syncMusicPlayer, { immediate: true });
+	watch(
+		audio.lyricsOpen,
+		(open) => {
+			lyricsOverlayOpen = open;
+			void renderNativeChrome();
+		},
+		{ immediate: true },
+	);
+	appRouter.afterEach(() => {
+		closeNativeMoreMenu();
+		void renderNativeChrome();
+	});
+	watch(i18n.global.locale, () => {
+		void renderNativeChrome();
+		syncMusicPlayer();
+	});
 
 	await renderNativeChrome();
 }
 
 export function setNativeMoreTabs(tabs: NavTab[]): void {
-	moreTabs = [...tabs];
+	nativeMoreTabs.value = tabs.filter((tab) => !primaryTabPaths.has(tab.to));
+	if (nativeMoreTabs.value.length === 0) {
+		closeNativeMoreMenu();
+		return;
+	}
+	if (nativeMenuIsPresented) {
+		void NativeNavigation.setMoreMenu(nativeMoreMenuOptions(true))
+			.then(({ native }) => {
+				if (!native) {
+					nativeMenuIsPresented = false;
+					nativeMoreMenuNativeActive.value = false;
+				}
+			})
+			.catch((error: unknown) => {
+				console.error("[native-navigation] Could not update the native More menu", error);
+				nativeMenuIsPresented = false;
+				nativeMoreMenuNativeActive.value = false;
+			});
+	}
 }
 
 export function setNativePlayerOpen(open: boolean): void {
 	playerOpen = open;
+	if (open) closeNativeMoreMenu();
 	void renderNativeChrome();
 }

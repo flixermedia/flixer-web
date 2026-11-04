@@ -374,13 +374,26 @@ export async function retryIndexerTask(queue: IndexerTaskQueueName, id: string):
 }
 
 export async function clearFailedIndexerTasks(queue: IndexerTaskQueueName): Promise<number> {
-  const response = await api.post<FlixerApiRouteData<'post', '/admin/indexer/queues/{param}/clear-failed'>>(`/admin/indexer/queues/${queue}/clear-failed`)
+  const response = await api.post<FlixerApiRouteData<'post', '/admin/indexer/queues/{param}/clear-failed'>>(`/admin/indexer/queues/${queue}/clear-failed`, undefined, { timeout: 60_000 })
   return response.data.cleared ?? 0
 }
 
-export async function clearAllFailedIndexerTasks(): Promise<number> {
-  const cleared = await Promise.all(INDEXER_QUEUES.map((queue) => clearFailedIndexerTasks(queue)))
-  return cleared.reduce((total, count) => total + count, 0)
+export async function clearAllFailedIndexerTasks(): Promise<{
+  cleared: number
+  failures: Array<{ queue: IndexerQueueName; error: unknown }>
+}> {
+  const results = await Promise.allSettled(INDEXER_QUEUES.map((queue) => clearFailedIndexerTasks(queue)))
+  return results.reduce(
+    (result, outcome, index) => {
+      if (outcome.status === 'fulfilled') {
+        result.cleared += outcome.value
+      } else {
+        result.failures.push({ queue: INDEXER_QUEUES[index], error: outcome.reason })
+      }
+      return result
+    },
+    { cleared: 0, failures: [] as Array<{ queue: IndexerQueueName; error: unknown }> },
+  )
 }
 
 export async function cancelActiveIndexerTasks(queue: IndexerTaskQueueName): Promise<number> {

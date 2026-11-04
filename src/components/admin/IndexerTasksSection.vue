@@ -62,6 +62,7 @@ async function clearFailed() {
     const [error, n] = await catchError(clearFailedIndexerTasks(queue.value))
     if (error) {
       notify.error(describeRequestError(error, t('admin.indexer.clearFailedError')))
+      await load()
     } else {
       notify.success(t('admin.indexer.clearedFailed', { n }))
       await load()
@@ -75,12 +76,22 @@ async function clearAllFailed() {
   if (!(await confirmAction(t('admin.indexer.clearAllFailedConfirm'), { danger: true }))) return
   clearing.value = true
   try {
-    const [error, n] = await catchError(clearAllFailedIndexerTasks())
+    const [error, result] = await catchError(clearAllFailedIndexerTasks())
     if (error) {
       notify.error(describeRequestError(error, t('admin.indexer.clearFailedError')))
     } else {
-      notify.success(t('admin.indexer.clearedAllFailed', { n }))
       await load()
+      if (result.failures.length) {
+        for (const failure of result.failures) {
+          console.error(`[admin-indexer] Could not clear failed tasks from "${failure.queue}"`, failure.error)
+        }
+        notify.error(t('admin.indexer.clearedAllFailedPartial', {
+          n: result.cleared,
+          queues: result.failures.map(({ queue }) => queue).join(', '),
+        }))
+      } else {
+        notify.success(t('admin.indexer.clearedAllFailed', { n: result.cleared }))
+      }
     }
   } finally {
     clearing.value = false

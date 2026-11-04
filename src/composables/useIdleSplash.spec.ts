@@ -42,4 +42,21 @@ describe('createIdleTimer', () => {
     expect(changes).toEqual([true])
     timer.stop()
   })
+
+  it('does not show while disabled, including on an explicit show request', () => {
+    const changes: boolean[] = []
+    const timer = createIdleTimer({
+      timeoutMs: 1000,
+      suppressed: () => false,
+      disabled: () => true,
+      hidden: () => false,
+      onChange: (idle) => changes.push(idle),
+    })
+    timer.arm()
+    vi.advanceTimersByTime(1000)
+    timer.show()
+
+    expect(changes).toEqual([])
+    timer.stop()
+  })
 })

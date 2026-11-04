@@ -3,9 +3,11 @@ import { computed, watch } from "vue";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { ModalOverlay, ModalTarget } from "@kolirt/vue-modal";
+import NativeMoreMenu from "./components/home/NativeMoreMenu.vue";
 import IdleSplash from "./components/ui/IdleSplash.vue";
 import OfflineBanner from "./components/ui/OfflineBanner.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
+import AudioEngineDebug from "./components/player/AudioEngineDebug.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
 import LyricsView from "./views/LyricsView.vue";
 import { useAudioPlayer } from "./composables/useAudioPlayer";
@@ -14,10 +16,12 @@ import { useParty } from "./composables/useParty";
 import { getMobileTabs } from "./composables/homeNav";
 import { useVideoOverlay } from "./composables/useVideoOverlay";
 import { getAccessToken } from "./api";
-import { setNativeMoreTabs, setNativePlayerOpen } from "./platform/nativeNavigation";
+import { useMailSummary } from "./composables/useMailSummary";
+import { nativeMoreMenuNativeActive, nativeMusicPlayerNativeActive, nativeNavigationEnabled, setNativeMoreTabs, setNativePlayerOpen } from "./platform/nativeNavigation";
 
 const nativeMenuTabs = computed(getMobileTabs);
 watch(nativeMenuTabs, setNativeMoreTabs, { immediate: true, deep: true });
+useMailSummary();
 const audio = useAudioPlayer();
 const { lyricsOpen } = audio;
 const party = useParty();
@@ -29,9 +33,7 @@ if (getAccessToken()) void party.resume();
 if (Capacitor.isNativePlatform()) {
 	void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
 		if (!isActive) return;
-		void audio.refreshNativePlayback().catch((error: unknown) => {
-			console.error("Could not refresh native audio after resuming the app", error);
-		});
+		audio.refreshPlayback();
 		party.reconnect();
 	}).catch((error: unknown) => {
 		console.error("Could not listen for native app state changes", error);
@@ -48,7 +50,9 @@ if (Capacitor.isNativePlatform()) {
 	</RouterView>
 
 	<!-- Player components -->
-	<MiniPlayer />
+	<NativeMoreMenu v-if="nativeNavigationEnabled && !nativeMoreMenuNativeActive" />
+	<MiniPlayer v-if="!nativeMusicPlayerNativeActive" />
+	<AudioEngineDebug />
 	<PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" :autoplay="playing.autoplay" :live-playback="playing.livePlayback" :start-mini="playing.startMini" @close="closeVideo" />
 
 	<!-- Lyrics view -->

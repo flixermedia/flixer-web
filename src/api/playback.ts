@@ -35,6 +35,13 @@ export function buildStreamUrl(streamUrl: string, options: { height?: number; st
   return query ? `${streamUrl}?${query}` : streamUrl
 }
 
+export function buildAudioBitrateUrl(streamUrl: string, bitrate: number): string {
+  const url = new URL(streamUrl, typeof window === 'undefined' ? 'http://localhost' : window.location.href)
+  url.searchParams.set('audioBitrate', String(bitrate))
+  if (/^https?:\/\//i.test(streamUrl)) return url.toString()
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
 export function buildHlsUrl(streamUrl: string, options: { height?: number; audioTrack?: number } = {}): string {
   const base = `${streamUrl.replace('/streamer/stream/', '/streamer/hls/')}/index.m3u8`
   const params = new URLSearchParams()

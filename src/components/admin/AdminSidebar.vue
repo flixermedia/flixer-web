@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AdminLocation, AdminPageId, AdminTabId, AdminTabItem } from './adminNav'
 
@@ -7,6 +7,8 @@ const props = defineProps<{ tabs: AdminTabItem[]; active: AdminLocation; title: 
 const emit = defineEmits<{ select: [location: AdminLocation]; toggleCompact: [] }>()
 const { t } = useI18n()
 const openSection = ref<AdminTabId | null>(props.active.tab)
+
+const mobilePages = computed(() => props.tabs.find((tab) => tab.id === props.active.tab)?.pages ?? [])
 
 const icons: Record<AdminTabId, string> = {
   dashboard: 'lucide:layout-dashboard',
@@ -16,6 +18,7 @@ const icons: Record<AdminTabId, string> = {
   requests: 'lucide:message-square',
   issues: 'lucide:life-buoy',
   notifications: 'lucide:bell',
+  mail: 'lucide:mail',
   apikeys: 'lucide:key-round',
   plugins: 'lucide:puzzle',
   settings: 'lucide:settings',
@@ -35,6 +38,11 @@ const pageIcons: Record<AdminPageId, string> = {
   tickets: 'lucide:life-buoy',
   notifications: 'lucide:bell',
   smtp: 'lucide:mail',
+  mailOverview: 'lucide:activity',
+  mailDomains: 'lucide:globe-2',
+  mailInboxes: 'lucide:inbox',
+  mailMessages: 'lucide:mails',
+  mailTemplates: 'lucide:file-code-2',
   apikeys: 'lucide:key-round',
   ai: 'lucide:brain-circuit',
   issueReports: 'lucide:life-buoy',
@@ -49,6 +57,11 @@ const pageIcons: Record<AdminPageId, string> = {
 
 function choose(tab: AdminTabId, page: AdminPageId) {
   emit('select', { tab, page })
+}
+
+function chooseFirstPage(tab: AdminTabItem) {
+  const first = tab.pages[0]
+  if (first) choose(tab.id, first.id)
 }
 
 function toggle(tab: AdminTabId) {
@@ -107,8 +120,22 @@ watch(
 </script>
 
 <template>
-  <nav class="rounded border border-flixer-border bg-flixer-surface/90 shadow-xl shadow-black/10 backdrop-blur transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none lg:rounded-none lg:fixed lg:bottom-0 lg:left-0 lg:top-16 lg:z-30 lg:flex lg:flex-col lg:overflow-hidden lg:shadow-2xl" :class="compact ? 'p-2 lg:w-20' : 'p-3 lg:w-60'" :aria-label="t('admin.adminNavigation')">
-    <header class="mb-5 border-b border-flixer-border/20 px-3 pb-4 pt-2 transition-[height,padding] duration-300 ease-in-out motion-reduce:transition-none lg:mb-0 lg:h-[6.125rem] lg:shrink-0 lg:overflow-hidden" :class="compact ? 'lg:!h-9 lg:!px-0 lg:!py-0' : ''">
+  <nav class="rounded border border-flixer-border bg-flixer-surface/90 shadow-xl shadow-black/10 backdrop-blur transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none lg:rounded-none lg:fixed lg:bottom-0 lg:left-0 lg:top-16 lg:z-30 lg:flex lg:flex-col lg:overflow-hidden lg:shadow-2xl" :class="compact ? 'p-2 lg:w-20' : 'p-2 lg:p-3 lg:w-60'" :aria-label="t('admin.adminNavigation')">
+    <div class="lg:hidden">
+      <div class="admin-mobile-row flex gap-1 overflow-x-auto" role="tablist">
+        <button v-for="tab in tabs" :id="`admin-mobile-nav-${tab.id}`" :key="tab.id" type="button" role="tab" class="flex h-9 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="active.tab === tab.id ? 'bg-flixer-primary/20 text-white' : 'text-flixer-text/70'" :aria-selected="active.tab === tab.id" @click="chooseFirstPage(tab)">
+          <Icon :icon="icons[tab.id]" class="size-4 shrink-0" aria-hidden="true" />
+          <span class="whitespace-nowrap">{{ tab.label }}</span>
+        </button>
+      </div>
+      <div v-if="mobilePages.length > 1" class="admin-mobile-row mt-1 flex gap-1 overflow-x-auto border-t border-flixer-border/20 pt-1">
+        <button v-for="page in mobilePages" :key="page.id" type="button" class="flex h-8 shrink-0 items-center gap-2 rounded border px-3 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="active.page === page.id ? 'border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border-transparent text-flixer-text/70'" :aria-current="active.page === page.id ? 'page' : undefined" @click="choose(active.tab, page.id)">
+          <Icon :icon="pageIcons[page.id]" class="size-3.5 shrink-0 opacity-80" aria-hidden="true" />
+          <span class="whitespace-nowrap">{{ page.label }}</span>
+        </button>
+      </div>
+    </div>
+    <header class="hidden lg:block mb-5 border-b border-flixer-border/20 px-3 pb-4 pt-2 transition-[height,padding] duration-300 ease-in-out motion-reduce:transition-none lg:mb-0 lg:h-[6.125rem] lg:shrink-0 lg:overflow-hidden" :class="compact ? 'lg:!h-9 lg:!px-0 lg:!py-0' : ''">
       <div class="relative h-[4.5rem] min-w-0 lg:w-48">
         <Transition name="admin-nav-header">
           <div v-if="!compact" :key="`${title}:${subtitle}`" class="absolute inset-x-0 top-0">
@@ -118,7 +145,7 @@ watch(
         </Transition>
       </div>
     </header>
-    <div class="relative lg:min-h-0 lg:flex-1">
+    <div class="relative hidden lg:block lg:min-h-0 lg:flex-1">
       <div class="admin-nav-scroll h-full overflow-y-auto lg:py-5">
         <div v-for="tab in tabs" :key="tab.id" class="not-first:mt-2">
           <button :id="`admin-nav-${tab.id}`" type="button" class="admin-nav-item flex w-full items-center rounded py-3 text-sm font-semibold transition-[gap,padding,background-color,color] duration-300 ease-in-out hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="[compact ? 'justify-center px-0' : 'gap-3 px-3 text-left', active.tab === tab.id ? 'text-white' : 'text-flixer-text/70']" :aria-label="compact ? tab.label : undefined" :title="compact ? tab.label : undefined" :aria-expanded="openSection === tab.id" :aria-controls="`admin-nav-pages-${tab.id}`" @click="toggle(tab.id)">
@@ -145,7 +172,7 @@ watch(
         </div>
       </div>
     </div>
-    <footer class="mt-4 flex justify-center border-t border-flixer-border/20 pt-3 lg:mt-0 lg:shrink-0">
+    <footer class="mt-4 hidden justify-center border-t border-flixer-border/20 pt-3 lg:mt-0 lg:flex lg:shrink-0">
       <button type="button" class="grid size-9 shrink-0 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t(compact ? 'admin.expandNavigation' : 'admin.collapseNavigation')" :title="t(compact ? 'admin.expandNavigation' : 'admin.collapseNavigation')" @click="emit('toggleCompact')">
         <Icon :icon="compact ? 'lucide:panel-left-open' : 'lucide:panel-left-close'" class="size-5" aria-hidden="true" />
       </button>
@@ -154,6 +181,10 @@ watch(
 </template>
 
 <style scoped>
+.admin-mobile-row {
+  scrollbar-width: none;
+}
+
 .admin-nav-scroll {
   mask-image: linear-gradient(to bottom, transparent 0, 13px, black 20px, black calc(100% - 20px), calc(100% - 13px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, 13px, black 20px, black calc(100% - 20px), calc(100% - 13px), transparent 100%);

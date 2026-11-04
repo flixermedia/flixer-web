@@ -33,6 +33,7 @@ export function getMobileTabs(): NavTab[] {
     { label: i18n.global.t('home.nav.movies'), to: '/movies', icon: 'lucide:film' },
     { label: i18n.global.t('home.nav.tv'), to: '/tv', icon: 'lucide:tv' },
     { label: i18n.global.t('home.nav.music'), to: '/music', icon: 'lucide:music-2' },
+    { label: i18n.global.t('chat.title'), to: '/chat', icon: 'lucide:messages-square' },
     { label: i18n.global.t('home.nav.guide'), to: '/guide', icon: 'lucide:calendar-days' },
     { label: i18n.global.t('home.nav.search'), to: '/search', icon: 'lucide:search' },
     ...(enabled.value
