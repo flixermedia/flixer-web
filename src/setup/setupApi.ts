@@ -104,8 +104,10 @@ export async function testStep(
 export async function applyStep(
   id: string,
   values: FlixerApiRouteBody<'post', '/setup/steps/{param}'>,
+  adminPassword?: string,
 ): Promise<SetupStepResult> {
-  return (await api.post<SetupStepResult>(`/setup/steps/${id}`, values, { timeout: 20_000, ...recoveryHeaders() })).data
+  const headers = { ...recoveryHeaders().headers, ...(adminPassword ? { 'x-admin-password': adminPassword } : {}) }
+  return (await api.post<SetupStepResult>(`/setup/steps/${id}`, values, { timeout: 20_000, headers })).data
 }
 
 /** Asks the server to write the setup recovery key to its log. The key is never returned here. */

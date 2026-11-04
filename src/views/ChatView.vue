@@ -4,8 +4,10 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Keyboard } from '@capacitor/keyboard'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getChatConversation, getChatConversations, getChatMessages, getChatEncryptionStatus, downgradeChatToPlaintext, upgradeChatToEncrypted, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessageWithSequence } from '../api'
+import MailList from '../components/chat/MailList.vue'
+import MailReader from '../components/chat/MailReader.vue'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import Header from '../components/header/Header.vue'
@@ -16,6 +18,7 @@ import { confirmAction } from '../composables/confirm'
 import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
+import { useMailbox } from '../composables/useMailbox'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
@@ -24,6 +27,11 @@ type ChatPreviewMessage = NonNullable<ChatConversation['lastMessage']> & { encry
 type SupportChatConversation = Omit<ChatConversation, 'lastMessage'> & { lastMessage: ChatPreviewMessage | null; supportChatOpen?: boolean | null }
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
+const mail = useMailbox()
+const mailEnabled = computed(() => !!mail.mailbox.value?.enabled)
+const mailMode = computed(() => mailEnabled.value && route.query.tab === 'mail')
+const hasSelection = computed(() => (mailMode.value ? !!mail.selectedId.value : !!props.id))
 const { isSigningOut, signOut } = useSignOut()
 const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
@@ -631,7 +639,16 @@ watch(
   { immediate: true }
 )
 
+const messageTabs = computed(() => [
+  { id: 'chat', label: t('chat.tabChat'), icon: 'lucide:message-circle', unread: unread.unread.value, to: { name: 'chat' } },
+  { id: 'mail', label: t('inbox.title'), icon: 'lucide:mail', unread: mail.mailbox.value?.unread ?? 0, to: { name: 'chat', query: { tab: 'mail' } } }
+])
+
+watch(mailMode, (on) => { if (on) void mail.load().then(mail.syncSelection) }, { immediate: true })
+watch(() => mail.selectedId.value, () => { if (mailMode.value) void mail.syncSelection() })
+
 onMounted(() => {
+  void mail.refreshMailInfo()
   void loadProfile()
   void refreshList(false)
   stopEvents = onChatEvent(onEvent)
@@ -703,18 +720,27 @@ onBeforeUnmount(() => {
     <Header :docked="isCompact" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
     <main class="chat-main mx-auto w-full max-w-[110rem] px-3 pb-6 pt-24 sm:px-6 sm:pt-28 lg:pt-32">
       <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 lg:h-[calc(100dvh-11rem)] lg:grid-cols-[21rem_minmax(0,1fr)] lg:rounded lg:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
-        <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-lg:absolute max-lg:inset-0 lg:border-r" :class="props.id ? 'max-lg:-translate-x-1/4 max-lg:pointer-events-none max-lg:opacity-0' : ''" :inert="isCompact && !!props.id" :aria-label="t('chat.conversations')">
+        <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-lg:absolute max-lg:inset-0 lg:border-r" :class="hasSelection ? 'max-lg:-translate-x-1/4 max-lg:pointer-events-none max-lg:opacity-0' : ''" :inert="isCompact && hasSelection" :aria-label="t('chat.conversations')">
           <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
             <div class="min-w-0">
               <h1 class="text-lg font-bold tracking-tight text-white">{{ t('chat.title') }}</h1>
-              <p class="mt-0.5 text-xs text-flixer-muted">{{ t('chat.conversations') }}</p>
+              <button v-if="mailMode && mail.mailbox.value?.address" type="button" class="mt-0.5 flex max-w-full items-center gap-1.5 text-xs text-flixer-muted transition hover:text-white" :title="t('inbox.copyAddress')" @click="mail.copyAddress"><span class="truncate">{{ mail.mailbox.value.address }}</span><Icon icon="lucide:copy" class="size-3 shrink-0" aria-hidden="true" /></button>
+              <p v-else class="mt-0.5 text-xs text-flixer-muted">{{ t('chat.conversations') }}</p>
             </div>
-            <button type="button" class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="newChat">
+            <button v-if="!mailMode" type="button" class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="newChat">
               <Icon icon="lucide:plus" class="size-3.5" aria-hidden="true" />
               {{ t('chat.new') }}
             </button>
           </div>
-          <ul v-if="listLoading" class="space-y-1 p-2">
+          <div v-if="mailEnabled" class="flex gap-1 border-b border-white/10 p-2" role="tablist" :aria-label="t('chat.title')">
+            <RouterLink v-for="tab in messageTabs" :key="tab.id" :to="tab.to" role="tab" :aria-selected="(tab.id === 'mail') === mailMode" class="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="(tab.id === 'mail') === mailMode ? 'bg-white/10 text-white' : 'text-flixer-muted hover:bg-white/5 hover:text-white'">
+              <Icon :icon="tab.icon" class="size-4" aria-hidden="true" />
+              {{ tab.label }}
+              <span v-if="tab.unread" class="grid min-w-4 place-items-center rounded bg-flixer-accent px-1 text-[10px] font-bold leading-4 text-flixer-background">{{ tab.unread > 99 ? '99+' : tab.unread }}</span>
+            </RouterLink>
+          </div>
+          <MailList v-if="mailMode" />
+          <ul v-else-if="listLoading" class="space-y-1 p-2">
             <li v-for="n in 5" :key="n" class="flex items-center gap-3 p-2"><Skeleton class="size-10 rounded" /><Skeleton class="h-4 w-32" /></li>
           </ul>
           <p v-else-if="listFailed" class="p-4 text-sm text-red-400" role="alert">{{ t('chat.loadError') }}</p>
@@ -746,8 +772,9 @@ onBeforeUnmount(() => {
           </ul>
         </aside>
 
-        <section class="chat-pane flex min-h-0 min-w-0 flex-col bg-flixer-background max-lg:absolute max-lg:inset-0" :class="props.id ? '' : 'max-lg:pointer-events-none max-lg:translate-x-full'" :inert="isCompact && !props.id" :aria-label="t('chat.thread')">
-          <div :key="props.id ?? 'none'" class="chat-fade flex min-h-0 flex-1 flex-col">
+        <section class="chat-pane flex min-h-0 min-w-0 flex-col bg-flixer-background max-lg:absolute max-lg:inset-0" :class="hasSelection ? '' : 'max-lg:pointer-events-none max-lg:translate-x-full'" :inert="isCompact && !hasSelection" :aria-label="t('chat.thread')">
+          <MailReader v-if="mailMode" :key="mail.selectedId.value || 'none'" class="chat-fade" />
+          <div v-else :key="props.id ?? 'none'" class="chat-fade flex min-h-0 flex-1 flex-col">
             <div v-if="!props.id" class="m-auto p-6 text-center text-sm text-flixer-muted">{{ t('chat.selectPrompt') }}</div>
             <div v-else-if="threadMissing" class="m-auto p-6 text-center">
               <p class="text-sm text-flixer-muted">{{ t('chat.notFound') }}</p>

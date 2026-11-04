@@ -121,7 +121,7 @@ const router = createRouter({
 		{
 			path: "/inbox",
 			name: "inbox",
-			component: () => import("../views/InboxView.vue"),
+			redirect: (to) => ({ name: "chat", query: { ...to.query, tab: "mail" } }),
 			meta: { requiresAuth: true },
 		},
 		{

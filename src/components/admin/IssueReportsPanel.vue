@@ -148,7 +148,7 @@ onMounted(() => void load())
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
             <h3 class="break-words text-lg font-semibold text-white">{{ selected.title }}</h3>
-            <p class="mt-1 text-sm text-flixer-muted">{{ selected.requester.displayName }} (@{{ selected.requester.username }}) · {{ selected.category }}</p>
+            <p class="mt-1 text-sm text-flixer-muted">{{ selected.requester.displayName }} ({{ selected.requester.username }}) · {{ selected.category }}</p>
             <p v-if="selected.mediaTitle" class="mt-1 text-sm text-flixer-muted">{{ t('issues.aboutMedia', { title: selected.mediaTitle }) }}</p>
           </div>
           <label class="flex items-center gap-2 text-xs text-flixer-muted">

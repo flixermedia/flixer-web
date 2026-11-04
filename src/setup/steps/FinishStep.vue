@@ -22,7 +22,7 @@ const summary = computed(() => {
     { label: t('setup.steps.redis'), ok: config.redisUrl?.set === true || (wizard.flow.value === 'quick' && Boolean(config.redisUrl?.default)) },
     ...(wizard.flow.value === 'advanced'
       ? [
-          { label: t('setup.steps.services'), ok: config.indexerUrl?.set === true && config.streamerInternalUrl?.set === true },
+          { label: t('setup.steps.services'), ok: config.indexerUrl?.set === true && config.streamerInternalUrl?.set === true && config.meilisearchUrl?.set === true && config.aiUrl?.set === true },
           { label: t('setup.steps.secrets'), ok: config.jwtSecret?.set === true && config.appSecret?.set === true },
         ]
       : []),

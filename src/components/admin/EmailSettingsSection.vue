@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { listSettings, sendTestEmail, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
+import { getMailSettings, getMailStatus, listSettings, sendTestEmail, updateSetting, type MailSettings, type MailStatus, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -17,7 +18,12 @@ const isLoading = ref(true)
 const isSaving = ref(false)
 const isTesting = ref(false)
 
-const isConfigured = computed(() => saved.value.host !== '')
+const mailStatus = ref<MailStatus | null>(null)
+const mailSettings = ref<MailSettings | null>(null)
+const builtInReady = computed(() => mailStatus.value?.outboundReady === true)
+const relayConfigured = computed(() => saved.value.host !== '')
+const canSend = computed(() => builtInReady.value || relayConfigured.value)
+const mailPage = { name: 'admin', query: { tab: 'mail', page: 'mailOverview' } }
 const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
 const button = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 
@@ -27,6 +33,8 @@ function text(value: unknown): string {
 
 async function load() {
   try {
+    const [statusError, status] = await catchError(Promise.all([getMailStatus(), getMailSettings()]))
+    if (!statusError) [mailStatus.value, mailSettings.value] = status
     const [error, settings] = await catchError(listSettings())
     if (error) {
       console.error('[email] failed to load settings', error)
@@ -107,12 +115,29 @@ onMounted(load)
 <template>
   <AdminSection :title="t('admin.general.emailTitle')" :description="t('admin.general.emailDescription')">
     <template #actions>
-      <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-60" :disabled="isLoading || isTesting || !isConfigured" @click="sendTest">{{ t('admin.general.sendTestEmail') }}</button>
+      <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-60" :disabled="isLoading || isTesting || !canSend" @click="sendTest">{{ t('admin.general.sendTestEmail') }}</button>
       <button type="button" :class="button" :disabled="isLoading || isSaving" @click="save">{{ t('common.save') }}</button>
     </template>
     <AdminSkeleton v-if="isLoading" variant="fields" :rows="5" />
     <template v-else>
-      <p v-if="!isConfigured" class="mb-3 text-xs text-flixer-muted">{{ t('admin.general.emailNotConfigured') }}</p>
+      <div v-if="builtInReady" class="mb-4 flex items-start gap-3 rounded border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" role="status">
+        <Icon icon="lucide:circle-check" class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        <div class="min-w-0">
+          <p class="font-semibold">{{ t('admin.general.emailBuiltInActive') }}</p>
+          <p class="mt-1 text-xs text-emerald-100/80">{{ t('admin.general.emailBuiltInDetail', { sender: mailStatus?.sender ?? '' }) }}</p>
+          <p class="mt-1 text-xs text-emerald-100/80">{{ mailSettings?.relayFallback && relayConfigured ? t('admin.general.emailRelayFallbackOn') : t('admin.general.emailRelayOptional') }}</p>
+        </div>
+      </div>
+      <div v-else class="mb-4 flex items-start gap-3 rounded border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="status">
+        <Icon icon="lucide:triangle-alert" class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        <div class="min-w-0">
+          <p class="font-semibold">{{ relayConfigured ? t('admin.general.emailRelayOnly') : t('admin.general.emailNotConfigured') }}</p>
+          <p class="mt-1 text-xs text-amber-100/80">{{ t('admin.general.emailRecommendBuiltIn') }}</p>
+          <RouterLink :to="mailPage" class="mt-2 inline-flex items-center gap-1.5 rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"><Icon icon="lucide:server" class="size-3.5" aria-hidden="true" />{{ t('admin.general.emailSetUpBuiltIn') }}</RouterLink>
+        </div>
+      </div>
+      <h3 class="text-sm font-semibold text-white">{{ t('admin.general.emailRelayTitle') }} <span class="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-flixer-muted">{{ t('admin.general.optional') }}</span></h3>
+      <p class="mb-3 mt-1 text-xs text-flixer-muted">{{ t('admin.general.emailRelayHint') }}</p>
       <div class="grid gap-4 md:grid-cols-3">
         <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpHost') }}<input v-model="form.host" placeholder="smtp.yourdomain.com" autocomplete="off" :class="inputClass" /></label>
         <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpPort') }}<input v-model.number="form.port" type="number" min="1" max="65535" :class="inputClass" /></label>

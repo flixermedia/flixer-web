@@ -11,14 +11,16 @@ const { wizard, verified, busy, message, fieldErrors, testResult, test, save, lo
 const config = wizard.progress.value.config
 const indexerUrl = ref(config.indexerUrl?.value || config.indexerUrl?.default || 'http://localhost:8092')
 const streamerInternalUrl = ref(config.streamerInternalUrl?.value || config.streamerInternalUrl?.default || 'http://localhost:8091')
+const meilisearchUrl = ref(config.meilisearchUrl?.value || config.meilisearchUrl?.default || 'http://meilisearch:7700')
+const aiUrl = ref(config.aiUrl?.value || config.aiUrl?.default || 'http://ai:8094')
 const streamerPublicUrl = ref(config.streamerPublicUrl?.value ?? '')
-const lockedNames = ['indexerUrl', 'streamerInternalUrl', 'streamerPublicUrl'].map((name) => locked(name))
+const lockedNames = ['indexerUrl', 'streamerInternalUrl', 'meilisearchUrl', 'aiUrl', 'streamerPublicUrl'].map((name) => locked(name))
 const environmentLocked = computed(() => lockedNames.some((flag) => flag.value))
 const canContinue = computed(() => environmentLocked.value || verified.value)
-watch([indexerUrl, streamerInternalUrl, streamerPublicUrl], () => (verified.value = false))
+watch([indexerUrl, streamerInternalUrl, meilisearchUrl, aiUrl, streamerPublicUrl], () => (verified.value = false))
 
 function values() {
-  return { indexerUrl: indexerUrl.value.trim(), streamerInternalUrl: streamerInternalUrl.value.trim(), streamerPublicUrl: streamerPublicUrl.value.trim() }
+  return { indexerUrl: indexerUrl.value.trim(), streamerInternalUrl: streamerInternalUrl.value.trim(), meilisearchUrl: meilisearchUrl.value.trim(), aiUrl: aiUrl.value.trim(), streamerPublicUrl: streamerPublicUrl.value.trim() }
 }
 
 async function submit(): Promise<boolean> {
@@ -36,9 +38,11 @@ defineExpose({ submit, canContinue })
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="indexerUrl" :label="t('setup.services.indexerUrl')" :hint="fieldErrors.indexerUrl" placeholder="http://indexer:8092" autocomplete="off" spellcheck="false" :disabled="busy" />
       <TextInput v-model.trim="streamerInternalUrl" :label="t('setup.services.streamerInternalUrl')" :hint="fieldErrors.streamerInternalUrl" placeholder="http://streamer:8091" autocomplete="off" spellcheck="false" :disabled="busy" />
+      <TextInput v-model.trim="meilisearchUrl" :label="t('setup.services.meilisearchUrl')" :hint="fieldErrors.meilisearchUrl || t('setup.services.meilisearchHint')" placeholder="http://meilisearch:7700" autocomplete="off" spellcheck="false" :disabled="busy" />
+      <TextInput v-model.trim="aiUrl" :label="t('setup.services.aiUrl')" :hint="fieldErrors.aiUrl || t('setup.services.aiHint')" placeholder="http://ai:8094" autocomplete="off" spellcheck="false" :disabled="busy" />
       <TextInput v-model.trim="streamerPublicUrl" :label="t('setup.services.streamerPublicUrl')" :hint="fieldErrors.streamerPublicUrl || t('setup.services.streamerPublicHint')" placeholder="Leave empty to use this site's address" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl" @click="test(values())">{{ t('setup.testConnection') }}</button>
+        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl || !meilisearchUrl || !aiUrl" @click="test(values())">{{ t('setup.testConnection') }}</button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

@@ -261,7 +261,7 @@ function formatMemory(bytes: number | undefined): string {
 				<label class="block">
 					<span class="text-sm font-medium">{{ t("admin.ai.selectUser") }}</span>
 					<select v-model="selectedRecommendationUserId" :disabled="loadingRecommendations || !recommendationUsers.length" class="mt-2 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-50">
-						<option v-for="user in recommendationUsers" :key="user.userId" :value="user.userId">{{ user.displayName }} (@{{ user.username }})</option>
+						<option v-for="user in recommendationUsers" :key="user.userId" :value="user.userId">{{ user.displayName }} ({{ user.username }})</option>
 					</select>
 				</label>
 				<div v-if="loadingRecommendations && !recommendationUsers.length" class="animate-pulse space-y-2">

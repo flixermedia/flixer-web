@@ -5,6 +5,7 @@ import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { createMailDomain, createMailbox, deleteMailDomain, deleteMailbox, deleteAdminMailMessage, deleteMailTemplate, downloadMailAttachment, generateUserMailboxes, getAdminMailMessage, getMailSettings, getMailStatus, getMailTemplate, listAdminMailMessages, listMailDomains, listMailTemplates, listMailboxes, previewMailTemplate, rotateMailDomainDkim, runMailDiagnostics, saveMailTemplate, sendAdminMail, sendMailTemplateTest, updateMailDomain, updateMailSettings, updateMailbox, verifyMailDomain, type MailCheck, type MailDomain, type MailDnsRecord, type MailMessage, type MailMessagePage, type MailMessageSummary, type MailSettings, type MailTemplate, type Mailbox } from '../../api'
+import MonacoEditor from './MonacoEditor.vue'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
@@ -55,8 +56,8 @@ const messageChecks = computed(() => {
 })
 let previewTimer: ReturnType<typeof setTimeout> | undefined
 let searchTimer: ReturnType<typeof setTimeout> | undefined
-const templateHtmlEditor = ref<HTMLTextAreaElement | null>(null)
-const templateTextEditor = ref<HTMLTextAreaElement | null>(null)
+const templateHtmlEditor = ref<InstanceType<typeof MonacoEditor> | null>(null)
+const templateTextEditor = ref<InstanceType<typeof MonacoEditor> | null>(null)
 
 function safeHtmlDocument(html: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:16px/1.6 system-ui,sans-serif;color:#202124;margin:20px;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%;border-collapse:collapse}</style></head><body>${html}</body></html>`
@@ -317,17 +318,7 @@ function schedulePreview() {
 function insertVariable(variable: string) {
   const value = `{{${variable}}}`
   const editor = templateEditTab.value === 'html' ? templateHtmlEditor.value : templateTextEditor.value
-  if (!editor) {
-    templateEditor.subject += value
-    return
-  }
-  const start = editor.selectionStart
-  const end = editor.selectionEnd
-  const current = templateEditTab.value === 'html' ? templateEditor.html : templateEditor.text
-  const next = `${current.slice(0, start)}${value}${current.slice(end)}`
-  if (templateEditTab.value === 'html') templateEditor.html = next
-  else templateEditor.text = next
-  requestAnimationFrame(() => { editor.focus(); editor.setSelectionRange(start + value.length, start + value.length) })
+  if (!editor?.insert(value)) templateEditor.subject += value
 }
 async function sendTest() {
   if (!activeTemplate.value || !templateTestTo.value.trim()) return
@@ -438,8 +429,8 @@ onBeforeUnmount(() => { clearTimeout(previewTimer); clearTimeout(searchTimer) })
           <template #actions><button type="button" :class="buttonClass" :disabled="busy" @click="resetTemplate">{{ activeTemplate.builtin ? t('admin.mail.resetTemplate') : t('common.delete') }}</button><button type="button" :class="primaryButtonClass" :disabled="busy" @click="saveTemplate">{{ t('common.save') }}</button></template>
           <div class="grid gap-3 sm:grid-cols-2"><label class="text-xs text-flixer-muted">{{ t('admin.mail.templateLabel') }}<input v-model="templateEditor.label" :class="inputClass" /></label><label class="text-xs text-flixer-muted">{{ t('admin.mail.templateDescription') }}<input v-model="templateEditor.description" :class="inputClass" /></label><label class="text-xs text-flixer-muted sm:col-span-2">{{ t('admin.mail.subject') }}<input v-model="templateEditor.subject" :class="inputClass" /></label></div>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><div class="flex rounded bg-black/20 p-1"><button v-for="tab in ['html', 'text'] as const" :key="tab" type="button" class="rounded px-3 py-1.5 text-xs" :class="templateEditTab === tab ? 'bg-white/10 text-white' : 'text-flixer-muted'" @click="templateEditTab = tab">{{ t(`admin.mail.${tab}Tab`) }}</button></div><div class="flex flex-wrap gap-1"><button v-for="variable in [...new Set([...(activeTemplate.variables ?? []), ...(preview?.variables ?? [])])]" :key="variable" type="button" class="rounded bg-flixer-primary/15 px-2 py-1 text-[10px] text-flixer-accent hover:bg-flixer-primary/25" @click="insertVariable(variable)">{{ variableToken(variable) }}</button></div></div>
-          <textarea v-if="templateEditTab === 'html'" ref="templateHtmlEditor" v-model="templateEditor.html" rows="14" spellcheck="false" class="mt-2 w-full resize-y rounded border border-flixer-border bg-[#111318] p-3 font-mono text-xs leading-5 text-flixer-text focus:border-flixer-accent focus:outline-none" :aria-label="t('admin.mail.htmlEditor')" />
-          <textarea v-else ref="templateTextEditor" v-model="templateEditor.text" rows="14" spellcheck="false" class="mt-2 w-full resize-y rounded border border-flixer-border bg-[#111318] p-3 font-mono text-xs leading-5 text-flixer-text focus:border-flixer-accent focus:outline-none" :aria-label="t('admin.mail.textEditor')" />
+          <MonacoEditor v-if="templateEditTab === 'html'" ref="templateHtmlEditor" v-model="templateEditor.html" language="html" :label="t('admin.mail.htmlEditor')" />
+          <MonacoEditor v-else ref="templateTextEditor" v-model="templateEditor.text" language="plaintext" :label="t('admin.mail.textEditor')" />
           <div class="mt-5 border-t border-flixer-border/70 pt-4"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-sm font-semibold text-white">{{ t('admin.mail.preview') }}</h3><p class="mt-1 text-xs text-flixer-muted">{{ preview?.subject || t('admin.mail.previewPending') }}</p></div><div class="flex rounded bg-black/20 p-1"><button v-for="tab in ['html', 'text'] as const" :key="tab" type="button" class="rounded px-3 py-1.5 text-xs" :class="previewTab === tab ? 'bg-white/10 text-white' : 'text-flixer-muted'" @click="previewTab = tab">{{ t(`admin.mail.${tab}Tab`) }}</button></div></div><iframe v-if="previewTab === 'html' && preview" :srcdoc="previewHtml" sandbox="" class="mt-3 h-72 w-full rounded bg-white" :title="t('admin.mail.templatePreview')"></iframe><pre v-else-if="preview" class="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-white p-4 text-sm text-gray-900">{{ preview.text }}</pre><p v-else class="mt-3 rounded bg-black/10 p-6 text-center text-xs text-flixer-muted">{{ t('admin.mail.previewPending') }}</p></div>
           <div class="mt-5 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end"><label class="text-xs text-flixer-muted">{{ t('admin.mail.testRecipient') }}<input v-model="templateTestTo" type="email" :class="inputClass" placeholder="you@example.com" /></label><button type="button" :class="buttonClass" :disabled="busy || !templateTestTo.trim()" @click="sendTest">{{ t('admin.mail.sendTest') }}</button></div>
         </AdminSection>

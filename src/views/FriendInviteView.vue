@@ -91,7 +91,7 @@ watch(token, () => void loadInvite(), { immediate: true })
         <template v-else-if="invite">
           <UserAvatar :avatar-url="invite.avatarUrl" :name="invite.displayName" class="mx-auto size-24 text-3xl" />
           <h1 class="mt-4 break-words text-2xl font-bold text-white">{{ invite.displayName }}</h1>
-          <p class="mt-1 text-sm text-flixer-muted">@{{ invite.username }}</p>
+          <p class="mt-1 text-sm text-flixer-muted">{{ invite.username }}</p>
           <p class="mt-4 text-sm text-flixer-muted">{{ t('social.friendInvite.description') }}</p>
           <button v-if="invite.friendship !== 'friends' && invite.friendship !== 'self'" type="button" class="mt-6 rounded bg-white px-5 py-2.5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="busy" @click="updateFriendship">
             {{ actionLabel }}

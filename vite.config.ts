@@ -60,6 +60,9 @@ const manifestOptions: Partial<ManifestOptions> | false = {
 
 const workboxOptions: Partial<GenerateSWOptions> = {
   globPatterns: ['**/*.{js,css,html,png,woff2,mp3}', 'favicon.svg', 'icons.svg'],
+  // The code editor is admin-only and large, so it is cached on first use instead of at install.
+  globIgnores: ['**/*monaco*', '**/editor.worker*', '**/MonacoEditor*'],
+  maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
   navigateFallback: '/index.html',
   navigateFallbackDenylist: [/^\/api\//],
   cleanupOutdatedCaches: true,

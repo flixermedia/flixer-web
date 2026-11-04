@@ -183,7 +183,7 @@ async function send() {
             <label class="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm transition hover:bg-white/5">
               <input type="checkbox" class="accent-flixer-accent" :checked="selected.includes(user.id)" @change="toggle(user.id)" />
               <span class="font-medium">{{ user.displayName }}</span>
-              <span class="text-xs text-flixer-muted">@{{ user.username }}</span>
+              <span class="text-xs text-flixer-muted">{{ user.username }}</span>
             </label>
           </li>
         </ul>
