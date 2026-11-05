@@ -25,6 +25,7 @@
 - **Media discovery:** Browse titles, series, categories and search results.
 - **Responsive experience:** Layouts for desktop, tablet and mobile, with glassmorphism styling.
 - **Authentication:** Login, registration and protected routes backed by Flixer sessions.
+- **Payments:** Optional paywalls, rentals, purchases and subscriptions with an embedded Stripe or Square card form, a billing page and an admin Payments section. Off unless an admin enables it.
 - **Modern frontend:** Vue 3, Vite, Pinia, Vue Router and Tailwind CSS v4.
 - **Mobile projects:** Capacitor wrappers for Android and iOS alongside the web build.
 
