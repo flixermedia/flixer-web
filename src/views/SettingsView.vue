@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import Header from "../components/header/Header.vue";
+import BillingSection from "../components/payments/BillingSection.vue";
 import ChatEncryptionSection from "../components/settings/ChatEncryptionSection.vue";
 import DefaultPlaybackOptionsSection from "../components/settings/DefaultPlaybackOptionsSection.vue";
 import LanguageSection from "../components/settings/LanguageSection.vue";
@@ -10,6 +11,7 @@ import PasskeysSection from "../components/settings/PasskeysSection.vue";
 import ProfileSection from "../components/settings/ProfileSection.vue";
 import ServerSection from "../components/settings/ServerSection.vue";
 import type { SettingsTab } from "../components/settings/SettingsTabs.vue";
+import { usePayments } from "../composables/usePayments.ts";
 import { useSignOut } from "../composables/useSignOut.ts";
 import { isNativeApp } from "../platform/serverConnection";
 
@@ -17,6 +19,8 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const { isSigningOut, signOut } = useSignOut();
+const payments = usePayments();
+void payments.load();
 
 const tabIcons: Record<string, string> = {
 	profile: "lucide:user-round",
@@ -24,10 +28,11 @@ const tabIcons: Record<string, string> = {
 	language: "lucide:languages",
 	defaultPlayback: "lucide:play",
 	chatEncryption: "lucide:lock-keyhole",
+	billing: "lucide:credit-card",
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
 });
 
 const activeTab = computed({
@@ -85,6 +90,7 @@ function selectTab(id: string) {
 							<LanguageSection v-else-if="activeTab === 'language'" />
 							<DefaultPlaybackOptionsSection v-else-if="activeTab === 'defaultPlayback'" />
 							<ChatEncryptionSection v-else-if="activeTab === 'chatEncryption'" />
+							<BillingSection v-else-if="activeTab === 'billing'" />
 							<ServerSection v-else-if="activeTab === 'server'" />
 						</div>
 					</Transition>

@@ -7,13 +7,14 @@ import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
 import { SavePassword } from '@capgo/capacitor-autofill-save-password'
 import logo from '../../resources/logo/flixer-logo.svg'
 import LoginForm from '../components/auth/LoginForm.vue'
+import SignupPaymentStep from '../components/payments/SignupPaymentStep.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
 import VerificationNotice from '../components/auth/VerificationNotice.vue'
 import { notify } from '../composables/notify'
 import { clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
-import { clearAccessToken, getAccessToken, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult } from '../api'
+import { clearAccessToken, getAccessToken, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type VerificationPending } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
@@ -26,6 +27,44 @@ const router = useRouter()
 const isSubmitting = ref(false)
 const pendingVerificationEmail = ref('')
 const passkeyTicket = ref('')
+// An account that still has to pay survives reloads; other browsers learn about it when the account signs in.
+const PENDING_PAYMENT_KEY = 'flixer.pendingPayment'
+const pendingPayment = ref<{ token: string; name: string; email: string } | null>(readPendingPayment())
+
+function readPendingPayment() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PENDING_PAYMENT_KEY) ?? 'null')
+    return stored && typeof stored.token === 'string' ? { token: stored.token, name: String(stored.name ?? ''), email: String(stored.email ?? '') } : null
+  } catch {
+    return null
+  }
+}
+
+function startPayment(token: string, name = '', email = '') {
+  pendingPayment.value = { token, name, email }
+  localStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify(pendingPayment.value))
+}
+
+function endPayment() {
+  pendingPayment.value = null
+  localStorage.removeItem(PENDING_PAYMENT_KEY)
+}
+
+function handlePaymentExpired() {
+  endPayment()
+  notify.error(t('payments.signup.expired'))
+  if (isRegistration.value) switchAuthMode()
+}
+
+async function handlePaid(result: AuthResult | VerificationPending) {
+  endPayment()
+  if ('verificationRequired' in result) {
+    pendingVerificationEmail.value = result.email
+    return
+  }
+  const authenticationError = await completeAuthentication(result, undefined, lastCredentials?.password)
+  if (authenticationError) notify.error(getRequestErrorMessage(authenticationError, true))
+}
 const needsVerification = ref(false)
 const isResending = ref(false)
 let lastCredentials: { username: string; password: string } | null = null
@@ -234,6 +273,10 @@ async function handleLogin(credentials: { username: string; password: string; re
       handleLoginError(loginError)
       return
     }
+    if ('paymentRequired' in result) {
+      startPayment(result.token, credentials.username)
+      return
+    }
     if ('passkeyRequired' in result) {
       passkeyTicket.value = result.ticket
       biometricCredentialsForSecondFactor.value = credentials.rememberBiometric ? { username: credentials.username, password: credentials.password } : null
@@ -365,6 +408,10 @@ async function handleBiometricLogin() {
       await handleBiometricLoginError(loginError)
       return
     }
+    if ('paymentRequired' in result) {
+      startPayment(result.token, credentials.username)
+      return
+    }
     if ('passkeyRequired' in result) {
       biometricCredentialsForSecondFactor.value = credentials
       passkeyTicket.value = result.ticket
@@ -412,6 +459,11 @@ async function handleRegistration(credentials: { username: string; password: str
     const [registrationError, result] = await catchError(register(credentials.username, credentials.password, credentials.email, credentials.displayName))
     if (registrationError) {
       notify.error(getRequestErrorMessage(registrationError, true))
+      return
+    }
+    if ('paymentRequired' in result) {
+      lastCredentials = { username: credentials.username, password: credentials.password }
+      startPayment(result.token, credentials.displayName || credentials.username, credentials.email)
       return
     }
     if ('verificationRequired' in result) {
@@ -487,8 +539,9 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
       <div class="w-full mt-0 lg:mt-4 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
-          <div :key="pendingVerificationEmail ? 'verification' : passkeyTicket ? 'second-factor' : isRegistration ? 'registration' : 'login'">
+          <div :key="pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : isRegistration ? 'registration' : 'login'">
             <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />
+            <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name" :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
             <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor" @back="cancelSecondFactor" />
             <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" />
             <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" @submit="handleRegistration" @switch-mode="switchAuthMode" />

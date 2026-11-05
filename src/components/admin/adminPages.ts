@@ -30,6 +30,11 @@ const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
 const Ai = lazy(() => import('./AiPanel.vue'))
 const Plugins = lazy(() => import('./PluginsPanel.vue'))
+const PaymentSettings = lazy(() => import('./payments/PaymentSettingsPanel.vue'))
+const PaymentCatalog = lazy(() => import('./payments/PaymentCatalogPanel.vue'))
+const PaymentOrders = lazy(() => import('./payments/PaymentOrdersPanel.vue'))
+const PaymentSubscriptions = lazy(() => import('./payments/PaymentSubscriptionsPanel.vue'))
+const PaymentGrants = lazy(() => import('./payments/PaymentGrantsPanel.vue'))
 
 export interface PageBlock {
   component: Component
@@ -66,4 +71,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   updates: [{ component: Updates }],
   backups: [{ component: Backups }],
   plugins: [{ component: Plugins }],
+  payments: [{ component: PaymentSettings }],
+  paymentsCatalog: [{ component: PaymentCatalog }],
+  paymentsSales: [{ component: PaymentOrders }, { component: PaymentSubscriptions }, { component: PaymentGrants }],
 }

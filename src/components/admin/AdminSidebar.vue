@@ -20,6 +20,7 @@ const icons: Record<AdminTabId, string> = {
   notifications: 'lucide:bell',
   mail: 'lucide:mail',
   apikeys: 'lucide:key-round',
+  payments: 'lucide:credit-card',
   plugins: 'lucide:puzzle',
   settings: 'lucide:settings',
 }
@@ -46,6 +47,9 @@ const pageIcons: Record<AdminPageId, string> = {
   apikeys: 'lucide:key-round',
   ai: 'lucide:brain-circuit',
   issueReports: 'lucide:life-buoy',
+  payments: 'lucide:credit-card',
+  paymentsCatalog: 'lucide:package',
+  paymentsSales: 'lucide:receipt',
   plugins: 'lucide:puzzle',
   server: 'lucide:server',
   users: 'lucide:users-round',

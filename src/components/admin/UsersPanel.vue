@@ -15,8 +15,11 @@ import CreateUserModal from './CreateUserModal.vue'
 import AccessControlsModal from './AccessControlsModal.vue'
 import EditUserModal from './EditUserModal.vue'
 import StatusPill from './StatusPill.vue'
+import UserPaymentsModal from './UserPaymentsModal.vue'
+import { usePayments } from '../../composables/usePayments'
 
 const { t, locale } = useI18n()
+const payments = usePayments()
 
 const users = ref<AdminUser[]>([])
 const isLoading = ref(true)
@@ -80,6 +83,10 @@ async function openEdit(user: AdminUser) {
   if (refresh) await load()
 }
 
+async function openPayments(user: AdminUser) {
+  await openModal<boolean>(UserPaymentsModal, { props: { user } }).catch(() => false)
+}
+
 async function openAccess(user: AdminUser) {
   await openModal<boolean>(AccessControlsModal, { props: { user } }).catch(() => false)
 }
@@ -131,7 +138,10 @@ async function setVerification(enabled: boolean) {
 const originalAccess = ref('admins')
 const restrictedDisplay = ref<'hidden' | 'locked'>('hidden')
 
-onMounted(load)
+onMounted(() => {
+  void payments.load()
+  void load()
+})
 </script>
 
 <template>
@@ -182,6 +192,7 @@ onMounted(load)
               <td class="text-right">
                 <div class="flex justify-end gap-2">
                   <button type="button" :class="secondaryButton" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
+                  <button v-if="payments.active.value" type="button" :class="secondaryButton" class="inline-flex items-center gap-1.5" :aria-label="t('payments.admin.userPayments.manage', { name: user.displayName || user.username })" @click="openPayments(user)"><Icon icon="lucide:credit-card" class="size-3.5" aria-hidden="true" />{{ t('payments.admin.userPayments.button') }}</button>
                   <button type="button" :class="secondaryButton" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
                 </div>
               </td>

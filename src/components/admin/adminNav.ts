@@ -8,6 +8,7 @@ export const ADMIN_TABS = {
   issues: ['tickets', 'issueReports'],
   notifications: ['notifications', 'smtp'],
   mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
+  payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
   apikeys: ['apikeys'],
   plugins: ['plugins'],
   settings: ['server', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],

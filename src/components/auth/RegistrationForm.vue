@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { usePayments } from '../../composables/usePayments'
 import AuthField from './AuthField.vue'
 
 defineProps<{
@@ -42,6 +43,13 @@ const passwordStrength = computed(() => {
   }
 
   return { label: t('auth.passwordStrong'), level: 'strong', value: 4 }
+})
+
+const payments = usePayments()
+void payments.load()
+const paymentFollows = computed(() => {
+  const registration = payments.activeStatus.value?.registration
+  return Boolean(registration && (registration.cardRequired || registration.feeEnabled))
 })
 
 function handleSubmit() {
@@ -126,8 +134,9 @@ function handleSubmit() {
       <p v-else-if="registrationEnabled === false" class="mt-3 text-xs leading-5 text-flixer-muted" role="status">{{ t('auth.registrationDisabled') }}</p>
       <p v-else-if="registrationEnabled === null" class="mt-3 text-xs leading-5 text-flixer-muted" role="status">{{ t('auth.checkingRegistration') }}</p>
 
+
       <button class="mt-5 flex h-12 items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="isSubmitting || registrationEnabled !== true" :aria-busy="isSubmitting">
-        <span>{{ isSubmitting ? t('auth.creatingAccount') : t('auth.createAccount') }}</span>
+        <span>{{ isSubmitting ? t('auth.creatingAccount') : paymentFollows ? t('payments.signup.continue') : t('auth.createAccount') }}</span>
         <Icon v-if="!isSubmitting" icon="lucide:arrow-right" class="size-[17px]" aria-hidden="true" />
         <span v-else class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
       </button>
