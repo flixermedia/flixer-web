@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
 import type { ExternalRequestStatus } from '../../api'
 import { requestStatusLabelKey } from '../../composables/requestStatus'
 import { useAccess } from '../../composables/useAccess'
+import { lockOf, requestLock } from '../../composables/usePayments'
 import { badgeToneClasses } from '../plugins/classes'
 import type { BadgeTone } from '../../plugins/viewTypes'
 
@@ -36,6 +37,11 @@ const props = withDefaults(
 const emit = defineEmits<{ watched: [] }>()
 const { t } = useI18n()
 const { requestUnlock, canUnlock } = useAccess()
+
+const paywalled = computed(() => lockOf(props.itemId)?.locked === true)
+watchEffect(() => {
+  if (props.itemId && props.variant !== 'library') requestLock(props.itemId)
+})
 
 const linkTo = computed(() => (props.locked ? null : props.to) ?? (props.variant !== 'library' && props.itemId ? { name: 'media-item', params: { id: props.itemId } } : null))
 const statusClass = computed(
@@ -83,6 +89,7 @@ const statusClass = computed(
           <div v-if="locked" class="theme-dark absolute inset-0 grid place-items-center bg-black/65 backdrop-blur-md">
             <span class="flex flex-col items-center gap-2 text-white"><Icon icon="lucide:lock" class="size-8" aria-hidden="true" /><span class="rounded-full border border-white/25 bg-black/50 px-2.5 py-1 text-[10px] font-bold">{{ t('access.restrictedBadge') }}</span></span>
           </div>
+          <span v-if="paywalled && !locked" class="absolute right-2 top-2 grid size-7 place-items-center rounded-full border border-white/25 bg-black/60 text-white shadow-sm backdrop-blur-md" :title="t('payments.lock.badge')" role="img" :aria-label="t('payments.lock.badge')"><Icon icon="lucide:lock" class="size-3.5" aria-hidden="true" /></span>
           <span v-if="requestStatus && requestStatus !== 'none'" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="statusClass" :aria-label="t(requestStatusLabelKey(requestStatus))">{{ t(requestStatusLabelKey(requestStatus)) }}</span>
           <span v-if="badge && (!requestStatus || requestStatus === 'none')" class="absolute left-2 top-2 rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm backdrop-blur-md" :class="badgeToneClasses[badge.tone]">{{ badge.text }}</span>
           <div v-if="progress !== undefined" class="absolute inset-x-0 bottom-0 h-1 bg-white/25">

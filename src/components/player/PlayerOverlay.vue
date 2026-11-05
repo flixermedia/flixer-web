@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getItemPlaybackInfo, getPreferences, getStreamInfo, getWatchProgress, saveWatchProgress, updatePreferences, type PlaybackInfo, type StreamInfo } from '../../api'
 import { expectedPosition, useParty } from '../../composables/useParty'
 import { notify } from '../../composables/notify'
+import { handlePaymentRequired } from '../../composables/usePayments'
 import { useVideoOverlay } from '../../composables/useVideoOverlay'
 import VideoPlayer from './VideoPlayer.vue'
 import PlayerSkeleton from './PlayerSkeleton.vue'
@@ -129,7 +130,14 @@ function onKeydown(event: KeyboardEvent) {
   else setMini(true)
 }
 
-async function load(itemId: string) {
+/** A 402 from the server means the item is behind a paywall: offer to unlock it, and close the player if the viewer declines. */
+async function offerUnlock(failure: unknown, itemId: string): Promise<boolean> {
+  const unlocked = await handlePaymentRequired(failure, itemId, props.title)
+  if (unlocked === false) closeOverlay()
+  return unlocked === true
+}
+
+async function load(itemId: string, retryAfterPayment = true) {
   playback.value = null
   info.value = null
   error.value = ''
@@ -145,11 +153,13 @@ async function load(itemId: string) {
   }
   const [playbackError, next] = await catchError(Promise.resolve().then(() => getItemPlaybackInfo(itemId)))
   if (playbackError) {
+    if (retryAfterPayment && itemId === props.itemId && (await offerUnlock(playbackError, itemId))) return load(itemId, false)
     if (itemId === props.itemId) error.value = t('player.couldNotGetStreamUrl')
     return
   }
   const [streamError, streamInfo] = await catchError(Promise.resolve().then(() => getStreamInfo(next.mediaSource.streamUrl)))
   if (streamError) {
+    if (retryAfterPayment && itemId === props.itemId && (await offerUnlock(streamError, itemId))) return load(itemId, false)
     if (itemId === props.itemId) error.value = t('player.couldNotGetStreamUrl')
     return
   }

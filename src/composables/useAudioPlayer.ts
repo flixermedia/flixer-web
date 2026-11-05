@@ -5,6 +5,7 @@ import Hls from "hls.js";
 import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getItemPlaybackInfo, getStreamInfo, getTrackLyrics, reportListening, supportsNativeHls } from "../api";
 import { parseLrc, type ParsedLyrics } from "./lrc";
 import { catchError } from "../utils/catchError";
+import { handlePaymentRequired } from "./usePayments";
 
 export interface QueueTrack {
 	id: string;
@@ -332,7 +333,9 @@ function prefetchNext() {
 	if (upcoming) void resolveStreamUrl(upcoming.id).catch(() => undefined);
 }
 
-async function loadCurrent(autoplay = true, startAt = 0) {
+let paymentRetried = false;
+
+async function loadCurrent(autoplay = true, startAt = 0): Promise<void> {
 	const track = current.value;
 	if (!audio || !track) return;
 	const token = ++loadToken;
@@ -365,6 +368,20 @@ async function loadCurrent(autoplay = true, startAt = 0) {
 	try {
 		const [streamError, streamUrl] = await catchError(Promise.resolve().then(() => resolveStreamUrl(track.id)));
 		if (streamError) {
+			if (token === loadToken && !paymentRetried) {
+				const unlocked = await handlePaymentRequired(streamError, track.id, track.title);
+				if (unlocked === true) {
+					paymentRetried = true;
+					isLoading.value = false;
+					return loadCurrent(autoplay, startAt).finally(() => (paymentRetried = false));
+				}
+				if (unlocked === false) {
+					error.value = "error";
+					isLoading.value = false;
+					isPlaying.value = false;
+					return;
+				}
+			}
 			handleLoadError(streamError);
 			return;
 		}

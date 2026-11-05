@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { fetchHomeImage, getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
@@ -26,6 +26,9 @@ import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useProfile } from '../composables/useProfile'
 import { useAccess } from '../composables/useAccess'
+import { lockOf, openOffers, refreshLocks, requestLock, usePayments } from '../composables/usePayments'
+import { usePaymentFormat } from '../composables/usePaymentFormat'
+import { getOffers, rentalRemainingMs, type Offers } from '../api'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
@@ -47,6 +50,40 @@ const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const item = ref<ItemDetail | null>(null)
+const payments = usePayments()
+const { countdown } = usePaymentFormat()
+const paymentLock = computed(() => lockOf(item.value?.id))
+const rentalNow = ref(Date.now())
+const rentalMs = computed(() => rentalRemainingMs(paymentLock.value?.rentalEndsAt, rentalNow.value))
+const rentalTimer = setInterval(() => {
+  rentalNow.value = Date.now()
+  if (paymentLock.value?.rentalEndsAt && rentalMs.value === 0) refreshLocks()
+}, 30_000)
+onBeforeUnmount(() => clearInterval(rentalTimer))
+const paywalled = computed(() => payments.active.value && paymentLock.value?.locked === true)
+const lockOffers = ref<Offers | null>(null)
+watch(
+  [() => item.value?.id, paywalled],
+  async ([id, locked]) => {
+    lockOffers.value = null
+    if (id && locked) lockOffers.value = await getOffers(id).catch(() => null)
+  },
+  { immediate: true },
+)
+// Names the paywall button after what the viewer can actually do: rent, buy, or the generic unlock when only plans apply.
+const unlockLabel = computed(() => {
+  const products = lockOffers.value?.products ?? []
+  const rent = products.some((product) => product.kind === 'rent')
+  const buy = products.some((product) => product.kind === 'buy')
+  return rent && buy ? t('payments.lock.rentOrBuy') : rent ? t('payments.lock.rent') : buy ? t('payments.lock.buy') : t('payments.lock.unlock')
+})
+watch(
+  () => item.value?.id,
+  (id) => {
+    if (id) requestLock(id)
+  },
+  { immediate: true },
+)
 const themeMusic = useThemeMusic(
   computed(() => item.value?.id),
   computed(() => item.value !== null && ['movie', 'series'].includes(item.value.type)),
@@ -444,8 +481,18 @@ watch(
 
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
 
+              <div v-if="payments.active.value && (paymentLock?.locked || (rentalMs !== null && rentalMs > 0))" class="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                <span v-if="paymentLock?.locked" class="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/50 px-3 py-1.5 font-semibold text-white"><Icon icon="lucide:lock" class="size-4" aria-hidden="true" />{{ t('payments.lock.badge') }}</span>
+                <span v-else class="inline-flex items-center gap-2 rounded-full border border-flixer-accent/30 bg-flixer-primary/20 px-3 py-1.5 font-semibold text-white" role="status"><Icon icon="lucide:clock" class="size-4" aria-hidden="true" />{{ t('payments.lock.rentalLeft', { time: countdown(rentalMs ?? 0) }) }}</span>
+                
+              </div>
+
               <div class="mt-6 flex flex-wrap items-center gap-3">
-                <button v-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
+                <button v-if="paywalled" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openOffers(item.id, item.title)">
+                  <Icon icon="lucide:shopping-cart" class="size-5" aria-hidden="true" />
+                  {{ unlockLabel }}
+                </button>
+                <button v-else-if="isAlbum && item.children.length > 0" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="playAlbum()">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('music.playAlbum') }}
                 </button>
@@ -453,7 +500,7 @@ watch(
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
-                <button v-if="playTarget" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
+                <button v-if="playTarget && !paywalled" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
