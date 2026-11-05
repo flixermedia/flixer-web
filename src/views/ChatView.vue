@@ -8,6 +8,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getChatConversation, getChatConversations, getChatMessages, getChatEncryptionStatus, downgradeChatToPlaintext, upgradeChatToEncrypted, deleteChatConversation, markChatRead, removeChatMember, renameChatGroup, sendChatMessage, type ChatConversation, type ChatMessageWithSequence } from '../api'
 import MailList from '../components/chat/MailList.vue'
 import MailReader from '../components/chat/MailReader.vue'
+import PartyChat from '../components/party/PartyChat.vue'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import Header from '../components/header/Header.vue'
@@ -18,6 +19,7 @@ import { confirmAction } from '../composables/confirm'
 import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
+import { useParty } from '../composables/useParty'
 import { useMailbox } from '../composables/useMailbox'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
@@ -31,7 +33,13 @@ const route = useRoute()
 const mail = useMailbox()
 const mailEnabled = computed(() => !!mail.mailbox.value?.enabled)
 const mailMode = computed(() => mailEnabled.value && route.query.tab === 'mail')
-const hasSelection = computed(() => (mailMode.value ? !!mail.selectedId.value : !!props.id))
+const party = useParty()
+const partyMode = computed(() => !!party.party.value && !mailMode.value && route.query.tab === 'party')
+const hasSelection = computed(() => (partyMode.value ? true : mailMode.value ? !!mail.selectedId.value : !!props.id))
+watch(partyMode, (open) => party.setChatOpen(open), { immediate: true })
+onBeforeUnmount(() => {
+  if (partyMode.value) party.setChatOpen(false)
+})
 const { isSigningOut, signOut } = useSignOut()
 const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
@@ -739,6 +747,14 @@ onBeforeUnmount(() => {
               <span v-if="tab.unread" class="grid min-w-4 place-items-center rounded bg-flixer-accent px-1 text-[10px] font-bold leading-4 text-flixer-background">{{ tab.unread > 99 ? '99+' : tab.unread }}</span>
             </RouterLink>
           </div>
+          <RouterLink v-if="party.party.value && !mailMode" :to="{ name: 'chat', query: { tab: 'party' } }" class="mx-2.5 mt-2.5 flex items-center gap-3 rounded border px-2.5 py-3 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="partyMode ? 'border-white/10 bg-white/[0.08]' : 'border-transparent'">
+            <span class="grid size-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-flixer-primary to-flixer-secondary text-white" aria-hidden="true"><Icon icon="lucide:popcorn" class="size-5" aria-hidden="true" /></span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-medium text-white">{{ t('party.chat') }}</span>
+              <span class="block truncate text-xs text-flixer-muted">{{ party.party.value.item.title }}</span>
+            </span>
+            <span v-if="party.unread.value" class="grid min-w-4 shrink-0 place-items-center rounded bg-flixer-accent px-1 text-[10px] font-bold leading-4 text-flixer-background">{{ party.unread.value > 99 ? '99+' : party.unread.value }}</span>
+          </RouterLink>
           <MailList v-if="mailMode" />
           <ul v-else-if="listLoading" class="space-y-1 p-2">
             <li v-for="n in 5" :key="n" class="flex items-center gap-3 p-2"><Skeleton class="size-10 rounded" /><Skeleton class="h-4 w-32" /></li>
@@ -773,7 +789,11 @@ onBeforeUnmount(() => {
         </aside>
 
         <section class="chat-pane flex min-h-0 min-w-0 flex-col bg-flixer-background max-lg:absolute max-lg:inset-0" :class="hasSelection ? '' : 'max-lg:pointer-events-none max-lg:translate-x-full'" :inert="isCompact && !hasSelection" :aria-label="t('chat.thread')">
-          <MailReader v-if="mailMode" :key="mail.selectedId.value || 'none'" class="chat-fade" />
+          <div v-if="partyMode" class="flex min-h-0 flex-1 flex-col">
+            <button type="button" class="flex items-center gap-2 border-b border-white/10 px-3 py-3 text-sm text-white/80 lg:hidden" @click="router.push({ name: 'chat' })"><Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" />{{ t('chat.back') }}</button>
+            <PartyChat class="min-h-0 flex-1" @close="router.push({ name: 'chat' })" />
+          </div>
+          <MailReader v-else-if="mailMode" :key="mail.selectedId.value || 'none'" class="chat-fade" />
           <div v-else :key="props.id ?? 'none'" class="chat-fade flex min-h-0 flex-1 flex-col">
             <div v-if="!props.id" class="m-auto p-6 text-center text-sm text-flixer-muted">{{ t('chat.selectPrompt') }}</div>
             <div v-else-if="threadMissing" class="m-auto p-6 text-center">

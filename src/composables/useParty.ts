@@ -6,6 +6,7 @@ import { i18n } from '../i18n'
 import { notify } from './notify'
 import { expectedPosition, type PartyState } from './partyClock'
 import { useAudioPlayer, type PartyAudioCommand, type QueueTrack } from './useAudioPlayer'
+import { lockOf, openOffers, requestLock, usePayments } from './usePayments'
 import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
@@ -27,7 +28,24 @@ const unread = ref(0)
 const MAX_CHAT_KEPT = 200
 
 const audio = useAudioPlayer()
+const payments = usePayments()
+
+// Guests can join a party for something they have not paid for; they stay in the party and chat, but the player stays closed until they unlock it.
+watch(
+  () => party.value?.item.id,
+  (id) => {
+    if (id) requestLock(id)
+  },
+  { immediate: true },
+)
+const partyLocked = computed(() => payments.active.value && lockOf(party.value?.item.id)?.locked === true)
 const videoOverlay = useVideoOverlay()
+watch(partyLocked, (locked) => {
+  if (!locked || isHost.value) return
+  if (party.value?.kind === 'video') videoOverlay.close()
+  else audio.stop()
+  setChatOpen(true)
+})
 const { profile, load: loadProfile } = useProfile()
 
 const isHost = computed(() => !!party.value && !!profile.value && party.value.host.id === profile.value.id)
@@ -132,6 +150,8 @@ function applyAudio(state: PartyState) {
 function applyState() {
   const state = latest.value
   if (!state || !party.value) return
+  // Viewers without access stay in the party for chat instead of opening a player that would fail.
+  if (!isHost.value && partyLocked.value) return
   if (state.party.kind === 'video') applyVideo(state)
   else applyAudio(state)
 }
@@ -377,10 +397,26 @@ export function useParty() {
     await loadProfile()
     if (party.value?.id === id) return party.value
     if (wantedId) await leave()
-    return open(id)
+    const joined = await open(id)
+    if (lockOf(joined.item.id)?.locked) setChatOpen(true)
+    return joined
   }
 
   const leave = leaveParty
+
+  /** Offers the party's current item for sale; on success the viewer is brought back in sync. */
+  async function unlockItem(): Promise<boolean> {
+    const item = party.value?.item
+    if (!item) return false
+    const unlocked = await openOffers(item.id, item.title)
+    if (unlocked) {
+      appliedItemId = null
+      applyingAudioItemId = null
+      if (party.value?.kind === 'music') audio.stop()
+      applyState()
+    }
+    return unlocked
+  }
 
   async function resume() {
     const id = sessionStorage.getItem(STORAGE_KEY)
@@ -407,5 +443,5 @@ export function useParty() {
     return `${location.origin}/party/${id ?? ''}`
   }
 
-  return { party, latest, status, messages, chatOpen, unread, sendChat, setChatOpen, isHost, isGuest, start, join, leave, resume, reconnect, sendVideoCommand, inviteLink, expectedPosition }
+  return { party, latest, status, messages, chatOpen, unread, sendChat, setChatOpen, isHost, isGuest, partyLocked, unlockItem, start, join, leave, resume, reconnect, sendVideoCommand, inviteLink, expectedPosition }
 }

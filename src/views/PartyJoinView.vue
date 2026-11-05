@@ -7,6 +7,7 @@ import Header from '../components/header/Header.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { useParty } from '../composables/useParty'
+import { lockOf, openOffers, requestLock, usePayments } from '../composables/usePayments'
 import { getNavLinks } from '../composables/homeNav'
 import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
@@ -23,6 +24,8 @@ const loading = ref(true)
 const gone = ref(false)
 const joining = ref(false)
 const error = ref('')
+const payments = usePayments()
+const locked = computed(() => payments.active.value && lockOf(snapshot.value?.item.id)?.locked === true)
 const music = computed(() => snapshot.value?.kind === 'music')
 
 onMounted(async () => {
@@ -32,11 +35,17 @@ onMounted(async () => {
       gone.value = true
     } else {
       snapshot.value = value
+      requestLock(value.item.id)
     }
   } finally {
     loading.value = false
   }
 })
+
+async function unlock() {
+  const item = snapshot.value?.item
+  if (item) await openOffers(item.id, item.title)
+}
 
 async function join() {
   joining.value = true
@@ -47,7 +56,8 @@ async function join() {
       error.value = joinError instanceof Error ? joinError.message : t('party.joinFailed')
       return
     }
-    const [navigationError] = await catchError(router.replace({ name: 'profile', params: { username: joined.host.username } }))
+    const target = locked.value ? { name: 'chat', query: { tab: 'party' } } : { name: 'profile', params: { username: joined.host.username } }
+    const [navigationError] = await catchError(router.replace(target))
     if (navigationError) error.value = navigationError instanceof Error ? navigationError.message : t('party.joinFailed')
   } finally {
     joining.value = false
@@ -85,8 +95,12 @@ async function join() {
               {{ member.displayName }}
             </li>
           </ul>
+          <div v-if="locked" class="mt-4 rounded border border-amber-400/30 bg-amber-400/10 p-3" role="status">
+            <p class="text-sm text-amber-200">{{ t('party.lockedJoinNotice', { title: snapshot.item.title }) }}</p>
+            <button type="button" class="mt-3 w-full rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="unlock">{{ t('payments.lock.unlock') }}</button>
+          </div>
           <p v-if="error" class="mt-3 text-sm text-red-400" role="alert">{{ error }}</p>
-          <button type="button" class="mt-4 w-full rounded bg-white px-4 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="joining" @click="join">{{ joining ? t('common.loading') : t('party.join') }}</button>
+          <button type="button" class="mt-4 w-full rounded bg-white px-4 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="joining" @click="join">{{ joining ? t('common.loading') : locked ? t('party.joinAnyway') : t('party.join') }}</button>
         </div>
       </section>
     </main>

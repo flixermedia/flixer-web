@@ -39,6 +39,11 @@ async function leave() {
       <p class="truncate text-xs text-flixer-muted">{{ party.isHost.value ? t('party.youAreHost') : t('party.hostedBy', { name: party.party.value.host.displayName }) }}</p>
     </div>
 
+    <div v-if="party.partyLocked.value" class="mx-3 mb-2 rounded border border-amber-400/30 bg-amber-400/10 p-3" role="status">
+      <p class="text-xs text-amber-200">{{ t('party.lockedNotice') }}</p>
+      <button type="button" class="mt-2 w-full rounded bg-white px-3 py-2 text-xs font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="party.unlockItem()">{{ t('payments.lock.unlock') }}</button>
+    </div>
+
     <div class="my-2 border-t border-flixer-border"></div>
 
     <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.members') }} · {{ party.party.value.members.length }}</p>
