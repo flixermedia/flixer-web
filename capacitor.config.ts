@@ -27,7 +27,7 @@ const config: CapacitorConfig = {
   },
   server: {
     url: 'https://web--my-flixer--realashleybailey-coder.gitcloud.org',
-    allowNavigation: ['*.gitcloud.org'],
+    allowNavigation: ['*.gitcloud.org', '*.stripe.com', '*.stripe.network', '*.squarecdn.com', '*.squareup.com', '*.squareupsandbox.com'],
     iosScheme: 'https',
     androidScheme: 'https',
   },

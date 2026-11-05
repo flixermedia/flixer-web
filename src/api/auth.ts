@@ -5,6 +5,12 @@ import { catchError } from '../utils/catchError'
 import type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, ServerSetting, FlixerApiRouteBody, FlixerApiRouteData, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from 'flixer-api-client'
 export type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, SettingRequestValue, ServerSetting, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from 'flixer-api-client'
 
+/** The account exists but has to save a card before it can sign in; `token` lets the holder finish paying. */
+export interface PaymentPending {
+  paymentRequired: true
+  token: string
+}
+
 export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; audioLanguage?: string }
 export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; audioLanguage?: string | null }
 
@@ -19,9 +25,9 @@ export async function updatePreferences(patch: AppPreferencesUpdate): Promise<Ap
   return response.data
 }
 
-export async function login(username: string, password: string): Promise<AuthResult | PasskeyRequired> {
+export async function login(username: string, password: string): Promise<AuthResult | PasskeyRequired | PaymentPending> {
   const request: FlixerApiRouteBody<'post', '/auth/login'> = { username, password }
-  const response = await api.post<AuthResult | PasskeyRequired>('/auth/login', request)
+  const response = await api.post<AuthResult | PasskeyRequired | PaymentPending>('/auth/login', request)
   return response.data
 }
 
@@ -30,14 +36,14 @@ export async function getRegistrationStatus(): Promise<RegistrationStatus> {
   return response.data
 }
 
-export async function register(username: string, password: string, email: string, displayName?: string): Promise<AuthResult | VerificationPending> {
+export async function register(username: string, password: string, email: string, displayName?: string): Promise<AuthResult | VerificationPending | PaymentPending> {
   const request: FlixerApiRouteBody<'post', '/auth/register'> = {
     username,
     displayName: displayName || undefined,
     email,
     password,
   }
-  const response = await api.post<AuthResult | VerificationPending>('/auth/register', request)
+  const response = await api.post<AuthResult | VerificationPending | PaymentPending>('/auth/register', request)
   return response.data
 }
 
