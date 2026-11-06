@@ -19,8 +19,10 @@ import { initializeNativeNavigation } from "./platform/nativeNavigation";
 import { i18n, initLocale, syncLocaleFromAccount } from "./i18n";
 import { initMonitoring } from "./monitoring";
 import router from "./router/index.ts";
+import { getNativeServerUrl } from "./platform/serverConnection";
 import { restoreNativeAccount } from "./platform/nativeAccount";
 import { catchError } from "./utils/catchError";
+import { prefetchSetupGate } from "./setup/setupGate";
 import "./tailwind.css";
 import "./toast.css";
 import "./modal.css";
@@ -31,6 +33,8 @@ declare module "@kolirt/vue-modal" {
 	interface ModalGroupRegistry extends DefineGroups<["default"]> {}
 }
 
+if (!Capacitor.isNativePlatform() || getNativeServerUrl()) prefetchSetupGate();
+
 const app = createApp(App);
 
 void initMonitoring(app);
@@ -40,14 +44,15 @@ app.component("Icon", Icon);
 let lastPasskeyCallbackUrl = "";
 document.documentElement.classList.toggle("capacitor", Capacitor.isNativePlatform());
 if (Capacitor.getPlatform() === "ios") {
-	const [keyboardAccessoryError] = await catchError(Keyboard.setAccessoryBarVisible({ isVisible: false }));
-	if (keyboardAccessoryError) {
-		console.error("[keyboard] Could not hide the iOS form accessory bar", keyboardAccessoryError);
-	}
+	void catchError(Keyboard.setAccessoryBarVisible({ isVisible: false })).then(([keyboardAccessoryError]) => {
+		if (keyboardAccessoryError) console.error("[keyboard] Could not hide the iOS form accessory bar", keyboardAccessoryError);
+	});
 }
 
 initButtonHaptics();
-await initNativeTextInteraction();
+void catchError(initNativeTextInteraction()).then(([error]) => {
+	if (error) console.error("[text-interaction] Could not initialise native text interaction", error);
+});
 initTheme();
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {

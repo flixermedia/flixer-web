@@ -269,8 +269,30 @@ export async function getChatMlsDeviceKeyPackages(deviceId: string): Promise<{ k
 	return (await api.get<{ keyPackages: Array<Pick<ChatMlsKeyPackage, "keyPackageId" | "keyPackage" | "available">> }>(`/chat/devices/${encodeURIComponent(deviceId)}/key-packages`)).data;
 }
 
-export async function getChatMlsKeyPackages(id: string): Promise<{ keyPackages: ChatMlsKeyPackage[] }> {
-	return (await api.get<{ keyPackages: ChatMlsKeyPackage[] }>(`/chat/conversations/${encodeURIComponent(id)}/mls/key-packages`)).data;
+export interface ChatCallIceConfig {
+	iceServers: Array<{ urls: string[]; username?: string; credential?: string }>;
+	relayOnly: boolean;
+}
+
+/** STUN/TURN servers for peer-to-peer calls. Fails with 403 when the admin has not enabled calls. */
+export async function getChatCallIce(): Promise<ChatCallIceConfig> {
+	return (await api.get<ChatCallIceConfig>("/chat/calls/ice")).data;
+}
+
+export async function getPartyCallIce(partyId: string): Promise<ChatCallIceConfig> {
+	return (await api.get<ChatCallIceConfig>(`/parties/${encodeURIComponent(partyId)}/calls/ice`)).data;
+}
+
+export async function getPartyCallKeyPackages(partyId: string, peerId: string, lenient = false): Promise<{ keyPackages: ChatMlsKeyPackage[] }> {
+	return (await api.get<{ keyPackages: ChatMlsKeyPackage[] }>(`/parties/${encodeURIComponent(partyId)}/calls/key-packages`, { params: lenient ? { peer: peerId, lenient: 1 } : { peer: peerId } })).data;
+}
+
+export async function claimPartyCallKeyPackage(partyId: string, keyPackageId: string): Promise<ChatMlsKeyPackage> {
+	return (await api.post<ChatMlsKeyPackage>(`/parties/${encodeURIComponent(partyId)}/calls/key-packages/${encodeURIComponent(keyPackageId)}/claim`)).data;
+}
+
+export async function getChatMlsKeyPackages(id: string, lenient = false): Promise<{ keyPackages: ChatMlsKeyPackage[] }> {
+	return (await api.get<{ keyPackages: ChatMlsKeyPackage[] }>(`/chat/conversations/${encodeURIComponent(id)}/mls/key-packages`, { params: lenient ? { lenient: 1 } : undefined })).data;
 }
 
 export async function claimChatMlsKeyPackage(id: string, keyPackageId: string): Promise<ChatMlsKeyPackage> {

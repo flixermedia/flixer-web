@@ -105,6 +105,13 @@ export interface MailMessagePage {
   items: MailMessageSummary[]
 }
 
+export interface MailTemplateKey {
+  key: string
+  group: 'global' | 'account' | 'payments'
+  description: string
+  sample: string
+}
+
 export interface MailTemplate {
   name: string
   label: string
@@ -115,6 +122,7 @@ export interface MailTemplate {
   builtin: boolean
   customized: boolean
   variables: string[]
+  keys?: MailTemplateKey[]
   updatedAt: string | null
 }
 

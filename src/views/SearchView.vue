@@ -100,7 +100,30 @@ async function run(term: string) {
   const externalAllowed = requestsConfig.config.value?.enabled && requestsConfig.config.value.canRequest && type.value !== 'video'
   const signal = controller.signal
   const pluginType = pluginSearchType(type.value)
-  const [error, data] = await catchError(Promise.all([searchMedia(term, filters.value, signal), externalAllowed ? searchRequests(term, externalType, signal).catch(() => []) : Promise.resolve([]), pluginType === null ? Promise.resolve([]) : searchPluginSections(term, pluginType, signal).then(sanitizeSearchSections, () => [])]))
+  const enabledTypes = requestsConfig.config.value
+  // Library results render as soon as they arrive; slower external and plugin sources fill in afterwards.
+  externalResults.value = []
+  pluginSections.value = []
+  const secondary = Promise.all([
+    externalAllowed
+      ? searchRequests(term, externalType, signal).then(
+          (external) => {
+            if (signal.aborted) return
+            externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
+          },
+          () => undefined,
+        )
+      : undefined,
+    pluginType === null
+      ? undefined
+      : searchPluginSections(term, pluginType, signal).then(
+          (sections) => {
+            if (!signal.aborted) pluginSections.value = sanitizeSearchSections(sections)
+          },
+          () => undefined,
+        ),
+  ])
+  const [error, local] = await catchError(searchMedia(term, filters.value, signal))
   if (error) {
     if ((error as { code?: string }).code === 'ERR_CANCELED') return
     failed.value = true
@@ -108,13 +131,10 @@ async function run(term: string) {
     externalResults.value = []
     pluginSections.value = []
   } else {
-    const [local, external, sections] = data
     results.value = local
-    pluginSections.value = sections
-    const enabledTypes = requestsConfig.config.value
-    externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
   }
   isLoading.value = false
+  await secondary
 }
 
 watch([query, type, genre, yearFrom, yearTo, sort, unwatched, includeChildren], () => {

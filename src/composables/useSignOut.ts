@@ -10,6 +10,16 @@ import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
 import { catchError } from '../utils/catchError'
 
+const SIGN_OUT_WAIT_MS = 4000
+
+function withTimeout<T>(work: Promise<T>): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), SIGN_OUT_WAIT_MS)
+  })
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
+}
+
 function notifySignOutError(error: unknown) {
   if (axios.isAxiosError(error) && error.response?.status !== 401) {
     notify.error(i18n.global.t('errors.signOutNetwork'))
@@ -34,10 +44,11 @@ export function useSignOut() {
         signOutError = error
       }
 
-      const [partyError] = await catchError(Promise.resolve().then(() => useParty().leave()))
+      // A slow server must not trap the user on the sign-out spinner; local state is cleared either way.
+      const [partyError] = await catchError(withTimeout(Promise.resolve().then(() => useParty().leave())))
       signOutError ??= partyError
 
-      const [logoutError] = await catchError(logout())
+      const [logoutError] = await catchError(withTimeout(logout()))
       signOutError ??= logoutError
 
       const [cleanupError] = await catchError(

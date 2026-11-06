@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchPersonImage } from '../../api'
 import { limitedImageLoad } from '../../composables/imageQueue'
 import AuthImage from './AuthImage.vue'
@@ -30,13 +30,37 @@ function release() {
   objectUrl = ''
 }
 
+const root = ref<HTMLElement | null>(null)
+const visible = ref(typeof IntersectionObserver === 'undefined')
+let observer: IntersectionObserver | undefined
+let abort: AbortController | undefined
+
+onMounted(() => {
+  if (visible.value || !root.value) {
+    visible.value = true
+    return
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      visible.value = true
+      observer?.disconnect()
+    },
+    { rootMargin: '400px' },
+  )
+  observer.observe(root.value)
+})
+
 async function load() {
   const current = ++request
+  abort?.abort()
+  abort = new AbortController()
+  const signal = abort.signal
   release()
   src.value = ''
   if (!props.hasImage) return
   const width = Math.ceil(props.width * Math.min(window.devicePixelRatio || 1, 2))
-  const [failure, blob] = await catchError(limitedImageLoad(() => fetchPersonImage(props.personId, width)))
+  const [failure, blob] = await catchError(limitedImageLoad(() => fetchPersonImage(props.personId, width), { signal }))
   if (failure) {
     // Falls back to the artwork or initials.
     return
@@ -46,15 +70,23 @@ async function load() {
   src.value = objectUrl
 }
 
-watch(() => [props.personId, props.hasImage, props.width], load, { immediate: true })
+watch(
+  () => [visible.value, props.personId, props.hasImage, props.width],
+  () => {
+    if (visible.value) void load()
+  },
+  { immediate: true },
+)
 onBeforeUnmount(() => {
+  abort?.abort()
+  observer?.disconnect()
   request++
   release()
 })
 </script>
 
 <template>
-  <div class="relative overflow-hidden bg-flixer-surface" role="img" :aria-label="name">
+  <div ref="root" class="relative overflow-hidden bg-flixer-surface" role="img" :aria-label="name">
     <img v-if="src" :src="src" alt="" class="size-full object-cover object-top" />
     <AuthImage v-else-if="fallback" scope="library" :item-id="fallback.itemId" :index="fallback.index" :version="fallback.version" :width="width" alt="" />
     <span v-else class="grid size-full place-items-center text-sm font-semibold text-flixer-muted" aria-hidden="true">{{ initials }}</span>

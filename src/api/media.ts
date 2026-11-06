@@ -99,16 +99,17 @@ export async function getHomeContent(): Promise<HomeContent> {
   return response.data
 }
 
-export async function getHomeRecommendations(): Promise<HomeRecommendations> {
-  const response = await api.get<HomeRecommendations>('/recommendations/home', { timeout: 125_000 })
+export async function getHomeRecommendations(signal?: AbortSignal): Promise<HomeRecommendations> {
+  const response = await api.get<HomeRecommendations>('/recommendations/home', { timeout: 125_000, signal })
   return response.data
 }
 
-export async function getHomeMusicRecommendations(): Promise<HomeMusicRecommendations> {
+export async function getHomeMusicRecommendations(signal?: AbortSignal): Promise<HomeMusicRecommendations> {
   const response = await apiRequest<HomeMusicRecommendations>({
     method: 'GET',
     url: '/recommendations/home/music',
     timeout: 125_000,
+    signal,
   })
   return response.data
 }
@@ -156,8 +157,8 @@ export async function getPerson(id: string, signal?: AbortSignal): Promise<Perso
   return response.data
 }
 
-export async function getItemDetail(id: string): Promise<ItemDetail> {
-  const response = await api.get<ItemDetail>(`/media/items/${encodeURIComponent(id)}`)
+export async function getItemDetail(id: string, signal?: AbortSignal): Promise<ItemDetail> {
+  const response = await api.get<ItemDetail>(`/media/items/${encodeURIComponent(id)}`, { signal })
   return response.data
 }
 

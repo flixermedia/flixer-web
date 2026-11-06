@@ -2013,6 +2013,28 @@
       "scheduledTaskFailed": "Scheduled task failed",
       "allowQuickConnect": "Allow quick connect",
       "quickConnectDescription": "Let users sign in on a device using a short code.",
+      "calls": {
+        "title": "Audio and video calls",
+        "description": "End-to-end encrypted calls between chat members. Audio and video go directly between users; Flixer only relays encrypted signalling.",
+        "enable": "Allow calls",
+        "enableDescription": "Requires encrypted chat. Adds call buttons to direct chats.",
+        "stunLabel": "STUN servers",
+        "turnLabel": "TURN servers",
+        "urlsHint": "One URL per line, for example stun:stun.example.org:3478.",
+        "turnHint": "Relays calls that can't connect directly. The bundled relay (docker compose --profile calls) needs no secret; for your own coturn server enter its static-auth-secret. For a hosted service such as ExpressTURN, enter the account's username here and its password as the secret.",
+        "secretLabel": "TURN secret",
+        "usernameLabel": "TURN username",
+        "usernameAuto": "Leave empty for coturn shared-secret auth",
+        "secretAuto": "Leave empty to use the bundled relay",
+        "secretStored": "Saved. Type a new secret to replace it.",
+        "secretClear": "Use the bundled relay's secret instead",
+        "relayOnly": "Always relay calls through TURN",
+        "relayOnlyDescription": "Hides users' IP addresses from each other. Needs a TURN server and uses its bandwidth.",
+        "save": "Save servers",
+        "loadError": "Could not load call settings.",
+        "saveError": "Could not save call settings.",
+        "saved": "Call settings saved."
+      },
       "chatEncryption": {
         "title": "Chat encryption",
         "description": "Set the default encryption mode for new conversations. Existing conversations keep their mode; users can switch encrypted conversations to plaintext only when separately allowed.",
@@ -2603,7 +2625,15 @@
       "composeRequired": "Choose a sending inbox and at least one recipient.",
       "serverHostname": "Server hostname",
       "composeTitle": "Compose email",
-      "sendTest": "Send test"
+      "sendTest": "Send test",
+      "keysTitle": "Template keys",
+      "keysHelp": "Click a key to insert it. Use it in the subject, HTML or text as {'{{key}}'}. Global keys work in every template; the others are filled by the email that sends the template.",
+      "keysConditional": "Wrap content in {'{{#if key}}'}…{'{{/if}}'} to show it only when that key has a value.",
+      "keyGroup": {
+        "global": "Everywhere",
+        "account": "Account",
+        "payments": "Payments and receipts"
+      }
     }
   },
   "auth": {
@@ -3438,6 +3468,12 @@
     "nobodyActive": "Nobody is watching or listening right now."
   },
   "party": {
+    "voice": {
+      "title": "Voice chat",
+      "join": "Join voice",
+      "leave": "Leave voice",
+      "connected": "{count} connected"
+    },
     "lockedNotice": "You haven't unlocked this title yet, so it won't play for you. You can still chat with the party.",
     "lockedJoinNotice": "{title} needs to be rented, bought or unlocked before you can watch it. You can still join the party to chat.",
     "joinAnyway": "Join without watching",
@@ -3511,6 +3547,36 @@
     "encryptedMessageUnavailable": "Can't decrypt on this device. Ask the sender to send it again.",
     "encryptedHistoryUnavailable": "Some messages cannot be decrypted on this device. Ask the sender to send them again.",
     "encrypted": "End-to-end encrypted",
+    "call": {
+      "audio": "Start audio call",
+      "video": "Start video call",
+      "unavailable": "Calls need encrypted chat to be set up on this device.",
+      "incomingAudio": "{name} is calling…",
+      "incomingVideo": "{name} is video calling…",
+      "calling": "Calling {name}…",
+      "connecting": "Connecting…",
+      "e2ee": "End-to-end encrypted call",
+      "accept": "Accept",
+      "decline": "Decline",
+      "hangUp": "End call",
+      "mute": "Mute microphone",
+      "unmute": "Unmute microphone",
+      "cameraOff": "Turn camera off",
+      "cameraOn": "Turn camera on",
+      "dismiss": "Dismiss",
+      "notice": {
+        "declined": "Call declined.",
+        "ended": "Call ended.",
+        "noAnswer": "No answer.",
+        "failed": "The connection failed. Check your network and try again.",
+        "answeredElsewhere": "Answered on another device.",
+        "mediaMissing": "Flixer couldn't start your camera or microphone. Make sure it's connected and not in use by another app or tab.",
+        "mediaDenied": "Flixer can't use your microphone or camera. Allow access and try again.",
+        "disabled": "Calls are turned off on this server.",
+        "noDevice": "The other person hasn't set up encrypted chat on any device yet.",
+        "unavailable": "The call couldn't be started."
+      }
+    },
     "downgradeToPlaintext": "Use plaintext",
     "downgradeConfirmTitle": "Switch this conversation to plaintext?",
     "downgradeConfirmMessage": "All future messages in this conversation will be plaintext and readable by the server. Existing encrypted messages will remain encrypted. This affects every participant and cannot be undone.",

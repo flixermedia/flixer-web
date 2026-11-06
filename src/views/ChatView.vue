@@ -16,6 +16,7 @@ import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
+import { refreshChatCallAvailability, useChatCall } from '../composables/useChatCall'
 import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
 import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEvent } from '../composables/useChat'
 import { describeRequestError, useProfile } from '../composables/useProfile'
@@ -49,6 +50,7 @@ const unread = useChatUnread()
 const conversations = ref<SupportChatConversation[]>([])
 const listLoading = ref(true)
 const listFailed = ref(false)
+const chatCall = useChatCall()
 const active = ref<SupportChatConversation | null>(null)
 const messages = ref<ChatMessageWithSequence[]>([])
 const decryptedBodies = ref(new Map<string, string>())
@@ -221,6 +223,7 @@ async function configureEncryption() {
     allowUserDowngrade.value = status.allowUserDowngrade
     const device = status.supported ? await initializeChatMlsDevice(userId) : null
     canUseEncryptedChat.value = device?.status === 'active'
+    if (canUseEncryptedChat.value) void refreshChatCallAvailability()
     const conversationIsEncrypted = active.value?.encryptionMode === 'encrypted'
     encryptionMode.value = conversationIsEncrypted ? 'encrypted' : 'plain'
     if (conversationIsEncrypted && !device) {
@@ -830,6 +833,14 @@ onBeforeUnmount(() => {
                     <span class="hidden lg:inline">{{ t('chat.encrypted') }}</span>
                   </span>
                   <span class="flex shrink-0 items-center gap-0.5">
+                    <template v-if="active.kind === 'direct' && chatCall.available.value && canUseEncryptedChat">
+                      <button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 disabled:opacity-40" :disabled="chatCall.phase.value !== 'idle'" :aria-label="t('chat.call.audio')" :title="t('chat.call.audio')" @click="chatCall.startCall(active.id, false, title(active))">
+                        <Icon icon="lucide:phone" class="size-4.5" aria-hidden="true" />
+                      </button>
+                      <button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 disabled:opacity-40" :disabled="chatCall.phase.value !== 'idle'" :aria-label="t('chat.call.video')" :title="t('chat.call.video')" @click="chatCall.startCall(active.id, true, title(active))">
+                        <Icon icon="lucide:video" class="size-4.5" aria-hidden="true" />
+                      </button>
+                    </template>
                     <button v-if="active.kind === 'direct' || isOwner || typeof active.supportChatOpen === 'boolean'" type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-red-400" :aria-label="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" :title="active.kind === 'group' ? t('chat.deleteGroup') : t('chat.deleteChat')" @click="deleteActive">
                       <Icon icon="lucide:trash" class="size-4.5" aria-hidden="true" />
                     </button>

@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{ buttonClass?: string; standalone?: bool
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const { enabled, loadConfig, maybePromptOnLoad, items, unread, hasUnread, isLoading, pushSupported, nativeNotificationsSupported, nativeNotificationsEnabled, nativeNotificationsBusy, nativeNotificationPermission, pushEnabled, pushBusy, permission, refresh, refreshPushState, refreshNativeNotificationState, enableNativeNotifications, disableNativeNotifications, enablePush, disablePush, markAllRead, markRead, dismiss } = useNotifications();
+const { enabled, loadConfig, maybePromptOnLoad, items, unread, hasUnread, isLoading, pushSupported, nativeNotificationsSupported, nativeNotificationsEnabled, nativeNotificationsBusy, nativeNotificationPermission, pushEnabled, pushBusy, permission, refresh, refreshIfStale, refreshPushState, refreshNativeNotificationState, enableNativeNotifications, disableNativeNotifications, enablePush, disablePush, markAllRead, markRead, dismiss } = useNotifications();
 
 const open = ref(props.standalone);
 const acceptingFriendRequest = ref("");
@@ -60,7 +60,7 @@ onMounted(() => {
 		await refreshNativeNotificationState();
 		await maybePromptOnLoad();
 	})();
-	void refresh();
+	void refreshIfStale();
 	stopNotificationSocket = onNotificationChange(() => void refresh());
 	timer = setInterval(() => void refresh(), POLL_MS);
 	document.addEventListener("visibilitychange", onVisible);

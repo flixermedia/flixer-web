@@ -228,7 +228,7 @@ function preloadSeasonPosters(series: ItemDetail) {
       const [error] = await catchError(
         fetchCachedImageBlob(
           cacheKey,
-          () => limitedImageLoad(() => fetchHomeImage(season.id, index, width, season.updatedAt).catch(() => fetchHomeImage(season.id, index, width, season.updatedAt))),
+          () => limitedImageLoad(() => fetchHomeImage(season.id, index, width, season.updatedAt).catch(() => fetchHomeImage(season.id, index, width, season.updatedAt)), { low: true }),
           season.updatedAt,
         ),
       )
@@ -341,20 +341,39 @@ const itemWatched = computed(() => {
 })
 
 async function toggleWatched(id: string, watched: boolean) {
+  const previous = item.value
+  // Show the change immediately and roll back if the server refuses it.
+  if (previous && previous.id === id) {
+    item.value = {
+      ...previous,
+      watched,
+      children: previous.children.map((season) => (season.episodes ? { ...season, episodes: season.episodes.map((episode) => ({ ...episode, watched })) } : season)),
+    }
+  }
   const [updateError] = await catchError(setItemWatched(id, watched))
-  if (updateError) return // Leave the current state; the user can retry.
+  if (updateError) {
+    if (item.value?.id === id) item.value = previous
+    return
+  }
   const [loadError, fresh] = await catchError(getItemDetail(String(route.params.id)))
-  if (loadError) return // Leave the current state; the user can retry.
+  if (loadError) return // The optimistic state already matches what the server accepted.
   item.value = fresh
 }
 
+let loadAbort: AbortController | undefined
+onBeforeUnmount(() => loadAbort?.abort())
+
 async function load(id: string) {
+  loadAbort?.abort()
+  loadAbort = new AbortController()
+  const signal = loadAbort.signal
   themeMusic.stop()
   isLoading.value = true
   failure.value = null
   activeSeason.value = 0
   try {
-    const [error, loaded] = await catchError(getItemDetail(id))
+    const [error, loaded] = await catchError(getItemDetail(id, signal))
+    if ((error as { code?: string } | undefined)?.code === 'ERR_CANCELED') return
     if (error) {
       item.value = null
       failure.value = (error as { response?: { status?: number } }).response?.status === 404 ? 'missing' : 'error'

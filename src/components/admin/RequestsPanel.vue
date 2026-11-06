@@ -21,19 +21,36 @@ const webhookCredentials = ref<RequestWebhookCredentials | null>(null)
 const overrides: Record<string, RequestUserView> = reactive({})
 const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text'
 async function load() {
-  const [error, result] = await catchError(Promise.all([listSettings(), listRequestServices(), listRequestUsers(), getRequestsConfig(), listMediaLibraries(), getRequestWebhookCredentials()]))
-  if (error) {
-    notify.error(describeRequestError(error, t('admin.requests.loadError')))
-  } else {
-    const [settingList, serviceList, userList, requestConfig, libraryList, credentials] = result
-    settings.value = Object.fromEntries(settingList.map(({ key, value }) => [key, value]))
-    services.value = serviceList
-    libraries.value = libraryList
-    users.value = userList
-    webhookCredentials.value = credentials
-    config.value = requestConfig
-    for (const user of userList) overrides[user.id] = { ...user }
-  }
+  // Each section fills in as its own call returns, so one slow upstream doesn't leave the whole panel empty.
+  const section = <T,>(request: Promise<T>, apply: (value: T) => void) =>
+    catchError(request).then(([error, value]) => {
+      if (error) return error
+      apply(value as T)
+      return null
+    })
+  const errors = await Promise.all([
+    section(listSettings(), (list) => {
+      settings.value = Object.fromEntries(list.map(({ key, value }) => [key, value]))
+    }),
+    section(listRequestServices(), (list) => {
+      services.value = list
+    }),
+    section(listRequestUsers(), (list) => {
+      users.value = list
+      for (const user of list) overrides[user.id] = { ...user }
+    }),
+    section(getRequestsConfig(), (value) => {
+      config.value = value
+    }),
+    section(listMediaLibraries(), (list) => {
+      libraries.value = list
+    }),
+    section(getRequestWebhookCredentials(), (value) => {
+      webhookCredentials.value = value
+    }),
+  ])
+  const failure = errors.find((error) => error !== null)
+  if (failure) notify.error(describeRequestError(failure, t('admin.requests.loadError')))
 }
 function webhookUrl(service: RequestServiceView) {
   const base = new URL(api.defaults.baseURL || '/api', window.location.origin)

@@ -20,6 +20,7 @@ import {
 } from "../api";
 import {
 	addChatMlsDevices,
+	chatMlsGroupUserIds,
 	createChatMlsAuthenticationService,
 	createChatMlsDevice,
 	createChatMlsGroup,
@@ -35,6 +36,7 @@ import {
 	restoreChatMlsDevice,
 	serializeChatMlsDevice,
 	type ChatMlsDevice,
+	type ChatMlsGroup,
 	type ChatMlsTrustedDevice,
 } from "./chatMls";
 import {
@@ -403,20 +405,35 @@ export async function decryptChatMessages(
 	return { messages: result, unavailableMessageIds };
 }
 
-export async function sendEncryptedChatMessage(
-	userId: string,
-	conversationId: string,
-	plaintext: string,
-): Promise<{ message: ChatMessageWithSequence; plaintext: string }> {
+interface SealedChatGroup {
+	record: LocalDeviceRecord;
+	group: ChatMlsGroup;
+	mlsWelcome?: { recipients: Array<{ deviceId: string; keyPackageId: string }>; welcome: string; ratchetTree: string };
+}
+
+/** Where key packages are listed and claimed: a chat conversation, or one peer inside a party. */
+export interface ChatKeyPackageSource {
+	/** `lenient` skips the "every device has a spare key package" check, which only creators need. */
+	list(lenient?: boolean): Promise<{ keyPackages: ChatMlsKeyPackage[] }>;
+	claim(keyPackageId: string): Promise<unknown>;
+}
+
+const conversationSource = (conversationId: string): ChatKeyPackageSource => ({
+	list: (lenient) => getChatMlsKeyPackages(conversationId, lenient),
+	claim: (keyPackageId) => claimChatMlsKeyPackage(conversationId, keyPackageId),
+});
+
+/** Creates a fresh MLS group containing this device and one claimed key package per other device in the source. */
+async function createSealedChatGroup(userId: string, source: ChatKeyPackageSource, lenient = false): Promise<SealedChatGroup> {
 	let record = await initializeChatMlsDevice(userId);
 	if (!record) throw new Error("End-to-end chat encryption is not enabled on this server.");
 	if (record.status !== "active") throw new Error("This chat device is not active. Sign in again after updating the Flixer server.");
 	await ensurePackageReserve(userId, record);
-	const directory = await getChatMlsKeyPackages(conversationId);
+	const directory = await source.list(lenient);
 	let ownPackage = directory.keyPackages.find((item) => item.deviceId === record?.deviceId && item.available && record.keyPackages[item.keyPackageId]);
 	if (!ownPackage) {
 		await createAndUploadPackage(userId, record);
-		const refreshed = await getChatMlsKeyPackages(conversationId);
+		const refreshed = await source.list(lenient);
 		ownPackage = refreshed.keyPackages.find((item) => item.deviceId === record?.deviceId && item.available && record.keyPackages[item.keyPackageId]);
 		if (!ownPackage) throw new Error("This device could not prepare an MLS key package.");
 		record = parseLocalDevice((await loadChatMlsLocalValue(userId, DEVICE_STORAGE_ID, DEVICE_STORAGE_ENTRY)) ?? "");
@@ -429,7 +446,7 @@ export async function sendEncryptedChatMessage(
 	const selected = [ownPackage, ...selectedByDevice.values()];
 	const claimed: ChatMlsKeyPackage[] = [];
 	for (const item of selected) {
-		await claimChatMlsKeyPackage(conversationId, item.keyPackageId);
+		await source.claim(item.keyPackageId);
 		claimed.push({ ...item, available: false });
 	}
 	const ownClaim = claimed[0];
@@ -456,6 +473,15 @@ export async function sendEncryptedChatMessage(
 			ratchetTree: commit.ratchetTree,
 		};
 	}
+	return { record, group, mlsWelcome };
+}
+
+export async function sendEncryptedChatMessage(
+	userId: string,
+	conversationId: string,
+	plaintext: string,
+): Promise<{ message: ChatMessageWithSequence; plaintext: string }> {
+	const { record, group, mlsWelcome } = await createSealedChatGroup(userId, conversationSource(conversationId));
 	const encrypted = await encryptChatMlsMessage(group, plaintext);
 	const message = await sendChatMessage(conversationId, encrypted.ciphertext, true, mlsWelcome, record.deviceId);
 	await storeChatMlsLocalValue(userId, record.deviceId, `message:${message.id}`, plaintext);
@@ -468,6 +494,88 @@ export async function sendEncryptedChatMessage(
 		}
 	}
 	return { message, plaintext };
+}
+
+export interface ChatCallInvite {
+	recipients: Array<{ deviceId: string; keyPackageId: string }>;
+	welcome: string;
+	ratchetTree: string;
+}
+
+/** Starts an ephemeral MLS group for a call; the invite is the group's Welcome and is sent over the signalling relay. */
+export async function createChatCallGroup(
+	userId: string,
+	conversationId: string,
+): Promise<{ group: ChatMlsGroup; invite: ChatCallInvite; deviceId: string }> {
+	return createCallGroup(userId, conversationSource(conversationId));
+}
+
+/** Same as {@link createChatCallGroup}, for a voice link between two members of a party. */
+export function createPartyPeerGroup(
+	userId: string,
+	source: ChatKeyPackageSource,
+): Promise<{ group: ChatMlsGroup; invite: ChatCallInvite; deviceId: string }> {
+	return createCallGroup(userId, source);
+}
+
+async function createCallGroup(
+	userId: string,
+	source: ChatKeyPackageSource,
+): Promise<{ group: ChatMlsGroup; invite: ChatCallInvite; deviceId: string }> {
+	const { record, group, mlsWelcome } = await createSealedChatGroup(userId, source, true);
+	// Calls ring whichever devices are reachable; devices with no spare key package are simply left out.
+	if (!mlsWelcome) throw new Error("The other person has not set up encrypted chat on any device yet.");
+	return { group, invite: mlsWelcome, deviceId: record.deviceId };
+}
+
+/** Joins a call group from an invite, or returns null when the invite wasn't addressed to this device. */
+export function joinChatCallGroup(
+	userId: string,
+	conversationId: string,
+	invite: ChatCallInvite,
+	callerUserId: string,
+): Promise<{ group: ChatMlsGroup; deviceId: string } | null> {
+	return joinCallGroup(userId, conversationSource(conversationId), invite, callerUserId);
+}
+
+/** Joins a party voice link from an invite, or returns null when the invite wasn't addressed to this device. */
+export function joinPartyPeerGroup(
+	userId: string,
+	source: ChatKeyPackageSource,
+	invite: ChatCallInvite,
+	callerUserId: string,
+): Promise<{ group: ChatMlsGroup; deviceId: string } | null> {
+	return joinCallGroup(userId, source, invite, callerUserId);
+}
+
+async function joinCallGroup(
+	userId: string,
+	source: ChatKeyPackageSource,
+	invite: ChatCallInvite,
+	callerUserId: string,
+): Promise<{ group: ChatMlsGroup; deviceId: string } | null> {
+	const record = await initializeChatMlsDevice(userId);
+	if (!record || record.status !== "active") return null;
+	const recipient = invite.recipients.find((item) => item.deviceId === record.deviceId);
+	if (!recipient || !record.keyPackages[recipient.keyPackageId]) return null;
+	const directory = await source.list(true);
+	const trustedDevices: ChatMlsTrustedDevice[] = directory.keyPackages.map((item) => ({
+		userId: item.userId,
+		deviceId: item.deviceId,
+		keyPackage: decodeChatMlsKeyPackage(item.keyPackage),
+	}));
+	const group = await joinChatMlsGroup(
+		decodeChatMlsWelcome(invite.welcome),
+		packageForId(record, recipient.keyPackageId),
+		decodeChatMlsRatchetTree(invite.ratchetTree),
+		createChatMlsAuthenticationService(trustedDevices),
+	);
+	// The relay names the sender; the group must contain only that person and us, or the invite is forged.
+	const members = chatMlsGroupUserIds(group);
+	if (!members.has(callerUserId) || [...members].some((id) => id !== callerUserId && id !== userId)) {
+		throw new Error("The call invite does not match the caller.");
+	}
+	return { group, deviceId: record.deviceId };
 }
 
 export async function exportChatMlsHistory(userId: string, deviceId: string, passphrase: string): Promise<string> {

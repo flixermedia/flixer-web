@@ -109,12 +109,27 @@ describe('setupGuard', () => {
     expect(await setupGuard(route('setup'))).toEqual({ name: 'home' })
   })
 
-  it('does not let a stored completion hint hide setup on a server that was reset', async () => {
+  it('renders at once from a stored completion hint but still sends a reset server to setup', async () => {
     store.set('flixer.setupCompleted', '1')
-    const { setupGuard } = await import('./setupGate')
+    const { setupGuard, setSetupRequiredHandler } = await import('./setupGate')
+    const redirect = vi.fn()
+    setSetupRequiredHandler(redirect)
     get.mockResolvedValue(status({ state: 'not_started', mode: 'bootstrap', database: 'unconfigured' }))
-    expect(await setupGuard(route('home'))).toEqual({ name: 'setup' })
+    expect(await setupGuard(route('home'))).toBe(true)
+    await vi.waitFor(() => expect(redirect).toHaveBeenCalledTimes(1))
     expect(store.has('flixer.setupCompleted')).toBe(false)
+  })
+
+  it('keeps the hint when the background check confirms the install', async () => {
+    store.set('flixer.setupCompleted', '1')
+    const { setupGuard, setSetupRequiredHandler } = await import('./setupGate')
+    const redirect = vi.fn()
+    setSetupRequiredHandler(redirect)
+    get.mockResolvedValue(status())
+    expect(await setupGuard(route('home'))).toBe(true)
+    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(1))
+    expect(redirect).not.toHaveBeenCalled()
+    expect(store.get('flixer.setupCompleted')).toBe('1')
   })
 
   it('keeps an installed offline app working', async () => {

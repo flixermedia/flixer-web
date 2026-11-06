@@ -23,8 +23,14 @@ onMounted(async () => {
     loading.value = false
     return
   }
-  const results = await Promise.all(sections.map(async (section) => [section, await discoverRequests(section).catch(() => [])] as const))
-  rows.value = Object.fromEntries(results)
+  // Rows appear as they arrive so one slow upstream section doesn't hold back the rest.
+  await Promise.all(
+    sections.map(async (section) => {
+      const items = await discoverRequests(section).catch(() => [])
+      rows.value = { ...rows.value, [section]: items }
+      loading.value = false
+    }),
+  )
   loading.value = false
 })
 function subtitle(item: ExternalMediaCard) {

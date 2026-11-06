@@ -151,6 +151,10 @@ async function load(itemId: string, retryAfterPayment = true) {
     }
     return
   }
+  // Resume position is best effort and independent of the stream lookups, so it runs alongside them.
+  const resumePromise: Promise<number> = props.startAtSeconds !== undefined && props.startAtSeconds !== null
+    ? Promise.resolve(props.startAtSeconds)
+    : getWatchProgress(itemId).then((progress) => progress.positionSeconds).catch(() => 0)
   const [playbackError, next] = await catchError(Promise.resolve().then(() => getItemPlaybackInfo(itemId)))
   if (playbackError) {
     if (retryAfterPayment && itemId === props.itemId && (await offerUnlock(playbackError, itemId))) return load(itemId, false)
@@ -164,11 +168,7 @@ async function load(itemId: string, retryAfterPayment = true) {
     return
   }
   // Resuming is best effort; playback still starts from the beginning if this fails.
-  const resume =
-    props.startAtSeconds ??
-    (await getWatchProgress(itemId)
-      .then((progress) => progress.positionSeconds)
-      .catch(() => 0))
+  const resume = await resumePromise
   if (itemId !== props.itemId) return
   startAt.value = resume
   info.value = streamInfo

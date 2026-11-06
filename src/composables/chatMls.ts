@@ -200,6 +200,17 @@ export async function decryptChatMlsMessage(group: ChatMlsGroup, ciphertext: str
 	};
 }
 
+/** User ids of every member credential in the group, so callers can reject groups with unexpected participants. */
+export function chatMlsGroupUserIds(group: ChatMlsGroup): Set<string> {
+	const ids = new Set<string>();
+	for (const node of group.state.ratchetTree) {
+		if (node?.nodeType !== "leaf" || node.leaf.credential.credentialType !== "basic") continue;
+		const identity = JSON.parse(decoder.decode(node.leaf.credential.identity)) as { userId?: unknown };
+		if (typeof identity.userId === "string") ids.add(identity.userId);
+	}
+	return ids;
+}
+
 /** Persists opaque MLS state locally; callers must encrypt this blob before durable storage. */
 export function serializeChatMlsGroup(group: ChatMlsGroup): string {
 	return toBase64(encodeGroupState(group.state));

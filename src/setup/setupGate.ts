@@ -8,6 +8,20 @@ const COMPLETED_HINT_KEY = 'flixer.setupCompleted'
 let confirmedReady = false
 let last: SetupGate | null = null
 
+let prefetched: Promise<SetupGate> | null = null
+let verifying: Promise<void> | null = null
+let onSetupRequired: (() => void) | null = null
+
+/** The router registers how to leave the app when a background check finds the server needs setup. */
+export function setSetupRequiredHandler(handler: () => void): void {
+  onSetupRequired = handler
+}
+
+/** Starts the status request early so it overlaps with other startup work; the guard still waits for the answer. */
+export function prefetchSetupGate(): void {
+  prefetched ??= fetchSetupGate()
+}
+
 export function lastGate(): SetupGate | null {
   return last
 }
@@ -28,7 +42,15 @@ export async function setupGuard(to: RouteLocationNormalized): Promise<true | Ro
   if (to.name === 'unavailable') return true
   if (confirmedReady && to.name !== 'setup') return true
 
-  const gate = await fetchSetupGate()
+  // A previously completed install renders straight away; the server is still asked, and a reset server is sent to setup as soon as it answers.
+  if (to.name !== 'setup' && navigator.onLine && localStorage.getItem(COMPLETED_HINT_KEY) === '1') {
+    verifyInBackground()
+    return true
+  }
+
+  const pending = prefetched ?? fetchSetupGate()
+  prefetched = null
+  const gate = await pending
   last = gate
   if (gate.kind === 'ready') {
     markSetupComplete()
@@ -45,4 +67,24 @@ export async function setupGuard(to: RouteLocationNormalized): Promise<true | Ro
   // Offline PWA: the app shell is cached and the server cannot be asked, so keep working as before.
   if (!navigator.onLine && localStorage.getItem(COMPLETED_HINT_KEY) === '1') return true
   return { name: 'unavailable', query: { redirect: to.fullPath } }
+}
+
+function verifyInBackground(): void {
+  if (verifying) return
+  const pending = prefetched ?? fetchSetupGate()
+  prefetched = null
+  verifying = pending
+    .then((gate) => {
+      last = gate
+      if (gate.kind === 'ready') {
+        markSetupComplete()
+      } else if (gate.kind === 'setup') {
+        confirmedReady = false
+        localStorage.removeItem(COMPLETED_HINT_KEY)
+        onSetupRequired?.()
+      }
+    })
+    .finally(() => {
+      verifying = null
+    })
 }

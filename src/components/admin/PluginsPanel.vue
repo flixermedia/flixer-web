@@ -24,6 +24,7 @@ const query = ref('')
 const target = ref('')
 const capability = ref('')
 const isLoading = ref(false)
+const catalogLoading = ref(false)
 const isSaving = ref(false)
 const refreshing = ref<string | null>(null)
 const installing = ref<string | null>(null)
@@ -34,19 +35,33 @@ const inputClass = 'w-full rounded border border-flixer-border bg-flixer-backgro
 const buttonClass = 'rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 const quietButtonClass = 'rounded border border-flixer-border px-3 py-2 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-60'
 
+async function loadCatalog() {
+  const request = ++catalogRequest
+  catalogLoading.value = true
+  const [error, result] = await catchError(discoverPlugins({ q: query.value || undefined, target: target.value || undefined, capability: capability.value || undefined }))
+  if (request !== catalogRequest) return
+  catalogLoading.value = false
+  if (error) loadError.value = describeRequestError(error)
+  else catalog.value = result
+}
+let catalogRequest = 0
+
 async function load() {
   isLoading.value = true
   loadError.value = ''
+  // The catalogue comes from remote repositories and can be slow; it must not hold back the local lists.
+  const catalogLoad = loadCatalog()
   try {
-    const [error, result] = await catchError(Promise.all([listPluginInstallations(), listPluginRepositories(), discoverPlugins({ q: query.value || undefined, target: target.value || undefined, capability: capability.value || undefined })]))
+    const [error, result] = await catchError(Promise.all([listPluginInstallations(), listPluginRepositories()]))
     if (error) {
       loadError.value = describeRequestError(error)
     } else {
-      ;[installations.value, repositories.value, catalog.value] = result
+      ;[installations.value, repositories.value] = result
     }
   } finally {
     isLoading.value = false
   }
+  await catalogLoad
 }
 
 async function refreshRepository(repository: PluginRepository) {
@@ -342,10 +357,10 @@ onMounted(load)
           <span>{{ t('admin.plugins.capability') }}</span>
           <input v-model="capability" :class="inputClass" maxlength="100" autocomplete="off" />
         </label>
-        <button :class="quietButtonClass" type="submit" :disabled="isLoading">{{ t('admin.plugins.search') }}</button>
+        <button :class="quietButtonClass" type="submit" :disabled="catalogLoading">{{ t('admin.plugins.search') }}</button>
       </form>
       <p v-if="catalog.length === 0" class="mt-5 text-sm text-flixer-muted">
-        {{ isLoading ? t('admin.plugins.loading') : t('admin.plugins.noAvailable') }}
+        {{ catalogLoading ? t('admin.plugins.loading') : t('admin.plugins.noAvailable') }}
       </p>
       <ul v-else class="mt-5 divide-y divide-flixer-border" :aria-label="t('admin.plugins.discover')">
         <li v-for="plugin in catalog" :key="`${plugin.repository?.id}:${plugin.id}`" class="py-4 first:pt-0 last:pb-0">

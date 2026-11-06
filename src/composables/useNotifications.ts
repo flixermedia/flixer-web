@@ -54,10 +54,12 @@ async function registration() {
   return navigator.serviceWorker.ready
 }
 
+let configLoaded = false
 async function loadConfig() {
-  if (!getAccessToken()) return
+  if (!getAccessToken() || configLoaded) return
   const [error, config] = await catchError(getNotificationConfig())
   if (error) return // Keep defaults.
+  configLoaded = true
   enabled.value = config.enabled
   promptMode.value = config.permissionPrompt
 }
@@ -69,12 +71,30 @@ async function maybePromptOnLoad() {
   await enablePush()
 }
 
-async function refresh() {
+const MOUNT_FRESH_MS = 20_000
+let lastRefreshAt = 0
+let refreshing: Promise<void> | null = null
+
+/** Used on mount: the header remounts on every page, so recent data is reused instead of refetched. */
+function refreshIfStale(): Promise<void> {
+  if (Date.now() - lastRefreshAt < MOUNT_FRESH_MS) return Promise.resolve()
+  return refresh()
+}
+
+function refresh(): Promise<void> {
+  refreshing ??= doRefresh().finally(() => {
+    refreshing = null
+  })
+  return refreshing
+}
+
+async function doRefresh() {
   if (!getAccessToken()) return
   isLoading.value = true
   try {
     const [error, result] = await catchError(listNotifications())
     if (error) return // The bell just keeps its last known state.
+    lastRefreshAt = Date.now()
     const newItems = hasObservedNotifications ? newNotificationsSince(observedNotificationIds, result.items) : []
     observedNotificationIds = new Set(result.items.map((item) => item.id))
     hasObservedNotifications = true
@@ -284,6 +304,7 @@ export function useNotifications() {
     pushBusy,
     permission,
     refresh,
+    refreshIfStale,
     refreshPushState,
     refreshNativeNotificationState,
     enableNativeNotifications,
@@ -298,6 +319,8 @@ export function useNotifications() {
 
 if (typeof window !== 'undefined') {
   window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, () => {
+    configLoaded = false
+    lastRefreshAt = 0
     if (getAccessToken()) void refresh()
     else if (nativeNotificationsEnabled.value) syncNativeBadge(0)
   })

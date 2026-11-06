@@ -7,12 +7,26 @@ import { useProfile } from './useProfile'
 
 export type ChatEvent = { type: 'message'; conversationId: string; message: ChatMessageWithSequence } | { type: 'changed'; conversationId: string } | { type: 'resync' }
 
+export interface ChatCallSignal {
+  type: 'call-signal'
+  conversationId: string
+  callId: string
+  from: string
+  payload: string
+}
+export interface ChatCallError {
+  type: 'call-error'
+  callId?: string
+  reason: 'rate-limited' | 'invalid' | 'unavailable'
+}
+
 const unread = ref(0)
 /** Conversation currently open and visible in the chat page; its messages don't alert. */
 export const viewingChat = ref<string | null>(null)
 const MAX_BACKOFF_MS = 15_000
 const CLOSE_UNAUTHORIZED = 4401
 const handlers = new Set<(event: ChatEvent) => void>()
+const callHandlers = new Set<(event: ChatCallSignal | ChatCallError) => void>()
 let users = 0
 let socket: WebSocket | null = null
 let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -29,6 +43,19 @@ if (fallbackChime) fallbackChime.preload = 'auto'
 export function onChatEvent(handler: (event: ChatEvent) => void): () => void {
   handlers.add(handler)
   return () => handlers.delete(handler)
+}
+
+/** Subscribes to relayed call signalling; returns an unsubscribe function. */
+export function onChatCallEvent(handler: (event: ChatCallSignal | ChatCallError) => void): () => void {
+  callHandlers.add(handler)
+  return () => callHandlers.delete(handler)
+}
+
+/** Sends an ephemeral call signal to the other members; returns false when the realtime connection is down. */
+export function sendChatCallSignal(conversationId: string, callId: string, payload: string): boolean {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return false
+  socket.send(JSON.stringify({ type: 'call-signal', conversationId, callId, payload }))
+  return true
 }
 
 function buildUrl(): string {
@@ -130,6 +157,8 @@ function connect() {
       connectedBefore = true
     } else if (message.type === 'message' || message.type === 'changed') {
       handle(message as ChatEvent)
+    } else if (message.type === 'call-signal' || message.type === 'call-error') {
+      for (const handler of callHandlers) handler(message as ChatCallSignal | ChatCallError)
     }
   }
   ws.onclose = (event) => {

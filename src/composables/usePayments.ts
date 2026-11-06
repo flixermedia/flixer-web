@@ -1,5 +1,6 @@
 import { openModal } from "@kolirt/vue-modal";
 import { computed, ref } from "vue";
+import { onNotificationChange } from "./useNotificationSocket";
 import { checkLocks, getPaymentStatus, isPaymentRequired, type ActivePaymentStatus, type LockState, type PaymentStatus } from "../api";
 
 const status = ref<PaymentStatus | null>(null);
@@ -31,9 +32,22 @@ async function flushLocks() {
 	}
 }
 
+let watching = false;
+
+/** Another tab or device may have bought something: the server nudges open pages after a purchase, and a page returning to view re-reads too. */
+function watchForChanges() {
+	if (watching || typeof window === "undefined") return;
+	watching = true;
+	onNotificationChange(() => refreshLocks());
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "visible") refreshLocks();
+	});
+}
+
 /** Asks which items are locked; requests from many cards on one page are sent together. */
 export function requestLock(id: string) {
 	if (known.has(id)) return;
+	watchForChanges();
 	known.add(id);
 	queued.add(id);
 	timer ??= setTimeout(() => void flushLocks(), 40);

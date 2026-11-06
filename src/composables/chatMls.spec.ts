@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthenticationService } from "ts-mls";
-import { addChatMlsDevice, createChatMlsAuthenticationService, createChatMlsDevice, createChatMlsGroup, createChatMlsPairingKeys, decryptChatMlsMessage, encryptChatMlsMessage, joinChatMlsGroup, restoreChatMlsDevice, restoreChatMlsGroup, serializeChatMlsDevice, serializeChatMlsGroup, signChatMlsDeviceApproval } from "./chatMls";
+import { addChatMlsDevice, chatMlsGroupUserIds, createChatMlsAuthenticationService, createChatMlsDevice, createChatMlsGroup, createChatMlsPairingKeys, decryptChatMlsMessage, encryptChatMlsMessage, joinChatMlsGroup, restoreChatMlsDevice, restoreChatMlsGroup, serializeChatMlsDevice, serializeChatMlsGroup, signChatMlsDeviceApproval } from "./chatMls";
 import { openChatMlsAccountBackup, openChatMlsTransfer, sealChatMlsAccountBackup, sealChatMlsTransfer } from "./chatMlsStorage";
 
 const authService: AuthenticationService = {
@@ -45,6 +45,17 @@ describe("chat MLS primitives", () => {
 		const nextDecrypted = await decryptChatMlsMessage(decrypted.group, nextEncrypted.ciphertext, rejectGroupChanges);
 		expect(nextDecrypted.plaintext).toBe("State survived reload");
 		expect(restoredAliceDevice.keyPackage).toEqual(aliceDevice.keyPackage);
+	});
+
+	it("lists the users in a call group so forged invites can be rejected", async () => {
+		const alice = await createChatMlsDevice("alice-id", "alice-device");
+		const bob = await createChatMlsDevice("bob-id", "bob-device");
+		const mallory = await createChatMlsDevice("mallory-id", "mallory-device");
+		const group = await createChatMlsGroup("call-id", alice, authService);
+		const withBob = await addChatMlsDevice(group, bob);
+		expect(chatMlsGroupUserIds(withBob.group)).toEqual(new Set(["alice-id", "bob-id"]));
+		const withMallory = await addChatMlsDevice(withBob.group, mallory);
+		expect(chatMlsGroupUserIds(withMallory.group).has("mallory-id")).toBe(true);
 	});
 
 	it("authenticates MLS credentials against registered devices rather than accepting all credentials", async () => {

@@ -5,7 +5,7 @@ import MediaCard from '../components/home/MediaCard.vue'
 import MediaRow from '../components/home/MediaRow.vue'
 import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAccess } from '../composables/useAccess'
 import { useI18n } from 'vue-i18n'
 import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation } from '../api'
@@ -55,11 +55,17 @@ async function markWatched(id: string) {
   musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
 }
 
-async function loadRecommendations() {
+// Recommendations can take minutes; leaving the page must release their connections.
+let recommendationsAbort: AbortController | undefined
+onBeforeUnmount(() => recommendationsAbort?.abort())
+const isCanceled = (error: unknown) => (error as { code?: string }).code === 'ERR_CANCELED'
+
+async function loadRecommendations(signal?: AbortSignal) {
   recommendationsLoading.value = true
   try {
-    const [error, result] = await catchError(getHomeRecommendations())
+    const [error, result] = await catchError(getHomeRecommendations(signal))
     if (error) {
+      if (isCanceled(error)) return
       (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
       return
     }
@@ -69,11 +75,12 @@ async function loadRecommendations() {
   }
 }
 
-async function loadMusicRecommendations() {
+async function loadMusicRecommendations(signal?: AbortSignal) {
   musicRecommendationsLoading.value = true
   try {
-    const [error, result] = await catchError(getHomeMusicRecommendations())
+    const [error, result] = await catchError(getHomeMusicRecommendations(signal))
     if (error) {
+      if (isCanceled(error)) return
       (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
       return
     }
@@ -86,6 +93,7 @@ async function loadMusicRecommendations() {
 async function load() {
   isLoading.value = true
   loadFailed.value = false
+  recommendationsAbort?.abort()
   recommendations.value = []
   musicRecommendations.value = []
   recommendationsLoading.value = false
@@ -98,17 +106,18 @@ async function load() {
       return
     }
     content.value = home
-    void loadRecommendations()
-    void loadMusicRecommendations()
+    recommendationsAbort = new AbortController()
+    void loadRecommendations(recommendationsAbort.signal)
+    void loadMusicRecommendations(recommendationsAbort.signal)
   } finally {
     isLoading.value = false
   }
 }
 
-const { me: access, refresh: refreshAccess } = useAccess()
+const { me: access, load: loadAccess } = useAccess()
 const pausedUntil = computed(() => (access.value?.schedule.nextAllowedAt ? new Date(access.value.schedule.nextAllowedAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null))
 onMounted(() => {
-  void refreshAccess()
+  void loadAccess()
   void load()
 })
 </script>

@@ -6,6 +6,7 @@ import { ModalOverlay, ModalTarget } from "@kolirt/vue-modal";
 import NativeMoreMenu from "./components/home/NativeMoreMenu.vue";
 import IdleSplash from "./components/ui/IdleSplash.vue";
 import OfflineBanner from "./components/ui/OfflineBanner.vue";
+import ChatCallOverlay from "./components/chat/ChatCallOverlay.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
 import AudioEngineDebug from "./components/player/AudioEngineDebug.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
@@ -48,6 +49,8 @@ if (Capacitor.isNativePlatform()) {
 			<component :is="Component" :key="route.path" />
 		</Transition>
 	</RouterView>
+
+	<ChatCallOverlay />
 
 	<!-- Player components -->
 	<NativeMoreMenu v-if="nativeNavigationEnabled && !nativeMoreMenuNativeActive" />

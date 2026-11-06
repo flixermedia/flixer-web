@@ -64,6 +64,28 @@ const pendingPings = new Map<string, { wallTime: number; monotonicTime: number }
 let appliedItemId: string | null = null
 let applyingAudioItemId: string | null = null
 
+export interface PartyCallSignal {
+  callId: string
+  from: string
+  to?: string
+  payload: string
+}
+
+const callHandlers = new Set<(signal: PartyCallSignal) => void>()
+
+/** Subscribes to relayed voice signalling for the current party; returns an unsubscribe function. */
+export function onPartyCallSignal(handler: (signal: PartyCallSignal) => void): () => void {
+  callHandlers.add(handler)
+  return () => callHandlers.delete(handler)
+}
+
+/** Sends ephemeral voice signalling to one member (or all when `to` is omitted); false when the socket is down. */
+export function sendPartyCallSignal(callId: string, payload: string, to?: string): boolean {
+  if (socket?.readyState !== WebSocket.OPEN) return false
+  socket.send(JSON.stringify({ type: 'call-signal', callId, payload, ...(to ? { to } : {}) }))
+  return true
+}
+
 function buildUrl(): string {
   return buildApiWebSocketUrl('/party')
 }
@@ -200,6 +222,10 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
       serverSentAt?: number
       requestId?: string
       status?: number
+      callId?: string
+      from?: string
+      to?: string
+      payload?: string
     }
     try {
       message = JSON.parse(String(event.data))
@@ -251,6 +277,9 @@ function connect(onFirstState?: (snapshot: PartySnapshot) => void, onFailure?: (
           applyState()
         }
       }
+    } else if (message.type === 'call-signal' && typeof message.callId === 'string' && typeof message.from === 'string' && typeof message.payload === 'string') {
+      const signal = { callId: message.callId, from: message.from, to: message.to, payload: message.payload }
+      for (const handler of callHandlers) handler(signal)
     } else if (message.type === 'ended') {
       handleEnded()
     } else if (message.type === 'error') {

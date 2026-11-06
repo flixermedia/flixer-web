@@ -85,8 +85,9 @@ async function cancelRequest() {
 }
 onMounted(async () => {
   await Promise.all([config.load(), loadProfile()])
-  await load()
-  if (config.config.value?.isAdmin) services.value = await listRequestServices().catch(() => [])
+  const isAdmin = config.config.value?.isAdmin
+  // The admin-only service list doesn't gate the page, so it loads alongside the item.
+  await Promise.all([load(), isAdmin ? listRequestServices().then((list) => { services.value = list }, () => { services.value = [] }) : undefined])
 })
 watch(
   () => [route.params.type, route.params.id],

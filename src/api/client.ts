@@ -44,13 +44,28 @@ export function apiRequest<T = unknown>(config: AxiosRequestConfig): Promise<Axi
   return apiTransport.request<T>(config)
 }
 
+const inFlightReads = new Map<string, Promise<AxiosResponse>>()
+
+/** Identical reads issued while one is already in flight (header, page and composables all asking at mount) share a single request. */
+function dedupedGet<T>(url: string, config: AxiosRequestConfig | undefined, send: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> {
+  if (config?.signal || (config?.responseType && config.responseType !== 'json') || config?.onDownloadProgress) return send()
+  const key = JSON.stringify([apiTransport.defaults.baseURL, getAccessToken(), url, config?.params ?? null, config?.headers ?? null])
+  const existing = inFlightReads.get(key)
+  if (existing) return existing as Promise<AxiosResponse<T>>
+  const request = send().finally(() => {
+    if (inFlightReads.get(key) === request) inFlightReads.delete(key)
+  })
+  inFlightReads.set(key, request)
+  return request
+}
+
 // Route requests through Orval while preserving the Axios instance's defaults and interceptors.
 export const api = new Proxy(apiTransport, {
   get(_target, property) {
     switch (property) {
       case 'get':
         return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
-          generatedOrTransport(() => generatedApi.get<T>(url, config), () => apiTransport.get<T>(url, config))
+          dedupedGet<T>(url, config, () => generatedOrTransport(() => generatedApi.get<T>(url, config), () => apiTransport.get<T>(url, config)))
       case 'delete':
         return <T = unknown>(url: string, config?: AxiosRequestConfig) =>
           generatedOrTransport(() => generatedApi.delete<T>(url, config), () => apiTransport.delete<T>(url, config))
@@ -138,9 +153,27 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const RETRYABLE_STATUS = new Set([502, 503, 504])
+const RETRY_DELAY_MS = 400
+const RETRY_EXEMPT_URLS = ['/setup/status', '/sentry/config/web'] as const
+
+/** One quiet retry for idempotent reads hides brief network or proxy blips without repeating writes. */
+function shouldRetryRead(error: AxiosError): boolean {
+  const config = error.config as (AxiosRequestConfig & { __retried?: boolean }) | undefined
+  if (!config || config.__retried || (config.method ?? 'get').toLowerCase() !== 'get') return false
+  if (config.signal?.aborted || error.code === 'ERR_CANCELED' || error.code === 'ECONNABORTED') return false
+  if (RETRY_EXEMPT_URLS.some((path) => config.url?.includes(path))) return false
+  return error.response ? RETRYABLE_STATUS.has(error.response.status) : error.code === 'ERR_NETWORK'
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
+  async (error: unknown) => {
+    if (axios.isAxiosError(error) && shouldRetryRead(error) && error.config) {
+      ;(error.config as AxiosRequestConfig & { __retried?: boolean }).__retried = true
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+      return apiTransport.request(error.config)
+    }
     if (axios.isAxiosError(error) && shouldInvalidateSession(error)) {
       clearAccessToken()
       if (!error.config?.url?.includes('/auth/sessions')) {

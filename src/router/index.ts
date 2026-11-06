@@ -1,11 +1,11 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import { createRouter, createWebHistory } from "vue-router";
-import { clearAccessToken, getAccessToken, validateAccessToken } from "../api";
+import { AUTH_INVALID_EVENT, AUTH_TOKEN_CHANGED_EVENT, clearAccessToken, getAccessToken, validateAccessToken } from "../api";
 import { useProfile } from "../composables/useProfile";
 import { initializeChatMlsDevice } from "../composables/chatMlsClient";
 import { i18n } from "../i18n";
-import { setupGuard } from "../setup/setupGate";
+import { setSetupRequiredHandler, setupGuard } from "../setup/setupGate";
 import { getNativeServerUrl } from "../platform/serverConnection";
 import { catchError } from "../utils/catchError";
 
@@ -243,6 +243,34 @@ const router = createRouter({
 	],
 });
 
+// Re-checking the session on every click adds a full round trip to each navigation; the 401 interceptor still catches a revoked token on any real call.
+const SESSION_VALIDATION_TTL_MS = 2 * 60_000;
+let sessionValidatedAt = 0;
+let sessionValidation: Promise<boolean> | null = null;
+
+function resetSessionValidation() {
+	sessionValidatedAt = 0;
+	sessionValidation = null;
+}
+
+if (typeof window !== "undefined") {
+	window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, resetSessionValidation);
+	window.addEventListener(AUTH_INVALID_EVENT, resetSessionValidation);
+}
+
+async function isSessionValid(): Promise<boolean> {
+	if (Date.now() - sessionValidatedAt < SESSION_VALIDATION_TTL_MS) return true;
+	sessionValidation ??= validateAccessToken()
+		.then((valid) => {
+			if (valid) sessionValidatedAt = Date.now();
+			return valid;
+		})
+		.finally(() => {
+			sessionValidation = null;
+		});
+	return sessionValidation;
+}
+
 router.beforeEach(async (to) => {
 	if (to.name === "connect") return Capacitor.isNativePlatform() ? true : { name: "login" };
 	if (Capacitor.isNativePlatform() && !getNativeServerUrl()) return { name: "connect" };
@@ -271,7 +299,7 @@ router.beforeEach(async (to) => {
 		return true;
 	}
 
-	const [error, isValid] = await catchError(validateAccessToken());
+	const [error, isValid] = await catchError(isSessionValid());
 	if (error) {
 		if (axios.isAxiosError(error) && error.response?.status === 401) {
 			clearAccessToken();
@@ -312,6 +340,10 @@ router.beforeEach(async (to) => {
 	}
 
 	return isAuthRoute ? { name: "home" } : true;
+});
+
+setSetupRequiredHandler(() => {
+	if (router.currentRoute.value.name !== "setup") void router.replace({ name: "setup" });
 });
 
 router.afterEach((to) => {

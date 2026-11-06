@@ -17,8 +17,8 @@ const { t } = useI18n();
 const { profile } = useProfile();
 const { enabled: requestsEnabled } = useRequestsConfig();
 
-const { refresh: refreshAccess, requestUnlock, relock, isUnlocked, canUnlock, hasLimits } = useAccess();
-onMounted(() => void refreshAccess());
+const { load: loadAccess, requestUnlock, relock, isUnlocked, canUnlock, hasLimits } = useAccess();
+onMounted(() => void loadAccess());
 
 const isAdmin = computed(() => profile.value?.role === "admin");
 const open = ref<"preferences" | "admin" | null>(null);

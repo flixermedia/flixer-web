@@ -73,10 +73,11 @@ function setSettings(value: MailSettings) {
   savedSettings.value = { ...value }
 }
 async function loadOverview() {
-  const [nextStatus, nextSettings, nextDomains] = await Promise.all([getMailStatus(), getMailSettings(), listMailDomains()])
-  status.value = nextStatus
-  setSettings(nextSettings)
-  domains.value = nextDomains
+  await Promise.all([
+    getMailStatus().then((next) => { status.value = next }),
+    getMailSettings().then(setSettings),
+    listMailDomains().then((next) => { domains.value = next }),
+  ])
 }
 async function loadDomains() { domains.value = await listMailDomains() }
 async function loadMailboxes() { mailboxes.value = await listMailboxes() }
@@ -336,6 +337,11 @@ async function sendTest() {
 }
 function formatDate(value: string) { return new Date(value).toLocaleString() }
 function variableToken(variable: string) { return `{{${variable}}}` }
+const keysOpen = ref(false)
+const keyGroups = computed(() => {
+  const keys = activeTemplate.value?.keys ?? []
+  return (['global', 'account', 'payments'] as const).map((group) => ({ group, keys: keys.filter((entry) => entry.group === group) })).filter((entry) => entry.keys.length)
+})
 function mailboxKind(kind: Mailbox['kind']) { return t(`admin.mail.kind.${kind}`) }
 
 watch(() => props.screen, () => { void load() })
@@ -421,7 +427,7 @@ onBeforeUnmount(() => { clearTimeout(previewTimer); clearTimeout(searchTimer) })
     <template v-else-if="screen === 'templates'">
       <div class="grid gap-4 xl:grid-cols-[minmax(15rem,0.65fr)_minmax(0,1.8fr)]">
         <AdminSection :title="t('admin.mail.templatesTitle')" :description="t('admin.mail.templatesDescription')">
-          <div class="mb-4 flex gap-2"><input v-model="newTemplateName" :class="inputClass" class="min-w-0" :placeholder="t('admin.mail.templateSlug')" @keydown.enter="createTemplate" /><button type="button" :class="primaryButtonClass" :disabled="!templateSlugValid" @click="createTemplate">{{ t('admin.mail.newTemplate') }}</button></div>
+          <div class="mb-4 flex items-stretch gap-2"><input v-model="newTemplateName" :class="inputClass" class="!mt-0 min-w-0 flex-1" :placeholder="t('admin.mail.templateSlug')" @keydown.enter="createTemplate" /><button type="button" :class="primaryButtonClass" class="shrink-0" :disabled="!templateSlugValid" @click="createTemplate">{{ t('admin.mail.newTemplate') }}</button></div>
           <p v-if="newTemplateName && !templateSlugValid" class="mb-3 text-xs text-red-200">{{ t('admin.mail.invalidTemplateSlug') }}</p>
           <ul class="space-y-1"><li v-for="template in templates" :key="template.name"><button type="button" class="w-full rounded p-3 text-left hover:bg-white/5" :class="templateName === template.name ? 'bg-white/10' : ''" @click="selectTemplate(template.name)"><span class="flex items-center justify-between gap-2"><span class="truncate text-sm font-semibold text-white">{{ template.label }}</span><StatusPill :tone="template.builtin ? 'accent' : 'neutral'">{{ template.builtin ? t('admin.mail.builtin') : t('admin.mail.custom') }}</StatusPill></span><span class="mt-1 block truncate text-xs text-flixer-muted">{{ template.name }}</span></button></li></ul>
         </AdminSection>
@@ -429,6 +435,19 @@ onBeforeUnmount(() => { clearTimeout(previewTimer); clearTimeout(searchTimer) })
           <template #actions><button type="button" :class="buttonClass" :disabled="busy" @click="resetTemplate">{{ activeTemplate.builtin ? t('admin.mail.resetTemplate') : t('common.delete') }}</button><button type="button" :class="primaryButtonClass" :disabled="busy" @click="saveTemplate">{{ t('common.save') }}</button></template>
           <div class="grid gap-3 sm:grid-cols-2"><label class="text-xs text-flixer-muted">{{ t('admin.mail.templateLabel') }}<input v-model="templateEditor.label" :class="inputClass" /></label><label class="text-xs text-flixer-muted">{{ t('admin.mail.templateDescription') }}<input v-model="templateEditor.description" :class="inputClass" /></label><label class="text-xs text-flixer-muted sm:col-span-2">{{ t('admin.mail.subject') }}<input v-model="templateEditor.subject" :class="inputClass" /></label></div>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><div class="flex rounded bg-black/20 p-1"><button v-for="tab in ['html', 'text'] as const" :key="tab" type="button" class="rounded px-3 py-1.5 text-xs" :class="templateEditTab === tab ? 'bg-white/10 text-white' : 'text-flixer-muted'" @click="templateEditTab = tab">{{ t(`admin.mail.${tab}Tab`) }}</button></div><div class="flex flex-wrap gap-1"><button v-for="variable in [...new Set([...(activeTemplate.variables ?? []), ...(preview?.variables ?? [])])]" :key="variable" type="button" class="rounded bg-flixer-primary/15 px-2 py-1 text-[10px] text-flixer-accent hover:bg-flixer-primary/25" @click="insertVariable(variable)">{{ variableToken(variable) }}</button></div></div>
+          <div v-if="keyGroups.length" class="mt-3 rounded border border-flixer-border/70 bg-black/20">
+            <button type="button" class="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-white" :aria-expanded="keysOpen" @click="keysOpen = !keysOpen">{{ t('admin.mail.keysTitle') }}<Icon :icon="keysOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="size-4 text-flixer-muted" aria-hidden="true" /></button>
+            <div v-if="keysOpen" class="space-y-4 border-t border-flixer-border/70 p-3">
+              <p class="text-xs text-flixer-muted">{{ t('admin.mail.keysHelp') }}</p>
+              <section v-for="entry in keyGroups" :key="entry.group">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.18em] text-flixer-accent">{{ t(`admin.mail.keyGroup.${entry.group}`) }}</h4>
+                <ul class="mt-2 space-y-1">
+                  <li v-for="item in entry.keys" :key="item.key"><button type="button" class="flex w-full items-baseline gap-3 rounded px-2 py-1.5 text-left hover:bg-white/5" @click="insertVariable(item.key)"><code class="shrink-0 text-xs text-flixer-accent">{{ variableToken(item.key) }}</code><span class="text-xs text-flixer-muted">{{ item.description }}</span></button></li>
+                </ul>
+              </section>
+              <p class="text-xs text-flixer-muted">{{ t('admin.mail.keysConditional') }}</p>
+            </div>
+          </div>
           <MonacoEditor v-if="templateEditTab === 'html'" ref="templateHtmlEditor" v-model="templateEditor.html" language="html" :label="t('admin.mail.htmlEditor')" />
           <MonacoEditor v-else ref="templateTextEditor" v-model="templateEditor.text" language="plaintext" :label="t('admin.mail.textEditor')" />
           <div class="mt-5 border-t border-flixer-border/70 pt-4"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-sm font-semibold text-white">{{ t('admin.mail.preview') }}</h3><p class="mt-1 text-xs text-flixer-muted">{{ preview?.subject || t('admin.mail.previewPending') }}</p></div><div class="flex rounded bg-black/20 p-1"><button v-for="tab in ['html', 'text'] as const" :key="tab" type="button" class="rounded px-3 py-1.5 text-xs" :class="previewTab === tab ? 'bg-white/10 text-white' : 'text-flixer-muted'" @click="previewTab = tab">{{ t(`admin.mail.${tab}Tab`) }}</button></div></div><iframe v-if="previewTab === 'html' && preview" :srcdoc="previewHtml" sandbox="" class="mt-3 h-72 w-full rounded bg-white" :title="t('admin.mail.templatePreview')"></iframe><pre v-else-if="preview" class="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-white p-4 text-sm text-gray-900">{{ preview.text }}</pre><p v-else class="mt-3 rounded bg-black/10 p-6 text-center text-xs text-flixer-muted">{{ t('admin.mail.previewPending') }}</p></div>

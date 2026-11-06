@@ -245,8 +245,8 @@ async function completeAuthentication(
       }
     }
   }
-  const [localeError] = await catchError(syncLocaleFromAccount())
-  if (localeError) return localeError
+  // Language preference is cosmetic; it applies once it arrives instead of delaying sign-in.
+  void catchError(syncLocaleFromAccount())
 
   const redirect = route.query.redirect
   const destination = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
