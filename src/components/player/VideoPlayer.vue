@@ -3,7 +3,7 @@ import * as dashjs from 'dashjs'
 import Hls from 'hls.js'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
+import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
 import { useParty } from '../../composables/useParty'
 import PartyChat from '../party/PartyChat.vue'
 import PartyPanel from '../party/PartyPanel.vue'
@@ -154,8 +154,9 @@ let frame = 0
 let lastPointerType = 'mouse'
 
 const nativeHls = supportsNativeHls()
-const directPlay = computed(() => height.value === 0 && streamInfo.value.playMethod === 'DirectPlay')
-const useHls = computed(() => !props.live && (nativeHls || Hls.isSupported()) && !directPlay.value)
+const compat = props.live ? '' : detectCompatProfile()
+const directPlay = computed(() => !compat && height.value === 0 && streamInfo.value.playMethod === 'DirectPlay')
+const useHls = computed(() => !props.live && !compat && (nativeHls || Hls.isSupported()) && !directPlay.value)
 // Direct play and HLS both use the browser's own clock and seeking.
 const isNative = computed(() => directPlay.value || useHls.value)
 const mode = computed<PlayMethod>(() => (height.value > 0 ? 'Transcode' : streamInfo.value.playMethod))
@@ -383,9 +384,9 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
   const previousInfo = streamInfo.value
   let nextInfo = props.info
   const audioTrack = selectedAudioTrackQuery.value
-  const needsKeyframe = !props.live && height.value === 0 && start > 0 && previousInfo.playMethod !== 'DirectPlay'
+  const needsKeyframe = !props.live && !compat && height.value === 0 && start > 0 && previousInfo.playMethod !== 'DirectPlay'
   if (!props.live && (audioTrack !== undefined || needsKeyframe)) {
-    const [error, inspected] = await catchError(Promise.resolve().then(() => getStreamInfo(props.streamUrl, { height: height.value || undefined, start, audioTrack })))
+    const [error, inspected] = await catchError(Promise.resolve().then(() => getStreamInfo(props.streamUrl, { height: height.value || undefined, start, audioTrack, compat })))
     if (token !== loadToken) return false
     if (error) {
       if (audioTrack !== undefined) {
@@ -477,7 +478,7 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
   } else if (props.live) {
     el.src = props.streamUrl
   } else {
-    el.src = useHls.value ? buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack }) : buildStreamUrl(props.streamUrl, { height: isNative.value ? undefined : height.value || undefined, start: isNative.value ? undefined : start, audioTrack })
+    el.src = useHls.value ? buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack }) : buildStreamUrl(props.streamUrl, { height: isNative.value ? undefined : height.value || undefined, start: isNative.value ? undefined : start, audioTrack, compat })
   }
   if (resume && !(props.live && props.container === 'mpd') && !(Hls.isSupported() && (props.live || useHls.value))) tryPlay()
   return true

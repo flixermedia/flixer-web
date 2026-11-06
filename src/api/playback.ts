@@ -29,8 +29,22 @@ export interface StreamInfo {
   keyframeStart?: number
 }
 
-export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number } = {}): string {
+export type CompatProfile = '' | 'vp9' | 'vp8'
+
+// Browsers built without H.264/AAC (some embedded Chromium builds) can't play the default HLS or MP4 output, so ask the streamer for WebM instead.
+export function detectCompatProfile(): CompatProfile {
+  if (typeof document === 'undefined') return ''
+  const video = document.createElement('video')
+  const mseAac = typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('video/mp4; codecs="avc1.64001f,mp4a.40.2"')
+  if (mseAac || video.canPlayType('video/mp4; codecs="avc1.64001f,mp4a.40.2"') !== '') return ''
+  if (video.canPlayType('video/webm; codecs="vp9,opus"') !== '') return 'vp9'
+  if (video.canPlayType('video/webm; codecs="vp8,vorbis"') !== '') return 'vp8'
+  return ''
+}
+
+export function buildStreamUrl(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number; compat?: CompatProfile } = {}): string {
   const params = new URLSearchParams()
+  if (options.compat) params.set('compat', options.compat)
   if (options.height) params.set('height', String(options.height))
   if (options.start && options.start > 0) params.set('start', options.start.toFixed(2))
   if (options.audioTrack !== undefined) params.set('audioTrack', String(options.audioTrack))
@@ -62,7 +76,7 @@ export function supportsNativeHls(): boolean {
 }
 
 // The streamer is reached through the same-origin proxy (/streamer), not the Flixer API; the token in the URL is the credential.
-export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number } = {}): Promise<StreamInfo> {
+export async function getStreamInfo(streamUrl: string, options: { height?: number; start?: number; audioTrack?: number; compat?: CompatProfile } = {}): Promise<StreamInfo> {
   const url = buildStreamUrl(streamUrl.replace('/streamer/stream/', '/streamer/info/'), options)
   const response = await axios.get<StreamInfo>(url, { timeout: 20_000 })
   return response.data
