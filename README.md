@@ -81,6 +81,29 @@ Vue 3, TypeScript, Vite, Vue Router, Pinia, Tailwind CSS v4 and Capacitor. See [
 
 Run the repository's scripts defined in `package.json`; a [Vitest configuration](vitest.config.ts) is included.
 
+## 📚 Storybook
+
+Browse and develop reusable components in isolation with [Storybook for Vue 3 + Vite](https://storybook.js.org/docs/get-started/frameworks/vue3-vite):
+
+```sh
+npm run storybook        # dev server on http://localhost:6006
+npm run build-storybook  # static build in storybook-static/
+```
+
+- Put a `<Component>.stories.ts` file next to each component (see [`src/components/ui/`](src/components/ui/)); the `.storybook/` config picks up every `src/**/*.stories.ts`.
+- Components should take data through props and emit events rather than calling the API directly. [`.storybook/preview.ts`](.storybook/preview.ts) provides i18n (English), vue-router (memory history), vue-modal, toasts, the `Icon` component, Tailwind and a dark/light theme toggle.
+- Every exported function in `src/api/*.ts` is replaced by a spy in Storybook (see `.storybook/main.ts`), so nothing reaches the network. Give them values in a story's `beforeEach`, e.g. `mocked(getFavoriteIds).mockResolvedValue({ ids: [] })` (`mocked` from `storybook/test`).
+- Modal components are rendered with `render: (args) => modalStory(Component, args)()` from [`src/storybook/modalStory.ts`](src/storybook/modalStory.ts). Shared fixture data lives in [`src/storybook/`](src/storybook/).
+- Every component under `src/components/` has a story except `player/NativeVideoPlayer.vue`, which only drives a native Capacitor plugin and renders nothing in a browser.
+
+### Testing stories
+
+- `npm test` runs the unit tests.
+- `npm run test-storybook` runs every story as a test (smoke render, `play` interactions and a11y checks) in headless Chromium via `@storybook/addon-vitest`. On a fresh machine run `npx playwright install chromium --with-deps` first.
+- `npm run coverage` runs the unit tests and story tests together with a v8 coverage report (`coverage/`). Running all stories from the Storybook testing widget with **Coverage** ticked can run out of memory at the final step ("Connection lost" at 526/527, heap exhausted while receiving the results); untick Coverage in the widget and use `npm run coverage` instead. Watermarks are set in `vitest.config.ts`.
+- Use the Viewport toolbar to check responsive layouts; a11y results show in the Accessibility panel (`parameters.a11y.test` is `todo`, so violations are reported but do not fail tests; set it to `error` in `.storybook/preview.ts` once they are fixed). With `error`, 72 of 527 stories currently fail, mainly `listitem`/`aria-required-parent`, `label-content-name-mismatch`, `color-contrast`, `empty-table-header`, `aria-progressbar-name` and `select-name`.
+- CI (`.github/workflows/storybook.yml`) runs both and uploads the built Storybook as an artifact.
+
 ## 🧩 Flixer ecosystem
 
 | Repository | Purpose |
