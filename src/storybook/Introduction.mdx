@@ -1,0 +1,14 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Introduction" />
+
+# Flixer component library
+
+Every component under `src/components/` is documented here, grouped by feature area.
+
+- Controls change props live; Docs shows autodocs per component.
+- Use the toolbar to switch between dark and light theme.
+- API calls (`src/api/*.ts`) are mocked as spies; set return values with `mocked(fn).mockResolvedValue(...)`.
+- Modal components render with `modalStory` from `src/storybook/modalStory.ts`.
+- Shared fixtures live in `src/storybook/`.
+- Run `npm run test-storybook` to execute all stories and `play` interactions as tests.
