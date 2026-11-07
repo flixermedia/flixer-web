@@ -1,5 +1,6 @@
 /** Media-library browsing, item metadata, artwork, and network-share operations. */
 import { api, apiRequest } from './client'
+import { resolveServerResourceUrl } from '../platform/serverConnection'
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
 import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from 'flixer-api-client'
 export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SubtitleFile, SubtitleSearchResult } from 'flixer-api-client'
@@ -97,6 +98,22 @@ export async function deleteItemSubtitle(id: string, file: string): Promise<void
 export async function getHomeContent(): Promise<HomeContent> {
   const response = await api.get<HomeContent>('/media/home')
   return response.data
+}
+
+export type ItemTrailer = { key: string | null; name: string; streamUrl?: string }
+
+export async function getItemTrailer(id: string): Promise<ItemTrailer | null> {
+  const response = await api.get<{ trailer: ItemTrailer | null }>(`/media/items/${encodeURIComponent(id)}/trailer`, { timeout: 60_000 })
+  const trailer = response.data.trailer
+  return trailer?.streamUrl ? { ...trailer, streamUrl: resolveServerResourceUrl(trailer.streamUrl) } : trailer
+}
+
+export async function cacheItemTrailer(id: string): Promise<void> {
+  await api.post(`/media/items/${encodeURIComponent(id)}/trailer/cache`, undefined, { timeout: 230_000 })
+}
+
+export async function removeItemTrailerCache(id: string): Promise<void> {
+  await api.delete(`/media/items/${encodeURIComponent(id)}/trailer/cache`)
 }
 
 export async function getHomeRecommendations(signal?: AbortSignal): Promise<HomeRecommendations> {

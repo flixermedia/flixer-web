@@ -3,7 +3,7 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { fetchHomeImage, getItemDetail, getItemPlaybackInfo, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
+import { fetchHomeImage, getItemDetail, getItemPlaybackInfo, getItemTrailer, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
 import MediaChapterModal from '../components/admin/MediaChapterModal.vue'
 import MediaItemModal from '../components/admin/MediaItemModal.vue'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
@@ -24,7 +24,7 @@ import { notify } from '../composables/notify'
 import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
 import { getMobileTabs, getNavLinks } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
-import { useProfile } from '../composables/useProfile'
+import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useAccess } from '../composables/useAccess'
 import { lockOf, openOffers, refreshLocks, requestLock, usePayments } from '../composables/usePayments'
 import { usePaymentFormat } from '../composables/usePaymentFormat'
@@ -35,6 +35,7 @@ import { useThemeMusic } from '../composables/useThemeMusic'
 import { fetchCachedImageBlob } from '../composables/imageBlobCache'
 import { limitedImageLoad } from '../composables/imageQueue'
 import IssueReportModal from '../components/issues/IssueReportModal.vue'
+import TrailerModal from '../components/media/TrailerModal.vue'
 import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
 
 const { t, te } = useI18n()
@@ -155,6 +156,29 @@ const playTarget = computed<{ id: string; title: string } | null>(() => {
 function play(target: { id: string; title: string; startAt?: number }) {
   themeMusic.stop()
   videoOverlay.play(target)
+}
+
+const trailerLoading = ref(false)
+async function playTrailer() {
+  const current = item.value
+  if (!current || trailerLoading.value) return
+  trailerLoading.value = true
+  try {
+    const [error, trailer] = await catchError(getItemTrailer(current.id))
+    if (item.value?.id !== current.id) return
+    if (error) {
+      notify.error(describeRequestError(error, t('mediaItem.trailerError')), error)
+      return
+    }
+    if (!trailer) {
+      notify.info(t('mediaItem.trailerUnavailable'))
+      return
+    }
+    themeMusic.stop()
+    await openModal(TrailerModal, { props: { trailer } }).catch(() => undefined)
+  } finally {
+    trailerLoading.value = false
+  }
 }
 
 const audioPlayer = useAudioPlayer()
@@ -522,6 +546,10 @@ watch(
                 <button v-if="playTarget && !paywalled" type="button" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition motion-reduce:transition-none hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="play(playTarget)">
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
+                </button>
+                <button v-if="item.type === 'movie' || item.type === 'series'" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="trailerLoading" @click="playTrailer">
+                  <Icon icon="lucide:clapperboard" class="size-5" aria-hidden="true" />
+                  {{ t('mediaItem.trailer') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
                 <button v-if="canReportIssue" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="reportIssue">
