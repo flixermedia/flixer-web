@@ -28,15 +28,16 @@ export const plansFixture: Plan[] = [
 			{ type: "kind", ref: "tv", label: "TV" },
 		],
 		trialDays: 7,
+		adsExempt: false,
 		active: true,
 		sortOrder: 0,
 	},
-	{ id: "plan-2", name: "Everything (yearly)", description: null, interval: "year", prices: [{ currency: "USD", amountMinor: 8900 }], scopes: [{ type: "all", ref: null }], trialDays: 0, active: true, sortOrder: 1 },
+	{ id: "plan-2", name: "Everything (yearly)", description: null, interval: "year", prices: [{ currency: "USD", amountMinor: 8900 }], scopes: [{ type: "all", ref: null }], trialDays: 0, adsExempt: false, active: true, sortOrder: 1 },
 ];
 
 export const productsFixture: Product[] = [
-	{ id: "prod-1", name: "Night of the Comet (rental)", description: "48 hour rental", kind: "rent", scope: { type: "item", ref: "item-1", label: "Night of the Comet (1984)" }, prices: [{ currency: "USD", amountMinor: 399 }], rentalHours: 48, rentalStart: "first_play", requiresPurchase: false, active: true, sortOrder: 0 },
-	{ id: "prod-2", name: "All music", description: null, kind: "buy", scope: { type: "kind", ref: "music", label: "Music" }, prices: [{ currency: "USD", amountMinor: 1999 }], rentalHours: null, rentalStart: "purchase", requiresPurchase: false, active: false, sortOrder: 1 },
+	{ id: "prod-1", name: "Night of the Comet (rental)", description: "48 hour rental", kind: "rent", scope: { type: "item", ref: "item-1", label: "Night of the Comet (1984)" }, prices: [{ currency: "USD", amountMinor: 399 }], rentalHours: 48, rentalStart: "first_play", requiresPurchase: false, adsExempt: false, active: true, sortOrder: 0 },
+	{ id: "prod-2", name: "All music", description: null, kind: "buy", scope: { type: "kind", ref: "music", label: "Music" }, prices: [{ currency: "USD", amountMinor: 1999 }], rentalHours: null, rentalStart: "purchase", requiresPurchase: false, adsExempt: false, active: false, sortOrder: 1 },
 ];
 
 const future = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();

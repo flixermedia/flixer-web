@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from "@kolirt/vue-modal";
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { saveProduct, type Product, type ProductInput } from "../../../api";
 import { notify } from "../../../composables/notify";
@@ -19,8 +19,9 @@ const props = defineProps<{ product: Product | null; currency: string; currencie
 const { close, confirm } = useModalContext<boolean>();
 const { t } = useI18n();
 const saving = ref(false);
+const formId = `payment-edit-${useId()}`;
 
-const blank = (): ProductInput => ({ name: "", description: null, kind: "buy", scope: { type: "all", ref: null }, prices: [{ currency: props.currency, amountMinor: 0 }], rentalHours: null, rentalStart: "purchase", requiresPurchase: false, active: true, sortOrder: props.sortOrder });
+const blank = (): ProductInput => ({ name: "", description: null, kind: "buy", scope: { type: "all", ref: null }, prices: [{ currency: props.currency, amountMinor: 0 }], rentalHours: null, rentalStart: "purchase", requiresPurchase: false, adsExempt: false, active: true, sortOrder: props.sortOrder });
 const editing = ref<{ id: string | null; data: ProductInput }>(props.product ? { id: props.product.id, data: JSON.parse(JSON.stringify({ ...props.product, id: undefined })) as ProductInput } : { id: null, data: blank() });
 const scopes = computed({
 	get: () => [editing.value.data.scope],
@@ -55,7 +56,7 @@ async function save() {
 				</div>
 			</header>
 			<div class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-width:thin]">
-			<form id="payment-edit-form" class="space-y-6" @submit.prevent="save">
+			<form :id="formId" class="space-y-6" @submit.prevent="save">
 				<div class="grid gap-4 sm:grid-cols-2">
 					<label class="block text-sm font-medium">
 						{{ t("payments.admin.name") }}
@@ -93,12 +94,13 @@ async function save() {
 					<ScopePicker v-model="scopes" required :label="t('payments.admin.productScope')" />
 				</div>
 				<div class="border-t border-flixer-border pt-5"><AdminToggle v-model="editing.data.requiresPurchase" :label="t('payments.admin.requiresPurchase')" :description="t('payments.admin.requiresPurchaseHint')" /></div>
+				<div class="border-t border-flixer-border pt-5"><AdminToggle v-model="editing.data.adsExempt" :label="t('payments.admin.adsExempt')" :description="t('payments.admin.productAdsExemptHint')" /></div>
 				<div class="border-t border-flixer-border pt-5"><AdminToggle v-model="editing.data.active" :label="t('payments.admin.active')" /></div>
 			</form>
 			</div>
 			<footer class="flex shrink-0 flex-col-reverse gap-3 border-t border-flixer-border px-6 py-4 sm:flex-row sm:justify-end">
 				<button type="button" :class="secondaryButton" :disabled="saving" @click="close()">{{ t("common.cancel") }}</button>
-				<button type="submit" form="payment-edit-form" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving">{{ t("common.save") }}</button>
+				<button type="submit" :form="formId" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving">{{ t("common.save") }}</button>
 			</footer>
 		</ModalContent>
 	</ModalRoot>

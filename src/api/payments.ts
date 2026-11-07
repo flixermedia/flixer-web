@@ -272,6 +272,7 @@ export interface Product {
 	rentalHours: number | null;
 	rentalStart: RentalStart;
 	requiresPurchase: boolean;
+	adsExempt: boolean;
 	active: boolean;
 	sortOrder: number;
 }
@@ -286,6 +287,7 @@ export interface Plan {
 	prices: Price[];
 	scopes: ContentScope[];
 	trialDays: number;
+	adsExempt: boolean;
 	active: boolean;
 	sortOrder: number;
 }
