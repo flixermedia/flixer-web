@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
-import { deleteMediaLibrary, getIndexerStatus, getNetworkShareSupport, listMediaLibraries, listNetworkShares, queueLibrarySegments, scanMediaLibrary, syncLibraryThemes } from "../../api";
+import { expect, mocked, userEvent, waitFor, within } from "storybook/test";
+import { browseMediaFolders, deleteMediaLibrary, getIndexerStatus, getNetworkShareSupport, listMediaLibraries, listMediaRoots, listNetworkShares, queueLibrarySegments, scanLibraryFolders, scanMediaLibrary, syncLibraryThemes } from "../../api";
 import { idleIndexerStatus, scanningIndexerStatus } from "../../storybook/fixturesLeft00";
-import { mediaLibraries, networkShares } from "../../storybook/fixturesMediaAdmin";
+import { mediaFolders, mediaLibraries, mediaRoots, networkShares } from "../../storybook/fixturesMediaAdmin";
 import LibrariesPanel from "./LibrariesPanel.vue";
 
 const meta = {
@@ -17,6 +17,9 @@ const meta = {
 		mocked(listNetworkShares).mockResolvedValue(networkShares);
 		mocked(getNetworkShareSupport).mockResolvedValue({ supported: true } as Awaited<ReturnType<typeof getNetworkShareSupport>>);
 		mocked(scanMediaLibrary).mockResolvedValue(undefined as never);
+		mocked(scanLibraryFolders).mockResolvedValue({ queued: true, alreadyQueued: false });
+		mocked(listMediaRoots).mockResolvedValue(mediaRoots);
+		mocked(browseMediaFolders).mockImplementation(async (rootId, path) => ({ rootId, path, directories: mediaFolders[path] ?? [] }));
 		mocked(syncLibraryThemes).mockResolvedValue(undefined as never);
 		mocked(queueLibrarySegments).mockResolvedValue(undefined as never);
 		mocked(deleteMediaLibrary).mockResolvedValue(undefined as never);
@@ -27,6 +30,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const FolderScan: Story = {
+	play: async ({ canvas, canvasElement }) => {
+		await canvas.findAllByRole("button", { name: "Scan Folders" });
+		await userEvent.click(canvas.getAllByRole("button", { name: "Scan Folders" })[0]!);
+		const modal = within(canvasElement.ownerDocument.body);
+		await userEvent.click(await modal.findByLabelText("Select Arrival (2016)"));
+		await userEvent.click(modal.getByRole("button", { name: "Scan Selected Folders" }));
+		await waitFor(() => expect(scanLibraryFolders).toHaveBeenCalledWith("lib-movies", [{ rootId: "root-media", path: "Movies/Arrival (2016)" }]));
+	},
+};
 export const Scanning: Story = {
 	beforeEach: () => {
 		mocked(getIndexerStatus).mockResolvedValue(scanningIndexerStatus);

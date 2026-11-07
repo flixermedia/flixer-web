@@ -16,6 +16,7 @@ const icons: Record<AdminTabId, string> = {
   library: 'lucide:library',
   advertising: 'lucide:megaphone',
   analytics: 'lucide:chart-no-axes-combined',
+  logging: 'lucide:scroll-text',
   providers: 'lucide:plug',
   requests: 'lucide:message-square',
   issues: 'lucide:life-buoy',
@@ -29,6 +30,7 @@ const icons: Record<AdminTabId, string> = {
 
 const pageIcons: Record<AdminPageId, string> = {
   overview: 'lucide:layout-dashboard',
+  logging: 'lucide:scroll-text',
   guide: 'lucide:calendar-days',
   libraries: 'lucide:library',
   tasks: 'lucide:list-checks',

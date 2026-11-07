@@ -1,7 +1,7 @@
 /** Administrative stream, user, API-key, and indexer operations. */
 import { api, apiRequest } from './client'
-import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser as ApiAdminUser, AdminUserChanges as ApiAdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from 'flixer-api-client'
-export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview,  ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskLogEntry, IndexerTaskLogs, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
+import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser as ApiAdminUser, AdminUserChanges as ApiAdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData } from 'flixer-api-client'
+export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview,  ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
 
 export type OriginalAccess = 'inherit' | 'allow' | 'deny'
 
@@ -403,6 +403,11 @@ export async function scanMediaLibrary(id: string, force = false, trickplayOnly 
   await api.post(`/admin/indexer/libraries/${encodeURIComponent(id)}/scan`, request)
 }
 
+export async function scanLibraryFolders(id: string, folders: Array<{ rootId: string; path: string }>): Promise<{ queued: boolean; alreadyQueued: boolean }> {
+  const response = await api.post<{ queued: boolean; alreadyQueued: boolean }>(`/admin/indexer/libraries/${encodeURIComponent(id)}/scan`, { folders })
+  return response.data
+}
+
 export async function queueLibrarySegments(id: string, type: 'movie' | 'episode'): Promise<{ queued: number }> {
   const response = await api.post<{ queued: number }>(`/admin/indexer/libraries/${encodeURIComponent(id)}/segments`, { type })
   return response.data
@@ -420,12 +425,6 @@ export async function listIndexerTasks(queue: IndexerTaskQueueName, state: Index
     if (!isIndexerTaskQueue(task.queue)) throw new Error(`Unknown indexer task queue "${task.queue}".`)
     return { ...task, queue: task.queue }
   })
-}
-
-export async function getIndexerTaskLogs(queue: IndexerTaskQueueName, id: string, offset = 0): Promise<IndexerTaskLogs> {
-  const params: FlixerApiRouteQuery<'get', '/admin/indexer/tasks/{param}/{param}/logs'> = { offset }
-  const response = await api.get<IndexerTaskLogs>(`/admin/indexer/tasks/${queue}/${encodeURIComponent(id)}/logs`, { params })
-  return response.data
 }
 
 export async function cancelIndexerTask(queue: IndexerTaskQueueName, id: string): Promise<void> {

@@ -4,6 +4,7 @@ import type { AdminPageId } from './adminNav'
 const lazy = (load: () => Promise<{ default: Component }>) => defineAsyncComponent(load)
 
 const Dashboard = lazy(() => import('./DashboardPanel.vue'))
+const Logging = lazy(() => import('./LoggingPanel.vue'))
 const Guide = lazy(() => import('./GuidePanel.vue'))
 const Libraries = lazy(() => import('./LibrariesPanel.vue'))
 const IndexerQueues = lazy(() => import('./IndexerQueuesSection.vue'))
@@ -51,6 +52,7 @@ export interface PageBlock {
 /** What each page shows, top to bottom. */
 export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   overview: [{ component: Dashboard }],
+  logging: [{ component: Logging }],
   guide: [{ component: Guide }],
   libraries: [{ component: Libraries }],
   tasks: [{ component: IndexerQueues }, { component: IndexerTasks }, { component: Tasks }],

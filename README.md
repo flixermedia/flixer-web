@@ -81,6 +81,29 @@ Vue 3, TypeScript, Vite, Vue Router, Pinia, Tailwind CSS v4 and Capacitor. See [
 
 Run the repository's scripts defined in `package.json`; a [Vitest configuration](vitest.config.ts) is included.
 
+### Promotional screenshots
+
+With Flixer Web and its API running, use Node.js 22.6 or newer and install Chromium once with `npx playwright install chromium` (add `--with-deps` on Linux if system libraries are missing). Capture the main pages, settings tabs and every admin dashboard page with:
+
+```sh
+export FLIXER_URL="http://localhost:5173"
+export FLIXER_ADMIN_USERNAME="your-admin"
+read -rs -p "Admin password: " FLIXER_ADMIN_PASSWORD; echo
+export FLIXER_ADMIN_PASSWORD
+npm run screenshots
+unset FLIXER_ADMIN_PASSWORD
+```
+
+Alternatively, unset both credential variables, run `npm run screenshots -- --url http://localhost:5173 --headed`, and sign in manually in the browser, including any passkey verification. The browser session is temporary and is not saved. Password authentication may require `--headed` when a passkey is required.
+
+The script captures the sign-in page before credentials are entered, then the main routes, settings tabs and admin pages. It captures up to three discovered media, person, playlist, profile, request and plugin pages per type; only links present in the loaded pages can be discovered. Use `--max-per-type 0` to disable discovery, or repeat `--path /media/ID` to add specific pages. Player, invitation, setup and passkey callback routes are not visited automatically. Run `npm run screenshots -- --help` for viewport, full-page, output directory and loading-delay options. Screenshots and `manifest.json` are written to a new run directory under the Git-ignored `screenshots/` directory by default, so runs do not overwrite each other. Failed pages are listed in the manifest and cause a nonzero exit code; optional unavailable settings tabs are marked as skipped.
+
+The capture tool applies opaque redaction (rather than reversible blur) to text inputs, textareas, selects, detected URLs, domains, email addresses, IPs, filesystem paths and token-like strings. It also masks admin list/table data, avatar menus, embedded content and especially private areas such as chat and profile settings. Add repeatable `--mask-selector 'CSS selector'` arguments or mark elements with `data-screenshot-sensitive` to hide more content. For example, `npm run screenshots -- --mask-selector '.personal-details' --mask-selector '#private-banner'` masks both elements wherever they appear. New manifests omit the server address and page paths.
+
+**Review everything before publishing.** Automatic redaction is best effort, not a guarantee: unrecognized secrets, personal details, content rendered in images or unusual layouts, and licensed artwork may remain visible. Use a dedicated demo server and account with content you have permission to publish. Normal page visits can still trigger application activity such as read receipts. Existing screenshot runs and their manifests are not modified; delete or recapture them yourself if they contain sensitive information.
+
+Run the script's tests with `npm run test:screenshots`.
+
 ## 📚 Storybook
 
 Browse and develop reusable components in isolation with [Storybook for Vue 3 + Vite](https://storybook.js.org/docs/get-started/frameworks/vue3-vite):

@@ -1,4 +1,4 @@
-import type { AdminScheduledTask, IndexerTaskLogs, RequestServiceTest, RequestServiceView, RequestUserView, RequestsConfig, StreamSessionList, SubtitleFile, SubtitleSearchResult, UpdateStatus } from "../api";
+import type { AdminScheduledTask, RequestServiceTest, RequestServiceView, RequestUserView, RequestsConfig, StreamSessionList, SubtitleFile, SubtitleSearchResult, UpdateStatus } from "../api";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -100,18 +100,6 @@ export const subtitleResults: SubtitleSearchResult[] = [
 	{ fileId: 102, language: "en", release: "Arrival.2016.WEB-DL", fileName: "Arrival.2016.WEB-DL.srt", downloads: 9120, hearingImpaired: true, hashMatch: false, rating: 6.9 },
 ];
 
-export const taskLogs: IndexerTaskLogs = {
-	queue: "metadata",
-	id: "task-1",
-	state: "active",
-	total: 4,
-	entries: [
-		{ time: minutesAgo(3), level: "INFO", message: "Fetching metadata for Arrival (2016)" },
-		{ time: minutesAgo(2), level: "DEBUG", message: "tmdb: GET /movie/329865 200 (182ms)" },
-		{ time: minutesAgo(1), level: "WARN", message: "No poster available in preferred language, falling back" },
-		{ time: minutesAgo(0), level: "ERROR", message: "musicbrainz: rate limited, retrying in 5s" },
-	],
-};
 
 export const scheduledTasks: AdminScheduledTask[] = [
 	{ id: "scan", name: "Scan libraries", category: "Library", description: "Look for new and changed media files.", enabled: true, cron: "0 */6 * * *", state: "completed", lastRunAt: minutesAgo(120) },

@@ -2,7 +2,7 @@
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { browseMediaFolders, listMediaRoots, type MediaRoot } from '../../api'
+import { browseMediaFolders, listMediaLibraries, listMediaRoots, type MediaLibrary, type MediaRoot } from '../../api'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 
@@ -14,10 +14,12 @@ export interface PickedFolder {
 
 defineOptions({ modalGroup: 'default' })
 
+const props = defineProps<{ library?: MediaLibrary }>()
 const { close, confirm } = useModalContext<PickedFolder[]>()
 const { t } = useI18n()
 
 const roots = ref<MediaRoot[]>([])
+const libraries = ref<MediaLibrary[]>([])
 const rootId = ref('')
 const path = ref('')
 const pathInput = ref('/')
@@ -37,6 +39,30 @@ function normalizePath(value: string) {
 function fullPath(relativePath: string) {
   const rootPath = currentRoot()?.path.replace(/\/+$/g, '') ?? ''
   return [rootPath, relativePath].filter(Boolean).join('/') || '/'
+}
+
+function contains(base: string, candidate: string) {
+  const normalizedBase = base.replace(/\/+$/, '') || '/'
+  const normalizedCandidate = candidate.replace(/\/+$/, '') || '/'
+  return normalizedBase === '/' || normalizedCandidate === normalizedBase || normalizedCandidate.startsWith(`${normalizedBase}/`)
+}
+
+function membership(absolutePath: string) {
+  const inside = new Set<string>()
+  const containing = new Set<string>()
+  for (const library of libraries.value) {
+    for (const folder of library.folders) {
+      if (!folder.location) continue
+      if (contains(folder.location, absolutePath)) inside.add(library.name)
+      else if (contains(absolutePath, folder.location)) containing.add(library.name)
+    }
+  }
+  return { inside: [...inside].join(', '), containing: [...containing].join(', ') }
+}
+
+function allowed(relativePath: string) {
+  if (!props.library) return true
+  return props.library.folders.some((folder) => folder.rootId === rootId.value && contains(`/${folder.path}`, `/${relativePath}`))
 }
 
 async function load() {
@@ -72,10 +98,14 @@ function navigate(nextPath: string) {
 function openRoot(id: string) {
   rootId.value = id
   selectedPaths.value = []
-  navigate('')
+  navigate(props.library?.folders.find((folder) => folder.rootId === id)?.path ?? '')
 }
 
 function backToRoots() {
+  requestId++
+  loading.value = false
+  error.value = ''
+  directories.value = []
   rootId.value = ''
   selectedPaths.value = []
 }
@@ -94,6 +124,7 @@ function browseToInput() {
 
 function toggleFolder(name: string) {
   const folderPath = path.value ? `${path.value}/${name}` : name
+  if (!allowed(folderPath)) return
   selectedPaths.value = selectedPaths.value.includes(folderPath)
     ? selectedPaths.value.filter((selectedPath) => selectedPath !== folderPath)
     : [...selectedPaths.value, folderPath]
@@ -101,9 +132,10 @@ function toggleFolder(name: string) {
 
 function choose() {
   const root = currentRoot()
-  if (!root) return
+  if (!root || loading.value || error.value) return
 
   const paths = selectedPaths.value.length ? selectedPaths.value : [path.value]
+  if (!paths.every(allowed)) return
   confirm(paths.map((folderPath) => ({
     rootId: root.id,
     path: folderPath,
@@ -112,13 +144,14 @@ function choose() {
 }
 
 onMounted(async () => {
-  const [requestError, result] = await catchError(listMediaRoots())
+  const [requestError, result] = await catchError(Promise.all([listMediaRoots(), listMediaLibraries()]))
   if (requestError) {
     error.value = describeRequestError(requestError, t('admin.libraries.browseError'))
     return
   }
 
-  roots.value = result
+  libraries.value = result[1]
+  roots.value = props.library ? result[0].filter((root) => props.library?.folders.some((folder) => folder.rootId === root.id)) : result[0]
   if (roots.value.length === 1) openRoot(roots.value[0].id)
 })
 </script>
@@ -128,8 +161,8 @@ onMounted(async () => {
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <header class="flixer-modal-header flex shrink-0 items-start justify-between gap-4">
         <div>
-          <ModalTitle class="text-xl font-semibold">{{ t('admin.libraries.browseFolders') }}</ModalTitle>
-          <ModalDescription class="sr-only">{{ t('admin.libraries.pickerDescription') }}</ModalDescription>
+          <ModalTitle class="text-xl font-semibold">{{ t(props.library ? 'admin.libraries.scanFoldersTitle' : 'admin.libraries.browseFolders') }}</ModalTitle>
+          <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ props.library ? t('admin.libraries.scanFoldersDescription', { library: props.library.name }) : t('admin.libraries.pickerDescription') }}</ModalDescription>
         </div>
         <button type="button" class="grid size-8 shrink-0 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('admin.libraries.cancel')" @click="close()">
           <Icon icon="lucide:x" class="size-5" aria-hidden="true" />
@@ -140,12 +173,14 @@ onMounted(async () => {
 
       <div v-if="!rootId" class="mt-5 min-h-0 flex-1 overflow-y-auto">
         <p class="text-sm font-medium text-flixer-muted">{{ t('admin.libraries.chooseRoot') }}</p>
-        <p v-if="roots.length === 0 && !error" class="mt-3 text-sm text-flixer-muted">{{ t('admin.libraries.noRoots') }}</p>
+        <p v-if="roots.length === 0 && !error" class="mt-3 text-sm text-flixer-muted">{{ t(props.library ? 'admin.libraries.noLibraryRoots' : 'admin.libraries.noRoots') }}</p>
         <ul class="mt-3 grid gap-2">
           <li v-for="root in roots" :key="root.id">
             <button type="button" class="w-full rounded border border-flixer-border bg-flixer-background/70 px-4 py-3 text-left transition hover:border-flixer-accent/50 hover:bg-white/5" @click="openRoot(root.id)">
               <span class="block font-medium">{{ root.name }}</span>
               <span class="mt-1 block truncate font-mono text-sm text-flixer-muted">{{ root.path }}</span>
+              <span v-if="membership(root.path).inside" class="mt-1 block text-xs text-flixer-accent">{{ t('admin.libraries.inLibraries', { libraries: membership(root.path).inside }) }}</span>
+              <span v-if="membership(root.path).containing" class="mt-1 block text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(root.path).containing }) }}</span>
             </button>
           </li>
         </ul>
@@ -162,6 +197,8 @@ onMounted(async () => {
             <div class="min-w-0">
               <p class="text-sm font-medium">{{ t('admin.libraries.currentFolder') }}</p>
               <p class="mt-0.5 truncate font-mono text-sm text-flixer-muted">{{ fullPath(path) }}</p>
+              <p v-if="membership(fullPath(path)).inside" class="mt-1 text-xs text-flixer-accent">{{ t('admin.libraries.inLibraries', { libraries: membership(fullPath(path)).inside }) }}</p>
+              <p v-if="membership(fullPath(path)).containing" class="mt-1 text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(fullPath(path)).containing }) }}</p>
             </div>
             <div class="flex shrink-0 items-center gap-1">
               <button v-if="roots.length > 1" type="button" class="rounded px-2 py-1.5 text-sm text-flixer-muted transition hover:bg-white/10 hover:text-white" @click="backToRoots">{{ t('admin.libraries.roots') }}</button>
@@ -178,9 +215,11 @@ onMounted(async () => {
           <ul class="min-h-0 flex-1 overflow-y-auto p-2" :aria-label="t('admin.libraries.currentFolder')">
             <li v-if="loading && directories.length === 0" class="px-3 py-4 text-sm text-flixer-muted" role="status">{{ t('admin.libraries.browseLoading') }}</li>
             <li v-for="name in directories" :key="name" class="flex items-center gap-2 rounded px-2 py-1 transition hover:bg-white/5">
-              <input type="checkbox" class="size-4 shrink-0 accent-flixer-accent" :checked="selectedPaths.includes(path ? `${path}/${name}` : name)" :aria-label="t('admin.libraries.selectFolderName', { folder: name })" @click.stop @change="toggleFolder(name)" />
+              <input type="checkbox" class="size-4 shrink-0 accent-flixer-accent" :checked="selectedPaths.includes(path ? `${path}/${name}` : name)" :disabled="!allowed(path ? `${path}/${name}` : name) || loading" :aria-label="t('admin.libraries.selectFolderName', { folder: name })" @click.stop @change="toggleFolder(name)" />
               <Icon icon="lucide:folder" class="size-5 shrink-0 text-flixer-muted" aria-hidden="true" />
               <button type="button" class="min-w-0 flex-1 truncate py-1 text-left text-sm transition hover:text-flixer-accent disabled:opacity-50" :disabled="loading" @click="open(name)">{{ name }}</button>
+              <span v-if="membership(fullPath(path ? `${path}/${name}` : name)).inside" class="text-xs text-flixer-accent">{{ t('admin.libraries.inLibraries', { libraries: membership(fullPath(path ? `${path}/${name}` : name)).inside }) }}</span>
+              <span v-if="membership(fullPath(path ? `${path}/${name}` : name)).containing" class="text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(fullPath(path ? `${path}/${name}` : name)).containing }) }}</span>
             </li>
             <li v-if="!loading && directories.length === 0 && !error" class="px-3 py-4 text-sm text-flixer-muted">{{ t('admin.libraries.noSubfolders') }}</li>
           </ul>
@@ -190,7 +229,7 @@ onMounted(async () => {
           <p class="text-sm text-flixer-muted">{{ t('admin.libraries.selectFoldersHint') }}</p>
           <div class="flex justify-end gap-2">
             <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-medium transition hover:bg-white/10" @click="close()">{{ t('admin.libraries.cancel') }}</button>
-            <button type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80" @click="choose">{{ t(selectedPaths.length ? 'admin.libraries.useSelectedFolders' : 'admin.libraries.useCurrentFolder') }}</button>
+            <button type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" :disabled="loading || !!error || (!selectedPaths.length && !allowed(path))" @click="choose">{{ t(props.library ? (selectedPaths.length ? 'admin.libraries.scanSelectedFolders' : 'admin.libraries.scanCurrentFolder') : (selectedPaths.length ? 'admin.libraries.useSelectedFolders' : 'admin.libraries.useCurrentFolder')) }}</button>
           </div>
         </footer>
       </template>

@@ -20,6 +20,7 @@ const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
 	scrollBehavior(to, from, savedPosition) {
 		if (savedPosition) return savedPosition;
+		if (to.hash.startsWith("#logger-filter=")) return false;
 		if (to.hash) return { el: to.hash };
 		// Same-page query changes (e.g. admin/settings tabs) keep their scroll position.
 		if (to.path === from.path) return false;

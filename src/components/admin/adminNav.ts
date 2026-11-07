@@ -5,6 +5,7 @@ export const ADMIN_TABS = {
   library: ['libraries', 'tasks', 'media', 'transcoding'],
   advertising: ['advertisements'],
   analytics: ['analyticsOverview', 'analyticsVideo', 'analyticsMusic', 'analyticsHistory', 'analyticsAdvertising', 'analyticsGuide', 'analyticsPayments'],
+  logging: ['logging'],
   providers: ['metadata', 'subtitles', 'themes', 'trailerCache'],
   requests: ['requests'],
   issues: ['tickets', 'issueReports'],
@@ -40,7 +41,7 @@ export function pagesOf(tab: AdminTabId): readonly AdminPageId[] {
 const LEGACY: Record<string, AdminLocation> = {
   overview: { tab: 'dashboard', page: 'overview' },
   streams: { tab: 'dashboard', page: 'overview' },
-  logs: { tab: 'dashboard', page: 'overview' },
+  logs: { tab: 'logging', page: 'logging' },
   libraries: { tab: 'library', page: 'libraries' },
   indexer: { tab: 'library', page: 'tasks' },
   tasks: { tab: 'library', page: 'tasks' },

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { openModal } from '@kolirt/vue-modal'
+import { ModalClosedError, openModal } from '@kolirt/vue-modal'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, queueLibrarySegments, scanMediaLibrary, syncLibraryThemes, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
+import { deleteMediaLibrary, getIndexerStatus, listMediaLibraries, queueLibrarySegments, scanLibraryFolders, scanMediaLibrary, syncLibraryThemes, type IndexerScan, type IndexerStatus, type MediaLibrary } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { useLiveTopic } from '../../composables/useLive'
@@ -12,6 +12,7 @@ import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import LibraryModal from './LibraryModal.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
+import MediaFolderPicker, { type PickedFolder } from './MediaFolderPicker.vue'
 import NetworkSharesSection from './NetworkSharesSection.vue'
 import StatusPill from './StatusPill.vue'
 
@@ -118,6 +119,26 @@ async function openRescan(library: MediaLibrary) {
   }
 }
 
+async function openFolderScan(library: MediaLibrary) {
+  const [modalError, selected] = await catchError(openModal<PickedFolder[]>(MediaFolderPicker, { props: { library } }))
+  if (modalError) {
+    if (!(modalError instanceof ModalClosedError)) notify.error(describeRequestError(modalError, t('admin.libraries.browseError')))
+    return
+  }
+  if (!selected.length) return
+  scanningId.value = library.id
+  try {
+    const [error, result] = await catchError(scanLibraryFolders(library.id, selected.map(({ rootId, path }) => ({ rootId, path }))))
+    if (error) notify.error(describeRequestError(error, t('admin.libraries.scanError')))
+    else if (result.alreadyQueued) notify.info(t('admin.libraries.folderScanAlreadyQueued'))
+    else if (result.queued) notify.success(t('admin.libraries.folderScanQueued'))
+    else notify.error(t('admin.libraries.scanError'))
+    await pollScans()
+  } finally {
+    scanningId.value = null
+  }
+}
+
 async function remove(library: MediaLibrary) {
   if (!(await confirmAction(t('admin.libraries.confirmDelete', { name: library.name }), { danger: true }))) return
   deletingId.value = library.id
@@ -163,8 +184,9 @@ watch(live.data, (status) => {
             <p class="text-sm font-semibold">
               {{ lib.name }} <StatusPill tone="accent" class="ml-2">{{ t(`admin.libraries.types.${lib.type}`) }}</StatusPill>
             </p>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="scan(lib, false)">{{ t('admin.libraries.scan') }}</button>
+              <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="openFolderScan(lib)">{{ t('admin.libraries.scanFolders') }}</button>
               <button type="button" :disabled="!indexerReachable || scanningId === lib.id || isRunning(scans[lib.id])" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="openRescan(lib)">{{ t('admin.libraries.rescan') }}</button>
               <button v-if="lib.type !== 'music'" type="button" :disabled="!indexerReachable || scanningId === lib.id" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="scan(lib, false, true)">{{ t('admin.libraries.trickplay') }}</button>
               <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="openForm(lib)">{{ t('admin.libraries.manage') }}</button>

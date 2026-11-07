@@ -37,6 +37,12 @@ describe('admin navigation', () => {
     expect(ADMIN_TABS.analytics).toContain('analyticsHistory')
   })
 
+  it('opens the dedicated logging page from current and legacy links', () => {
+    expect(resolveAdminLocation('logging')).toEqual({ tab: 'logging', page: 'logging' })
+    expect(resolveAdminLocation('logs')).toEqual({ tab: 'logging', page: 'logging' })
+    expect(adminQuery('logging', 'logging')).toEqual({ tab: 'logging' })
+  })
+
   it('redirects existing issue-report admin links to the new category', () => {
     expect(resolveAdminLocation('requests', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
     expect(resolveAdminLocation('settings', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })

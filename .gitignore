@@ -33,3 +33,4 @@ storybook-static
 *storybook.log
 coverage
 core
+screenshots/
