@@ -98,6 +98,7 @@ const workboxOptions: Partial<GenerateSWOptions> = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  optimizeDeps: { include: ['vccs', 'motion-v', 'vccs > eventemitter3'] },
   build: {
     rollupOptions: {
       input: {
