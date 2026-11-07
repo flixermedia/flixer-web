@@ -10,6 +10,7 @@ import LanguageSection from "../components/settings/LanguageSection.vue";
 import PasskeysSection from "../components/settings/PasskeysSection.vue";
 import ProfileSection from "../components/settings/ProfileSection.vue";
 import ServerSection from "../components/settings/ServerSection.vue";
+import UserWebhooksSection from "../components/settings/UserWebhooksSection.vue";
 import type { SettingsTab } from "../components/settings/SettingsTabs.vue";
 import { usePayments } from "../composables/usePayments.ts";
 import { useSignOut } from "../composables/useSignOut.ts";
@@ -29,10 +30,11 @@ const tabIcons: Record<string, string> = {
 	defaultPlayback: "lucide:play",
 	chatEncryption: "lucide:lock-keyhole",
 	billing: "lucide:credit-card",
+	webhooks: "lucide:webhook",
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
 });
 
 const activeTab = computed({
@@ -90,6 +92,7 @@ function selectTab(id: string) {
 							<LanguageSection v-else-if="activeTab === 'language'" />
 							<DefaultPlaybackOptionsSection v-else-if="activeTab === 'defaultPlayback'" />
 							<ChatEncryptionSection v-else-if="activeTab === 'chatEncryption'" />
+							<UserWebhooksSection v-else-if="activeTab === 'webhooks'" />
 							<BillingSection v-else-if="activeTab === 'billing'" />
 							<ServerSection v-else-if="activeTab === 'server'" />
 						</div>
