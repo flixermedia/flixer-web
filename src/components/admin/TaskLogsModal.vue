@@ -60,8 +60,10 @@ onBeforeUnmount(() => {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.indexer.taskLogsTitle') }}</ModalTitle>
-      <ModalDescription class="mt-1 shrink-0 truncate font-mono text-xs text-flixer-muted">{{ title }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.indexer.taskLogsTitle') }}</ModalTitle>
+        <ModalDescription class="mt-1 shrink-0 truncate font-mono text-xs text-flixer-muted">{{ title }}</ModalDescription>
+      </header>
       <div class="mt-3 flex shrink-0 items-center justify-between gap-3 text-xs text-flixer-muted">
         <span :class="live ? 'text-emerald-300' : ''">{{ live ? t('admin.indexer.taskLogsLive') : t('admin.indexer.taskLogsEnded') }}</span>
         <label class="flex items-center gap-2"><input v-model="follow" type="checkbox" />{{ t('admin.indexer.taskLogsAutoscroll') }}</label>
@@ -73,7 +75,7 @@ onBeforeUnmount(() => {
           <span class="text-flixer-muted">{{ clock(entry.time) }}</span> {{ entry.message }}
         </p>
       </div>
-      <div class="mt-5 flex shrink-0 justify-end">
+      <div class="flixer-modal-actions mt-5 flex shrink-0 justify-end">
         <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="close()">{{ t('common.close') }}</button>
       </div>
     </ModalContent>

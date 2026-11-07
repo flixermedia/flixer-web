@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from "@kolirt/vue-modal";
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { saveCoupon, type Coupon, type CouponInput, type Plan, type Price, type Product } from "../../../api";
 import { notify } from "../../../composables/notify";
@@ -18,6 +18,7 @@ const props = defineProps<{ coupon: Coupon | null; currency: string; currencies:
 const { close, confirm } = useModalContext<boolean>();
 const { t } = useI18n();
 const saving = ref(false);
+const formId = `payment-edit-${useId()}`;
 
 type Editing = { id: string | null; data: CouponInput; type: "percent" | "amount"; expires: string };
 const editing = ref<Editing>(
@@ -69,7 +70,7 @@ async function save() {
 				</div>
 			</header>
 			<div class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-width:thin]">
-			<form id="payment-edit-form" class="space-y-6" @submit.prevent="save">
+			<form :id="formId" class="space-y-6" @submit.prevent="save">
 				<div class="grid gap-4 sm:grid-cols-2">
 					<label class="block text-sm font-medium">
 						{{ t("payments.admin.code") }}
@@ -119,7 +120,7 @@ async function save() {
 			</div>
 			<footer class="flex shrink-0 flex-col-reverse gap-3 border-t border-flixer-border px-6 py-4 sm:flex-row sm:justify-end">
 				<button type="button" :class="secondaryButton" :disabled="saving" @click="close()">{{ t("common.cancel") }}</button>
-				<button type="submit" form="payment-edit-form" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving">{{ t("common.save") }}</button>
+				<button type="submit" :form="formId" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving">{{ t("common.save") }}</button>
 			</footer>
 		</ModalContent>
 	</ModalRoot>

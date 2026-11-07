@@ -6,7 +6,7 @@ import { useIssueReportsConfig } from '../../composables/useIssueReportsConfig'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 
-const props = defineProps<{ mediaItemId?: string; mediaTitle?: string }>()
+const props = defineProps<{ mediaItemId?: string; mediaTitle?: string; modal?: boolean }>()
 const emit = defineEmits<{ submitted: [report: IssueReport] }>()
 const { t } = useI18n()
 const { config, load } = useIssueReportsConfig()
@@ -47,27 +47,31 @@ onMounted(async () => {
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" @submit.prevent="submit">
-    <p v-if="error" class="rounded border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">{{ error }}</p>
-    <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('issues.loading') }}</p>
-    <template v-else>
-      <label class="flex flex-col gap-1 text-sm">
-        {{ t('issues.subject') }}
-        <input v-model="title" maxlength="200" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
-      </label>
-      <label class="flex flex-col gap-1 text-sm">
-        {{ t('issues.category') }}
-        <select v-model="category" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent">
-          <option v-for="name in config?.categories ?? []" :key="name" :value="name">{{ name }}</option>
-        </select>
-      </label>
-      <label class="flex flex-col gap-1 text-sm">
-        {{ t('issues.description') }}
-        <textarea v-model="description" rows="5" maxlength="5000" required class="resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
-      </label>
-      <button type="submit" :disabled="!canSubmit || loading" class="rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50">
+  <form :class="modal ? 'flixer-modal-form' : 'flex flex-col gap-4'" @submit.prevent="submit">
+    <div :class="modal ? 'flixer-modal-form-body gap-4' : 'flex flex-col gap-4'">
+      <p v-if="error" class="rounded border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">{{ error }}</p>
+      <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('issues.loading') }}</p>
+      <template v-else>
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('issues.subject') }}
+          <input v-model="title" maxlength="200" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('issues.category') }}
+          <select v-model="category" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent">
+            <option v-for="name in config?.categories ?? []" :key="name" :value="name">{{ name }}</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('issues.description') }}
+          <textarea v-model="description" rows="5" maxlength="5000" required class="resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
+        </label>
+      </template>
+    </div>
+    <div v-if="!loading" :class="modal ? 'flixer-modal-actions flex justify-end' : ''">
+      <button type="submit" :disabled="!canSubmit || loading" class="rounded text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50" :class="modal ? 'h-11 bg-flixer-primary px-6 text-white hover:brightness-110' : 'w-full bg-white px-4 py-2 text-flixer-background hover:bg-white/85'">
         {{ submitting ? t('issues.submitting') : t('issues.submit') }}
       </button>
-    </template>
+    </div>
   </form>
 </template>

@@ -92,8 +92,10 @@ function submit() {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="text-lg font-semibold text-white">{{ adding ? t('chat.addPeople') : t('chat.newChat') }}</ModalTitle>
-      <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ adding ? t('chat.addPeopleHint') : mode === 'direct' ? t('chat.directHint') : t('chat.groupHint') }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="text-lg font-semibold text-white">{{ adding ? t('chat.addPeople') : t('chat.newChat') }}</ModalTitle>
+        <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ adding ? t('chat.addPeopleHint') : mode === 'direct' ? t('chat.directHint') : t('chat.groupHint') }}</ModalDescription>
+      </header>
 
       <div v-if="!adding" class="mt-4 grid grid-cols-2 gap-1 rounded bg-white/5 p-1 text-sm font-semibold" role="tablist">
         <button v-for="option in ['direct', 'group'] as const" :key="option" type="button" role="tab" :aria-selected="mode === option" class="rounded px-3 py-1.5 transition motion-reduce:transition-none" :class="mode === option ? 'bg-white text-flixer-background' : 'text-flixer-muted hover:text-white'" @click="mode = option">{{ t(option === 'direct' ? 'chat.direct' : 'chat.group') }}</button>
@@ -117,7 +119,7 @@ function submit() {
       </ul>
 
       <p v-if="error" class="mt-2 text-sm text-red-400" role="alert">{{ error }}</p>
-      <div class="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div class="flixer-modal-actions mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</button>
         <button v-if="multi" type="button" class="h-11 rounded bg-white px-5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!canSubmit" @click="submit">{{ adding ? t('chat.add') : t('chat.createGroup') }}</button>
       </div>

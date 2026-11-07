@@ -48,10 +48,12 @@ function toggle(id: string, checked: boolean) {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="text-lg font-semibold">{{ t('admin.libraries.rescanOptionsTitle') }}</ModalTitle>
-      <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">
-        {{ t('admin.libraries.rescanOptionsDescription', { library: props.library.name }) }}
-      </ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="text-lg font-semibold">{{ t('admin.libraries.rescanOptionsTitle') }}</ModalTitle>
+        <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">
+          {{ t('admin.libraries.rescanOptionsDescription', { library: props.library.name }) }}
+        </ModalDescription>
+      </header>
       <fieldset class="mt-5 grid gap-2 overflow-y-auto">
         <legend class="sr-only">{{ t('admin.libraries.rescanOptionsTitle') }}</legend>
         <label v-for="choice in choices" :key="choice.id" class="flex cursor-pointer items-start gap-3 rounded border border-flixer-border bg-flixer-background/50 p-3 transition hover:bg-white/5">
@@ -62,7 +64,7 @@ function toggle(id: string, checked: boolean) {
           </span>
         </label>
       </fieldset>
-      <div class="mt-5 flex flex-wrap justify-end gap-2">
+      <div class="flixer-modal-actions mt-5 flex flex-wrap justify-end gap-2">
         <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-semibold transition hover:bg-white/5" @click="close()">
           {{ t('admin.libraries.cancel') }}
         </button>

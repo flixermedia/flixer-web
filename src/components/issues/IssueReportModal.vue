@@ -16,8 +16,8 @@ function submitted(report: IssueReport) {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <div class="flex items-start justify-between gap-4">
+    <ModalContent class="flixer-modal-card max-h-[calc(100dvh-2rem)] w-full max-w-xl rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+      <header class="flixer-modal-header flex items-start justify-between gap-4">
         <div>
           <ModalTitle class="text-lg font-semibold text-white">{{ t('issues.newReport') }}</ModalTitle>
           <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ t('issues.formDescription') }}</ModalDescription>
@@ -25,8 +25,8 @@ function submitted(report: IssueReport) {
         <button type="button" class="grid size-9 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :aria-label="t('common.close')" @click="close()">
           <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
         </button>
-      </div>
-      <IssueReportForm class="mt-5" :media-item-id="props.mediaItemId" :media-title="props.mediaTitle" @submitted="submitted" />
+      </header>
+      <IssueReportForm class="mt-5" modal :media-item-id="props.mediaItemId" :media-title="props.mediaTitle" @submitted="submitted" />
     </ModalContent>
   </ModalRoot>
 </template>

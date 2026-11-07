@@ -82,11 +82,14 @@ async function save() {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="shrink-0 text-lg font-semibold">{{ editingId ? t('admin.requests.editService') : t('admin.requests.addService') }}</ModalTitle>
-      <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.requests.servicesDescription') }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="shrink-0 text-lg font-semibold">{{ editingId ? t('admin.requests.editService') : t('admin.requests.addService') }}</ModalTitle>
+        <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.requests.servicesDescription') }}</ModalDescription>
+      </header>
 
-      <form class="-mx-1 mt-5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" @submit.prevent="save">
-        <div class="grid gap-4 sm:grid-cols-2">
+      <form class="flixer-modal-form mt-5" @submit.prevent="save">
+        <div class="flixer-modal-form-body gap-4">
+          <div class="grid gap-4 sm:grid-cols-2">
           <label :class="labelClass"
             >{{ t('admin.requests.serviceKind') }}
             <select :value="draft.kind" :class="selectClass" @change="changeKind(($event.target as HTMLSelectElement).value as RequestServiceInput['kind'])">
@@ -100,67 +103,68 @@ async function save() {
           <TextInput v-model="draft.apiKey" :label="t('admin.requests.apiKey')" type="password" name="serviceApiKey" :placeholder="editingId ? '••••••••' : ''" autocomplete="new-password" />
         </div>
 
-        <label :class="labelClass"
-          >{{ t('admin.requests.library') }}
-          <select v-model="draft.libraryId" required :disabled="compatibleLibraries.length === 0" :class="selectClass">
-            <option value="" disabled>{{ t('admin.requests.selectLibrary') }}</option>
-            <option v-for="library in compatibleLibraries" :key="library.id" :value="library.id">
-              {{ library.name }}<template v-if="library.type === 'mixed'"> · {{ t('admin.requests.mixedLibrary') }}</template>
-            </option>
-          </select>
-          <span class="mt-1.5 block text-[11px]">{{ t('admin.requests.libraryHint') }}</span>
-          <span v-if="compatibleLibraries.length === 0" class="mt-2 block rounded border border-amber-300/20 bg-amber-300/[0.06] p-2.5 text-xs leading-5 text-amber-200"
-            >{{ t('admin.requests.noCompatibleLibrary') }}
-            <RouterLink :to="{ name: 'admin', query: { tab: 'library' } }" class="font-semibold underline underline-offset-2" @click="close()">{{ t('admin.requests.goToLibraries') }}</RouterLink></span
-          >
-        </label>
-
-        <div class="grid gap-4 sm:grid-cols-2">
           <label :class="labelClass"
-            >{{ t('admin.requests.qualityProfile') }}
-            <select v-model.number="draft.qualityProfileId" :class="selectClass">
-              <option v-if="!testResult && draft.qualityProfileId" :value="draft.qualityProfileId">#{{ draft.qualityProfileId }}</option>
-              <option v-for="entry in testResult?.qualityProfiles ?? []" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+            >{{ t('admin.requests.library') }}
+            <select v-model="draft.libraryId" required :disabled="compatibleLibraries.length === 0" :class="selectClass">
+              <option value="" disabled>{{ t('admin.requests.selectLibrary') }}</option>
+              <option v-for="library in compatibleLibraries" :key="library.id" :value="library.id">
+                {{ library.name }}<template v-if="library.type === 'mixed'"> · {{ t('admin.requests.mixedLibrary') }}</template>
+              </option>
             </select>
+            <span class="mt-1.5 block text-[11px]">{{ t('admin.requests.libraryHint') }}</span>
+            <span v-if="compatibleLibraries.length === 0" class="mt-2 block rounded border border-amber-300/20 bg-amber-300/[0.06] p-2.5 text-xs leading-5 text-amber-200"
+              >{{ t('admin.requests.noCompatibleLibrary') }}
+              <RouterLink :to="{ name: 'admin', query: { tab: 'library' } }" class="font-semibold underline underline-offset-2" @click="close()">{{ t('admin.requests.goToLibraries') }}</RouterLink></span
+            >
           </label>
-          <label :class="labelClass"
-            >{{ t('admin.requests.rootFolder') }}
-            <select v-if="testResult?.rootFolders.length" v-model="draft.rootFolder" :class="selectClass">
-              <option v-for="entry in testResult.rootFolders" :key="entry.path" :value="entry.path">{{ entry.path }}</option>
-            </select>
-            <input v-else v-model="draft.rootFolder" :class="selectClass" />
-          </label>
-          <label v-if="draft.kind === 'lidarr'" :class="labelClass"
-            >{{ t('admin.requests.metadataProfile') }}
-            <select v-model.number="draft.metadataProfileId" :class="selectClass">
-              <option v-for="entry in testResult?.metadataProfiles ?? []" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
-            </select>
-          </label>
-          <label v-if="draft.kind === 'sonarr' && testResult?.languageProfiles.length" :class="labelClass"
-            >{{ t('admin.requests.languageProfile') }}
-            <select v-model.number="draft.languageProfileId" :class="selectClass">
-              <option v-for="entry in testResult.languageProfiles" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
-            </select>
-          </label>
-          <label v-if="draft.kind === 'radarr'" :class="labelClass"
-            >{{ t('admin.requests.minimumAvailability') }}
-            <select v-model="draft.minimumAvailability" :class="selectClass">
-              <option value="announced">announced</option>
-              <option value="inCinemas">inCinemas</option>
-              <option value="released">released</option>
-            </select>
-          </label>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label :class="labelClass"
+              >{{ t('admin.requests.qualityProfile') }}
+              <select v-model.number="draft.qualityProfileId" :class="selectClass">
+                <option v-if="!testResult && draft.qualityProfileId" :value="draft.qualityProfileId">#{{ draft.qualityProfileId }}</option>
+                <option v-for="entry in testResult?.qualityProfiles ?? []" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+              </select>
+            </label>
+            <label :class="labelClass"
+              >{{ t('admin.requests.rootFolder') }}
+              <select v-if="testResult?.rootFolders.length" v-model="draft.rootFolder" :class="selectClass">
+                <option v-for="entry in testResult.rootFolders" :key="entry.path" :value="entry.path">{{ entry.path }}</option>
+              </select>
+              <input v-else v-model="draft.rootFolder" :class="selectClass" />
+            </label>
+            <label v-if="draft.kind === 'lidarr'" :class="labelClass"
+              >{{ t('admin.requests.metadataProfile') }}
+              <select v-model.number="draft.metadataProfileId" :class="selectClass">
+                <option v-for="entry in testResult?.metadataProfiles ?? []" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+              </select>
+            </label>
+            <label v-if="draft.kind === 'sonarr' && testResult?.languageProfiles.length" :class="labelClass"
+              >{{ t('admin.requests.languageProfile') }}
+              <select v-model.number="draft.languageProfileId" :class="selectClass">
+                <option v-for="entry in testResult.languageProfiles" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+              </select>
+            </label>
+            <label v-if="draft.kind === 'radarr'" :class="labelClass"
+              >{{ t('admin.requests.minimumAvailability') }}
+              <select v-model="draft.minimumAvailability" :class="selectClass">
+                <option value="announced">announced</option>
+                <option value="inCinemas">inCinemas</option>
+                <option value="released">released</option>
+              </select>
+            </label>
+          </div>
+
+          <div>
+            <AdminToggle v-if="draft.kind === 'sonarr'" v-model="draft.seasonFolders" :label="t('admin.requests.seasonFolders')" />
+            <AdminToggle v-model="draft.isDefault" :label="t('admin.requests.defaultService')" />
+            <AdminToggle v-model="draft.enabled" :label="t('admin.requests.serviceEnabled')" />
+          </div>
+
+          <p v-if="testResult?.ok && testResult.version" class="rounded border border-emerald-400/20 bg-emerald-400/[0.06] p-3 text-xs text-emerald-200">{{ t('admin.requests.connectionOk', { version: testResult.version }) }}</p>
+
         </div>
-
-        <div>
-          <AdminToggle v-if="draft.kind === 'sonarr'" v-model="draft.seasonFolders" :label="t('admin.requests.seasonFolders')" />
-          <AdminToggle v-model="draft.isDefault" :label="t('admin.requests.defaultService')" />
-          <AdminToggle v-model="draft.enabled" :label="t('admin.requests.serviceEnabled')" />
-        </div>
-
-        <p v-if="testResult?.ok && testResult.version" class="rounded border border-emerald-400/20 bg-emerald-400/[0.06] p-3 text-xs text-emerald-200">{{ t('admin.requests.connectionOk', { version: testResult.version }) }}</p>
-
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div class="flixer-modal-actions flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="saving" @click="close()">{{ t('common.cancel') }}</button>
           <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="testing || !draft.url" @click="test">{{ testing ? t('common.loading') : t('admin.requests.testConnection') }}</button>
           <button type="submit" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving || !canSave">{{ t('common.save') }}</button>

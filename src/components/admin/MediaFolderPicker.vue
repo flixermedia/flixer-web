@@ -125,8 +125,8 @@ onMounted(async () => {
 
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
-    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded border border-flixer-border bg-flixer-surface p-5 text-flixer-text shadow-2xl shadow-black/60 sm:p-7">
-      <header class="flex shrink-0 items-start justify-between gap-4">
+    <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
+      <header class="flixer-modal-header flex shrink-0 items-start justify-between gap-4">
         <div>
           <ModalTitle class="text-xl font-semibold">{{ t('admin.libraries.browseFolders') }}</ModalTitle>
           <ModalDescription class="sr-only">{{ t('admin.libraries.pickerDescription') }}</ModalDescription>
@@ -186,7 +186,7 @@ onMounted(async () => {
           </ul>
         </section>
 
-        <footer class="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <footer class="flixer-modal-actions mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <p class="text-sm text-flixer-muted">{{ t('admin.libraries.selectFoldersHint') }}</p>
           <div class="flex justify-end gap-2">
             <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-medium transition hover:bg-white/10" @click="close()">{{ t('admin.libraries.cancel') }}</button>

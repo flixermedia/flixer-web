@@ -66,9 +66,11 @@ async function shareLink() {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-y-auto rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="text-lg font-semibold text-white">{{ t('social.friendInvite.title') }}</ModalTitle>
-      <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">{{ t('social.friendInvite.optionsDescription') }}</ModalDescription>
-      <div v-if="!link" class="mt-5 space-y-3">
+      <header class="flixer-modal-header">
+        <ModalTitle class="text-lg font-semibold text-white">{{ t('social.friendInvite.title') }}</ModalTitle>
+        <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">{{ t('social.friendInvite.optionsDescription') }}</ModalDescription>
+      </header>
+      <div v-if="!link" class="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
         <label class="flex cursor-pointer items-start gap-3 rounded border border-flixer-border p-3 hover:bg-white/5">
           <input v-model="mode" type="radio" value="once" class="mt-1 accent-flixer-accent" />
           <span
@@ -101,22 +103,22 @@ async function shareLink() {
         </label>
         <p v-if="mode === 'expires' && (!Number.isInteger(duration) || duration < 1 || duration > (durationUnit === 'days' ? 365 : 8760))" class="text-sm text-red-400" role="alert">{{ t('social.friendInvite.durationInvalid') }}</p>
         <p v-if="error" class="text-sm text-red-400" role="alert">{{ t('social.friendInvite.createFailed') }}</p>
-        <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-          <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</button>
-          <button type="button" class="h-11 rounded bg-white px-5 text-sm font-bold text-flixer-background disabled:opacity-50" :disabled="busy || (mode === 'expires' && (!Number.isInteger(duration) || duration < 1 || duration > (durationUnit === 'days' ? 365 : 8760)))" @click="createLink">{{ busy ? t('social.saving') : t('social.friendInvite.createLink') }}</button>
-        </div>
       </div>
-      <div v-else class="mt-5 space-y-4">
+      <div v-else class="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
         <label class="block space-y-2 text-sm font-medium text-white">
           <span>{{ t('social.friendInvite.link') }}</span>
           <input :value="link" readonly class="w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" />
         </label>
         <p v-if="error" class="text-sm text-red-400" role="alert">{{ t('social.friendInvite.shareFailed') }}</p>
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.close') }}</button>
-          <button v-if="shareAvailable" type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="shareLink">{{ t('social.friendInvite.share') }}</button>
-          <button type="button" class="h-11 rounded bg-white px-5 text-sm font-bold text-flixer-background" @click="copyLink">{{ copied ? t('social.friendInvite.copied') : t('social.friendInvite.copyLink') }}</button>
-        </div>
+      </div>
+      <div v-if="!link" class="flixer-modal-actions mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</button>
+        <button type="button" class="h-11 rounded bg-flixer-primary px-5 text-sm font-bold text-white disabled:opacity-50" :disabled="busy || (mode === 'expires' && (!Number.isInteger(duration) || duration < 1 || duration > (durationUnit === 'days' ? 365 : 8760)))" @click="createLink">{{ busy ? t('social.saving') : t('social.friendInvite.createLink') }}</button>
+      </div>
+      <div v-else class="flixer-modal-actions mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.close') }}</button>
+        <button v-if="shareAvailable" type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="shareLink">{{ t('social.friendInvite.share') }}</button>
+        <button type="button" class="h-11 rounded bg-flixer-primary px-5 text-sm font-bold text-white" @click="copyLink">{{ copied ? t('social.friendInvite.copied') : t('social.friendInvite.copyLink') }}</button>
       </div>
     </ModalContent>
   </ModalRoot>

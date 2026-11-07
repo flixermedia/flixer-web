@@ -22,10 +22,9 @@ const categories = ['all', ...WIDGET_CATEGORIES] as const
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex h-[min(36rem,calc(100dvh-2rem))] w-full max-w-4xl flex-col overflow-hidden rounded border border-flixer-border bg-flixer-surface text-flixer-text shadow-2xl shadow-black/60">
-      <div class="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <header class="flex shrink-0 items-center justify-between gap-4 border-b border-flixer-border px-6 py-5">
         <ModalTitle class="text-lg font-semibold">{{ t('admin.dashboard.addPanel') }}</ModalTitle>
-        <button type="button" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('admin.dashboard.close') }}</button>
-      </div>
+      </header>
       <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav class="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 p-3 sm:w-52 sm:flex-col sm:overflow-y-auto sm:border-r sm:border-b-0" :aria-label="t('admin.dashboard.categories')">
           <button v-for="item in categories" :key="item" type="button" class="flex items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="category === item ? 'bg-flixer-primary/25 font-semibold text-flixer-accent' : 'text-flixer-muted hover:bg-white/10 hover:text-flixer-text'" :aria-pressed="category === item" @click="category = item">
@@ -47,6 +46,9 @@ const categories = ['all', ...WIDGET_CATEGORIES] as const
           </ul>
         </div>
       </div>
+      <footer class="flex shrink-0 justify-end border-t border-flixer-border px-6 py-4">
+        <button type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('admin.dashboard.close') }}</button>
+      </footer>
     </ModalContent>
   </ModalRoot>
 </template>

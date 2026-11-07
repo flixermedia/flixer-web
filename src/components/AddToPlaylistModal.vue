@@ -100,8 +100,10 @@ onMounted(() => void load())
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="text-lg font-semibold text-white">{{ t('social.addToPlaylist') }}</ModalTitle>
-      <ModalDescription class="mt-1 truncate text-sm text-flixer-muted">{{ title }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="text-lg font-semibold text-white">{{ t('social.addToPlaylist') }}</ModalTitle>
+        <ModalDescription class="mt-1 truncate text-sm text-flixer-muted">{{ title }}</ModalDescription>
+      </header>
       <div class="mt-4 min-h-0 space-y-1 overflow-y-auto p-1 -mx-1">
         <p v-if="error" class="mb-2 text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         <p v-if="!playlists.length" class="px-2 py-3 text-sm text-flixer-muted">{{ t('social.noPlaylists') }}</p>
@@ -122,7 +124,9 @@ onMounted(() => void load())
         <input v-model="name" maxlength="100" class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('social.playlistName')" :aria-label="t('social.playlistName')" />
         <button type="submit" class="rounded bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50" :disabled="!name.trim() || busy">{{ t('social.create') }}</button>
       </form>
-      <button type="button" class="mt-5 h-11 rounded border border-flixer-border px-4 text-sm font-semibold text-flixer-text hover:bg-white/5" @click="close()">{{ t('common.close') }}</button>
+      <div class="flixer-modal-actions mt-5 flex justify-end">
+        <button type="button" class="h-11 rounded border border-flixer-border px-4 text-sm font-semibold text-flixer-text hover:bg-white/5" @click="close()">{{ t('common.close') }}</button>
+      </div>
     </ModalContent>
   </ModalRoot>
 </template>

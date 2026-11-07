@@ -135,8 +135,10 @@ async function remove() {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.users.editTitle', { name: user.displayName }) }}</ModalTitle>
-      <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.users.editDescription') }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('admin.users.editTitle', { name: user.displayName }) }}</ModalTitle>
+        <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.users.editDescription') }}</ModalDescription>
+      </header>
 
       <div class="mt-5 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="flex items-center gap-4">
@@ -193,7 +195,7 @@ async function remove() {
         </div>
       </div>
 
-      <div class="mt-5 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div class="flixer-modal-actions mt-5 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button type="button" :class="secondaryButton" :disabled="busy" @click="changed ? confirm(true) : close()">{{ t('common.cancel') }}</button>
         <button type="submit" form="edit-user-form" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="!canSave">{{ t('common.save') }}</button>
       </div>

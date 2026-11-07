@@ -25,8 +25,10 @@ async function select(code: string) {
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('languageModal.title') }}</ModalTitle>
-      <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('languageModal.description') }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="shrink-0 text-lg font-semibold">{{ t('languageModal.title') }}</ModalTitle>
+        <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('languageModal.description') }}</ModalDescription>
+      </header>
 
       <input v-model="query" type="search" :placeholder="t('languageModal.search')" :aria-label="t('languageModal.search')" autocomplete="off" class="mt-5 w-full shrink-0 rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text placeholder:text-flixer-muted focus-visible:outline-2 focus-visible:outline-flixer-accent" />
 
@@ -51,7 +53,7 @@ async function select(code: string) {
         <a href="https://hosted.weblate.org/projects/flixer/" target="_blank" rel="noopener" class="text-flixer-accent hover:underline">{{ t('settings.language.weblate') }}</a>
       </p>
 
-      <div class="mt-5 flex shrink-0 justify-end">
+      <div class="flixer-modal-actions mt-5 flex shrink-0 justify-end">
         <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('languageModal.close') }}</button>
       </div>
     </ModalContent>

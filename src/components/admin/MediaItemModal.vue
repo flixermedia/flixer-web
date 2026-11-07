@@ -216,8 +216,10 @@ void load()
 <template>
   <ModalRoot class="flex items-center justify-center p-4">
     <ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
-      <ModalTitle class="shrink-0 text-lg font-semibold">{{ item ? t('admin.media.editTitle', { title: item.title }) : t('admin.media.edit') }}</ModalTitle>
-      <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.media.modalDescription') }}</ModalDescription>
+      <header class="flixer-modal-header">
+        <ModalTitle class="shrink-0 text-lg font-semibold">{{ item ? t('admin.media.editTitle', { title: item.title }) : t('admin.media.edit') }}</ModalTitle>
+        <ModalDescription class="mt-1 shrink-0 text-sm leading-6 text-flixer-muted">{{ t('admin.media.modalDescription') }}</ModalDescription>
+      </header>
 
       <p v-if="loadError" role="alert" class="mt-4 text-sm text-red-300">{{ loadError }}</p>
 
@@ -313,7 +315,7 @@ void load()
         <p v-if="saveError" role="alert" class="text-sm text-red-300">{{ saveError }}</p>
       </form>
 
-      <div class="mt-5 flex shrink-0 justify-end gap-2">
+      <div class="flixer-modal-actions mt-5 flex shrink-0 justify-end gap-2">
         <button v-if="hasChapterEditor" type="button" class="mr-auto rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="openChapters">{{ t('mediaItem.manageChapters') }}</button>
         <button v-if="item" type="submit" form="media-item-form" :disabled="!canSave" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50">{{ t('admin.media.save') }}</button>
         <button type="button" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15" @click="changed ? confirm(true) : close()">{{ t('admin.media.cancel') }}</button>
