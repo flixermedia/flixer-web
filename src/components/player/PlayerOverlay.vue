@@ -13,6 +13,9 @@ import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import { getGuideChannelPlaybackInfo, type EpgChannel, type GuidePlaybackInfo } from '../../api/guide'
 import LiveGuidePanel from './LiveGuidePanel.vue'
+import AdvertisementPlayer from './AdvertisementPlayer.vue'
+import type { PlaybackAdvertisement } from '../../api/advertisements'
+import type { ViewingTarget } from '../../api/analytics'
 
 const NativeVideoPlayer = defineAsyncComponent(() => import('./NativeVideoPlayer.vue'))
 
@@ -31,6 +34,10 @@ const switchingChannelId = ref('')
 const liveGuideError = ref('')
 const startAt = ref(0)
 const mini = ref(props.startMini)
+const activeAd = ref<PlaybackAdvertisement | null>(null)
+const adBreaks = ref<PlaybackAdvertisement[]>([])
+const consumedBreaks = new Set<number>()
+const resumePlaying = ref(props.autoplay)
 const party = useParty()
 const nativePlayback = isNativeApp()
 const videoPlayer = ref<{ getState: () => { playing: boolean; position: number }; applyRemote: (state: { playing: boolean; position: number }) => void }>()
@@ -47,6 +54,9 @@ function isGuidePlayback(value: PlaybackInfo | GuidePlaybackInfo | null): value 
 const livePlayback = computed(() => (props.livePlayback && isGuidePlayback(playback.value) ? playback.value : null))
 const isLive = computed(() => Boolean(livePlayback.value))
 const currentTitle = computed(() => (isLive.value ? liveTitle.value : props.title))
+const analyticsTarget = computed<ViewingTarget>(() => livePlayback.value
+  ? { kind: 'live', channelId: livePlayback.value.mediaSource.id, channelName: liveTitle.value }
+  : { kind: 'video', itemId: props.itemId })
 
 /** Closing the player as host ends the party for everyone. */
 function closeOverlay() {
@@ -71,24 +81,50 @@ function playNext() {
 }
 
 function onControl(state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }) {
-  if (videoParty.value && party.isHost.value) {
+  if (!activeAd.value && videoParty.value && party.isHost.value) {
     if (!party.sendVideoCommand({ action: state.action, position: state.position }, props.itemId)) syncVideo()
   }
 }
 
 function syncVideo() {
   const state = party.latest.value
-  if (!videoParty.value || !state || !videoPlayer.value) return
+  if (activeAd.value || !videoParty.value || !state || !videoPlayer.value) return
   videoPlayer.value.applyRemote({ playing: state.party.playing, position: expectedPosition(state) })
 }
 
-watch([() => party.latest.value, videoPlayer], syncVideo)
+watch([() => party.latest.value, videoPlayer], syncVideo, { flush: 'post' })
 
 let partyBeat: ReturnType<typeof setInterval> | undefined
 
 function onProgress(position: number, duration: number) {
   if (isLive.value) return
   void saveWatchProgress(props.itemId, position, duration).catch(() => {})
+}
+
+function onPosition(position: number) {
+  if (activeAd.value || !Number.isFinite(position)) return
+  const ad = adBreaks.value.find((entry) => entry.atSeconds > 0 && entry.atSeconds <= position && !consumedBreaks.has(entry.atSeconds))
+  if (!ad) return
+  consumedBreaks.add(ad.atSeconds)
+  const state = videoPlayer.value?.getState()
+  startAt.value = state?.position ?? position
+  resumePlaying.value = state?.playing ?? true
+  if (videoParty.value && party.isHost.value) {
+    if (resumePlaying.value) party.sendVideoCommand({ action: 'pause', position: startAt.value }, props.itemId)
+    party.sendVideoCommand({ action: 'seek', position: startAt.value }, props.itemId)
+  }
+  if (mini.value) setMini(false)
+  activeAd.value = ad
+}
+
+function finishAd() {
+  const state = party.latest.value
+  if (videoParty.value && party.isGuest.value && state && state.party.item.id === props.itemId) {
+    startAt.value = expectedPosition(state)
+    resumePlaying.value = state.party.playing
+  }
+  activeAd.value = null
+  if (videoParty.value && party.isHost.value && resumePlaying.value) party.sendVideoCommand({ action: 'play', position: startAt.value }, props.itemId)
 }
 
 // Explicit geometry in both states so the move to the corner can animate.
@@ -125,7 +161,7 @@ async function switchLiveChannel(channel: EpgChannel) {
 
 function onKeydown(event: KeyboardEvent) {
   // While in browser fullscreen, Escape only leaves fullscreen.
-  if (nativePlayback || event.key !== 'Escape' || document.fullscreenElement) return
+  if ((nativePlayback && adBreaks.value.length === 0) || activeAd.value || event.key !== 'Escape' || document.fullscreenElement) return
   if (mini.value) closeOverlay()
   else setMini(true)
 }
@@ -142,6 +178,10 @@ async function load(itemId: string, retryAfterPayment = true) {
   info.value = null
   error.value = ''
   startAt.value = 0
+  activeAd.value = null
+  adBreaks.value = []
+  consumedBreaks.clear()
+  resumePlaying.value = props.autoplay
   if (props.livePlayback) {
     playback.value = props.livePlayback
     info.value = {
@@ -172,6 +212,19 @@ async function load(itemId: string, retryAfterPayment = true) {
   if (itemId !== props.itemId) return
   startAt.value = resume
   info.value = streamInfo
+  adBreaks.value = next.advertisements ?? []
+  for (const ad of adBreaks.value) if (ad.atSeconds > 0 && ad.atSeconds <= resume) consumedBreaks.add(ad.atSeconds)
+  const preroll = adBreaks.value.find((ad) => ad.atSeconds === 0)
+  if (preroll) {
+    consumedBreaks.add(0)
+    if (mini.value) setMini(false)
+    if (videoParty.value && party.isHost.value && party.latest.value?.party.playing) {
+      resumePlaying.value = true
+      party.sendVideoCommand({ action: 'pause', position: startAt.value }, props.itemId)
+      party.sendVideoCommand({ action: 'seek', position: startAt.value }, props.itemId)
+    }
+    activeAd.value = preroll
+  }
   playback.value = next
 }
 
@@ -218,14 +271,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="currentTitle">
-    <NativeVideoPlayer v-if="playback && info && nativePlayback && !isLive" ref="videoPlayer" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :container="playback.mediaSource.container" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="props.autoplay" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
-    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :live="isLive" :live-guide-open="liveGuideOpen" :container="container" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="props.autoplay" :chapters="chapters" :segments="segments" :auto-skip-intro-credits="autoSkipIntroCredits" :next-label="nextLabel" show-back allow-mini :mini="mini" @toggle-mini="setMini(!mini)" @toggle-live-guide="liveGuideOpen = !liveGuideOpen" @auto-skip-intro-credits-change="updateAutoSkipIntroCredits" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <AdvertisementPlayer v-if="activeAd" :key="`${activeAd.id}-${activeAd.atSeconds}`" :ad="activeAd" :item-id="itemId" :autoplay="resumePlaying" @started="resumePlaying = true" @done="finishAd" @close="closeOverlay()" />
+    <NativeVideoPlayer v-else-if="playback && info && nativePlayback && !isLive && adBreaks.length === 0" ref="videoPlayer" :analytics-target="analyticsTarget" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :container="playback.mediaSource.container" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="resumePlaying" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :analytics-target="analyticsTarget" :live="isLive" :live-guide-open="liveGuideOpen" :container="container" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="resumePlaying" :chapters="chapters" :segments="segments" :auto-skip-intro-credits="autoSkipIntroCredits" :next-label="nextLabel" show-back allow-mini :mini="mini" @ready="syncVideo" @position="onPosition" @toggle-mini="setMini(!mini)" @toggle-live-guide="liveGuideOpen = !liveGuideOpen" @auto-skip-intro-credits-change="updateAutoSkipIntroCredits" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <LiveGuidePanel v-if="livePlayback && liveGuideOpen && !mini" :current-channel-id="livePlayback.mediaSource.id" :switching-channel-id="switchingChannelId" :switch-error="liveGuideError" @close="liveGuideOpen = false" @select-channel="switchLiveChannel" />
-    <div v-else class="relative size-full">
+    <div v-else-if="!activeAd && !(playback && info)" class="relative size-full">
       <p v-if="error" class="absolute inset-0 grid place-items-center p-6 text-center text-sm text-red-400" role="alert">{{ error }}</p>
       <PlayerSkeleton v-else />
     </div>
-    <p v-if="error && playback && info && nativePlayback && !isLive" class="absolute inset-x-4 bottom-4 rounded bg-red-950/90 p-3 text-center text-sm text-red-100" role="alert">{{ error }}</p>
-    <button v-if="(!(playback && info) || (error && nativePlayback && !isLive)) && !mini" type="button" class="absolute left-4 top-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
+    <p v-if="error && playback && info && nativePlayback && !isLive && adBreaks.length === 0" class="absolute inset-x-4 bottom-4 rounded bg-red-950/90 p-3 text-center text-sm text-red-100" role="alert">{{ error }}</p>
+    <button v-if="(!(playback && info) || (error && nativePlayback && !isLive && adBreaks.length === 0)) && !mini" type="button" class="absolute left-4 top-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
   </div>
 </template>

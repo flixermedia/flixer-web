@@ -5,6 +5,9 @@ import { VideoPlayer, type VideoSubtitle, type capVideoPlayerResult } from '@cap
 import { buildHlsUrl, buildStreamUrl, getStreamInfo, getSubtitleTracks, type StreamInfo } from '../../api'
 import { preferredAudioTrack, selectedAudioStreamIndex } from '../../composables/audioTracks'
 import { catchError } from '../../utils/catchError'
+import type { ViewingTarget } from '../../api/analytics'
+import { ViewingTracker } from './viewingTracker'
+import { WebhookPlaybackTracker } from './webhookPlaybackTracker'
 
 const props = withDefaults(
   defineProps<{
@@ -18,6 +21,7 @@ const props = withDefaults(
     startAt?: number
     nextLabel?: string
     locked?: boolean
+    analyticsTarget?: ViewingTarget
   }>(),
   { autoplay: true, startAt: 0, defaultAudioLanguage: '' },
 )
@@ -38,6 +42,8 @@ const position = ref(0)
 const duration = ref(props.info.source.durationSeconds)
 const playing = ref(false)
 const ready = ref(false)
+const viewing = new ViewingTracker()
+const webhookPlayback = new WebhookPlaybackTracker()
 
 let offset = 0
 let seekOnReady = 0
@@ -147,6 +153,7 @@ async function onReady(event: { currentTime?: number | string; fromPlayerId?: st
 function onPlay(event: { currentTime?: number | string; fromPlayerId?: string }) {
   if (!isCurrentPlayer(event)) return
   eventPosition(event.currentTime)
+  webhookPlayback.play(props.analyticsTarget, absolutePosition())
   playing.value = true
   emitControl('play')
 }
@@ -154,7 +161,9 @@ function onPlay(event: { currentTime?: number | string; fromPlayerId?: string })
 function onPause(event: { currentTime?: number | string; fromPlayerId?: string }) {
   if (!isCurrentPlayer(event)) return
   eventPosition(event.currentTime)
+  webhookPlayback.pause(absolutePosition())
   playing.value = false
+  viewing.sample(props.analyticsTarget, absolutePosition(), false)
   emitProgress()
   emitControl('pause')
 }
@@ -182,7 +191,9 @@ async function closeForNext() {
 async function onEnded(event: { currentTime?: number | string; fromPlayerId?: string }) {
   if (!isCurrentPlayer(event)) return
   eventPosition(event.currentTime)
+  webhookPlayback.stop(absolutePosition())
   playing.value = false
+  viewing.finish()
   emitProgress()
   emitControl('pause')
   if (!props.nextLabel) return
@@ -198,7 +209,9 @@ async function onEnded(event: { currentTime?: number | string; fromPlayerId?: st
 function onExit(event: { currentTime?: number | string; fromPlayerId?: string }) {
   if (!isCurrentPlayer(event)) return
   eventPosition(event.currentTime)
+  webhookPlayback.stop(absolutePosition())
   playing.value = false
+  viewing.finish()
   playerOpen = false
   stopPolling()
   emitProgress()
@@ -215,6 +228,7 @@ function startPolling() {
         if (!result.result) return
         eventPosition(result.value)
         const currentPosition = absolutePosition()
+        viewing.sample(props.analyticsTarget, currentPosition, playing.value && ready.value)
         if (!props.locked && !remoteChange && lastPolledPosition !== null && Math.abs(currentPosition - lastPolledPosition) > REMOTE_DRIFT_SECONDS) {
           emitControl('seek')
         }
@@ -398,6 +412,8 @@ defineExpose({ getState, applyRemote })
 onMounted(() => void attachListenersAndStart())
 
 onBeforeUnmount(() => {
+  webhookPlayback.stop(absolutePosition())
+  viewing.finish()
   disposed = true
   stopPolling()
   if (playerOpen) {

@@ -6,6 +6,7 @@ import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getItemPlaybackInfo,
 import { parseLrc, type ParsedLyrics } from "./lrc";
 import { catchError } from "../utils/catchError";
 import { handlePaymentRequired } from "./usePayments";
+import { WebhookPlaybackTracker } from "../components/player/webhookPlaybackTracker";
 
 export interface QueueTrack {
 	id: string;
@@ -78,6 +79,7 @@ function detachHls() {
 	hlsPlay = false;
 }
 let listeningTrackId: string | null = null;
+const webhookPlayback = new WebhookPlaybackTracker();
 let listeningInterval: ReturnType<typeof setInterval> | undefined;
 let partyControlHandler: ((command: PartyAudioCommand) => boolean) | undefined;
 
@@ -109,6 +111,7 @@ async function cacheNativeNavigationArtwork(track: QueueTrack): Promise<string |
 
 function reportPlaying(itemId: string) {
 	if (listeningTrackId !== itemId) reportStopped();
+	webhookPlayback.play({ kind: "music", itemId }, currentTime.value);
 	listeningTrackId = itemId;
 	void reportListening(itemId, "playing").catch(() => undefined);
 	if (listeningInterval) clearInterval(listeningInterval);
@@ -118,6 +121,7 @@ function reportPlaying(itemId: string) {
 }
 
 function reportStopped() {
+	webhookPlayback.pause(currentTime.value);
 	if (!listeningTrackId) return;
 	const itemId = listeningTrackId;
 	listeningTrackId = null;
@@ -577,6 +581,7 @@ function stop() {
 	if (requestPartyControl({ action: "pause" })) return;
 	loadToken++;
 	reportStopped();
+	webhookPlayback.stop(currentTime.value);
 	detachHls();
 	audio?.pause();
 	if (audio) audio.playbackRate = 1;
@@ -620,6 +625,7 @@ if (audio) {
 	audio.addEventListener("play", updatePositionState);
 	audio.addEventListener("ended", () => {
 		reportStopped();
+		webhookPlayback.stop(currentTime.value);
 		next(true);
 	});
 	audio.addEventListener("error", () => {

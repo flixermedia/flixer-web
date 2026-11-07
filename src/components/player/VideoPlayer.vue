@@ -2,6 +2,7 @@
 import * as dashjs from 'dashjs'
 import Hls from 'hls.js'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { playerActionButton } from './playerActionStyles'
 import { useI18n } from 'vue-i18n'
 import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
 import { useParty } from '../../composables/useParty'
@@ -11,11 +12,17 @@ import { audioTrackLabel, preferredAudioTrack, selectedAudioStreamIndex } from '
 import { thumbnailAt } from '../../composables/trickplay'
 import { cueTextAt, languageName, parseVtt, type SubtitleCue } from '../../composables/subtitles'
 import { catchError } from '../../utils/catchError'
+import type { ViewingTarget } from '../../api/analytics'
+import { ViewingTracker } from './viewingTracker'
+import { WebhookPlaybackTracker } from './webhookPlaybackTracker'
 
 const props = withDefaults(
   defineProps<{
     streamUrl: string
     info: StreamInfo
+    /** Plays a standalone video URL without library-specific streamer features. */
+    standalone?: boolean
+    analyticsTarget?: ViewingTarget
     live?: boolean
     container?: 'm3u8' | 'mpd'
     title?: string
@@ -52,6 +59,8 @@ const emit = defineEmits<{
   next: []
   error: [message: string]
   progress: [position: number, duration: number]
+  position: [position: number]
+  ready: []
   /** Playback changed (play, pause or seek); used to keep a watch party in sync. */
   control: [state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }]
 }>()
@@ -87,6 +96,8 @@ const SEGMENT_END_GUARD_S = 1
 
 const root = ref<HTMLElement>()
 const video = ref<HTMLVideoElement>()
+const viewing = new ViewingTracker()
+const webhookPlayback = new WebhookPlaybackTracker()
 const bar = ref<HTMLElement>()
 
 // Quality 0 means the original resolution.
@@ -133,7 +144,7 @@ function toggleSettingsMenu() {
   partyState.setChatOpen(false)
 }
 
-const inVideoParty = computed(() => partyState.party.value?.kind === 'video')
+const inVideoParty = computed(() => !props.standalone && partyState.party.value?.kind === 'video')
 const isFullscreen = ref(false)
 const isPip = ref(false)
 const pipSupported = typeof document !== 'undefined' && document.pictureInPictureEnabled === true
@@ -154,7 +165,7 @@ let frame = 0
 let lastPointerType = 'mouse'
 
 const nativeHls = supportsNativeHls()
-const compat = props.live ? '' : detectCompatProfile()
+const compat = props.live || props.standalone ? '' : detectCompatProfile()
 const directPlay = computed(() => !compat && height.value === 0 && streamInfo.value.playMethod === 'DirectPlay')
 const useHls = computed(() => !props.live && !compat && (nativeHls || Hls.isSupported()) && !directPlay.value)
 // Direct play and HLS both use the browser's own clock and seeking.
@@ -252,7 +263,7 @@ async function selectSubtitle(id: string) {
 }
 
 async function loadTrickplay() {
-  if (props.live) {
+  if (props.live || props.standalone) {
     trickplay.value = null
     return
   }
@@ -273,7 +284,7 @@ function warmTrickplay(seconds: number) {
 }
 
 async function loadSubtitleTracks() {
-  if (props.live) {
+  if (props.live || props.standalone) {
     subtitleTracks.value = []
     subtitleId.value = ''
     subtitleCues.value = []
@@ -384,7 +395,7 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
   const previousInfo = streamInfo.value
   let nextInfo = props.info
   const audioTrack = selectedAudioTrackQuery.value
-  const needsKeyframe = !props.live && !compat && height.value === 0 && start > 0 && previousInfo.playMethod !== 'DirectPlay'
+  const needsKeyframe = !props.live && (!compat || compat === 'mp3') && height.value === 0 && start > 0 && (compat === 'mp3' || previousInfo.playMethod !== 'DirectPlay')
   if (!props.live && (audioTrack !== undefined || needsKeyframe)) {
     const [error, inspected] = await catchError(Promise.resolve().then(() => getStreamInfo(props.streamUrl, { height: height.value || undefined, start, audioTrack, compat })))
     if (token !== loadToken) return false
@@ -475,7 +486,7 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
       emit('error', errorMessage.value)
     })
     hls.attachMedia(el)
-  } else if (props.live) {
+  } else if (props.live || props.standalone) {
     el.src = props.streamUrl
   } else {
     el.src = useHls.value ? buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack }) : buildStreamUrl(props.streamUrl, { height: isNative.value ? undefined : height.value || undefined, start: isNative.value ? undefined : start, audioTrack, compat })
@@ -675,7 +686,14 @@ function emitControl(action: 'play' | 'pause' | 'seek') {
 
 function onSeeked() {
   sync()
+  emit('position', position.value)
   emitControl('seek')
+}
+
+function onTimeUpdate() {
+  sync()
+  viewing.sample(props.analyticsTarget, position.value, Boolean(video.value && !video.value.paused && !video.value.seeking && !waiting.value))
+  emit('position', position.value)
 }
 
 function getState() {
@@ -733,6 +751,7 @@ function applyRemote(state: { playing: boolean; position: number }) {
 defineExpose({ getState, applyRemote })
 
 function onPlay() {
+  webhookPlayback.play(props.analyticsTarget, position.value)
   paused.value = false
   ended.value = false
   startLoop()
@@ -753,6 +772,8 @@ function reportProgress() {
 }
 
 function onPause() {
+  webhookPlayback.pause(position.value)
+  viewing.sample(props.analyticsTarget, position.value, false)
   paused.value = true
   stopLoop()
   sync()
@@ -771,6 +792,8 @@ const nextCountdown = computed(() => {
 })
 
 function onEnded() {
+  webhookPlayback.stop(position.value)
+  viewing.finish()
   ended.value = true
   paused.value = true
   stopLoop()
@@ -817,7 +840,9 @@ function onVideoError() {
 function onPlaybackReady() {
   clearTimeout(dashStartupTimer)
   dashStartupTimer = undefined
+  const wasWaiting = waiting.value
   waiting.value = false
+  if (wasWaiting) emit('ready')
 }
 
 function retry() {
@@ -968,6 +993,7 @@ watch(menuOpen, () => {
 watch(
   () => props.streamUrl,
   () => {
+    viewing.finish()
     height.value = 0
     loadSource({ start: 0, resume: props.autoplay })
     void loadSubtitleTracks()
@@ -997,6 +1023,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  webhookPlayback.stop(position.value)
+  viewing.finish()
   clearTimeout(hideTimer)
   clearTimeout(dashStartupTimer)
   stopProgressTimer()
@@ -1018,7 +1046,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" data-haptic class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown && !(partyState.chatOpen.value && inVideoParty) }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
-    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeked="onSeeked" @ended="onEnded" @waiting="waiting = true" @playing="onPlaybackReady" @canplay="onPlaybackReady" @timeupdate="sync" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
+    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeking="viewing.sample(analyticsTarget, position, false)" @seeked="onSeeked" @ended="onEnded" @waiting="waiting = true; viewing.sample(analyticsTarget, position, false)" @playing="onPlaybackReady" @canplay="onPlaybackReady" @timeupdate="onTimeUpdate" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
       <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>
@@ -1070,7 +1098,7 @@ onBeforeUnmount(() => {
       <span class="block text-xs font-normal opacity-80">{{ t('player.nextEpisodeIn', { seconds: nextCountdown }) }}</span>
       <span class="block truncate">{{ nextLabel }}</span>
     </button>
-    <button v-if="skipButtonSegment && !mini" type="button" class="absolute bottom-28 right-4 z-10 flex items-center gap-4 rounded border border-white/40 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/50 backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-8" @click="skipSegment(skipButtonSegment)">
+    <button v-if="skipButtonSegment && !mini" type="button" :class="playerActionButton" class="absolute bottom-28 right-4 z-10 flex items-center gap-4 sm:right-8" @click="skipSegment(skipButtonSegment)">
       <span>{{ t(`player.skip.${skipButtonSegment.type}`) }}</span>
       <span v-if="autoSkipCountdown !== null" class="text-base font-bold tabular-nums" :aria-label="t('player.skipCountdown', { seconds: autoSkipCountdown })" aria-live="off">{{ autoSkipCountdown }}</span>
     </button>
@@ -1083,7 +1111,7 @@ onBeforeUnmount(() => {
       <PartyPanel @left="partyMenuOpen = false" />
     </div>
 
-    <div v-if="menuOpen && controlsShown && !live" class="absolute bottom-20 right-3 z-20 max-h-[70%] w-64 overflow-y-auto rounded border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
+    <div v-if="menuOpen && controlsShown && !live && !standalone" class="absolute bottom-20 right-3 z-20 max-h-[70%] w-64 overflow-y-auto rounded border border-flixer-border bg-flixer-surface/95 p-2 shadow-2xl shadow-black/60 backdrop-blur sm:right-6" role="menu" :aria-label="t('player.playbackSettings')">
       <template v-if="audioTrackOptions.length > 1">
         <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('player.audio') }}</p>
         <button v-for="option in audioTrackOptions" :key="option.track.index" type="button" role="menuitemradio" :aria-checked="selectedAudioTrackIndex === option.track.index" class="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm transition hover:bg-white/10" :class="selectedAudioTrackIndex === option.track.index ? 'text-flixer-accent' : 'text-flixer-text'" @click="setAudioTrack(option.track.index)">
@@ -1189,7 +1217,7 @@ onBeforeUnmount(() => {
           <span class="absolute right-1 top-1 rounded-full bg-flixer-accent px-1 text-[9px] font-bold leading-4 text-black">{{ partyState.party.value?.members.length }}</span>
         </button>
 
-        <button v-if="!live" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" :aria-label="t('player.playbackSettings')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="toggleSettingsMenu">
+        <button v-if="!live && !standalone" type="button" class="grid size-10 place-items-center rounded text-white/90 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': menuOpen }" :aria-label="t('player.playbackSettings')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="toggleSettingsMenu">
           <Icon icon="lucide:settings" class="size-6" aria-hidden="true" />
         </button>
 

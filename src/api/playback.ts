@@ -3,8 +3,10 @@ import axios from 'axios'
 import { api } from './client'
 import { resolveServerResourceUrl } from '../platform/serverConnection'
 import { catchError } from '../utils/catchError'
-import type { PlaybackInfo, SampleVideo } from 'flixer-api-client'
-export type { NextEpisode, PlaybackInfo, PlayerChapter, PlayerSegment, SampleVideo, SegmentType } from 'flixer-api-client'
+import type { PlaybackInfo as BasePlaybackInfo, SampleVideo } from 'flixer-api-client'
+import type { PlaybackAdvertisement } from './advertisements'
+export type { NextEpisode, PlayerChapter, PlayerSegment, SampleVideo, SegmentType } from 'flixer-api-client'
+export type PlaybackInfo = BasePlaybackInfo & { advertisements?: PlaybackAdvertisement[] }
 
 export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
 
@@ -29,14 +31,15 @@ export interface StreamInfo {
   keyframeStart?: number
 }
 
-export type CompatProfile = '' | 'vp9' | 'vp8'
+export type CompatProfile = '' | 'vp9' | 'vp8' | 'mp3'
 
-// Browsers built without H.264/AAC (some embedded Chromium builds) can't play the default HLS or MP4 output, so ask the streamer for WebM instead.
+// Some embedded browsers lack AAC support, so request an alternate audio or video format.
 export function detectCompatProfile(): CompatProfile {
   if (typeof document === 'undefined') return ''
   const video = document.createElement('video')
   const mseAac = typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('video/mp4; codecs="avc1.64001f,mp4a.40.2"')
   if (mseAac || video.canPlayType('video/mp4; codecs="avc1.64001f,mp4a.40.2"') !== '') return ''
+  if (video.canPlayType('video/mp4; codecs="avc1.64001f,mp3"') !== '') return 'mp3'
   if (video.canPlayType('video/webm; codecs="vp9,opus"') !== '') return 'vp9'
   if (video.canPlayType('video/webm; codecs="vp8,vorbis"') !== '') return 'vp8'
   return ''
@@ -94,7 +97,7 @@ export async function getSamplePlaybackInfo(id: string): Promise<PlaybackInfo> {
 
 export async function getItemPlaybackInfo(id: string): Promise<PlaybackInfo> {
   const response = await api.post<PlaybackInfo>(`/playback/items/${encodeURIComponent(id)}/playback-info`)
-  return { ...response.data, mediaSource: { ...response.data.mediaSource, streamUrl: resolveServerResourceUrl(response.data.mediaSource.streamUrl) } }
+  return { ...response.data, advertisements: response.data.advertisements?.map((ad) => ({ ...ad, streamUrl: resolveServerResourceUrl(ad.streamUrl) })), mediaSource: { ...response.data.mediaSource, streamUrl: resolveServerResourceUrl(response.data.mediaSource.streamUrl) } }
 }
 
 export interface PlayerSubtitle {

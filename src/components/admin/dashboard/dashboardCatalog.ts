@@ -7,6 +7,8 @@ export const WIDGET_CATALOG = [
   { id: 'server', category: 'overview', w: 1, h: 4, keywords: ['version', 'node', 'os', 'streamer', 'indexer'] },
   { id: 'storage', category: 'overview', w: 1, h: 3, keywords: ['disk', 'space', 'size'] },
   { id: 'activity', category: 'overview', w: 2, h: 3, keywords: ['watched', 'history', 'recent'] },
+  { id: 'ad-analytics', category: 'overview', w: 1, h: 2, keywords: ['ads', 'advertising', 'views', 'analytics'] },
+  { id: 'viewing-analytics', category: 'overview', w: 1, h: 3, keywords: ['video', 'live', 'viewing', 'sessions', 'analytics'] },
   { id: 'uptime', category: 'overview', w: 1, h: 2, keywords: ['version', 'running', 'time', 'node'] },
   { id: 'streams', category: 'streaming', w: 3, h: 4, keywords: ['sessions', 'playback', 'cancel', 'transcode'] },
   { id: 'transcoding', category: 'streaming', w: 1, h: 2, keywords: ['ffmpeg', 'slots', 'load', 'encode'] },

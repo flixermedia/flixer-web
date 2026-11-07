@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { fn, mocked } from "storybook/test";
+import { expect, fn, mocked, userEvent, waitFor } from "storybook/test";
 import { getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay } from "../../api";
+import { reportWebhookPlayback } from "../../api/userWebhooks";
+import { getAccessToken } from "../../api/client";
 import { mockPlayerHelpers, playbackInfoFixture, sampleClipUrl, streamInfoFixture, trickplayFixture } from "../../storybook/fixturesPlayer";
 import VideoPlayer from "./VideoPlayer.vue";
 
@@ -49,3 +51,42 @@ export const NoSubtitlesOrTrickplay: Story = {
 	},
 };
 export const PlaybackFails: Story = { args: { streamUrl: "/missing/stream/clip.mp4" } };
+export const WebhookPlayback: Story = {
+	args: { analyticsTarget: { kind: "video", itemId: "movie1" } },
+	beforeEach: () => { mocked(getAccessToken).mockReturnValue("story-token"); },
+	play: async ({ canvasElement }) => {
+		const video = canvasElement.querySelector("video")!;
+		await waitFor(() => expect(video.duration).toBeGreaterThan(0), { timeout: 15000 });
+		video.muted = true;
+		await video.play();
+		await waitFor(() => expect(mocked(reportWebhookPlayback).mock.calls.some(([event, target]) => event === "playback.started" && target.kind === "video" && target.itemId === "movie1")).toBe(true));
+		video.pause();
+		await waitFor(() => expect(mocked(reportWebhookPlayback).mock.calls.some(([event]) => event === "playback.paused")).toBe(true));
+	},
+};
+export const StandaloneTrailer: Story = {
+	args: {
+		standalone: true,
+		info: { playMethod: "DirectPlay", source: { videoCodec: "h264", audioCodec: "aac", width: 0, height: 0, durationSeconds: 0 }, availableHeights: [] },
+		title: "Trailer",
+		chapters: [],
+		segments: [],
+	},
+	beforeEach: () => {
+		mocked(getStreamInfo).mockClear();
+		mocked(getSubtitleTracks).mockClear();
+		mocked(getTrickplay).mockClear();
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const video = canvasElement.querySelector("video");
+		expect(video).not.toBeNull();
+		await waitFor(() => expect(video?.duration).toBeGreaterThan(0));
+		expect(video?.getAttribute("src")).toBe(sampleClipUrl);
+		expect(getStreamInfo).not.toHaveBeenCalled();
+		expect(getSubtitleTracks).not.toHaveBeenCalled();
+		expect(getTrickplay).not.toHaveBeenCalled();
+		if (video) video.muted = true;
+		await userEvent.click(canvas.getByRole("button", { name: "Play" }));
+		await waitFor(() => expect(video?.paused).toBe(false));
+	},
+};

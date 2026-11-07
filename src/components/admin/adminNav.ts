@@ -3,7 +3,9 @@ export const ADMIN_TABS = {
   dashboard: ['overview'],
   guide: ['guide'],
   library: ['libraries', 'tasks', 'media', 'transcoding'],
-  providers: ['metadata', 'subtitles', 'themes'],
+  advertising: ['advertisements'],
+  analytics: ['analyticsOverview', 'analyticsVideo', 'analyticsMusic', 'analyticsHistory', 'analyticsAdvertising', 'analyticsGuide', 'analyticsPayments'],
+  providers: ['metadata', 'subtitles', 'themes', 'trailerCache'],
   requests: ['requests'],
   issues: ['tickets', 'issueReports'],
   notifications: ['notifications', 'smtp'],
@@ -11,7 +13,7 @@ export const ADMIN_TABS = {
   payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
   apikeys: ['apikeys'],
   plugins: ['plugins'],
-  settings: ['server', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
+  settings: ['server', 'webhooks', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
@@ -65,6 +67,7 @@ export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): Ad
   const page = text(pageQuery)
   if (tab === 'requests' && page === 'tickets') return { tab: 'issues', page: 'tickets' }
   if (tab === 'settings' && page === 'issueReports') return { tab: 'issues', page: 'issueReports' }
+  if (tab === 'library' && page === 'advertisements') return { tab: 'advertising', page: 'advertisements' }
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
     const pages = pagesOf(id) as readonly string[]

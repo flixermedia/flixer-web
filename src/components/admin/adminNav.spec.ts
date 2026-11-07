@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import en from '../../locales/en.json'
 import { ADMIN_TABS, ADMIN_TAB_IDS, adminQuery, resolveAdminLocation, tabOf } from './adminNav'
 
 describe('admin navigation', () => {
@@ -21,6 +22,19 @@ describe('admin navigation', () => {
     expect(ADMIN_TABS.settings).not.toContain('issueReports')
     expect(resolveAdminLocation('issues', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
     expect(resolveAdminLocation('issues', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })
+  })
+
+  it('places trailer cache settings under providers', () => {
+    expect(ADMIN_TABS.providers).toContain('trailerCache')
+    expect(tabOf('trailerCache')).toBe('providers')
+    expect(resolveAdminLocation('providers', 'trailerCache')).toEqual({ tab: 'providers', page: 'trailerCache' })
+    expect(adminQuery('providers', 'trailerCache')).toEqual({ tab: 'providers', page: 'trailerCache' })
+  })
+
+  it('gives advertising and analytics their own categories and preserves old ad links', () => {
+    expect(tabOf('advertisements')).toBe('advertising')
+    expect(resolveAdminLocation('library', 'advertisements')).toEqual({ tab: 'advertising', page: 'advertisements' })
+    expect(ADMIN_TABS.analytics).toContain('analyticsHistory')
   })
 
   it('redirects existing issue-report admin links to the new category', () => {
@@ -46,6 +60,13 @@ describe('admin navigation', () => {
     expect(new Set(all).size).toBe(all.length)
     expect(all.every((page) => tabOf(page) !== null)).toBe(true)
     expect(ADMIN_TAB_IDS.every((tab) => ADMIN_TABS[tab].length > 0)).toBe(true)
+  })
+
+  it('provides English labels and subtitles for every admin page', () => {
+    for (const page of Object.values(ADMIN_TABS).flat()) {
+      expect(en.admin.pages).toHaveProperty(page, expect.any(String))
+      expect(en.admin.subtitles).toHaveProperty(page, expect.any(String))
+    }
   })
 
   it('leaves the default page out of the link', () => {

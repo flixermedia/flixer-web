@@ -10,6 +10,7 @@ import { useActivityFormat } from '../../composables/useActivityFormat'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const PAGE_SIZE = 25
 const SORTS = ['recent', 'oldest', 'user', 'title'] as const
 const TYPES = ['movie', 'episode', 'track', 'video'] as const
@@ -29,7 +30,7 @@ const filters = computed(() => ({
   from: single(route.query.from),
   to: single(route.query.to),
   sort: single(route.query.sort) || 'recent',
-  page: Math.max(1, Number.parseInt(single(route.query.page), 10) || 1),
+  page: Math.max(1, Number.parseInt(single(route.query[props.embedded ? 'activityPage' : 'page']), 10) || 1),
 }))
 const hasFilters = computed(() => Boolean(filters.value.search || filters.value.user || filters.value.type || filters.value.status || filters.value.from || filters.value.to))
 
@@ -57,10 +58,16 @@ async function load() {
 
 // Filters live in the URL so a filtered view can be bookmarked or shared; changing one returns to the first page.
 function setFilters(changes: Record<string, string | number | undefined>) {
+  const pageKey = props.embedded ? 'activityPage' : 'page'
+  const mapped = { ...changes }
+  if ('page' in mapped && props.embedded) {
+    mapped.activityPage = mapped.page
+    delete mapped.page
+  }
   const next: Record<string, string> = {}
-  for (const [key, value] of Object.entries({ ...route.query, ...('page' in changes ? {} : { page: undefined }), ...changes })) {
+  for (const [key, value] of Object.entries({ ...route.query, ...(pageKey in mapped ? {} : { [pageKey]: undefined }), ...mapped })) {
     const text = typeof value === 'number' ? String(value) : single(value as LocationQueryValue)
-    if (text !== '' && !(key === 'page' && text === '1') && !(key === 'sort' && text === 'recent')) next[key] = text
+    if (text !== '' && !(key === pageKey && text === '1') && !(key === 'sort' && text === 'recent')) next[key] = text
   }
   void router.replace({ query: next })
 }
@@ -84,14 +91,14 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
 watch(
   () => route.query,
   () => {
-    if (route.name === 'admin-activity') void load()
+    if (route.name === 'admin-activity' || props.embedded) void load()
   },
   { immediate: true },
 )
 
 function reset() {
   searchText.value = ''
-  void router.replace({ query: {} })
+  void router.replace({ query: props.embedded ? { tab: 'analytics', page: 'analyticsHistory' } : {} })
 }
 
 const pageCount = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / PAGE_SIZE)))
@@ -99,7 +106,7 @@ const rangeStart = computed(() => ((data.value?.total ?? 0) === 0 ? 0 : (filters
 const rangeEnd = computed(() => Math.min(data.value?.total ?? 0, filters.value.page * PAGE_SIZE))
 
 const summaryCards = computed(() => [
-  { label: t('admin.activity.summary.total'), value: data.value?.summary.total ?? 0 },
+  { label: t(props.embedded ? 'analytics.progressRecords' : 'admin.activity.summary.total'), value: data.value?.summary.total ?? 0 },
   { label: t('admin.activity.summary.finished'), value: data.value?.summary.finished ?? 0 },
   { label: t('admin.activity.summary.inProgress'), value: data.value?.summary.inProgress ?? 0 },
   { label: t('admin.activity.summary.users'), value: data.value?.summary.users ?? 0 },
@@ -118,7 +125,7 @@ const absoluteTime = (iso: string) => new Date(iso).toLocaleString(locale.value)
       </div>
     </div>
 
-    <AdminSection :title="t('admin.activity.title')" :description="t('admin.activity.subtitle')">
+    <AdminSection :title="t('admin.activity.title')" :description="t(props.embedded ? 'analytics.historyNote' : 'admin.activity.subtitle')">
       <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" role="search" @submit.prevent>
         <input v-model="searchText" type="search" autocomplete="off" :placeholder="t('admin.activity.search')" :aria-label="t('admin.activity.search')" :class="fieldClass" class="sm:col-span-2" />
         <select :value="filters.user" :aria-label="t('admin.activity.user')" :class="fieldClass" @change="setFilters({ user: ($event.target as HTMLSelectElement).value })">

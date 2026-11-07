@@ -11,9 +11,15 @@ const IndexerTasks = lazy(() => import('./IndexerTasksSection.vue'))
 const Tasks = lazy(() => import('./TasksPanel.vue'))
 const Media = lazy(() => import('./MediaPanel.vue'))
 const Transcoding = lazy(() => import('./TranscodingPanel.vue'))
+const Advertisements = lazy(() => import('./AdvertisementsPanel.vue'))
+const Analytics = lazy(() => import('./AnalyticsPanel.vue'))
+const Activity = lazy(() => import('./ActivityPanel.vue'))
+const ViewingAnalytics = lazy(() => import('./ViewingAnalyticsPanel.vue'))
+const PeriodAnalytics = lazy(() => import('./PeriodAnalyticsPanel.vue'))
 const Providers = lazy(() => import('./IndexerProvidersSection.vue'))
 const Subtitles = lazy(() => import('./IndexerSubtitlesSection.vue'))
 const ThemeSongs = lazy(() => import('./ThemeSongsSection.vue'))
+const TrailerCache = lazy(() => import('./TrailerSettingsSection.vue'))
 const Requests = lazy(() => import('./RequestsPanel.vue'))
 const IssueReports = lazy(() => import('./IssueReportsPanel.vue'))
 const IssueReportSettings = lazy(() => import('./IssueReportSettingsPanel.vue'))
@@ -22,6 +28,7 @@ const EmailSettings = lazy(() => import('./EmailSettingsSection.vue'))
 const MailAdmin = lazy(() => import('./MailAdminPanel.vue'))
 const Devices = lazy(() => import('./DevicesPanel.vue'))
 const General = lazy(() => import('./GeneralPanel.vue'))
+const UserWebhooks = lazy(() => import('./UserWebhookSettings.vue'))
 const Users = lazy(() => import('./UsersPanel.vue'))
 const Networking = lazy(() => import('./NetworkingSection.vue'))
 const Connections = lazy(() => import('./ConnectionsSection.vue'))
@@ -49,9 +56,18 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   tasks: [{ component: IndexerQueues }, { component: IndexerTasks }, { component: Tasks }],
   media: [{ component: Media }],
   transcoding: [{ component: Transcoding }],
+  advertisements: [{ component: Advertisements }],
+  analyticsOverview: [{ component: Analytics, props: { screen: 'overview' } }],
+  analyticsVideo: [{ component: ViewingAnalytics, props: { screen: 'video' } }, { component: Analytics, props: { screen: 'video' } }],
+  analyticsMusic: [{ component: PeriodAnalytics, props: { screen: 'music' } }, { component: Analytics, props: { screen: 'music' } }],
+  analyticsHistory: [{ component: ViewingAnalytics, props: { screen: 'history' } }, { component: Activity, props: { embedded: true } }],
+  analyticsAdvertising: [{ component: Analytics, props: { screen: 'advertising' } }],
+  analyticsGuide: [{ component: ViewingAnalytics, props: { screen: 'guide' } }],
+  analyticsPayments: [{ component: PeriodAnalytics, props: { screen: 'orders' } }, { component: Analytics, props: { screen: 'payments' } }],
   metadata: [{ component: Providers }],
   subtitles: [{ component: Subtitles }],
   themes: [{ component: ThemeSongs }],
+  trailerCache: [{ component: TrailerCache }],
   requests: [{ component: Requests }],
   tickets: [{ component: IssueReports }],
   notifications: [{ component: Notifications }],
@@ -63,6 +79,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   mailTemplates: [{ component: MailAdmin, props: { screen: 'templates' } }],
   apikeys: [{ component: Devices, props: { part: 'keys' } }],
   server: [{ component: General }],
+  webhooks: [{ component: UserWebhooks }],
   ai: [{ component: Ai }],
   issueReports: [{ component: IssueReportSettings }],
   users: [{ component: Users }, { component: Devices, props: { part: 'devices' } }],

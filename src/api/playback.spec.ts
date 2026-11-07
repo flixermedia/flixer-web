@@ -1,5 +1,29 @@
-import { describe, expect, it } from 'vitest'
-import { buildAudioBitrateUrl, parseTrickplayPlaylist } from './playback.ts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { buildAudioBitrateUrl, buildStreamUrl, detectCompatProfile, parseTrickplayPlaylist } from './playback.ts'
+
+describe('detectCompatProfile', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function codecs(supported: string[]) {
+    vi.stubGlobal('document', {
+      createElement: () => ({ canPlayType: (type: string) => supported.includes(type) ? 'probably' : '' }),
+    })
+    vi.stubGlobal('MediaSource', { isTypeSupported: () => false })
+  }
+
+  it('uses H.264 and MP3 when AAC is unavailable', () => {
+    codecs(['video/mp4; codecs="avc1.64001f,mp3"', 'video/webm; codecs="vp8,vorbis"'])
+    expect(detectCompatProfile()).toBe('mp3')
+    expect(buildStreamUrl('/streamer/stream/token', { compat: 'mp3', start: 5 })).toBe('/streamer/stream/token?compat=mp3&start=5.00')
+  })
+
+  it('keeps AAC when supported and retains the WebM fallback otherwise', () => {
+    codecs(['video/mp4; codecs="avc1.64001f,mp4a.40.2"', 'video/mp4; codecs="avc1.64001f,mp3"'])
+    expect(detectCompatProfile()).toBe('')
+    codecs(['video/webm; codecs="vp8,vorbis"'])
+    expect(detectCompatProfile()).toBe('vp8')
+  })
+})
 
 describe('buildAudioBitrateUrl', () => {
   it('adds bitrate to relative and absolute stream URLs without dropping existing parameters', () => {

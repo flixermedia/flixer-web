@@ -8,6 +8,8 @@ import { useLiveTopic } from '../../composables/useLive'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import ActivityWidget from './dashboard/ActivityWidget.vue'
+import AdvertisementAnalyticsWidget from './dashboard/AdvertisementAnalyticsWidget.vue'
+import ViewingAnalyticsWidget from './dashboard/ViewingAnalyticsWidget.vue'
 import AddWidgetModal from './AddWidgetModal.vue'
 import BackupsWidget from './dashboard/BackupsWidget.vue'
 import ContentMixWidget from './dashboard/ContentMixWidget.vue'
@@ -66,7 +68,7 @@ const rows = computed(() => rowCount(layout.value) + (editing.value ? EXTRA_ROWS
 const changed = computed(() => !sameGrid(draft.value, saved.value))
 
 const COMPONENTS = { stats: StatsWidget, server: ServerWidget, storage: StorageWidget, activity: ActivityWidget, uptime: UptimeWidget, transcoding: TranscodingWidget, libraries: LibrariesWidget, 'content-mix': ContentMixWidget, services: ServicesWidget } as const
-const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: BackupsWidget, requests: RequestsWidget, users: UsersWidget, shortcuts: ShortcutsWidget } as const
+const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: BackupsWidget, requests: RequestsWidget, users: UsersWidget, shortcuts: ShortcutsWidget, 'ad-analytics': AdvertisementAnalyticsWidget, 'viewing-analytics': ViewingAnalyticsWidget } as const
 const needsOverview = (id: DashboardWidgetId): id is keyof typeof COMPONENTS => id in COMPONENTS
 const standalone = (id: DashboardWidgetId): id is keyof typeof STANDALONE => id in STANDALONE
 
