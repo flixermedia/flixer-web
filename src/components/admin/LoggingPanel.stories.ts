@@ -15,7 +15,7 @@ const meta = {
   title: 'Admin/LoggingPanel',
   component: LoggingPanel,
   parameters: { layout: 'fullscreen' },
-  beforeEach: () => {
+  beforeEach: (context) => {
     const storageKey = 'flixer.logger.filters:https://logger.example'
     const previous = localStorage.getItem(storageKey)
     let ownerConfigured = false
@@ -27,7 +27,10 @@ const meta = {
     mocked(apiRequest).mockImplementation(async <T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
       let data: unknown
       switch (config.url) {
-        case '/admin/logger/configuration': data = { configured: true, endpoint: 'https://logger.example' }; break
+        case '/admin/logger/configuration': data = {
+          configured: true, endpoint: 'https://logger.example',
+          ...(context.parameters.managementRenewal ? { managementExpiresAt: '2099-01-01T00:00:00Z', managementRenewal: context.parameters.managementRenewal } : {}),
+        }; break
         case '/admin/logger/pairing':
           if (config.method === 'POST') {
             pairingPending = true
@@ -42,7 +45,7 @@ const meta = {
           break
         case '/admin/logger/pairing/retry':
           pairingPending = false
-          data = { configured: true, endpoint: 'https://logger.example', managementExpiresAt: '2099-01-01T00:00:00Z' }
+          data = { configured: true, endpoint: 'https://logger.example', managementExpiresAt: '2099-01-01T00:00:00Z', managementRenewal: 'manual' }
           break
         case '/admin/logger/retention':
           data = config.method === 'PUT' ? config.data : { enabled: true, days: 14, severityDays: { error: 30 } }
@@ -129,11 +132,28 @@ export const PairingRecovery: Story = {
     await expect(await canvas.findByRole('button', { name: 'Retry pairing setup' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Retry pairing setup' }))
     await canvas.findByText('Logger paired successfully.')
-    await expect(canvas.getByText(/Management credential expires/)).toBeVisible()
+    await expect(canvas.getByText(/It is not renewed automatically/)).toBeVisible()
     await expect(canvas.queryByRole('button', { name: 'Retry pairing setup' })).not.toBeInTheDocument()
     expect(mocked(apiRequest)).toHaveBeenCalledWith(expect.objectContaining({
       method: 'POST', url: '/admin/logger/pairing', data: { endpoint: 'https://logger.example', deploymentId: 'tenant', pairingToken: 'p'.repeat(43) },
     }))
+  },
+}
+
+export const AutomaticManagementRenewal: Story = {
+  parameters: { managementRenewal: 'automatic' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(await canvas.findByText(/Automatic renewal is configured/)).toBeVisible()
+    await expect(canvas.queryByText(/It is not renewed automatically/)).not.toBeInTheDocument()
+  },
+}
+
+export const UnavailableManagementRenewal: Story = {
+  parameters: { managementRenewal: 'unavailable' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(await canvas.findByText(/Automatic renewal is unavailable/)).toBeVisible()
   },
 }
 

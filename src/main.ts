@@ -18,6 +18,7 @@ import { NATIVE_PASSKEY_CALLBACK_SCHEME } from "./platform/passkeyHandoff";
 import { initializeNativeNavigation } from "./platform/nativeNavigation";
 import { i18n, initLocale, syncLocaleFromAccount } from "./i18n";
 import { initMonitoring } from "./monitoring";
+import { initBrowserLogging } from "./browserLogging";
 import router from "./router/index.ts";
 import { getNativeServerUrl } from "./platform/serverConnection";
 import { restoreNativeAccount } from "./platform/nativeAccount";
@@ -37,6 +38,7 @@ if (!Capacitor.isNativePlatform() || getNativeServerUrl()) prefetchSetupGate();
 
 const app = createApp(App);
 
+initBrowserLogging(app);
 void initMonitoring(app);
 
 addCollection(lucideIcons);

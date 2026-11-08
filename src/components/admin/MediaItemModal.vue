@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { ModalClosedError, ModalContent, ModalDescription, ModalRoot, ModalTitle, openModal, useModalContext } from '@kolirt/vue-modal'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { addMediaItemImage, getMediaItem, MEDIA_IMAGE_TYPES, refreshMediaItem, removeMediaItemImage, updateMediaItem, type MediaImageType, type MediaItemChanges, type MediaItemDetail } from '../../api'
+import { addMediaItemImage, getMediaItem, getMediaMatchConflicts, listMediaLibraries, MEDIA_IMAGE_TYPES, refreshMediaItem, removeMediaItemImage, scanLibraryFolders, updateMediaItem, type MediaImageType, type MediaItemChanges, type MediaItemDetail, type MediaMatchConflict } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -10,6 +10,7 @@ import { catchError } from '../../utils/catchError'
 import AuthImage from '../ui/AuthImage.vue'
 import StatusPill from './StatusPill.vue'
 import SubtitlePanel from './SubtitlePanel.vue'
+import MediaFolderPicker, { type PickedFolder } from './MediaFolderPicker.vue'
 
 const props = defineProps<{ itemId: string }>()
 
@@ -26,8 +27,11 @@ const item = ref<MediaItemDetail | null>(null)
 const loadError = ref('')
 const saveError = ref('')
 const imageError = ref('')
+const matchError = ref('')
+const matchConflicts = ref<MediaMatchConflict[]>([])
 const saving = ref(false)
 const imageBusy = ref(false)
+const recoveryBusy = ref(false)
 const changed = ref(false)
 const newImageType = ref<MediaImageType>('poster')
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -99,6 +103,42 @@ async function load() {
     loadError.value = describeRequestError(error, t('admin.media.detailError'))
   } else {
     applyDetail(result)
+    if (result.type === 'movie' || result.type === 'series') {
+      const [conflictError, conflicts] = await catchError(getMediaMatchConflicts(props.itemId))
+      if (conflictError) matchError.value = describeRequestError(conflictError, t('admin.media.matchConflictError'))
+      else matchConflicts.value = conflicts
+    }
+  }
+}
+
+async function recoverSources() {
+  const current = item.value
+  if (!current || recoveryBusy.value) return
+  recoveryBusy.value = true
+  try {
+    const [libraryError, libraries] = await catchError(listMediaLibraries())
+    if (libraryError) {
+      notify.error(describeRequestError(libraryError, t('admin.media.recoverError')))
+      return
+    }
+    const library = libraries.find((entry) => entry.id === current.libraryId)
+    if (!library) {
+      notify.error(t('admin.media.recoverLibraryMissing'))
+      return
+    }
+    const [pickerError, folders] = await catchError(openModal<PickedFolder[]>(MediaFolderPicker, { props: { library } }))
+    if (pickerError) {
+      if (!(pickerError instanceof ModalClosedError)) notify.error(describeRequestError(pickerError, t('admin.media.recoverError')))
+      return
+    }
+    if (!folders.length) return
+    const [scanError, result] = await catchError(scanLibraryFolders(library.id, folders.map(({ rootId, path }) => ({ rootId, path }))))
+    if (scanError) notify.error(describeRequestError(scanError, t('admin.media.recoverError')))
+    else if (result.alreadyQueued) notify.info(t('admin.libraries.folderScanAlreadyQueued'))
+    else if (result.queued) notify.success(t('admin.media.recoverQueued'))
+    else notify.error(t('admin.media.recoverError'))
+  } finally {
+    recoveryBusy.value = false
   }
 }
 
@@ -224,6 +264,19 @@ void load()
       <p v-if="loadError" role="alert" class="mt-4 text-sm text-red-300">{{ loadError }}</p>
 
       <form v-else-if="item" id="media-item-form" class="mt-4 grid min-h-24 flex-1 gap-5 overflow-y-auto pr-1" @submit.prevent="save">
+        <section v-if="matchConflicts.length || matchError" role="status" class="rounded border border-amber-500/50 p-3 text-sm">
+          <p v-if="matchError" role="alert">{{ matchError }}</p>
+          <template v-else>
+            <p class="font-semibold">{{ t('admin.media.matchConflictTitle') }}</p>
+            <p class="mt-1 text-flixer-muted">{{ t('admin.media.matchConflictDescription') }}</p>
+            <p class="mt-2 break-all">{{ t('admin.media.matchConflictCurrent', { path: item.path }) }}</p>
+            <ul class="mt-2 space-y-1">
+              <li v-for="conflict in matchConflicts" :key="conflict.id" class="break-all">
+                {{ conflict.title }} — {{ conflict.path }} ({{ conflict.providers.join(', ') }})
+              </li>
+            </ul>
+          </template>
+        </section>
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="flex flex-col gap-1 text-xs text-flixer-muted sm:col-span-2">
             {{ t('admin.media.fieldTitle') }}
@@ -271,6 +324,14 @@ void load()
               <input v-model="providerIds[provider]" type="text" maxlength="256" :aria-label="`${t('admin.media.providerIds')} ${provider}`" :class="inputClass" />
             </label>
           </div>
+        </section>
+
+        <section v-if="item.type === 'movie' || item.type === 'series'" class="rounded border border-flixer-border p-3 text-sm">
+          <h3 class="font-semibold">{{ t('admin.media.recoverTitle') }}</h3>
+          <p class="mt-1 text-flixer-muted">{{ t('admin.media.recoverDescription') }}</p>
+          <button type="button" :disabled="recoveryBusy" class="mt-3 rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="recoverSources">
+            {{ t('admin.media.recoverAction') }}
+          </button>
         </section>
 
         <section :aria-label="t('admin.media.images')">

@@ -9,6 +9,7 @@ ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 COPY package.json package-lock.json ./
+COPY patches ./patches
 RUN npm ci
 
 COPY index.html vite.config.ts tsconfig*.json ./

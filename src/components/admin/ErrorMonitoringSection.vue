@@ -10,7 +10,7 @@ import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 
-const APPS = ['flixer', 'streamer', 'indexer', 'web'] as const
+const APPS = ['flixer', 'streamer', 'indexer', 'web', 'ai', 'logger', 'updater'] as const
 
 const { t } = useI18n()
 const values = ref<Record<string, unknown>>({})

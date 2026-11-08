@@ -5,6 +5,7 @@ export interface LoggerConfiguration {
   configured: boolean
   endpoint: string | null
   managementExpiresAt?: string
+  managementRenewal?: 'automatic' | 'manual' | 'unavailable'
 }
 
 export interface LoggerRetention {

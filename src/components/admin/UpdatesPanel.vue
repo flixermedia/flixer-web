@@ -5,6 +5,7 @@ import { applyUpdates, getUpdateStatus, listSettings, updateSetting, type Settin
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
+import { version as webSourceVersion } from '../../../package.json'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
@@ -26,18 +27,26 @@ let unmounted = false
 
 const running = computed(() => status.value?.run?.status === 'running')
 const canUpdate = computed(() => Boolean(status.value?.canApply) && (status.value?.updatesAvailable ?? 0) > 0 && !running.value && !isApplying.value)
+const components = computed(() => (status.value?.components ?? []).map((component) =>
+  import.meta.env.DEV && status.value?.updaterMode === 'development' && component.id === 'web' && !component.reachable
+    ? { ...component, installed: `${webSourceVersion}-dev`, reachable: true, updateAvailable: false }
+    : component,
+))
 
 const inputClass = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none transition focus:border-flixer-accent'
 const buttonClass = 'rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 
 function tone(component: UpdateComponent) {
   if (!component.reachable) return 'bad'
+  if (!component.latest) return 'warn'
+  if (!/^v?\d+\.\d+\.\d+$/.test(component.installed ?? '')) return 'neutral'
   return component.updateAvailable ? 'warn' : 'good'
 }
 
 function label(component: UpdateComponent) {
-  if (!component.reachable) return t('admin.updates.unreachable')
-  if (!component.latest) return t('admin.updates.unknown')
+  if (!component.reachable) return t('admin.updates.versionUnavailable')
+  if (!component.latest) return t('admin.updates.latestUnavailable')
+  if (!/^v?\d+\.\d+\.\d+$/.test(component.installed ?? '')) return t('admin.updates.developmentVersion')
   return component.updateAvailable ? t('admin.updates.available') : t('admin.updates.upToDate')
 }
 
@@ -63,16 +72,24 @@ async function load(refresh = false, quiet = false) {
   const [error, result] = await catchError(getUpdateStatus(refresh))
   if (error) {
     if (!quiet) notify.error(describeRequestError(error))
+    return false
   } else {
     status.value = result
+    return true
   }
 }
 
 async function check() {
   isChecking.value = true
-  await load(true)
+  const loaded = await load(true)
   isChecking.value = false
-  if (status.value?.updatesAvailable === 0) notify.success(t('admin.updates.allCurrent'))
+  if (loaded && status.value?.updatesAvailable === 0) {
+    const complete = status.value.components.every((component) =>
+      component.reachable && component.latest && /^v?\d+\.\d+\.\d+$/.test(component.installed ?? ''),
+    )
+    if (complete) notify.success(t('admin.updates.allCurrent'))
+    else notify.info(t('admin.updates.checkIncomplete'))
+  }
 }
 
 async function updateAll() {
@@ -166,7 +183,7 @@ onBeforeUnmount(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-flixer-border">
-            <tr v-for="component in status?.components ?? []" :key="component.id">
+            <tr v-for="component in components" :key="component.id">
               <td class="py-2.5 pr-4 font-medium">{{ component.label }}</td>
               <td class="py-2.5 pr-4 font-mono text-xs">{{ component.installed ?? '—' }}</td>
               <td class="py-2.5 pr-4 font-mono text-xs">{{ component.latest ?? '—' }}</td>
@@ -178,7 +195,8 @@ onBeforeUnmount(() => {
         </table>
       </div>
       <p v-if="status" class="mt-3 text-xs text-flixer-muted">{{ t('admin.updates.lastChecked', { time: formatTime(status.lastCheckedAt) }) }}</p>
-      <p v-if="status && !status.canApply" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.notConfigured') }}</p>
+      <p v-if="status?.updaterMode === 'development'" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.developmentMode') }}</p>
+      <p v-else-if="status && !status.canApply" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.notConfigured') }}</p>
       <p v-else-if="status && !status.updaterReachable" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.unreachable') }}</p>
 
       <div v-if="status?.run" class="mt-4 rounded border px-3 py-2 text-sm" :class="status.run.status === 'failed' || status.run.status === 'rollback_failed' ? 'border-red-500/40 bg-red-500/10' : status.run.status === 'rolled_back' ? 'border-amber-500/40 bg-amber-500/10' : status.run.status === 'running' ? 'border-flixer-accent/40 bg-flixer-accent/10' : 'border-emerald-500/30 bg-emerald-500/10'">
@@ -200,7 +218,7 @@ onBeforeUnmount(() => {
         <form class="flex flex-col gap-1 text-sm" @submit.prevent="saveUrl">
           <label for="updater-url">{{ t('admin.updates.settings.url') }}</label>
           <div class="flex gap-2">
-            <input id="updater-url" v-model="updaterUrl" placeholder="http://updater:8093" :class="inputClass" />
+            <input id="updater-url" v-model="updaterUrl" placeholder="http://flixer-updater:8093" :class="inputClass" />
             <button type="submit" :class="buttonClass" class="shrink-0" :disabled="updaterUrl.trim() === savedUrl">{{ t('admin.updates.settings.save') }}</button>
           </div>
           <span class="text-xs text-flixer-muted">{{ t('admin.updates.settings.urlHelp') }}</span>

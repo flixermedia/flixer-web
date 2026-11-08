@@ -34,6 +34,18 @@ export async function getMediaItem(id: string): Promise<MediaItemDetail> {
   return response.data
 }
 
+export interface MediaMatchConflict {
+  id: string
+  title: string
+  path: string
+  providers: string[]
+}
+
+export async function getMediaMatchConflicts(id: string): Promise<MediaMatchConflict[]> {
+  const response = await api.get<{ items: MediaMatchConflict[] }>(`/admin/media/items/${encodeURIComponent(id)}/match-conflicts`)
+  return response.data.items
+}
+
 export async function updateMediaItem(id: string, changes: MediaItemChanges): Promise<MediaItemDetail> {
   const response = await api.patch<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}`, changes)
   return response.data

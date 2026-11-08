@@ -16,6 +16,7 @@ const configured = ref(false)
 const endpoint = ref('')
 const manageToken = ref('')
 const managementExpiry = ref('')
+const managementRenewal = ref<'automatic' | 'manual' | 'unavailable' | 'unknown'>('unknown')
 const pairingEndpoint = ref('')
 const pairingDeployment = ref('')
 const pairingToken = ref('')
@@ -256,6 +257,7 @@ async function loadConfiguration() {
     configured.value = config.configured
     endpoint.value = config.endpoint ?? ''
     managementExpiry.value = config.managementExpiresAt ?? ''
+    managementRenewal.value = config.managementRenewal ?? 'unknown'
     pairingEndpoint.value = config.endpoint ?? ''
     pairingPending.value = pairing.pending
     pairingPendingEndpoint.value = pairing.endpoint ?? ''
@@ -286,6 +288,7 @@ async function submitPairing(retry: boolean) {
     configured.value = config.configured
     endpoint.value = config.endpoint ?? ''
     managementExpiry.value = config.managementExpiresAt ?? ''
+    managementRenewal.value = config.managementRenewal ?? 'unknown'
     pairingEndpoint.value = config.endpoint ?? ''
     loadSavedFilters()
     notice.value = t('admin.logging.pairingSaved')
@@ -952,6 +955,7 @@ function clearSession() {
   endpoint.value = ''
   manageToken.value = ''
   managementExpiry.value = ''
+  managementRenewal.value = 'unknown'
   pairingEndpoint.value = ''
   pairingDeployment.value = ''
   pairingToken.value = ''
@@ -1071,7 +1075,7 @@ onBeforeUnmount(() => {
         <label class="text-sm">{{ t('admin.logging.manageToken') }}<input v-model="manageToken" :class="input" type="password" required autocomplete="new-password" /></label>
         <div><button :class="button" :disabled="busy" type="submit">{{ t('admin.logging.saveConfiguration') }}</button></div>
       </form>
-      <p v-if="managementExpiry" class="mt-3 text-sm text-amber-300">{{ t('admin.logging.managementExpiry', { time: new Date(managementExpiry).toLocaleString() }) }}</p>
+      <p v-if="managementExpiry" class="mt-3 text-sm" :class="managementRenewal === 'automatic' ? 'text-flixer-muted' : 'text-amber-300'">{{ t(`admin.logging.managementExpiry_${managementRenewal}`, { time: new Date(managementExpiry).toLocaleString() }) }}</p>
     </AdminSection>
 
     <AdminSection :title="t('admin.logging.pairingTitle')" :description="t('admin.logging.pairingHelp')">

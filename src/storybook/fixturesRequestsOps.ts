@@ -114,6 +114,8 @@ export const updateStatus: UpdateStatus = {
 		{ id: "web", label: "Flixer Web", installed: "1.8.2", latest: "1.9.0", reachable: true, updateAvailable: true },
 		{ id: "streamer", label: "Streamer", installed: "1.8.0", latest: "1.8.0", reachable: true, updateAvailable: false },
 		{ id: "indexer", label: "Indexer", installed: "1.8.1", latest: "1.8.1", reachable: true, updateAvailable: false },
+		{ id: "ai", label: "AI", installed: "1.0.0", latest: "1.0.0", reachable: true, updateAvailable: false },
+		{ id: "logger", label: "Logger", installed: "1.0.0", latest: "1.0.0", reachable: true, updateAvailable: false },
 	],
 	updatesAvailable: 2,
 	lastCheckedAt: minutesAgo(15),
