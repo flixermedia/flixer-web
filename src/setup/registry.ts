@@ -21,11 +21,11 @@ export const STEPS: Record<string, StepDefinition> = {
   finish: { id: 'finish', titleKey: 'setup.steps.finish', component: () => import('./steps/FinishStep.vue') },
 }
 
-/** The administrator is created right after the database so every later call is made by a signed-in administrator. */
+/** Redis must be configured before the database starts the full application. */
 export const FLOWS: Record<WizardFlow, string[]> = {
   quick: ['welcome', 'database', 'admin', 'urls', 'finish'],
   recovery: ['database', 'recovered'],
-  advanced: ['welcome', 'database', 'admin', 'urls', 'redis', 'services', 'secrets', 'finish'],
+  advanced: ['welcome', 'redis', 'database', 'admin', 'urls', 'services', 'secrets', 'finish'],
 }
 
 export function stepsFor(flow: WizardFlow): StepDefinition[] {
