@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import * as dashjs from 'dashjs'
-import Hls from 'hls.js'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { playerActionButton } from './playerActionStyles'
+import { configureWidevinePlayer, createShakaPlayer, destroyShakaPlayer, isCriticalShakaError, isShakaSupported } from './adaptivePlayback'
 import { useI18n } from 'vue-i18n'
 import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
 import { useParty } from '../../composables/useParty'
@@ -85,7 +84,7 @@ let remoteSeekUntil = 0
 let remotePlaybackTarget: boolean | null = null
 let remotePlaybackUntil = 0
 const HIDE_DELAY_MS = 3000
-const DASH_START_TIMEOUT_MS = 20_000
+const ADAPTIVE_START_TIMEOUT_MS = 20_000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
 const AUTO_SKIP_TYPES: PlayerSegment['type'][] = ['recap', 'preview', 'commercial']
@@ -165,10 +164,15 @@ let frame = 0
 let lastPointerType = 'mouse'
 
 const nativeHls = supportsNativeHls()
+const shakaSupported = isShakaSupported()
 const compat = props.live || props.standalone ? '' : detectCompatProfile()
 const directPlay = computed(() => !compat && height.value === 0 && streamInfo.value.playMethod === 'DirectPlay')
-const useHls = computed(() => !props.live && !compat && (nativeHls || Hls.isSupported()) && !directPlay.value)
-// Direct play and HLS both use the browser's own clock and seeking.
+const useHls = computed(() => !props.live && !compat && (nativeHls || shakaSupported) && !directPlay.value)
+const useShaka = computed(() => {
+  if (props.live) return shakaSupported && (props.container === 'mpd' || props.container === 'm3u8')
+  return useHls.value && shakaSupported
+})
+// Direct play, native HLS and Shaka all use the browser's own clock and seeking.
 const isNative = computed(() => directPlay.value || useHls.value)
 const mode = computed<PlayMethod>(() => (height.value > 0 ? 'Transcode' : streamInfo.value.playMethod))
 const duration = computed(() => {
@@ -375,9 +379,20 @@ function tryPlay() {
 }
 
 let loadToken = 0
-let hlsPlayer: Hls | undefined
-let dashPlayer: dashjs.MediaPlayerClass | undefined
-let dashStartupTimer: ReturnType<typeof setTimeout> | undefined
+let adaptivePlayer: ReturnType<typeof createShakaPlayer> | undefined
+let adaptivePlayerDestroy: Promise<void> = Promise.resolve()
+let adaptiveStartupTimer: ReturnType<typeof setTimeout> | undefined
+
+async function destroyAdaptivePlayer() {
+  const player = adaptivePlayer
+  adaptivePlayer = undefined
+  if (player) {
+    adaptivePlayerDestroy = destroyShakaPlayer(player).catch((error: unknown) => {
+      console.warn('Could not stop adaptive playback', error)
+    })
+  }
+  await adaptivePlayerDestroy
+}
 
 async function loadSource(opts: { start?: number; height?: number; resume?: boolean } = {}): Promise<boolean> {
   const el = video.value
@@ -418,7 +433,7 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
     start = nextInfo.keyframeStart
   }
   if (isNative.value) {
-    nativeStart = start
+    nativeStart = useShaka.value ? 0 : start
     offset.value = 0
     current.value = start
   } else {
@@ -428,70 +443,61 @@ async function loadSource(opts: { start?: number; height?: number; resume?: bool
   }
   bufferedEnd.value = start
 
-  hlsPlayer?.destroy()
-  hlsPlayer = undefined
-  clearTimeout(dashStartupTimer)
-  dashStartupTimer = undefined
-  dashPlayer?.reset()
-  dashPlayer = undefined
-  if (props.live && props.container === 'mpd') {
-    const dash = dashjs.MediaPlayer().create()
-    dashPlayer = dash
-    let dashFailed = false
-    const failDashPlayback = () => {
-      if (token !== loadToken || dashFailed) return
-      dashFailed = true
-      clearTimeout(dashStartupTimer)
-      dashStartupTimer = undefined
+  clearTimeout(adaptiveStartupTimer)
+  adaptiveStartupTimer = undefined
+  await destroyAdaptivePlayer()
+  if (token !== loadToken) return false
+  if (useShaka.value) {
+    if (!shakaSupported) {
       errorMessage.value = t('player.videoCouldNotPlay')
       waiting.value = false
-      dash.reset()
-      if (dashPlayer === dash) dashPlayer = undefined
       emit('error', errorMessage.value)
+      return false
     }
-    dash.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, (event) => {
-      if (token !== loadToken) return
-      if (event.error) {
-        failDashPlayback()
-      } else if (resume) {
-        tryPlay()
-      }
-    })
-    dash.on(dashjs.MediaPlayer.events.ERROR, (event) => {
-      if (token !== loadToken) return
-      const fatalCodes = new Set<number>([dashjs.MediaPlayer.errors.MANIFEST_LOADER_PARSING_FAILURE_ERROR_CODE, dashjs.MediaPlayer.errors.MANIFEST_LOADER_LOADING_FAILURE_ERROR_CODE, dashjs.MediaPlayer.errors.MANIFEST_ERROR_ID_PARSE_CODE, dashjs.MediaPlayer.errors.MANIFEST_ERROR_ID_NOSTREAMS_CODE, dashjs.MediaPlayer.errors.MEDIASOURCE_TYPE_UNSUPPORTED_CODE])
-      const requestFailed = event.error === 'download' && event.event.request.status >= 400
-      const fatalCode = typeof event.error === 'object' && 'code' in event.error && fatalCodes.has(event.error.code)
-      if (requestFailed || event.error === 'manifestError' || fatalCode) {
-        failDashPlayback()
-      }
-    })
-    dashStartupTimer = setTimeout(() => {
-      if (token !== loadToken || !waiting.value) return
-      failDashPlayback()
-    }, DASH_START_TIMEOUT_MS)
-    dash.initialize(el, props.streamUrl, false)
-  } else if (Hls.isSupported() && (props.live || useHls.value)) {
-    const hls = new Hls()
-    hlsPlayer = hls
-    const hlsUrl = props.live ? props.streamUrl : buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack })
-    hls.on(Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(hlsUrl))
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      if (token === loadToken && resume) tryPlay()
-    })
-    hls.on(Hls.Events.ERROR, (_event, data) => {
-      if (!data.fatal || token !== loadToken) return
+
+    let failed = false
+    const failAdaptivePlayback = () => {
+      if (token !== loadToken || failed) return
+      failed = true
+      clearTimeout(adaptiveStartupTimer)
+      adaptiveStartupTimer = undefined
       errorMessage.value = t('player.videoCouldNotPlay')
       waiting.value = false
       emit('error', errorMessage.value)
-    })
-    hls.attachMedia(el)
+      void destroyAdaptivePlayer()
+    }
+
+    try {
+      const player = createShakaPlayer(el)
+      adaptivePlayer = player
+      player.addEventListener('error', (event) => {
+        if (isCriticalShakaError(event)) failAdaptivePlayback()
+      })
+      adaptiveStartupTimer = setTimeout(() => {
+        if (token === loadToken && waiting.value) failAdaptivePlayback()
+      }, ADAPTIVE_START_TIMEOUT_MS)
+      const manifestUrl = useHls.value && !props.live ? buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack }) : props.streamUrl
+      await configureWidevinePlayer(player)
+      await player.load(manifestUrl, isNative.value ? start : undefined)
+      if (token !== loadToken || failed) return false
+      clearTimeout(adaptiveStartupTimer)
+      adaptiveStartupTimer = undefined
+      if (resume) tryPlay()
+    } catch (error) {
+      if (token === loadToken && !failed) {
+        console.warn('Adaptive playback failed to load', error)
+        failAdaptivePlayback()
+      }
+      return false
+    }
+  } else if ((props.live && props.container === 'm3u8' && nativeHls) || (useHls.value && nativeHls)) {
+    el.src = props.live ? props.streamUrl : buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack })
   } else if (props.live || props.standalone) {
     el.src = props.streamUrl
   } else {
-    el.src = useHls.value ? buildHlsUrl(props.streamUrl, { height: height.value || undefined, audioTrack }) : buildStreamUrl(props.streamUrl, { height: isNative.value ? undefined : height.value || undefined, start: isNative.value ? undefined : start, audioTrack, compat })
+    el.src = buildStreamUrl(props.streamUrl, { height: isNative.value ? undefined : height.value || undefined, start: isNative.value ? undefined : start, audioTrack, compat })
   }
-  if (resume && !(props.live && props.container === 'mpd') && !(Hls.isSupported() && (props.live || useHls.value))) tryPlay()
+  if (resume && !useShaka.value) tryPlay()
   return true
 }
 
@@ -829,17 +835,17 @@ function onVolumeChange() {
 
 function onVideoError() {
   const el = video.value
-  if (!el || (!el.getAttribute('src') && !dashPlayer)) return
+  if (!el || (!el.getAttribute('src') && !adaptivePlayer)) return
   errorMessage.value = mode.value === 'DirectPlay' ? t('player.videoCouldNotPlay') : t('player.streamStoppedUnexpectedly')
-  clearTimeout(dashStartupTimer)
-  dashStartupTimer = undefined
+  clearTimeout(adaptiveStartupTimer)
+  adaptiveStartupTimer = undefined
   waiting.value = false
   emit('error', errorMessage.value)
 }
 
 function onPlaybackReady() {
-  clearTimeout(dashStartupTimer)
-  dashStartupTimer = undefined
+  clearTimeout(adaptiveStartupTimer)
+  adaptiveStartupTimer = undefined
   const wasWaiting = waiting.value
   waiting.value = false
   if (wasWaiting) emit('ready')
@@ -1026,7 +1032,7 @@ onBeforeUnmount(() => {
   webhookPlayback.stop(position.value)
   viewing.finish()
   clearTimeout(hideTimer)
-  clearTimeout(dashStartupTimer)
+  clearTimeout(adaptiveStartupTimer)
   stopProgressTimer()
   if (!ended.value && !waiting.value) reportProgress()
   stopLoop()
@@ -1034,10 +1040,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   if (document.fullscreenElement === root.value) void document.exitFullscreen().catch(() => {})
   if (document.pictureInPictureElement === video.value) void document.exitPictureInPicture().catch(() => {})
-  hlsPlayer?.destroy()
-  hlsPlayer = undefined
-  dashPlayer?.reset()
-  dashPlayer = undefined
+  void destroyAdaptivePlayer()
   // Dropping the source closes the connection so flixer-streamer stops ffmpeg.
   video.value?.removeAttribute('src')
   video.value?.load()

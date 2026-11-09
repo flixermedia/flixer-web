@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
-import Hls from 'hls.js'
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getItemDetail, getItemPlaybackInfo, getStreamInfo, getTrickplay, updateMediaItem, type Trickplay } from '../../api'
 import { buildHlsUrl, supportsNativeHls } from '../../api/playback'
+import { configureWidevinePlayer, createShakaPlayer, destroyShakaPlayer, isCriticalShakaError, isShakaSupported } from '../player/adaptivePlayback'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -41,14 +41,14 @@ const selectedRange = ref<{ startMs: number; endMs: number } | null>(null)
 const initialChapters = ref('')
 let active = true
 let fakeTimer: ReturnType<typeof setInterval> | undefined
-let hls: Hls | null = null
+let shakaPlayer: ReturnType<typeof createShakaPlayer> | null = null
 let pointerStartMs = 0
 let pointerSelecting = false
 
 const durationSeconds = computed(() => durationMs.value / 1000)
 const currentSeconds = computed(() => currentMs.value / 1000)
 const previewStyle = computed(() => (trickplay.value ? thumbnailStyle(trickplay.value, currentSeconds.value + 1, 960) : {}))
-const realPlaybackAvailable = computed(() => Boolean(streamUrl.value) && (supportsNativeHls() || Hls.isSupported()))
+const realPlaybackAvailable = computed(() => Boolean(streamUrl.value) && (supportsNativeHls() || isShakaSupported()))
 const hasChanges = computed(() => JSON.stringify(chapters.value) !== initialChapters.value)
 const validationError = computed(() => {
   if (
@@ -209,25 +209,36 @@ async function useRealPlayback() {
   const player = video.value
   if (!player) return
   const source = buildHlsUrl(streamUrl.value)
-  player.addEventListener(
-    'loadedmetadata',
-    () => {
-      if (previewMode.value === 'video') player.currentTime = currentSeconds.value
-    },
-    { once: true },
-  )
-  if (supportsNativeHls()) {
-    player.src = source
-  } else {
-    hls = new Hls()
-    hls.on(Hls.Events.ERROR, (_event, data) => {
-      if (!data.fatal) return
+  if (isShakaSupported()) {
+    const adaptivePlayer = createShakaPlayer(player)
+    shakaPlayer = adaptivePlayer
+    adaptivePlayer.addEventListener('error', (event) => {
+      if (!isCriticalShakaError(event) || shakaPlayer !== adaptivePlayer) return
       previewError.value = t('mediaItem.chapterEditor.playbackUnavailable')
       useTrickplay()
     })
-    hls.loadSource(source)
-    hls.attachMedia(player)
+    await configureWidevinePlayer(adaptivePlayer)
+    const [loadError] = await catchError(adaptivePlayer.load(source, currentSeconds.value))
+    if (loadError) {
+      if (active && previewMode.value === 'video') {
+        previewError.value = t('mediaItem.chapterEditor.playbackUnavailable')
+        useTrickplay()
+      }
+      return
+    }
+  } else if (supportsNativeHls()) {
+    player.addEventListener(
+      'loadedmetadata',
+      () => {
+        if (previewMode.value === 'video') player.currentTime = currentSeconds.value
+      },
+      { once: true },
+    )
+    player.src = source
+  } else {
+    return
   }
+  if (!active || previewMode.value !== 'video') return
   const [playError] = await catchError(player.play())
   if (playError && active) previewError.value = describeRequestError(playError, t('mediaItem.chapterEditor.playbackUnavailable'))
 }
@@ -239,8 +250,9 @@ function useTrickplay() {
     video.value.removeAttribute('src')
     video.value.load()
   }
-  hls?.destroy()
-  hls = null
+  const player = shakaPlayer
+  shakaPlayer = null
+  void destroyShakaPlayer(player).catch((error: unknown) => console.warn('Could not stop chapter preview playback', error))
   clearFakeTimer()
   previewMode.value = 'trickplay'
 }
@@ -312,8 +324,9 @@ void load()
 onBeforeUnmount(() => {
   active = false
   clearFakeTimer()
-  hls?.destroy()
-  hls = null
+  const player = shakaPlayer
+  shakaPlayer = null
+  void destroyShakaPlayer(player).catch((error: unknown) => console.warn('Could not stop chapter preview playback', error))
 })
 </script>
 

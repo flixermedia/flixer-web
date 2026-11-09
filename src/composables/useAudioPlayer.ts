@@ -1,12 +1,12 @@
 import { computed, ref } from "vue";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
-import Hls from "hls.js";
-import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getItemPlaybackInfo, getStreamInfo, getTrackLyrics, reportListening, supportsNativeHls } from "../api";
+import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getItemPlaybackInfo, getStreamInfo, getTrackLyrics, reportListening } from "../api";
 import { parseLrc, type ParsedLyrics } from "./lrc";
 import { catchError } from "../utils/catchError";
 import { handlePaymentRequired } from "./usePayments";
 import { WebhookPlaybackTracker } from "../components/player/webhookPlaybackTracker";
+import { configureWidevinePlayer, createShakaPlayer, destroyShakaPlayer, isCriticalShakaError, isShakaSupported } from "../components/player/adaptivePlayback";
 
 export interface QueueTrack {
 	id: string;
@@ -71,12 +71,19 @@ let knownDuration = 0;
 let directPlay = false;
 // True while an encrypted HLS stream is played; like direct play it has a real timeline and seeks natively.
 let hlsPlay = false;
-let hlsPlayer: Hls | null = null;
+let hlsPlayer: ReturnType<typeof createShakaPlayer> | null = null;
+let adaptiveAudioDestroy: Promise<void> = Promise.resolve();
 
-function detachHls() {
-	hlsPlayer?.destroy();
+async function detachHls() {
+	const player = hlsPlayer;
 	hlsPlayer = null;
 	hlsPlay = false;
+	if (player) {
+		adaptiveAudioDestroy = adaptiveAudioDestroy
+			.then(() => destroyShakaPlayer(player))
+			.catch((cause: unknown) => console.warn("Could not stop adaptive audio playback", cause));
+	}
+	await adaptiveAudioDestroy;
 }
 let listeningTrackId: string | null = null;
 const webhookPlayback = new WebhookPlaybackTracker();
@@ -224,36 +231,47 @@ function browserCanPlay(mimeType: string | undefined, codec: string | undefined)
 
 // The encrypted segments are AAC, which some browsers (e.g. Chromium builds without proprietary codecs) cannot decode.
 function canPlayHlsAudio(): boolean {
-	if (supportsNativeHls()) return true;
-	return Hls.isSupported() && MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.2"');
+	return isShakaSupported();
 }
 
 /** Plays the encrypted HLS stream: segments are useless without the key the streamer only gives to this session. */
-function startHls(streamUrl: string, startAt: number) {
-	if (!audio) return;
+async function startHls(streamUrl: string, startAt: number, token: number): Promise<boolean> {
+	if (!audio) return false;
 	hlsPlay = true;
-	const source = buildHlsUrl(streamUrl);
-	if (supportsNativeHls()) {
-		audio.src = source;
-		if (startAt > 0) audio.currentTime = startAt;
-		return;
-	}
-	const player = new Hls({ startPosition: startAt > 0 ? startAt : -1 });
+	const player = createShakaPlayer(audio);
 	hlsPlayer = player;
-	player.on(Hls.Events.MEDIA_ATTACHED, () => player.loadSource(source));
-	player.on(Hls.Events.ERROR, (_event, data) => {
-		if (!data.fatal || player !== hlsPlayer) return;
-		console.warn("Encrypted audio stream failed, falling back", data.type, data.details, data.error?.message ?? data.reason);
+	await configureWidevinePlayer(player);
+	let loaded = false;
+	player.addEventListener("error", (event) => {
+		if (!loaded || !isCriticalShakaError(event) || player !== hlsPlayer || token !== loadToken) return;
+		console.warn("Encrypted audio stream failed, falling back", event);
 		const resumeAt = playbackPosition();
-		detachHls();
-		// Fall back to the progressive transcode from where playback stopped.
-		streamOffset = resumeAt;
-		if (audio && streamBase) {
-			audio.src = streamUrlAt(resumeAt);
-			void Promise.resolve(audio.play()).catch(() => undefined);
-		}
+		const resume = isPlaying.value || !audio.paused;
+		hlsPlayer = null;
+		adaptiveAudioDestroy = adaptiveAudioDestroy
+			.then(() => destroyShakaPlayer(player))
+			.catch((cause: unknown) => console.warn("Could not stop failed adaptive audio playback", cause));
+		void adaptiveAudioDestroy
+			.then(() => {
+				if (token !== loadToken || !streamBase) return;
+				hlsPlay = false;
+				// Fall back to the progressive transcode from where playback stopped.
+				streamOffset = resumeAt;
+				audio.src = streamUrlAt(resumeAt);
+				if (resume) void Promise.resolve(audio.play()).catch(() => undefined);
+			})
 	});
-	player.attachMedia(audio);
+	try {
+		await player.load(buildHlsUrl(streamUrl), startAt > 0 ? startAt : undefined);
+		if (token !== loadToken || player !== hlsPlayer) return false;
+		loaded = true;
+		return true;
+	} catch (cause) {
+		if (token !== loadToken || player !== hlsPlayer) return false;
+		console.warn("Could not load encrypted audio stream, falling back", cause);
+		await detachHls();
+		return false;
+	}
 }
 
 function streamUrlAt(offset: number): string {
@@ -350,7 +368,7 @@ async function loadCurrent(autoplay = true, startAt = 0): Promise<void> {
 	currentTime.value = Math.max(0, startAt);
 	duration.value = 0;
 	knownDuration = 0;
-	detachHls();
+	await detachHls();
 	directPlay = false;
 	streamOffset = Math.max(0, startAt);
 	streamBase = "";
@@ -404,8 +422,10 @@ async function loadCurrent(autoplay = true, startAt = 0): Promise<void> {
 			if (streamOffset > 0) audio.currentTime = streamOffset;
 			streamOffset = 0;
 		} else if (canHls) {
-			startHls(streamUrl, streamOffset);
-			streamOffset = 0;
+			const hlsStarted = await startHls(streamUrl, streamOffset, token);
+			if (token !== loadToken) return;
+			if (hlsStarted) streamOffset = 0;
+			else audio.src = streamUrlAt(streamOffset);
 		} else {
 			audio.src = streamUrlAt(streamOffset);
 		}
@@ -582,7 +602,7 @@ function stop() {
 	loadToken++;
 	reportStopped();
 	webhookPlayback.stop(currentTime.value);
-	detachHls();
+	void detachHls();
 	audio?.pause();
 	if (audio) audio.playbackRate = 1;
 	if (audio) audio.removeAttribute("src");
@@ -629,7 +649,7 @@ if (audio) {
 		next(true);
 	});
 	audio.addEventListener("error", () => {
-		if (hlsPlayer) return;
+		if (hlsPlayer || hlsPlay) return;
 		if (!audio.getAttribute("src")) return;
 		if ((directPlay || hlsPlay) && streamBase) {
 			// The browser could not decode the original (or native HLS) after all, so continue from here with a transcode.

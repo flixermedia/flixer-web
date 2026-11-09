@@ -71,7 +71,7 @@ export function buildHlsUrl(streamUrl: string, options: { height?: number; audio
   return query ? `${base}?${query}` : base
 }
 
-// WebKit can play HLS natively; Chromium browsers use hls.js when available.
+// WebKit can play HLS natively if Shaka is unavailable.
 export function supportsNativeHls(): boolean {
   if (typeof document === 'undefined') return false
   const canPlay = document.createElement('video').canPlayType('application/vnd.apple.mpegurl')
