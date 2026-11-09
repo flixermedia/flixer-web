@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { installAll, isBrowserSupported, playerInstance, playerConstructor } = vi.hoisted(() => {
+const { installAll, isBrowserSupported, listSettings, playerInstance, playerConstructor } = vi.hoisted(() => {
   const playerInstance = { configure: vi.fn(), destroy: vi.fn().mockResolvedValue(undefined) }
   const playerConstructor = vi.fn(function () {
     return playerInstance
   })
   const isBrowserSupported = vi.fn(() => true)
   Object.assign(playerConstructor, { isBrowserSupported })
-  return { installAll: vi.fn(), isBrowserSupported, playerInstance, playerConstructor }
+  return { installAll: vi.fn(), isBrowserSupported, listSettings: vi.fn(), playerInstance, playerConstructor }
 })
+
+vi.mock('../../api/auth', () => ({ listSettings }))
 
 vi.mock('shaka-player', () => ({
   default: {
@@ -23,6 +25,7 @@ import {
   configureWidevinePlayer,
   createShakaPlayer,
   destroyShakaPlayer,
+  invalidateWidevinePlaybackSettings,
   isCriticalShakaError,
   isShakaSupported,
 } from './adaptivePlayback'
@@ -31,8 +34,9 @@ describe('adaptivePlayback', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.clearAllMocks()
+    listSettings.mockReset()
     isBrowserSupported.mockReturnValue(true)
-    applyWidevinePlaybackSettings(false, '')
+    invalidateWidevinePlaybackSettings()
   })
 
   it('installs Shaka polyfills once and creates a player for supported browsers', () => {
@@ -72,6 +76,27 @@ describe('adaptivePlayback', () => {
     await configureWidevinePlayer(playerInstance as never)
     expect(playerInstance.configure).toHaveBeenCalledWith({
       drm: { servers: { 'com.widevine.alpha': 'https://license.example/widevine' } },
+    })
+  })
+
+  it('uses newly applied settings when an older settings request is still pending', async () => {
+    let resolveSettings!: (settings: { key: string; value: boolean | string }[]) => void
+    listSettings.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSettings = resolve
+      }),
+    )
+
+    const configuring = configureWidevinePlayer(playerInstance as never)
+    applyWidevinePlaybackSettings(true, 'https://license.example/new')
+    resolveSettings([
+      { key: 'widevine_drm_enabled', value: false },
+      { key: 'widevine_license_server_url', value: 'https://license.example/old' },
+    ])
+
+    await configuring
+    expect(playerInstance.configure).toHaveBeenCalledWith({
+      drm: { servers: { 'com.widevine.alpha': 'https://license.example/new' } },
     })
   })
 })

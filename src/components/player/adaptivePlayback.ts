@@ -2,7 +2,11 @@ import shaka from 'shaka-player'
 import { listSettings } from '../../api/auth'
 
 let polyfillsInstalled = false
-let widevineSettings: Promise<{ enabled: boolean; licenseServerUrl: string }> | undefined
+type WidevineSettings = { enabled: boolean; licenseServerUrl: string }
+
+let widevineSettings: WidevineSettings | undefined
+let widevineSettingsRequest: Promise<WidevineSettings> | undefined
+let widevineSettingsVersion = 0
 
 export function isShakaSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -19,12 +23,21 @@ export function createShakaPlayer(video: HTMLMediaElement): shaka.Player {
 }
 
 export function applyWidevinePlaybackSettings(enabled: boolean, licenseServerUrl: string) {
-  widevineSettings = Promise.resolve({ enabled, licenseServerUrl })
+  invalidateWidevinePlaybackSettings()
+  widevineSettings = { enabled, licenseServerUrl }
 }
 
-async function getWidevinePlaybackSettings() {
-  if (!widevineSettings) {
-    widevineSettings = listSettings()
+export function invalidateWidevinePlaybackSettings() {
+  widevineSettingsVersion++
+  widevineSettings = undefined
+  widevineSettingsRequest = undefined
+}
+
+async function getWidevinePlaybackSettings(): Promise<WidevineSettings> {
+  if (widevineSettings) return widevineSettings
+  if (!widevineSettingsRequest) {
+    const requestVersion = widevineSettingsVersion
+    const request = listSettings()
       .then((settings) => {
         const enabled = settings.find((setting) => setting.key === 'widevine_drm_enabled')?.value
         const licenseServerUrl = settings.find((setting) => setting.key === 'widevine_license_server_url')?.value
@@ -33,13 +46,27 @@ async function getWidevinePlaybackSettings() {
           licenseServerUrl: typeof licenseServerUrl === 'string' ? licenseServerUrl : '',
         }
       })
-      .catch((error: unknown) => {
-        widevineSettings = undefined
-        console.error('[playback] could not load Widevine settings', error)
-        return { enabled: false, licenseServerUrl: '' }
-      })
+      .then(
+        (settings) => {
+          if (requestVersion === widevineSettingsVersion) {
+            widevineSettings = settings
+            widevineSettingsRequest = undefined
+          }
+          return settings
+        },
+        (error: unknown) => {
+          if (requestVersion === widevineSettingsVersion && widevineSettingsRequest === request) {
+            widevineSettingsRequest = undefined
+          }
+          console.error('[playback] could not load Widevine settings', error)
+          return { enabled: false, licenseServerUrl: '' }
+        },
+      )
+    widevineSettingsRequest = request
   }
-  return widevineSettings
+  const requestVersion = widevineSettingsVersion
+  const settings = await widevineSettingsRequest
+  return requestVersion === widevineSettingsVersion ? settings : getWidevinePlaybackSettings()
 }
 
 export async function configureWidevinePlayer(player: shaka.Player) {
