@@ -1,30 +1,55 @@
 <script setup lang="ts">
-import { openModal } from '@kolirt/vue-modal'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
 import { useRouter } from 'vue-router'
-import { clearAccessToken, updateProfile } from '../../api'
+import { clearAccessToken, deleteAccount, updateProfile } from '../../api'
 import { notify } from '../../composables/notify'
+import { requestPassword } from '../../composables/requestPassword'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import AvatarUploader from './AvatarUploader.vue'
-import DeleteAccountModal from './DeleteAccountModal.vue'
 import PasswordSection from './PasswordSection.vue'
 import PrivacySection from './PrivacySection.vue'
 
 const router = useRouter()
 const { t } = useI18n()
 const { profile, load, setProfile, clear } = useProfile()
+const isDeletingAccount = ref(false)
 
 async function confirmDeleteAccount() {
-  const deleted = await openModal<boolean>(DeleteAccountModal).catch(() => false)
-  if (deleted) {
+  if (isDeletingAccount.value) return
+  const [passwordError, password] = await catchError(
+    requestPassword({
+      title: t('settings.profile.deleteConfirmTitle'),
+      description: t('settings.profile.deleteConfirmDescription'),
+      passwordLabel: t('settings.profile.passwordLabel'),
+      submitLabel: t('settings.profile.deleteAccountButton'),
+      danger: true,
+    }),
+  )
+  if (passwordError) {
+    console.error('[settings] could not request password for account deletion', passwordError)
+    notify.error(describeRequestError(passwordError, t('settings.profile.deleteFailed')))
+    return
+  }
+  if (!password) return
+
+  isDeletingAccount.value = true
+  try {
+    const [error] = await catchError(deleteAccount(password))
+    if (error) {
+      console.error('[settings] account deletion failed', error)
+      notify.error(describeRequestError(error, t('settings.profile.deleteFailed')))
+      return
+    }
     clearAccessToken()
     clear()
     notify.success(t('settings.profile.accountDeleted'))
     await router.replace({ name: 'login' })
+  } finally {
+    isDeletingAccount.value = false
   }
 }
 
@@ -97,7 +122,7 @@ async function save() {
     <section class="rounded border border-rose-400/20 bg-rose-400/5 p-5 lg:col-span-2" aria-labelledby="danger-heading">
       <h2 id="danger-heading" class="text-lg font-semibold text-rose-200">{{ t('settings.profile.deleteAccountTitle') }}</h2>
       <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.profile.deleteAccountDescription') }}</p>
-      <button type="button" class="mt-4 flex h-11 items-center justify-center rounded border border-rose-400/40 px-6 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300" @click="confirmDeleteAccount">{{ t('settings.profile.deleteAccountButton') }}</button>
+      <button type="button" class="mt-4 flex h-11 items-center justify-center rounded border border-rose-400/40 px-6 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-wait disabled:opacity-60" :disabled="isDeletingAccount" @click="confirmDeleteAccount">{{ t('settings.profile.deleteAccountButton') }}</button>
     </section>
   </div>
 </template>

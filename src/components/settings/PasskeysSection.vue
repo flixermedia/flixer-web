@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { browserSupportsWebAuthn, type PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser'
-import { openModal } from '@kolirt/vue-modal'
+import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
-import { listPasskeys, registerPasskey, setPasskeyRequired, type Passkey, type UserProfile } from '../../api'
+import { deletePasskey, getPasskeyRegistrationOptions, listPasskeys, registerPasskey, setPasskeyRequired, type Passkey } from '../../api'
 import { notify } from '../../composables/notify'
+import { requestPassword } from '../../composables/requestPassword'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import AddPasskeyForm from './AddPasskeyForm.vue'
-import AddPasskeyModal from './AddPasskeyModal.vue'
-import DisablePasskeyRequiredModal from './DisablePasskeyRequiredModal.vue'
 import PasskeyList from './PasskeyList.vue'
-import RemovePasskeyModal from './RemovePasskeyModal.vue'
 
 const { profile, load: loadProfile, setProfile } = useProfile()
 const { t } = useI18n()
@@ -21,10 +18,31 @@ const passkeyRequired = computed(() => profile.value?.passkeyRequired === true)
 
 async function handleToggleRequired() {
   if (passkeyRequired.value) {
-    const updated = await openModal<UserProfile>(DisablePasskeyRequiredModal).catch(() => null)
-    if (updated) {
-      setProfile(updated)
-      notify.success(t('settings.passkeys.noLongerRequired'))
+    isTogglingRequired.value = true
+    try {
+      const [passwordError, password] = await catchError(
+        requestPassword({
+          title: t('settings.passkeys.disableRequiredTitle'),
+          description: t('settings.passkeys.disableRequiredDescription'),
+          passwordLabel: t('settings.passkeys.passwordLabel'),
+          submitLabel: t('settings.passkeys.turnOff'),
+        }),
+      )
+      if (passwordError) {
+        notify.error(describeError(passwordError))
+        return
+      }
+      if (!password) return
+
+      const [error, updated] = await catchError(setPasskeyRequired(false, password))
+      if (error) {
+        notify.error(describeError(error))
+      } else {
+        setProfile(updated)
+        notify.success(t('settings.passkeys.noLongerRequired'))
+      }
+    } finally {
+      isTogglingRequired.value = false
     }
     return
   }
@@ -74,7 +92,25 @@ async function load() {
 }
 
 async function handleAdd(name: string) {
-  const options = await openModal<PublicKeyCredentialCreationOptionsJSON>(AddPasskeyModal).catch(() => null)
+  const [passwordError, password] = await catchError(
+    requestPassword({
+      title: t('settings.passkeys.add'),
+      description: t('settings.passkeys.addDescription'),
+      passwordLabel: t('settings.passkeys.passwordLabel'),
+      submitLabel: t('settings.passkeys.continue'),
+    }),
+  )
+  if (passwordError) {
+    notify.error(describeError(passwordError))
+    return
+  }
+  if (!password) return
+
+  const [optionsError, options] = await catchError(getPasskeyRegistrationOptions(password))
+  if (optionsError) {
+    notify.error(describeError(optionsError))
+    return
+  }
   if (!options) {
     return
   }
@@ -94,15 +130,36 @@ async function handleAdd(name: string) {
 }
 
 async function handleRemove(passkey: Passkey) {
-  const removed = await openModal<boolean>(RemovePasskeyModal, { props: { passkeyId: passkey.id, passkeyName: passkey.name } }).catch(() => false)
-  if (!removed) {
+  const [passwordError, password] = await catchError(
+    requestPassword({
+      title: t('settings.passkeys.removeTitle'),
+      description: t('settings.passkeys.removeDescription', { name: passkey.name }),
+      passwordLabel: t('settings.passkeys.passwordLabel'),
+      submitLabel: t('settings.passkeys.removeButton'),
+      danger: true,
+    }),
+  )
+  if (passwordError) {
+    notify.error(describeError(passwordError))
     return
   }
+  if (!password) return
 
-  passkeys.value = passkeys.value.filter((item) => item.id !== passkey.id)
-  notify.success(t('settings.passkeys.removed'))
-  if (passkeys.value.length === 0) {
-    void loadProfile(true)
+  deletingId.value = passkey.id
+  try {
+    const [error] = await catchError(deletePasskey(passkey.id, password))
+    if (error) {
+      notify.error(describeError(error))
+      return
+    }
+
+    passkeys.value = passkeys.value.filter((item) => item.id !== passkey.id)
+    notify.success(t('settings.passkeys.removed'))
+    if (passkeys.value.length === 0) {
+      void loadProfile(true)
+    }
+  } finally {
+    deletingId.value = null
   }
 }
 
