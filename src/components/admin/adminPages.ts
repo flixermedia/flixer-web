@@ -37,6 +37,10 @@ const Search = lazy(() => import('./MediaSearchSettingsSection.vue'))
 const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
 const Ai = lazy(() => import('./AiPanel.vue'))
+const Widevine = lazy(() => import('./WidevineSettingsSection.vue'))
+const DrmTesting = lazy(() => import('./DrmTestingPanel.vue'))
+const ChatEncryption = lazy(() => import('./ChatEncryptionSettingsSection.vue'))
+const Calls = lazy(() => import('./CallSettingsSection.vue'))
 const Plugins = lazy(() => import('./PluginsPanel.vue'))
 const PaymentSettings = lazy(() => import('./payments/PaymentSettingsPanel.vue'))
 const PaymentCatalog = lazy(() => import('./payments/PaymentCatalogPanel.vue'))
@@ -89,6 +93,10 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   search: [{ component: Search }],
   updates: [{ component: Updates }],
   backups: [{ component: Backups }],
+  widevine: [{ component: Widevine }],
+  drmTesting: [{ component: DrmTesting }],
+  chatSettings: [{ component: ChatEncryption }],
+  callSettings: [{ component: Calls }],
   plugins: [{ component: Plugins }],
   payments: [{ component: PaymentSettings }],
   paymentsCatalog: [{ component: PaymentCatalog }],

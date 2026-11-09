@@ -43,6 +43,28 @@ describe('admin navigation', () => {
     expect(adminQuery('logging', 'logging')).toEqual({ tab: 'logging' })
   })
 
+  it('groups Widevine configuration and DRM testing in their own category', () => {
+    expect(ADMIN_TABS.drm).toEqual(['widevine', 'drmTesting'])
+    expect(tabOf('widevine')).toBe('drm')
+    expect(tabOf('drmTesting')).toBe('drm')
+    expect(resolveAdminLocation('drm')).toEqual({ tab: 'drm', page: 'widevine' })
+    expect(resolveAdminLocation('drm', 'drmTesting')).toEqual({ tab: 'drm', page: 'drmTesting' })
+    expect(adminQuery('drm', 'drmTesting')).toEqual({ tab: 'drm', page: 'drmTesting' })
+    expect(ADMIN_TABS.settings).not.toContain('widevine')
+  })
+
+  it('groups chat and audio/video call settings in Communications', () => {
+    expect(ADMIN_TABS.communications).toEqual(['chatSettings', 'callSettings'])
+    expect(tabOf('chatSettings')).toBe('communications')
+    expect(tabOf('callSettings')).toBe('communications')
+    expect(resolveAdminLocation('communications')).toEqual({ tab: 'communications', page: 'chatSettings' })
+    expect(resolveAdminLocation('communications', 'callSettings')).toEqual({ tab: 'communications', page: 'callSettings' })
+    expect(resolveAdminLocation('settings', 'chatEncryption')).toEqual({ tab: 'communications', page: 'chatSettings' })
+    expect(resolveAdminLocation('settings', 'calls')).toEqual({ tab: 'communications', page: 'callSettings' })
+    expect(ADMIN_TABS.settings).not.toContain('chatSettings')
+    expect(ADMIN_TABS.settings).not.toContain('callSettings')
+  })
+
   it('redirects existing issue-report admin links to the new category', () => {
     expect(resolveAdminLocation('requests', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
     expect(resolveAdminLocation('settings', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })

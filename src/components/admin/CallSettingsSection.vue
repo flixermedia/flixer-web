@@ -26,7 +26,7 @@ onMounted(async () => {
   const [error, settings] = await catchError(listSettings())
   loading.value = false
   if (error) {
-    notify.error(describeRequestError(error, t('admin.general.calls.loadError')))
+    notify.error(describeRequestError(error, t('admin.communications.calls.loadError')))
     return
   }
   const value = (key: string) => settings.find((setting) => setting.key === key)?.value
@@ -45,7 +45,7 @@ async function saveToggle(key: 'calls_enabled' | 'calls_relay_only', current: bo
   const [error] = await catchError(updateSetting(key, value))
   saving.value = false
   if (error) {
-    notify.error(describeRequestError(error, t('admin.general.calls.saveError')))
+    notify.error(describeRequestError(error, t('admin.communications.calls.saveError')))
     return
   }
   apply(value)
@@ -63,12 +63,12 @@ async function saveServers() {
   )
   saving.value = false
   if (error) {
-    notify.error(describeRequestError(error, t('admin.general.calls.saveError')))
+    notify.error(describeRequestError(error, t('admin.communications.calls.saveError')))
     return
   }
   if (turnSecret.value) secretStored.value = true
   turnSecret.value = ''
-  notify.success(t('admin.general.calls.saved'))
+  notify.success(t('admin.communications.calls.saved'))
 }
 
 async function clearSecret() {
@@ -76,39 +76,39 @@ async function clearSecret() {
   const [error] = await catchError(updateSetting('calls_turn_secret', ''))
   saving.value = false
   if (error) {
-    notify.error(describeRequestError(error, t('admin.general.calls.saveError')))
+    notify.error(describeRequestError(error, t('admin.communications.calls.saveError')))
     return
   }
   secretStored.value = false
-  notify.success(t('admin.general.calls.saved'))
+  notify.success(t('admin.communications.calls.saved'))
 }
 </script>
 
 <template>
-  <AdminSection :title="t('admin.general.calls.title')" :description="t('admin.general.calls.description')">
+  <AdminSection :title="t('admin.communications.calls.title')" :description="t('admin.communications.calls.description')">
     <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
     <div v-else class="space-y-4">
-      <AdminToggle :model-value="enabled" :disabled="saving" :label="t('admin.general.calls.enable')" :description="t('admin.general.calls.enableDescription')" @update:model-value="saveToggle('calls_enabled', enabled, (value) => (enabled = value), $event)" />
+      <AdminToggle :model-value="enabled" :disabled="saving" :label="t('admin.communications.calls.enable')" :description="t('admin.communications.calls.enableDescription')" @update:model-value="saveToggle('calls_enabled', enabled, (value) => (enabled = value), $event)" />
       <label class="block text-sm font-medium">
-        {{ t('admin.general.calls.stunLabel') }}
+        {{ t('admin.communications.calls.stunLabel') }}
         <textarea v-model="stunUrls" rows="2" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 font-mono text-xs" spellcheck="false" />
       </label>
       <label class="block text-sm font-medium">
-        {{ t('admin.general.calls.turnLabel') }}
+        {{ t('admin.communications.calls.turnLabel') }}
         <textarea v-model="turnUrls" rows="2" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 font-mono text-xs" spellcheck="false" />
       </label>
       <label class="block text-sm font-medium">
-        {{ t('admin.general.calls.usernameLabel') }}
-        <input v-model="turnUsername" type="text" autocomplete="off" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 text-xs" :placeholder="t('admin.general.calls.usernameAuto')" />
+        {{ t('admin.communications.calls.usernameLabel') }}
+        <input v-model="turnUsername" type="text" autocomplete="off" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 text-xs" :placeholder="t('admin.communications.calls.usernameAuto')" />
       </label>
       <label class="block text-sm font-medium">
-        {{ t('admin.general.calls.secretLabel') }}
-        <input v-model="turnSecret" type="password" autocomplete="new-password" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 text-xs" :placeholder="secretStored ? t('admin.general.calls.secretStored') : t('admin.general.calls.secretAuto')" />
+        {{ t('admin.communications.calls.secretLabel') }}
+        <input v-model="turnSecret" type="password" autocomplete="new-password" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 text-xs" :placeholder="secretStored ? t('admin.communications.calls.secretStored') : t('admin.communications.calls.secretAuto')" />
       </label>
-      <button v-if="secretStored" type="button" class="text-xs text-flixer-accent underline" :disabled="saving" @click="clearSecret">{{ t('admin.general.calls.secretClear') }}</button>
-      <p class="text-xs text-flixer-muted">{{ t('admin.general.calls.urlsHint') }} {{ t('admin.general.calls.turnHint') }}</p>
-      <button type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="saving" @click="saveServers">{{ t('admin.general.calls.save') }}</button>
-      <AdminToggle :model-value="relayOnly" :disabled="saving" :label="t('admin.general.calls.relayOnly')" :description="t('admin.general.calls.relayOnlyDescription')" @update:model-value="saveToggle('calls_relay_only', relayOnly, (value) => (relayOnly = value), $event)" />
+      <button v-if="secretStored" type="button" class="text-xs text-flixer-accent underline" :disabled="saving" @click="clearSecret">{{ t('admin.communications.calls.secretClear') }}</button>
+      <p class="text-xs text-flixer-muted">{{ t('admin.communications.calls.urlsHint') }} {{ t('admin.communications.calls.turnHint') }}</p>
+      <button type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="saving" @click="saveServers">{{ t('admin.communications.calls.save') }}</button>
+      <AdminToggle :model-value="relayOnly" :disabled="saving" :label="t('admin.communications.calls.relayOnly')" :description="t('admin.communications.calls.relayOnlyDescription')" @update:model-value="saveToggle('calls_relay_only', relayOnly, (value) => (relayOnly = value), $event)" />
     </div>
   </AdminSection>
 </template>

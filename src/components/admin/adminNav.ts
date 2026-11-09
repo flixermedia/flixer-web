@@ -13,6 +13,8 @@ export const ADMIN_TABS = {
   mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
   payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
   apikeys: ['apikeys'],
+  drm: ['widevine', 'drmTesting'],
+  communications: ['chatSettings', 'callSettings'],
   plugins: ['plugins'],
   settings: ['server', 'webhooks', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
 } as const
@@ -68,6 +70,8 @@ export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): Ad
   const page = text(pageQuery)
   if (tab === 'requests' && page === 'tickets') return { tab: 'issues', page: 'tickets' }
   if (tab === 'settings' && page === 'issueReports') return { tab: 'issues', page: 'issueReports' }
+  if (tab === 'settings' && page === 'chatEncryption') return { tab: 'communications', page: 'chatSettings' }
+  if (tab === 'settings' && page === 'calls') return { tab: 'communications', page: 'callSettings' }
   if (tab === 'library' && page === 'advertisements') return { tab: 'advertising', page: 'advertisements' }
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
