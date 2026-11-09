@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { cancelActiveIndexerTasks, getIndexerStatus, INDEXER_QUEUES, setIndexerConcurrency, setIndexerQueuePaused, type IndexerQueueName, type IndexerQueueStats, type IndexerStatus } from '../../api'
+import { cancelActiveIndexerTasks, clearAllPendingIndexerTasks, getIndexerStatus, INDEXER_QUEUES, setIndexerConcurrency, setIndexerQueuePaused, type IndexerQueueName, type IndexerQueueStats, type IndexerStatus } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -19,8 +19,10 @@ const dirty = ref(false)
 const saving = ref(false)
 const busyQueue = ref<IndexerQueueName | null>(null)
 const cancelling = ref(false)
+const clearingPending = ref(false)
 
 const anyActive = computed(() => (status.value?.queues ?? []).some((entry) => entry.active + entry.pending > 0))
+const anyPending = computed(() => (status.value?.queues ?? []).some((entry) => entry.pending > 0))
 
 function statsFor(queue: IndexerQueueName): IndexerQueueStats | undefined {
   return status.value?.queues.find((entry) => entry.queue === queue)
@@ -81,6 +83,33 @@ async function cancelRunning(queues: IndexerQueueName[]) {
   }
 }
 
+async function clearPending() {
+  if (!(await confirmAction(t('admin.indexer.clearAllPendingConfirm'), { danger: true }))) return
+  clearingPending.value = true
+  try {
+    const [error, result] = await catchError(clearAllPendingIndexerTasks())
+    if (error) {
+      notify.error(describeRequestError(error, t('admin.indexer.clearPendingError')))
+      return
+    }
+
+    await refresh()
+    if (result.failures.length) {
+      for (const failure of result.failures) {
+        console.error(`[admin-indexer] Could not clear pending tasks from "${failure.queue}"`, failure.error)
+      }
+      notify.error(t('admin.indexer.clearedAllPendingPartial', {
+        n: result.cleared,
+        queues: result.failures.map(({ queue }) => queue).join(', '),
+      }))
+    } else {
+      notify.success(t('admin.indexer.clearedAllPending', { n: result.cleared }))
+    }
+  } finally {
+    clearingPending.value = false
+  }
+}
+
 async function saveWorkers() {
   saving.value = true
   try {
@@ -110,7 +139,8 @@ watch(live.data, (value) => {
 <template>
   <AdminSection :title="t('admin.indexer.queuesTitle')" :description="t('admin.indexer.queuesDescription')">
     <template #actions>
-      <button type="button" :disabled="cancelling || !anyActive || !status?.reachable" class="mr-2 rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="cancelRunning([...INDEXER_QUEUES])">{{ t('admin.indexer.cancelAllRunning') }}</button>
+      <button type="button" :disabled="clearingPending || cancelling || !anyPending || !status?.reachable" class="mr-2 rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearPending">{{ t('admin.indexer.clearAllPending') }}</button>
+      <button type="button" :disabled="cancelling || clearingPending || !anyActive || !status?.reachable" class="mr-2 rounded bg-red-500/20 px-4 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="cancelRunning([...INDEXER_QUEUES])">{{ t('admin.indexer.cancelAllRunning') }}</button>
       <button type="button" :disabled="!dirty || saving || !status?.reachable" class="rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" @click="saveWorkers">{{ t('admin.indexer.saveWorkers') }}</button>
     </template>
 

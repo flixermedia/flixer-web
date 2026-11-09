@@ -463,6 +463,45 @@ export async function cancelActiveIndexerTasks(queue: IndexerTaskQueueName): Pro
   return response.data.cancelled ?? 0
 }
 
+export async function clearAllPendingIndexerTasks(): Promise<{
+  cleared: number
+  failures: Array<{ queue: IndexerTaskQueueName; error: unknown }>
+}> {
+  const result = { cleared: 0, failures: [] as Array<{ queue: IndexerTaskQueueName; error: unknown }> }
+
+  for (const queue of INDEXER_TASK_QUEUES) {
+    const pending: IndexerTask[] = []
+    let listingError: unknown
+    let page = 1
+    let tasks: IndexerTask[]
+
+    try {
+      do {
+        tasks = await listIndexerTasks(queue, 'pending', page++, 100)
+        pending.push(...tasks)
+      } while (tasks.length === 100)
+    } catch (error) {
+      listingError = error
+    }
+
+    const cancellationErrors: unknown[] = []
+    for (let offset = 0; offset < pending.length; offset += 5) {
+      const outcomes = await Promise.allSettled(
+        pending.slice(offset, offset + 5).map((task) => cancelIndexerTask(queue, task.id)),
+      )
+      for (const outcome of outcomes) {
+        if (outcome.status === 'fulfilled') result.cleared++
+        else cancellationErrors.push(outcome.reason)
+      }
+    }
+
+    const error = listingError ?? cancellationErrors[0]
+    if (error !== undefined) result.failures.push({ queue, error })
+  }
+
+  return result
+}
+
 export async function setIndexerQueuePaused(queue: IndexerTaskQueueName, paused: boolean): Promise<void> {
   await api.post(`/admin/indexer/queues/${queue}/${paused ? 'pause' : 'resume'}`)
 }

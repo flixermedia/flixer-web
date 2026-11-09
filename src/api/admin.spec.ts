@@ -2,19 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   post: vi.fn(),
+  get: vi.fn(),
   request: vi.fn(),
 }))
 
 vi.mock('./client', () => ({
-  api: { post: mocks.post },
+  api: { get: mocks.get, post: mocks.post },
   apiRequest: mocks.request,
 }))
 
-import { clearAllFailedIndexerTasks, clearFailedIndexerTasks, INDEXER_QUEUES } from './admin.ts'
+import { clearAllFailedIndexerTasks, clearAllPendingIndexerTasks, clearFailedIndexerTasks, INDEXER_QUEUES, INDEXER_TASK_QUEUES } from './admin.ts'
 
 describe('clearAllFailedIndexerTasks', () => {
   beforeEach(() => {
     mocks.post.mockReset()
+    mocks.get.mockReset()
     mocks.request.mockReset()
     mocks.post.mockImplementation(async () => ({ data: { cleared: 2 } }))
   })
@@ -63,5 +65,64 @@ describe('clearFailedIndexerTasks', () => {
       undefined,
       { timeout: 60_000 },
     )
+  })
+})
+
+describe('clearAllPendingIndexerTasks', () => {
+  beforeEach(() => {
+    mocks.get.mockReset()
+    mocks.post.mockReset()
+    mocks.get.mockImplementation(async (_url: string, options: { params: { queue: string } }) => ({
+      data: {
+        tasks: options.params.queue === 'identify'
+          ? [{ id: 'pending-1', queue: 'identify', type: 'identify:movie', state: 'pending', retried: 0, maxRetry: 1 }]
+          : [],
+      },
+    }))
+    mocks.post.mockResolvedValue({ data: {} })
+  })
+
+  it('cancels pending tasks across all task queues without cancelling active tasks', async () => {
+    await expect(clearAllPendingIndexerTasks()).resolves.toEqual({ cleared: 1, failures: [] })
+
+    expect(mocks.get).toHaveBeenCalledTimes(INDEXER_TASK_QUEUES.length)
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(mocks.post).toHaveBeenCalledWith('/admin/indexer/tasks/identify/pending-1/cancel')
+  })
+
+  it('continues listing a queue when it has multiple pages of pending tasks', async () => {
+    mocks.get.mockImplementation(async (_url: string, options: { params: { queue: string; page: number } }) => ({
+      data: {
+        tasks: options.params.queue !== 'identify'
+          ? []
+          : options.params.page === 1
+            ? Array.from({ length: 100 }, (_, index) => ({
+              id: `pending-${index}`,
+              queue: 'identify',
+              type: 'identify:movie',
+              state: 'pending',
+              retried: 0,
+              maxRetry: 1,
+            }))
+            : [{ id: 'pending-last', queue: 'identify', type: 'identify:movie', state: 'pending', retried: 0, maxRetry: 1 }],
+      },
+    }))
+
+    await expect(clearAllPendingIndexerTasks()).resolves.toEqual({ cleared: 101, failures: [] })
+    expect(mocks.get.mock.calls.filter(([, options]) => options.params.queue === 'identify').map(([, options]) => options.params.page)).toEqual([1, 2])
+    expect(mocks.post).toHaveBeenCalledTimes(101)
+  })
+
+  it('continues across queues and reports listing failures', async () => {
+    mocks.get.mockImplementation(async (_url: string, options: { params: { queue: string } }) => {
+      if (options.params.queue === 'identify') throw new Error('request timed out')
+      return { data: { tasks: [] } }
+    })
+
+    await expect(clearAllPendingIndexerTasks()).resolves.toMatchObject({
+      cleared: 0,
+      failures: [{ queue: 'identify', error: new Error('request timed out') }],
+    })
+    expect(mocks.get).toHaveBeenCalledTimes(INDEXER_TASK_QUEUES.length)
   })
 })
