@@ -162,6 +162,8 @@ export const setLoggerIngestionPolicy = async (policy: LoggerIngestionPolicy) =>
 export const getLoggerQuota = async () => (await apiRequest<LoggerQuota>({ method: 'GET', url: '/admin/logger/quota' })).data
 export const setLoggerQuota = async (maxBytes: number) =>
   (await apiRequest<LoggerQuota>({ method: 'PUT', url: '/admin/logger/quota', data: { maxBytes } })).data
+export const clearLoggerLogs = async () =>
+  (await apiRequest<{ cleared: number }>({ method: 'POST', url: '/admin/logger/clear' })).data
 export const getLoggerOwnerConfiguration = async () =>
   (await apiRequest<{ configured: boolean }>({ method: 'GET', url: '/admin/logger/owner/configuration' })).data
 export const configureLoggerOwner = async (ownerToken: string) =>

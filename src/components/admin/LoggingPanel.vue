@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { AUTH_INVALID_EVENT, AUTH_TOKEN_CHANGED_EVENT, configureLogger, configureLoggerOwner, createLoggerOwnerPairing, discardLoggerPairing, getAccessToken, getLoggerCapacity, getLoggerCapacityPolicy, getLoggerConfiguration, getLoggerCredentials, getLoggerHealth, getLoggerIngestionPolicy, getLoggerOwnerConfiguration, getLoggerOwnerCredentials, getLoggerOwnerPairings, getLoggerPairing, getLoggerQuota, getLoggerRetention, getLoggerStatus, LoggerClient, LoggerRequestError, pairLogger, retryLoggerPairing, revokeLoggerCredential, revokeLoggerOwnerCredential, revokeLoggerOwnerPairing, setLoggerCapacityPolicy, setLoggerIngestionPolicy, setLoggerQuota, setLoggerRetention, type LoggerCapacity, type LoggerCredential, type LoggerDeploymentStatus, type LoggerErrorGroup, type LoggerEvent, type LoggerExporterStatus, type LoggerLevel, type LoggerOwnerCredential, type LoggerOwnerPairing, type LoggerSearch, type LoggerSourceCount } from '../../api'
+import { clearLoggerLogs } from '../../api/logger'
 import { confirmAction } from '../../composables/confirm'
 import AdminSection from './AdminSection.vue'
 import AnalyticsTrendChart from './AnalyticsTrendChart.vue'
@@ -24,6 +25,7 @@ const pairingPending = ref(false)
 const pairingPendingEndpoint = ref('')
 const pairingError = ref('')
 const busy = ref(false)
+const clearingLogs = ref(false)
 const error = ref('')
 const notice = ref('')
 const retentionEnabled = ref(false)
@@ -781,6 +783,42 @@ async function loadRecent() {
   }
 }
 
+async function clearLogs() {
+  const generation = sessionGeneration
+  if (clearingLogs.value || searching.value) return
+  const confirmed = await confirmAction(t('admin.logging.confirmClearAll'), {
+    danger: true, confirmLabel: t('admin.logging.clearAll'),
+  })
+  if (!confirmed || generation !== sessionGeneration) return
+
+  clearingLogs.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const result = await clearLoggerLogs()
+    if (generation !== sessionGeneration) return
+    events.value = []
+    selected.value = null
+    clearCorrelation()
+    liveEvents.value = []
+    pausedEvents.value = []
+    liveSelected.value = null
+    bufferedWhilePaused.value = 0
+    gap.value = false
+    cursor.value = ''
+    activeSearch.value = null
+    notice.value = t('admin.logging.clearAllSuccess', { count: result.cleared })
+    void loadRecent()
+    void loadStats()
+    void loadSources()
+    void loadErrorGroups()
+  } catch {
+    if (generation === sessionGeneration) error.value = t('admin.logging.clearAllError')
+  } finally {
+    if (generation === sessionGeneration) clearingLogs.value = false
+  }
+}
+
 async function search(next = false) {
   if (searching.value) return
   const generation = sessionGeneration
@@ -1065,7 +1103,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="space-y-6">
-    <p class="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{{ t('admin.logging.experimental') }}</p>
     <p v-if="error" role="alert" class="rounded bg-red-500/10 p-3 text-sm text-red-300">{{ error }}</p>
     <p v-if="notice" role="status" class="rounded bg-green-500/10 p-3 text-sm">{{ notice }}</p>
 
@@ -1353,6 +1390,16 @@ onBeforeUnmount(() => {
         <div class="mt-3 flex flex-wrap items-center gap-3">
           <button :class="button" type="button" :disabled="!events.length" @click="exportEvents(events, 'history')">{{ t('admin.logging.export') }}</button>
           <span class="text-sm text-flixer-muted">{{ t('admin.logging.exportHelp', { limit: MAX_LOG_EXPORT_EVENTS }) }}</span>
+        </div>
+        <div class="mt-3">
+          <button
+            type="button"
+            class="rounded border border-red-500/50 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+            :disabled="busy || clearingLogs || searching"
+            @click="clearLogs"
+          >
+            {{ clearingLogs ? t('admin.logging.clearingAll') : t('admin.logging.clearAll') }}
+          </button>
         </div>
         <div v-if="selected" class="mt-4 rounded border border-flixer-border p-3">
           <div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">{{ t('admin.logging.details') }}</h3><div class="flex gap-2"><button :class="button" type="button" @click="copyEvent(selected)">{{ t('admin.logging.copy') }}</button><button :class="button" type="button" @click="selected = null">{{ t('admin.logging.close') }}</button></div></div>

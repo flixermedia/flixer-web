@@ -5,31 +5,27 @@ import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import ErrorMonitoringSection from './ErrorMonitoringSection.vue'
 import ServerSettingsSection from './ServerSettingsSection.vue'
-import CallSettingsSection from './CallSettingsSection.vue'
-import ChatEncryptionSettingsSection from './ChatEncryptionSettingsSection.vue'
+import RequestLoggingSection from './RequestLoggingSection.vue'
 
 const { t } = useI18n()
 
 const form = reactive({
   notifyNewUser: true,
   notifyTaskFail: true,
-  quickConnect: true,
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
     <ServerSettingsSection />
-    <ChatEncryptionSettingsSection />
-    <CallSettingsSection />
 
     <AdminSection :title="t('admin.general.notificationsTitle')" :description="t('admin.general.notificationsDescription')">
       <AdminToggle v-model="form.notifyNewUser" :label="t('admin.general.newUserAwaitingApproval')" />
       <AdminToggle v-model="form.notifyTaskFail" :label="t('admin.general.scheduledTaskFailed')" />
-      <AdminToggle v-model="form.quickConnect" :label="t('admin.general.allowQuickConnect')" :description="t('admin.general.quickConnectDescription')" />
     </AdminSection>
 
     <ErrorMonitoringSection />
+    <RequestLoggingSection />
 
     <AdminSection :title="t('admin.general.dangerZoneTitle')" :description="t('admin.general.dangerZoneDescription')">
       <div class="flex flex-wrap gap-2">
