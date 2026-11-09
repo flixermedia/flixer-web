@@ -13,6 +13,7 @@ const props = defineProps<{
   sessionCheckUnavailable: boolean
   registrationEnabled: boolean | null
   registrationStatusError: string
+  quickConnectEnabled?: boolean
   canResend?: boolean
   isResending?: boolean
   initialUsername?: string
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   biometric: []
   forgetBiometric: []
   resend: []
+  quickConnect: []
 }>()
 
 const username = ref(props.initialUsername ?? '')
@@ -99,6 +101,10 @@ function handleSubmit() {
         <button v-if="passkeysSupported" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-border bg-flixer-surface/50 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('passkey')">
           <Icon icon="lucide:key-round" class="size-[17px]" aria-hidden="true" />
           {{ t('auth.signInWithPasskey') }}
+        </button>
+        <button v-if="quickConnectEnabled" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('quickConnect')">
+          <Icon icon="lucide:monitor-smartphone" class="size-[17px]" aria-hidden="true" />
+          {{ t('auth.quickConnectSignIn') }}
         </button>
         <button v-if="biometricLoginAvailable" class="self-center text-xs text-flixer-muted underline underline-offset-4 hover:text-flixer-text" type="button" :disabled="isSubmitting" @click="emit('forgetBiometric')">
           {{ t('auth.forgetBiometricLogin') }}

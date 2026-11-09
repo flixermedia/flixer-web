@@ -9,7 +9,7 @@ export const AUTH_INVALID_EVENT = 'flixer:auth-invalid'
 export const AUTH_TOKEN_CHANGED_EVENT = 'flixer:auth-token-changed'
 
 /** These flows can return 401 intentionally without invalidating the signed-in session. */
-const AUTH_INVALID_EXEMPT_URLS = ['/auth/login', '/auth/logout', '/auth/me/password', '/auth/me/delete', '/sentry/config/web', '/logs/web', '/second-factor/', '/native-handoff/', '/payments/signup/', '/passkeys/register/options', '/passkeys/register/verify'] as const
+const AUTH_INVALID_EXEMPT_URLS = ['/auth/login', '/auth/logout', '/auth/me/password', '/auth/me/delete', '/auth/quick-connect/status', '/auth/quick-connect/start', '/auth/quick-connect/poll', '/sentry/config/web', '/logs/web', '/second-factor/', '/native-handoff/', '/payments/signup/', '/passkeys/register/options', '/passkeys/register/verify'] as const
 
 const PASSKEY_DELETE_URL = /\/passkeys\/[^/]+\/delete$/
 

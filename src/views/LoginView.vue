@@ -7,6 +7,7 @@ import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
 import { SavePassword } from '@capgo/capacitor-autofill-save-password'
 import logo from '../../resources/logo/flixer-logo.svg'
 import LoginForm from '../components/auth/LoginForm.vue'
+import QuickConnectLogin from '../components/auth/QuickConnectLogin.vue'
 import SignupPaymentStep from '../components/payments/SignupPaymentStep.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
 import VerificationNotice from '../components/auth/VerificationNotice.vue'
@@ -14,7 +15,7 @@ import { notify } from '../composables/notify'
 import { clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
-import { clearAccessToken, getAccessToken, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type VerificationPending } from '../api'
+import { clearAccessToken, getAccessToken, getQuickConnectStatus, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type VerificationPending } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
@@ -69,6 +70,8 @@ const needsVerification = ref(false)
 const isResending = ref(false)
 let lastCredentials: { username: string; password: string } | null = null
 const registrationEnabled = ref<boolean | null>(null)
+const quickConnectEnabled = ref(false)
+const quickConnectMode = ref(false)
 const registrationStatusError = ref('')
 const loginBanner = ref('')
 const nativeUsername = ref('')
@@ -166,10 +169,25 @@ async function loadRegistrationStatus() {
   const [error, status] = await catchError(getRegistrationStatus())
   if (error) {
     registrationStatusError.value = t('auth.registrationAvailabilityError')
-    return
+  } else {
+    registrationEnabled.value = status.registrationEnabled
+    loginBanner.value = status.loginBanner ?? ''
   }
-  registrationEnabled.value = status.registrationEnabled
-  loginBanner.value = status.loginBanner ?? ''
+  const [quickConnectError, quickConnectStatus] = await catchError(getQuickConnectStatus())
+  if (quickConnectError) {
+    console.warn('[quick-connect] could not check availability', quickConnectError)
+  } else {
+    quickConnectEnabled.value = quickConnectStatus.enabled
+  }
+}
+
+async function handleQuickConnectAuthentication(result: AuthResult) {
+  quickConnectMode.value = false
+  const authenticationError = await completeAuthentication(result)
+  if (authenticationError) {
+    console.error('[quick-connect] sign-in could not be completed', authenticationError)
+    notify.error(getRequestErrorMessage(authenticationError, false))
+  }
 }
 
 function switchAuthMode() {
@@ -539,11 +557,12 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
       <div class="w-full mt-0 lg:mt-4 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
-          <div :key="pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : isRegistration ? 'registration' : 'login'">
+          <div :key="pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
             <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />
             <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name" :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
             <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor" @back="cancelSecondFactor" />
-            <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" />
+            <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication" @back="quickConnectMode = false" />
+            <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" @quick-connect="quickConnectMode = true" />
             <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" @submit="handleRegistration" @switch-mode="switchAuthMode" />
           </div>
         </Transition>

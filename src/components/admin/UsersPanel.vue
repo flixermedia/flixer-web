@@ -28,6 +28,8 @@ const query = ref('')
 const registrationEnabled = ref(true)
 const smtpConfigured = ref(false)
 const verificationEnabled = ref(true)
+const quickConnectEnabled = ref(false)
+const isSavingQuickConnect = ref(false)
 
 const primaryButton = 'rounded bg-flixer-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 const secondaryButton = 'rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-60'
@@ -71,6 +73,7 @@ async function load() {
       originalAccess.value = policy === 'everyone' || policy === 'nobody' ? policy : 'admins'
       restrictedDisplay.value = settings.find((setting) => setting.key === 'restricted_media_display')?.value === 'locked' ? 'locked' : 'hidden'
       verificationEnabled.value = settings.find((setting) => setting.key === 'email_verification_required')?.value !== false
+      quickConnectEnabled.value = settings.find((setting) => setting.key === 'quick_connect_enabled')?.value === true
       loadError.value = ''
     }
   } finally {
@@ -132,6 +135,22 @@ async function setVerification(enabled: boolean) {
   if (error) {
     verificationEnabled.value = previous
     notify.error(describeRequestError(error, t('admin.users.verificationError')))
+  }
+}
+
+async function setQuickConnect(enabled: boolean) {
+  if (isLoading.value || isSavingQuickConnect.value) return
+  const previous = quickConnectEnabled.value
+  quickConnectEnabled.value = enabled
+  isSavingQuickConnect.value = true
+  try {
+    const [error] = await catchError(updateSetting('quick_connect_enabled', enabled))
+    if (error) {
+      quickConnectEnabled.value = previous
+      notify.error(describeRequestError(error, t('admin.users.quickConnectSaveError')))
+    }
+  } finally {
+    isSavingQuickConnect.value = false
   }
 }
 
@@ -210,6 +229,10 @@ onMounted(() => {
       <div :class="{ 'pointer-events-none opacity-60': !smtpConfigured }">
         <AdminToggle :model-value="verificationEnabled" :label="t('admin.users.requireEmailVerification')" :description="smtpConfigured ? t('admin.users.requireEmailVerificationDescription') : t('admin.users.emailVerificationOff')" @update:model-value="setVerification" />
       </div>
+    </AdminSection>
+
+    <AdminSection :title="t('admin.users.quickConnectTitle')" :description="t('admin.users.quickConnectDescription')">
+      <AdminToggle :model-value="quickConnectEnabled" :label="t('admin.users.quickConnectEnable')" :description="t('admin.users.quickConnectEnableDescription')" :disabled="isLoading || isSavingQuickConnect" @update:model-value="setQuickConnect" />
     </AdminSection>
 
     <AdminSection :title="t('admin.access.displayTitle')" :description="t('admin.access.displayDescription')">

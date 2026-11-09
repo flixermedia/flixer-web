@@ -48,6 +48,12 @@ const router = createRouter({
 			component: () => import("../views/LoginView.vue"),
 		},
 		{
+			path: "/quick-connect",
+			name: "quick-connect",
+			component: () => import("../views/QuickConnectView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
 			path: "/passkey/callback",
 			name: "passkey-callback",
 			component: () => import("../views/PasskeyCallbackView.vue"),

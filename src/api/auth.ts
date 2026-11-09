@@ -36,6 +36,36 @@ export async function getRegistrationStatus(): Promise<RegistrationStatus> {
   return response.data
 }
 
+export interface QuickConnectStartResult {
+  requestId: string
+  userCode: string
+  pollToken: string
+  expiresAt: string
+}
+
+export type QuickConnectPollResult =
+  | { status: 'pending' | 'denied' | 'expired' }
+  | { status: 'approved'; auth: AuthResult }
+
+export async function getQuickConnectStatus(): Promise<{ enabled: boolean }> {
+  const response = await api.get<{ enabled: boolean }>('/auth/quick-connect/status')
+  return response.data
+}
+
+export async function startQuickConnect(): Promise<QuickConnectStartResult> {
+  const response = await api.post<QuickConnectStartResult>('/auth/quick-connect/start')
+  return response.data
+}
+
+export async function pollQuickConnect(requestId: string, pollToken: string): Promise<QuickConnectPollResult> {
+  const response = await api.post<QuickConnectPollResult>('/auth/quick-connect/poll', { requestId, pollToken })
+  return response.data
+}
+
+export async function decideQuickConnect(userCode: string, decision: 'approve' | 'deny'): Promise<void> {
+  await api.post(`/auth/quick-connect/${decision}`, { userCode })
+}
+
 export async function register(username: string, password: string, email: string, displayName?: string): Promise<AuthResult | VerificationPending | PaymentPending> {
   const request: FlixerApiRouteBody<'post', '/auth/register'> = {
     username,
