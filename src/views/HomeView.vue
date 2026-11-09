@@ -24,6 +24,7 @@ const recommendations = ref<HomeRecommendation[]>([])
 const recommendationsLoading = ref(false)
 const musicRecommendations = ref<HomeMusicRecommendation[]>([])
 const musicRecommendationsLoading = ref(false)
+const recommendationsUnavailable = ref(false)
 const isLoading = ref(true)
 const loadFailed = ref(false)
 
@@ -66,7 +67,7 @@ async function loadRecommendations(signal?: AbortSignal) {
     const [error, result] = await catchError(getHomeRecommendations(signal))
     if (error) {
       if (isCanceled(error)) return
-      (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
+      recommendationsUnavailable.value = true
       return
     }
     recommendations.value = result.enabled ? result.items : []
@@ -81,7 +82,7 @@ async function loadMusicRecommendations(signal?: AbortSignal) {
     const [error, result] = await catchError(getHomeMusicRecommendations(signal))
     if (error) {
       if (isCanceled(error)) return
-      (error.message) ? notify.error(error.message, error) : notify.error(t('home.aiLoadError'));
+      recommendationsUnavailable.value = true
       return
     }
     musicRecommendations.value = result.enabled ? result.items : []
@@ -93,6 +94,7 @@ async function loadMusicRecommendations(signal?: AbortSignal) {
 async function load() {
   isLoading.value = true
   loadFailed.value = false
+  recommendationsUnavailable.value = false
   recommendationsAbort?.abort()
   recommendations.value = []
   musicRecommendations.value = []
@@ -196,6 +198,9 @@ onMounted(() => {
             :version="item.updatedAt" />
         </MediaRow>
       </TransitionGroup>
+      <p v-if="recommendationsUnavailable" class="page-gutter -mt-2 text-sm text-flixer-muted" role="status">
+        {{ t('home.aiLoadError') }}
+      </p>
     </main>
 
     <MobileTabBar :tabs="mobileTabs" />
