@@ -6,18 +6,13 @@ import { createMediaRequest, deleteMediaRequest, getExternalMediaDetail, listReq
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { notify } from '../composables/notify'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
-import { useSignOut } from '../composables/useSignOut.ts'
 import ClampedText from '../components/ui/ClampedText.vue'
-import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
-import { getNavLinks } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
-const { isSigningOut, signOut } = useSignOut()
 const config = useRequestsConfig()
-const navLinks = computed(getNavLinks)
 const { profile, load: loadProfile } = useProfile()
 const detail = ref<ExternalMediaDetail | null>(null)
 const loading = ref(true)
@@ -99,7 +94,7 @@ watch(
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main v-if="loading" class="page-gutter pt-32" role="status" :aria-label="t('common.loading')" aria-busy="true">
       <div class="flex flex-col gap-6 sm:flex-row">
         <Skeleton class="aspect-[2/3] w-40 shrink-0 rounded sm:w-56" />

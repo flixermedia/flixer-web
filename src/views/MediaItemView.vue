@@ -11,7 +11,6 @@ import MediaItemModal from '../components/admin/MediaItemModal.vue'
 import SubtitleModal from '../components/admin/SubtitleModal.vue'
 import EpisodeTrickplayThumb from '../components/media/EpisodeTrickplayThumb.vue'
 import ClampedText from '../components/ui/ClampedText.vue'
-import Header from '../components/header/Header.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MediaRow from '../components/home/MediaRow.vue'
@@ -24,14 +23,13 @@ import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
 import { useParty } from '../composables/useParty'
 import { notify } from '../composables/notify'
 import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useAccess } from '../composables/useAccess'
 import { lockOf, openOffers, refreshLocks, requestLock, usePayments } from '../composables/usePayments'
 import { usePaymentFormat } from '../composables/usePaymentFormat'
 import { getOffers, rentalRemainingMs, type Offers } from '../api'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 import { useThemeMusic } from '../composables/useThemeMusic'
 import { fetchCachedImageBlob } from '../composables/imageBlobCache'
@@ -48,8 +46,6 @@ const issueReports = useIssueReportsConfig()
 void issueReports.load()
 const { profile } = useProfile()
 const isAdmin = computed(() => profile.value?.role === 'admin')
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const item = ref<ItemDetail | null>(null)
@@ -471,7 +467,6 @@ watch(
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main>
       <div v-if="isLoading" class="media-item-state page-gutter pt-32" role="status" :aria-label="t('mediaItem.loading')" aria-busy="true">

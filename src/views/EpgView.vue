@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { getGuide, getGuideChannelPlaybackInfo, GUIDE_CHANNEL_PAGE_SIZE, type EpgChannel, type EpgData, type EpgProgramme } from '../api/guide'
 import { programmeProgress, programmesInWindow, visibleGuideTimeChunks } from '../api/epg'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import { catchError } from '../utils/catchError'
 
@@ -20,9 +18,7 @@ const FAVORITES_KEY = 'flixer.epg.favorites'
 const PRIMARY_CHANNELS = ['bbc one london', 'bbc two', 'itv1', 'channel 4', 'channel 5', 'bbc three', 'itv2', 'e4', 'sky news', 'bbc news']
 
 const { t, locale } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
 const videoOverlay = useVideoOverlay()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 const data = ref<EpgData | null>(null)
 const loading = ref(true)
@@ -424,7 +420,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-clip bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" :disable-scroll-collapse="true" @logout="signOut" />
 
     <main class="page-gutter pt-20 sm:pt-24">
       <p class="sr-only" role="status" aria-live="polite">{{ actionMessage }}</p>

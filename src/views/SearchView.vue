@@ -5,12 +5,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { getSearchGenres, searchMedia, searchPluginSections, searchRequests, type ExternalMediaCard, type HomeCard, type RequestMediaType, type SearchFilters } from '../api'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
 import { pluginSearchType, sanitizeSearchSections, searchItemRoute, type PluginSearchSection } from '../plugins/searchSections'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut.ts'
+import { getMobileTabs } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 
 const DEBOUNCE_MS = 250
@@ -19,12 +17,10 @@ const MIN_LENGTH = 2
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { isSigningOut, signOut } = useSignOut()
 const requestsConfig = useRequestsConfig()
 const externalResults = ref<ExternalMediaCard[]>([])
 const pluginSections = ref<PluginSearchSection[]>([])
 const pluginItemCount = computed(() => pluginSections.value.reduce((sum, section) => sum + section.items.length, 0))
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const input = ref<HTMLInputElement>()
@@ -204,7 +200,6 @@ function subtitleOf(item: SearchCard) {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter relative pt-28 sm:pt-32">
       <div class="pointer-events-none absolute inset-x-0 top-0 -z-0 h-80 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),transparent_70%)]" aria-hidden="true"></div>

@@ -3,14 +3,12 @@ import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { callPluginOperation } from '../api'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import PluginNode from '../components/plugins/PluginNode.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { pluginViewContextKey, usePluginActions, type PluginViewContext } from '../composables/usePluginActions'
 import { usePluginPages } from '../composables/usePluginPages'
 import { describeRequestError } from '../composables/useProfile'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { applyQuery, queryFromRoute, resolveNav } from '../plugins/pageLogic'
 import { sanitizePageResponse } from '../plugins/viewSchema'
 import type { PluginNav, PluginPageResponse } from '../plugins/viewTypes'
@@ -19,9 +17,7 @@ import { catchError } from '../utils/catchError'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { isSigningOut, signOut } = useSignOut()
 const { pages } = usePluginPages()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const pluginId = computed(() => String(route.params.pluginId ?? ''))
@@ -106,7 +102,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter mx-auto max-w-6xl">
       <div v-if="page" :aria-busy="loading">
         <PluginNode :node="page.view" />

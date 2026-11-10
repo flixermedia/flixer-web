@@ -3,16 +3,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getProfiles, type PublicProfileSummary } from '../api'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut.ts'
+import { getMobileTabs } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 const query = ref('')
 const profiles = ref<PublicProfileSummary[]>([])
@@ -63,7 +59,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter pt-28 sm:pt-32">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>

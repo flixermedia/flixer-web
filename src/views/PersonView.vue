@@ -4,20 +4,16 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getPerson, type PersonCredits } from '../api'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import PersonAvatar from '../components/ui/PersonAvatar.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut.ts'
+import { getMobileTabs } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 
 const { t, te } = useI18n()
 const route = useRoute()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const routeName = computed(() => String(route.params.id ?? ''))
@@ -79,7 +75,6 @@ onBeforeUnmount(() => controller?.abort())
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter pt-28 sm:pt-32">
       <div class="flex flex-col items-start gap-5 sm:flex-row sm:items-end sm:gap-8">

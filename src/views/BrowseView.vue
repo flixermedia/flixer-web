@@ -2,16 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { browseMedia, getPreferences, updatePreferences, type BrowseKind, type BrowseSort, type HomeCard } from '../api'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll'
 import { describeRequestError } from '../composables/useProfile'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ kind: BrowseKind }>()
@@ -20,8 +18,6 @@ const SORTS: BrowseSort[] = ['added', 'title', 'year']
 const BROWSE_COLUMN_OPTIONS = [2, 3, 4, 5, 6, 7, 8]
 
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const sort = ref<BrowseSort>('added')
@@ -105,7 +101,6 @@ onBeforeUnmount(() => controller?.abort())
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter pt-28 sm:pt-32">
       <div class="flex flex-wrap items-end justify-between gap-4">

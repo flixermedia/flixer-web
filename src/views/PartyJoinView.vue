@@ -3,21 +3,16 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { getParty, type PartySnapshot } from '../api'
-import Header from '../components/header/Header.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import { useParty } from '../composables/useParty'
 import { lockOf, openOffers, requestLock, usePayments } from '../composables/usePayments'
-import { getNavLinks } from '../composables/homeNav'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const party = useParty()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 
 const snapshot = ref<PartySnapshot | null>(null)
 const loading = ref(true)
@@ -67,7 +62,7 @@ async function join() {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter pt-28 sm:pt-32">
       <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
       <section v-else-if="gone || !snapshot" class="mx-auto max-w-lg rounded border border-white/10 bg-flixer-surface/60 p-8 text-center">

@@ -2,16 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { discoverRequests, type ExternalMediaCard } from '../api'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
-import { useSignOut } from '../composables/useSignOut.ts'
 
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const tabs = computed(getMobileTabs)
 const config = useRequestsConfig()
 const sections = ['trending', 'movies', 'tv', 'upcoming', 'music'] as const
@@ -41,7 +37,7 @@ function subtitle(item: ExternalMediaCard) {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main>
       <header class="page-gutter mx-auto max-w-[110rem]">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-flixer-accent">{{ t('requests.discover') }}</p>

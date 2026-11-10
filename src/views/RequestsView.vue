@@ -7,18 +7,14 @@ import { notify } from '../composables/notify'
 import { describeRequestError } from '../composables/useProfile'
 import { useProfile } from '../composables/useProfile'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
-import { useSignOut } from '../composables/useSignOut.ts'
 import DeclineRequestModal from '../components/DeclineRequestModal.vue'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
 const config = useRequestsConfig()
 const { profile } = useProfile()
-const navLinks = computed(getNavLinks)
 const tabs = computed(getMobileTabs)
 const isAdmin = ref(false)
 const scope = ref<'all' | 'mine'>('mine')
@@ -84,7 +80,7 @@ watch([scope, status, type], () => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter mx-auto max-w-6xl">
       <header class="flex flex-wrap items-end justify-between gap-4 border-b border-flixer-border pb-5">
         <div>

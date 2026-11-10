@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { ModalOverlay, ModalTarget } from "@kolirt/vue-modal";
@@ -10,16 +11,28 @@ import ChatCallOverlay from "./components/chat/ChatCallOverlay.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
 import AudioEngineDebug from "./components/player/AudioEngineDebug.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
+import Header from "./components/header/Header.vue";
+import { getHeaderRoute } from "./components/header/headerRoute";
 import LyricsView from "./views/LyricsView.vue";
 import { useAudioPlayer } from "./composables/useAudioPlayer";
 import { useIdleSplash } from "./composables/useIdleSplash";
 import { useParty } from "./composables/useParty";
-import { getMobileTabs } from "./composables/homeNav";
+import { getMobileTabs, getNavLinks } from "./composables/homeNav";
+import { useSignOut } from "./composables/useSignOut";
 import { useVideoOverlay } from "./composables/useVideoOverlay";
 import { getAccessToken } from "./api";
 import { useMailSummary } from "./composables/useMailSummary";
 import { nativeMoreMenuNativeActive, nativeMusicPlayerNativeActive, nativeNavigationEnabled, setNativeMoreTabs, setNativePlayerOpen } from "./platform/nativeNavigation";
 
+const route = useRoute();
+const compactScreen = window.matchMedia("(max-width: 1023px)");
+const compact = ref(compactScreen.matches);
+const updateCompact = () => { compact.value = compactScreen.matches; };
+onMounted(() => compactScreen.addEventListener("change", updateCompact));
+onBeforeUnmount(() => compactScreen.removeEventListener("change", updateCompact));
+const headerRoute = computed(() => getHeaderRoute(route.name, compact.value));
+const headerLinks = computed(() => headerRoute.value.showLinks ? getNavLinks() : []);
+const { isSigningOut, signOut } = useSignOut();
 const nativeMenuTabs = computed(getMobileTabs);
 watch(nativeMenuTabs, setNativeMoreTabs, { immediate: true, deep: true });
 useMailSummary();
@@ -43,6 +56,7 @@ if (Capacitor.isNativePlatform()) {
 </script>
 
 <template>
+	<Header v-if="headerRoute.show" :links="headerLinks" :is-signing-out="isSigningOut" :docked="headerRoute.docked" :disable-scroll-collapse="headerRoute.disableScrollCollapse" @logout="signOut" />
 	<!-- Main application view -->
 	<RouterView v-slot="{ Component, route }">
 		<Transition name="page" mode="out-in">

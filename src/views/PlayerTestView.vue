@@ -2,13 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getSamplePlaybackInfo, getStreamInfo, listSampleVideos, type PlaybackInfo, type SampleVideo, type StreamInfo } from '../api'
-import Header from '../components/header/Header.vue'
 import VideoPlayer from '../components/player/VideoPlayer.vue'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
 
 const samples = ref<SampleVideo[]>([])
 const selectedId = ref('')
@@ -59,7 +56,6 @@ async function load() {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
-    <Header :links="[]" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter w-full pb-16 pt-28">
       <h1 class="text-3xl font-semibold tracking-tight">{{ t('player.testTitle') }}</h1>

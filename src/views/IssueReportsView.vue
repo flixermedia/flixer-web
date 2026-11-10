@@ -3,21 +3,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getIssueReport, listIssueReports, type IssueReport } from '../api'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import IssueReportForm from '../components/issues/IssueReportForm.vue'
 import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { describeRequestError } from '../composables/useProfile'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id?: string }>()
 const { t } = useI18n()
 const router = useRouter()
-const { isSigningOut, signOut } = useSignOut()
 const { config, load: loadConfig } = useIssueReportsConfig()
-const navLinks = computed(getNavLinks)
 const tabs = computed(getMobileTabs)
 const reports = ref<IssueReport[]>([])
 const active = ref<IssueReport | null>(null)
@@ -68,7 +64,7 @@ watch(() => props.id, () => void load())
 
 <template>
   <div class="min-h-screen bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter mx-auto max-w-5xl pt-28">
       <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>

@@ -11,10 +11,9 @@ import MailReader from '../components/chat/MailReader.vue'
 import PartyChat from '../components/party/PartyChat.vue'
 import NewChatModal from '../components/chat/NewChatModal.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
-import Header from '../components/header/Header.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { confirmAction } from '../composables/confirm'
 import { refreshChatCallAvailability, useChatCall } from '../composables/useChatCall'
 import { decryptChatMessages, initializeChatMlsDevice, sendEncryptedChatMessage } from '../composables/chatMlsClient'
@@ -22,7 +21,6 @@ import { conversationTitle, onChatEvent, useChatUnread, viewingChat, type ChatEv
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useParty } from '../composables/useParty'
 import { useMailbox } from '../composables/useMailbox'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const props = defineProps<{ id?: string }>()
@@ -41,8 +39,6 @@ watch(partyMode, (open) => party.setChatOpen(open), { immediate: true })
 onBeforeUnmount(() => {
   if (partyMode.value) party.setChatOpen(false)
 })
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 const { profile, load: loadProfile } = useProfile()
 const unread = useChatUnread()
@@ -728,7 +724,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
-    <Header :docked="isCompact" :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="chat-main mx-auto w-full max-w-[110rem] px-3 pb-6 pt-24 sm:px-6 sm:pt-28 lg:pt-32">
       <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 lg:h-[calc(100dvh-11rem)] lg:grid-cols-[21rem_minmax(0,1fr)] lg:rounded lg:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-lg:absolute max-lg:inset-0 lg:border-r" :class="hasSelection ? 'max-lg:-translate-x-1/4 max-lg:pointer-events-none max-lg:opacity-0' : ''" :inert="isCompact && hasSelection" :aria-label="t('chat.conversations')">

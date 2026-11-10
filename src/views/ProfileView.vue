@@ -6,18 +6,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { acceptFriend, getSocialProfile, removeFriend, requestFriend, startDirectChat, type PlaylistSummary, type Profile, type SocialItem } from '../api'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import FriendInviteModal from '../components/social/FriendInviteModal.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useParty } from '../composables/useParty'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
@@ -25,8 +23,6 @@ const openingChat = ref(false)
 const friendBusy = ref(false)
 const route = useRoute()
 const router = useRouter()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 const profile = ref<Profile | null>(null)
 const loading = ref(true)
@@ -165,7 +161,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter pt-28 sm:pt-32">
       <p v-if="loading && !profile" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
       <section v-else-if="notFound" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-8 text-center">

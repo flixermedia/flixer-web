@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import HeroCarousel from '../components/home/HeroCarousel.vue'
-import Header from '../components/header/Header.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MediaRow from '../components/home/MediaRow.vue'
 import HomeSkeleton from '../components/home/HomeSkeleton.vue'
@@ -9,14 +8,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAccess } from '../composables/useAccess'
 import { useI18n } from 'vue-i18n'
 import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation } from '../api'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 
 const content = ref<HomeContent | null>(null)
@@ -126,7 +122,6 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main>
       <HeroCarousel v-if="content && content.featured.length > 0" :items="content.featured" />

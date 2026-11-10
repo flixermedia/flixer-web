@@ -8,22 +8,18 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { deletePlaylist, getPlaylist, removePlaylistItem, reorderPlaylist, type PlaylistSummary, type PlaylistTrack } from '../api'
 import ConfirmModal from '../components/ui/ConfirmModal.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
-import Header from '../components/header/Header.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import ClampedText from '../components/ui/ClampedText.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
 import MusicBanner from '../components/ui/MusicBanner.vue'
 import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
-import { getMobileTabs, getNavLinks } from '../composables/homeNav'
+import { getMobileTabs } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
-import { useSignOut } from '../composables/useSignOut.ts'
 import { catchError } from '../utils/catchError'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { isSigningOut, signOut } = useSignOut()
-const navLinks = computed(getNavLinks)
 const mobileTabs = computed(getMobileTabs)
 const player = useAudioPlayer()
 const playlist = ref<(PlaylistSummary & { isOwner: boolean; tracks: PlaylistTrack[] }) | null>(null)
@@ -148,7 +144,7 @@ watch(
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
-    <Header :links="navLinks" :is-signing-out="isSigningOut" @logout="signOut" />
+
     <main class="page-gutter pt-28 sm:pt-32">
       <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
       <section v-else-if="missing" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-6 text-center">

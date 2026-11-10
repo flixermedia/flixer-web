@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink, useRoute } from "vue-router";
 import logoUrl from "../../../resources/logo/flixer-logo.svg";
@@ -50,6 +50,44 @@ const scrolled = computed(() => props.docked || (!props.disableScrollCollapse &&
 const menuRoot = ref<HTMLElement | null>(null);
 const menuPanel = ref<HTMLElement | null>(null);
 const route = useRoute();
+watch(() => route.path, () => { menuOpen.value = false; });
+const navList = ref<HTMLElement | null>(null);
+const indicator = ref<{ left: number; top: number; width: number; height: number } | null>(null);
+let navResizeObserver: ResizeObserver | undefined;
+
+function updateIndicator() {
+	const list = navList.value;
+	const active = list?.querySelector<HTMLElement>('a[aria-current="page"]');
+	if (!list || !active) {
+		indicator.value = null;
+		return;
+	}
+	const listRect = list.getBoundingClientRect();
+	const activeRect = active.getBoundingClientRect();
+	if (!activeRect.width || !activeRect.height) {
+		indicator.value = null;
+		return;
+	}
+	indicator.value = {
+		left: activeRect.left - listRect.left,
+		top: activeRect.top - listRect.top,
+		width: activeRect.width,
+		height: activeRect.height,
+	};
+}
+
+async function observeNavigation() {
+	await nextTick();
+	navResizeObserver?.disconnect();
+	if (navList.value && navResizeObserver) {
+		navResizeObserver.observe(navList.value);
+		navList.value.querySelectorAll("a").forEach((link) => navResizeObserver?.observe(link));
+	}
+	updateIndicator();
+}
+
+watch([() => route.path, () => props.links], () => void observeNavigation(), { deep: true, flush: "post" });
+watch(navList, () => void observeNavigation(), { flush: "post" });
 
 function onScroll() {
 	scrolledPast.value = window.scrollY > 24;
@@ -69,6 +107,8 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+	navResizeObserver = new ResizeObserver(updateIndicator);
+	void observeNavigation();
 	void loadProfile();
 	void loadRequestsConfig();
 	onScroll();
@@ -78,6 +118,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	navResizeObserver?.disconnect();
 	window.removeEventListener("scroll", onScroll);
 	document.removeEventListener("pointerdown", onPointerDown);
 	document.removeEventListener("keydown", onKeydown);
@@ -87,7 +128,7 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 </script>
 
 <template>
-	<header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="barLook ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
+	<header class="app-header fixed inset-x-0 top-0 z-40 font-sans text-flixer-text transition-[top,padding] duration-300 ease-out" :class="barLook ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
 		<nav data-haptic class="mx-auto grid grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[headerHeight, effectiveNavPosition === 'start' ? 'lg:grid-cols-[auto_auto_1fr]' : 'lg:grid-cols-[1fr_auto_1fr]', navLook]" :aria-label="t('header.mainNavigation')">
 			<RouterLink class="flex items-center gap-2.5 justify-self-start rounded pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
 				<img :src="logoSrc" alt="" class="size-10 object-contain" />
@@ -96,9 +137,10 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 
 			<div class="hidden lg:block" :class="effectiveNavPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
 				<slot name="nav">
-					<ul v-if="links.length" class="flex items-center gap-1 rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
-						<li v-for="link in links" :key="link.to">
-							<RouterLink :to="link.to" class="block rounded px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'bg-white/15 text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
+					<ul v-if="links.length" ref="navList" class="relative flex items-center gap-1 rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
+						<li aria-hidden="true" class="nav-indicator pointer-events-none absolute left-0 top-0 rounded bg-white/15" :class="{ 'nav-indicator-visible': indicator }" :style="indicator ? { transform: `translate(${indicator.left}px, ${indicator.top}px)`, width: `${indicator.width}px`, height: `${indicator.height}px` } : undefined"></li>
+						<li v-for="link in links" :key="link.to" class="relative">
+							<RouterLink :to="link.to" class="block rounded px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
 						</li>
 					</ul>
 				</slot>
@@ -111,9 +153,9 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 
 				<ChatButton :button-class="`hidden lg:grid relative ${iconButton}`" />
 
-				<PartyButton :button-class="`relative ${iconButton}`" />
+				<PartyButton :key="route.path" :button-class="`relative ${iconButton}`" />
 
-				<NotificationBell :button-class="`relative ${iconButton}`" />
+				<NotificationBell :key="route.path" :button-class="`relative ${iconButton}`" />
 
 				<div ref="menuRoot" class="relative">
 					<button type="button" class="grid size-10 place-items-center rounded transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
@@ -136,6 +178,21 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 </template>
 
 <style scoped>
+.nav-indicator {
+	opacity: 0;
+	transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1), height 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease;
+}
+
+.nav-indicator-visible {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nav-indicator {
+		transition: none;
+	}
+}
+
 html.capacitor .app-header {
 	top: 0;
 	padding-top: env(safe-area-inset-top, 0px) !important;

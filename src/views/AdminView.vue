@@ -6,15 +6,12 @@ import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import { adminQuery, resolveAdminLocation, type AdminLocation } from '../components/admin/adminNav'
 import { ADMIN_PAGE_BLOCKS } from '../components/admin/adminPages'
 import PluginSettingsPage from '../components/admin/PluginSettingsPage.vue'
-import Header from '../components/header/Header.vue'
 import { useAdminTabs } from '../composables/useAdminTabs'
 import { useAdminSidebar } from '../composables/useAdminSidebar'
-import { useSignOut } from '../composables/useSignOut.ts'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { isSigningOut, signOut } = useSignOut()
 const { compact: sidebarCompact, toggleCompact: toggleSidebarCompact } = useAdminSidebar()
 
 const tabs = useAdminTabs()
@@ -31,7 +28,6 @@ function open({ tab, page }: AdminLocation) {
 
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
-    <Header :docked="true" :links="[]" :is-signing-out="isSigningOut" @logout="signOut" />
 
     <main class="page-gutter w-full pb-16 pt-20 transition-[margin-left,width] duration-300 ease-in-out motion-reduce:transition-none lg:pt-16" :class="sidebarCompact ? 'lg:ml-20 lg:w-[calc(100%-5rem)]' : 'lg:ml-60 lg:w-[calc(100%-15rem)]'">
       <AdminSidebar :tabs="tabs" :active="location" :title="location.page === 'overview' ? t('admin.title') : t(`admin.pages.${location.page}`)" :subtitle="t(`admin.subtitles.${location.page}`)" :compact="sidebarCompact" @select="open" @toggle-compact="toggleSidebarCompact" />
