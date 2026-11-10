@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { openModal } from "@kolirt/vue-modal";
+import { ModalClosedError, openModal } from "@kolirt/vue-modal";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
 import { useAccess } from "../../composables/useAccess";
 import { useProfile } from "../../composables/useProfile";
 import { useRequestsConfig } from "../../composables/useRequestsConfig";
+import QuickConnectModal from "../auth/QuickConnectModal.vue";
 import LanguageModal from "../ui/LanguageModal.vue";
 import ThemeModal from "../ui/ThemeModal.vue";
 import UserAvatar from "../ui/UserAvatar.vue";
@@ -73,6 +74,13 @@ function openTheme() {
 	emit("close");
 	void openModal(ThemeModal).catch(() => undefined);
 }
+
+function openQuickConnect() {
+	emit("close");
+	void openModal(QuickConnectModal).catch((error: unknown) => {
+		if (!(error instanceof ModalClosedError)) console.error("[quick-connect] could not open approval dialog", error);
+	});
+}
 </script>
 
 <template>
@@ -90,6 +98,7 @@ function openTheme() {
 	<RouterLink to="/people" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:users" :class="iconClass" aria-hidden="true" />{{ t("header.people") }}</RouterLink>
 	<RouterLink to="/issues" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:flag" :class="iconClass" aria-hidden="true" />{{ t("issues.myReports") }}</RouterLink>
 	<RouterLink v-if="requestsEnabled" to="/requests" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:clapperboard" :class="iconClass" aria-hidden="true" />{{ t("requests.nav.requests") }}</RouterLink>
+	<button type="button" :class="row" role="menuitem" aria-haspopup="dialog" @click="openQuickConnect"><Icon icon="lucide:monitor-smartphone" :class="iconClass" aria-hidden="true" />{{ t("auth.quickConnectMenu") }}</button>
 
 	<button v-if="hasLimits && (isUnlocked || canUnlock)" type="button" :class="row" role="menuitem" @click="emit('close'); isUnlocked ? relock() : requestUnlock()">
 		<Icon :icon="isUnlocked ? 'lucide:lock' : 'lucide:lock-keyhole-open'" :class="iconClass" aria-hidden="true" />

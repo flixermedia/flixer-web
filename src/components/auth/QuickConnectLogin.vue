@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { pollQuickConnect, startQuickConnect, type QuickConnectStartResult } from '../../api/auth'
 import type { AuthResult } from 'flixer-api-client'
 import { catchError } from '../../utils/catchError'
@@ -12,15 +11,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const router = useRouter()
 const request = ref<QuickConnectStartResult | null>(null)
 const isStarting = ref(true)
 const errorMessage = ref('')
 const terminalMessage = ref('')
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let stopped = false
-
-const approvalUrl = computed(() => router.resolve({ name: 'quick-connect' }).href)
 
 onMounted(() => {
   void begin()
@@ -70,7 +66,7 @@ async function poll() {
 
 <template>
   <section class="w-full" aria-labelledby="quick-connect-title">
-    <button type="button" class="mb-6 text-sm text-flixer-muted underline underline-offset-4 hover:text-flixer-text" @click="emit('back')">
+    <button type="button" class="mb-6 block text-sm text-flixer-muted underline underline-offset-4 hover:text-flixer-text" @click="emit('back')">
       {{ t('auth.quickConnectBack') }}
     </button>
     <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('auth.loginEyebrow') }}</span>
@@ -85,7 +81,7 @@ async function poll() {
       <div class="mt-8 rounded border border-flixer-accent/30 bg-flixer-primary/10 p-5 text-center">
         <p class="text-xs font-semibold uppercase tracking-widest text-flixer-muted">{{ t('auth.quickConnectCodeLabel') }}</p>
         <p class="mt-3 select-all font-mono text-3xl font-bold tracking-[0.2em] text-flixer-text">{{ request.userCode }}</p>
-        <p class="mt-3 break-all text-xs text-flixer-muted">{{ t('auth.quickConnectOpenAddress', { url: approvalUrl }) }}</p>
+        <p class="mt-3 text-xs text-flixer-muted">{{ t('auth.quickConnectMenuAdvice') }}</p>
       </div>
       <p v-if="terminalMessage" class="mt-5 rounded border border-flixer-border px-4 py-3 text-sm text-flixer-muted" role="status">{{ terminalMessage }}</p>
       <p v-else class="mt-5 text-sm text-flixer-muted" role="status">{{ t('auth.quickConnectWaiting') }}</p>
