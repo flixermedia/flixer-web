@@ -5,7 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
 import { SavePassword } from '@capgo/capacitor-autofill-save-password'
-import logo from '../../resources/logo/flixer-logo.svg'
+import defaultLogo from '../../resources/logo/flixer-logo.svg'
+import { useAppearance } from '../composables/useAppearance'
 import LoginForm from '../components/auth/LoginForm.vue'
 import QuickConnectLogin from '../components/auth/QuickConnectLogin.vue'
 import SignupPaymentStep from '../components/payments/SignupPaymentStep.vue'
@@ -21,6 +22,11 @@ import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
 import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
 import { catchError } from '../utils/catchError'
+
+const appearance = useAppearance()
+const loginBackground = computed(() => appearance.activeTheme.value?.config.branding.loginBackground ?? null)
+const appName = appearance.appName
+const logo = computed(() => appearance.logoUrl.value ?? defaultLogo)
 
 const { t } = useI18n()
 const route = useRoute()
@@ -204,7 +210,7 @@ async function promptNativePasswordSave(username: string, password: string) {
       username,
       password,
       url: window.location.hostname,
-      title: 'Flixer',
+      title: appName.value,
     })))
   if (error) {
     console.warn('[native-auth] Password manager save prompt failed', error)
@@ -516,6 +522,11 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 <template>
   <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text lg:grid lg:grid-cols-2">
     <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" :aria-label="t('auth.welcomeToFlixer')">
+      <!-- Background image chosen in the active theme -->
+      <template v-if="loginBackground">
+        <div class="pointer-events-none absolute inset-0 -z-20 bg-cover bg-center" :style="{ backgroundImage: `url(${loginBackground})` }" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-flixer-background/85 via-flixer-background/60 to-flixer-background/90" aria-hidden="true"></div>
+      </template>
       <!-- Decorative background elements -->
       <div class="pointer-events-none absolute -left-24 top-1/3 -z-10 hidden size-80 rounded-full bg-flixer-primary/20 blur-3xl lg:block" aria-hidden="true"></div>
       <div class="pointer-events-none absolute -right-20 top-0 -z-10 hidden size-72 rounded-full bg-flixer-cyan/10 blur-3xl lg:block" aria-hidden="true"></div>

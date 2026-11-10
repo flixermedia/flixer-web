@@ -11,6 +11,7 @@ import { registerSW } from "virtual:pwa-register";
 import Vue3Toastify from "vue3-toastify";
 import { AUTH_INVALID_EVENT } from "./api";
 import { toastContainerOptions } from "./composables/notify";
+import { initAppearance } from "./composables/useAppearance";
 import { initTheme } from "./composables/useTheme";
 import { initButtonHaptics } from "./platform/haptics";
 import { initNativeTextInteraction } from "./platform/textInteraction.ts";
@@ -56,6 +57,7 @@ void catchError(initNativeTextInteraction()).then(([error]) => {
 	if (error) console.error("[text-interaction] Could not initialise native text interaction", error);
 });
 initTheme();
+initAppearance();
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
 	if (router.currentRoute.value.name !== "login") {

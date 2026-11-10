@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import logo from '../../resources/logo/flixer-logo.svg'
+import defaultLogo from '../../resources/logo/flixer-logo.svg'
+import { useAppearance } from '../composables/useAppearance'
 import { fetchSetupGate } from '../setup/setupApi'
+
+const appearance = useAppearance()
+const appName = appearance.appName
+const logo = computed(() => appearance.logoUrl.value ?? defaultLogo)
 
 const { t } = useI18n()
 const route = useRoute()
@@ -36,7 +41,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 <template>
   <main class="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-flixer-background px-6 text-center text-flixer-text">
-    <img :src="logo" alt="Flixer" class="h-8 w-auto" />
+    <img :src="logo" :alt="appName" class="h-8 w-auto" />
     <div class="max-w-md">
       <h1 class="text-2xl font-semibold tracking-tight">{{ starting ? t('setup.unavailable.startingTitle') : t('setup.unavailable.title') }}</h1>
       <p class="mt-2 text-sm leading-6 text-flixer-muted" role="status">{{ starting ? t('setup.unavailable.startingDescription') : t('setup.unavailable.description') }}</p>

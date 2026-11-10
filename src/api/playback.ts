@@ -6,7 +6,7 @@ import { catchError } from '../utils/catchError'
 import type { PlaybackInfo as BasePlaybackInfo, SampleVideo } from 'flixer-api-client'
 import type { PlaybackAdvertisement } from './advertisements'
 export type { NextEpisode, PlayerChapter, PlayerSegment, SampleVideo, SegmentType } from 'flixer-api-client'
-export type PlaybackInfo = BasePlaybackInfo & { advertisements?: PlaybackAdvertisement[] }
+export type PlaybackInfo = BasePlaybackInfo & { advertisements?: PlaybackAdvertisement[]; itemType?: 'movie' | 'episode' | 'video' | 'track' }
 
 export type PlayMethod = 'DirectPlay' | 'DirectStream' | 'Transcode'
 

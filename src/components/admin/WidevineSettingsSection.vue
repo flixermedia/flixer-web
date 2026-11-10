@@ -11,6 +11,7 @@ import AdminSkeleton from './AdminSkeleton.vue'
 import AdminToggle from './AdminToggle.vue'
 
 const { t } = useI18n()
+const emit = defineEmits<{ saved: [] }>()
 const enabled = ref(false)
 const licenseUrl = ref('')
 const savedEnabled = ref(false)
@@ -63,6 +64,7 @@ async function save() {
     savedLicenseUrl.value = nextUrl
     savedEnabled.value = enabled.value
     applyWidevinePlaybackSettings(enabled.value, nextUrl)
+    emit('saved')
     notify.success(t('admin.drm.widevine.saved'))
   } finally {
     isSaving.value = false

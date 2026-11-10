@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { playerActionButton } from './playerActionStyles'
 import { configureWidevinePlayer, createShakaPlayer, destroyShakaPlayer, isCriticalShakaError, isShakaSupported } from './adaptivePlayback'
 import { useI18n } from 'vue-i18n'
-import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
+import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, listSettings, supportsNativeHls, type PlayMethod, type PlayerChapter, type PlayerSegment, type PlayerSubtitle, type StreamInfo, type Trickplay } from '../../api'
 import { useParty } from '../../composables/useParty'
 import PartyChat from '../party/PartyChat.vue'
 import PartyPanel from '../party/PartyPanel.vue'
@@ -14,6 +14,7 @@ import { catchError } from '../../utils/catchError'
 import type { ViewingTarget } from '../../api/analytics'
 import { ViewingTracker } from './viewingTracker'
 import { WebhookPlaybackTracker } from './webhookPlaybackTracker'
+import { useBlackBarCrop } from './useBlackBarCrop'
 
 const props = withDefaults(
   defineProps<{
@@ -21,6 +22,7 @@ const props = withDefaults(
     info: StreamInfo
     /** Plays a standalone video URL without library-specific streamer features. */
     standalone?: boolean
+    cropCategory?: 'trailers' | 'movies' | 'tv'
     analyticsTarget?: ViewingTarget
     live?: boolean
     container?: 'm3u8' | 'mpd'
@@ -60,6 +62,7 @@ const emit = defineEmits<{
   progress: [position: number, duration: number]
   position: [position: number]
   ready: []
+  'crop-aspect-change': [aspect: number | null]
   /** Playback changed (play, pause or seek); used to keep a watch party in sync. */
   control: [state: { action: 'play' | 'pause' | 'seek'; playing: boolean; position: number }]
 }>()
@@ -95,6 +98,28 @@ const SEGMENT_END_GUARD_S = 1
 
 const root = ref<HTMLElement>()
 const video = ref<HTMLVideoElement>()
+const cropEnabled = ref(false)
+const cropAllowed = ref(false)
+const { frameStyle: cropFrameStyle, videoStyle: cropVideoStyle, contentAspect: cropAspect, unavailable: cropUnavailable, reset: resetCrop } = useBlackBarCrop(video, root, cropEnabled, cropAllowed, () => props.streamUrl)
+watch(cropAspect, (aspect) => emit('crop-aspect-change', aspect), { immediate: true })
+let cropSettingsRequest = 0
+
+watch(() => props.cropCategory, async (category) => {
+  const request = ++cropSettingsRequest
+  cropEnabled.value = false
+  cropAllowed.value = false
+  if (!category) return
+  try {
+    const settings = await listSettings()
+    if (request !== cropSettingsRequest) return
+    const setting = settings.find((entry) => entry.key === `player_crop_${category}`)
+    if (typeof setting?.value !== 'boolean') throw new Error('Black bar setting is missing or invalid')
+    cropAllowed.value = setting.value
+    cropEnabled.value = setting.value
+  } catch (error) {
+    console.warn('[player] could not load black bar settings', error)
+  }
+}, { immediate: true })
 const viewing = new ViewingTracker()
 const webhookPlayback = new WebhookPlaybackTracker()
 const bar = ref<HTMLElement>()
@@ -275,7 +300,27 @@ async function loadTrickplay() {
   trickplay.value = null
   warmedSheets = new Set()
   const loaded = await getTrickplay(url)
-  if (url === props.streamUrl) trickplay.value = loaded
+  if (url !== props.streamUrl) return
+  trickplay.value = loaded
+  if (loaded) void preloadTrickplay(loaded, url)
+}
+
+// Fetch every sheet up front, a few at a time, so hovering never waits on the network.
+async function preloadTrickplay(loaded: Trickplay, url: string) {
+  let next = 0
+  const worker = async () => {
+    while (next < loaded.manifest.sheets && url === props.streamUrl) {
+      const sheet = next++
+      if (warmedSheets.has(sheet)) continue
+      warmedSheets.add(sheet)
+      await new Promise<void>((resolve) => {
+        const image = new Image()
+        image.onload = image.onerror = () => resolve()
+        image.src = loaded.sheetUrl(sheet)
+      })
+    }
+  }
+  await Promise.all([worker(), worker(), worker()])
 }
 
 // Warm only the image under the pointer; BIF-backed playlists expose one image per frame.
@@ -1049,7 +1094,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" data-haptic class="relative size-full select-none overflow-hidden bg-black font-sans text-flixer-text" :class="{ 'cursor-none': !controlsShown && !(partyState.chatOpen.value && inVideoParty) }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
-    <video ref="video" class="size-full bg-black object-contain" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeking="viewing.sample(analyticsTarget, position, false)" @seeked="onSeeked" @ended="onEnded" @waiting="waiting = true; viewing.sample(analyticsTarget, position, false)" @playing="onPlaybackReady" @canplay="onPlaybackReady" @timeupdate="onTimeUpdate" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
+    <div class="absolute inset-0 flex items-center justify-center">
+      <div class="relative size-full overflow-hidden" :style="cropFrameStyle">
+        <video ref="video" class="size-full bg-black object-contain" :style="cropVideoStyle" preload="auto" playsinline @click="onSurfaceClick" @dblclick="toggleFullscreen" @play="onPlay" @pause="onPause" @seeking="resetCrop(); viewing.sample(analyticsTarget, position, false)" @seeked="onSeeked" @ended="onEnded" @waiting="waiting = true; viewing.sample(analyticsTarget, position, false)" @playing="onPlaybackReady" @canplay="onPlaybackReady" @timeupdate="onTimeUpdate" @progress="updateBuffered" @loadedmetadata="onLoadedMetadata" @volumechange="onVolumeChange" @enterpictureinpicture="onEnterPip" @leavepictureinpicture="onLeavePip" @error="onVideoError" />
+      </div>
+    </div>
 
     <div v-if="subtitleText" class="pointer-events-none absolute inset-x-0 flex justify-center px-4 transition-all duration-300" :class="controlsShown ? 'bottom-24' : 'bottom-8'" aria-live="off">
       <p class="theme-dark max-w-3xl whitespace-pre-line rounded bg-black/65 px-3 py-1 text-center text-base font-medium leading-snug text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.9)] sm:text-xl">{{ subtitleText }}</p>
@@ -1094,6 +1143,9 @@ onBeforeUnmount(() => {
         <Icon icon="lucide:arrow-left" class="size-6" aria-hidden="true" />
       </button>
       <h2 v-if="title" class="truncate text-base font-semibold tracking-tight sm:text-lg">{{ title }}</h2>
+      <button v-if="cropAllowed" type="button" class="ml-auto shrink-0 rounded px-2 py-1 text-xs font-semibold text-white hover:bg-white/15 disabled:opacity-60" :disabled="cropUnavailable" :aria-pressed="cropEnabled" :title="cropUnavailable ? t('player.cropUnavailable') : t('player.cropBars')" @click="cropEnabled = !cropEnabled">
+        {{ cropUnavailable ? t('player.cropUnavailable') : `${t('player.cropBars')}: ${cropEnabled ? t('player.cropOn') : t('player.cropOff')}` }}
+      </button>
     </div>
 
     <!-- Settings menu -->

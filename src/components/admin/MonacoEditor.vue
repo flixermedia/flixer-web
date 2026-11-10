@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type * as Monaco from 'monaco-editor/editor/editor.api'
 
-const props = withDefaults(defineProps<{ modelValue: string; language?: 'html' | 'plaintext'; label: string; height?: string }>(), { language: 'html', height: '20rem' })
+const props = withDefaults(defineProps<{ modelValue: string; language?: 'html' | 'css' | 'plaintext'; label: string; height?: string }>(), { language: 'html', height: '20rem' })
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const host = ref<HTMLElement | null>(null)
@@ -12,10 +12,11 @@ let monaco: typeof Monaco | null = null
 let applying = false
 
 async function loadMonaco() {
-  // Only the core editor, the HTML tokenizer and the base worker are bundled; the heavy language services are skipped.
-  const [api, , worker] = await Promise.all([
+  // Only the core editor, the HTML and CSS tokenizers and the base worker are bundled; the heavy language services are skipped.
+  const [api, , , worker] = await Promise.all([
     import('monaco-editor/editor/editor.api'),
     import('monaco-editor/languages/definitions/html/register'),
+    import('monaco-editor/languages/definitions/css/register'),
     import('monaco-editor/editor/editor.worker?worker'),
   ])
   const globalScope = self as unknown as { MonacoEnvironment?: { getWorker: () => Worker } }

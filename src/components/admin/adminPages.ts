@@ -19,6 +19,7 @@ const ViewingAnalytics = lazy(() => import('./ViewingAnalyticsPanel.vue'))
 const PeriodAnalytics = lazy(() => import('./PeriodAnalyticsPanel.vue'))
 const Providers = lazy(() => import('./IndexerProvidersSection.vue'))
 const Subtitles = lazy(() => import('./IndexerSubtitlesSection.vue'))
+const Appearance = lazy(() => import('./AppearanceSection.vue'))
 const ThemeSongs = lazy(() => import('./ThemeSongsSection.vue'))
 const TrailerCache = lazy(() => import('./TrailerSettingsSection.vue'))
 const Requests = lazy(() => import('./RequestsPanel.vue'))
@@ -37,8 +38,8 @@ const Search = lazy(() => import('./MediaSearchSettingsSection.vue'))
 const Updates = lazy(() => import('./UpdatesPanel.vue'))
 const Backups = lazy(() => import('./BackupsPanel.vue'))
 const Ai = lazy(() => import('./AiPanel.vue'))
-const Widevine = lazy(() => import('./WidevineSettingsSection.vue'))
-const DrmTesting = lazy(() => import('./DrmTestingPanel.vue'))
+const Widevine = lazy(() => import('./DrmSettingsPage.vue'))
+const PlayerSettings = lazy(() => import('./PlayerSettingsSection.vue'))
 const ChatEncryption = lazy(() => import('./ChatEncryptionSettingsSection.vue'))
 const Calls = lazy(() => import('./CallSettingsSection.vue'))
 const Plugins = lazy(() => import('./PluginsPanel.vue'))
@@ -73,6 +74,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   metadata: [{ component: Providers }],
   subtitles: [{ component: Subtitles }],
   themes: [{ component: ThemeSongs }],
+  appearance: [{ component: Appearance }],
   trailerCache: [{ component: TrailerCache }],
   requests: [{ component: Requests }],
   tickets: [{ component: IssueReports }],
@@ -93,8 +95,8 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   search: [{ component: Search }],
   updates: [{ component: Updates }],
   backups: [{ component: Backups }],
+  playerSettings: [{ component: PlayerSettings }],
   widevine: [{ component: Widevine }],
-  drmTesting: [{ component: DrmTesting }],
   chatSettings: [{ component: ChatEncryption }],
   callSettings: [{ component: Calls }],
   plugins: [{ component: Plugins }],

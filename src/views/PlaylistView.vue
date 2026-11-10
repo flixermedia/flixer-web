@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { brandName } from '../composables/useAppearance'
 import { openModal } from '@kolirt/vue-modal'
 import axios from 'axios'
 import { computed, ref, watch } from 'vue'
@@ -68,7 +69,7 @@ async function load() {
       failed.value = !missing.value
     } else {
       playlist.value = value
-      document.title = `${value.name} · Flixer`
+      document.title = `${value.name} · ${brandName()}`
     }
   } finally {
     loading.value = false

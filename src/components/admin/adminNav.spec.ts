@@ -43,13 +43,12 @@ describe('admin navigation', () => {
     expect(adminQuery('logging', 'logging')).toEqual({ tab: 'logging' })
   })
 
-  it('groups Widevine configuration and DRM testing in their own category', () => {
-    expect(ADMIN_TABS.drm).toEqual(['widevine', 'drmTesting'])
-    expect(tabOf('widevine')).toBe('drm')
-    expect(tabOf('drmTesting')).toBe('drm')
-    expect(resolveAdminLocation('drm')).toEqual({ tab: 'drm', page: 'widevine' })
-    expect(resolveAdminLocation('drm', 'drmTesting')).toEqual({ tab: 'drm', page: 'drmTesting' })
-    expect(adminQuery('drm', 'drmTesting')).toEqual({ tab: 'drm', page: 'drmTesting' })
+  it('groups player settings and DRM while preserving old links', () => {
+    expect(ADMIN_TABS.videoPlayer).toEqual(['playerSettings', 'widevine'])
+    expect(tabOf('widevine')).toBe('videoPlayer')
+    expect(resolveAdminLocation('drm')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
+    expect(resolveAdminLocation('drm', 'drmTesting')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
+    expect(adminQuery('videoPlayer', 'widevine')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
     expect(ADMIN_TABS.settings).not.toContain('widevine')
   })
 

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import logoUrl from '../../../resources/logo/flixer-logo.svg'
+import defaultLogo from '../../../resources/logo/flixer-logo.svg'
+import { useAppearance } from '../../composables/useAppearance'
 import { useAudioPlayer } from '../../composables/useAudioPlayer'
 import AuthImage from './AuthImage.vue'
+
+const appearance = useAppearance()
+const appName = appearance.appName
+const logoUrl = computed(() => appearance.logoUrl.value ?? defaultLogo)
 
 const { t, locale } = useI18n()
 const { current, isPlaying } = useAudioPlayer()
@@ -28,8 +33,8 @@ const date = () => now.value.toLocaleDateString(locale.value, { weekday: 'long',
 
     <div class="drift absolute inset-0 grid place-items-center">
       <div class="flex flex-col items-center gap-6 text-center">
-        <img :src="logoUrl" alt="" class="logo size-28 sm:size-36" />
-        <p class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Flixer</p>
+        <img :src="logoUrl" alt="" class="logo size-28 object-contain sm:size-36" />
+        <p class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{{ appName }}</p>
         <div>
           <p class="text-3xl font-light tabular-nums text-white/90">{{ time() }}</p>
           <p class="mt-1 text-sm text-flixer-muted">{{ date() }}</p>

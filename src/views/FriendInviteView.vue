@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { brandName } from '../composables/useAppearance'
 import axios from 'axios'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,7 +33,7 @@ async function loadInvite() {
       failed.value = true
       invite.value = null
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        document.title = `${t('social.friendInvite.invalid')} · Flixer`
+        document.title = `${t('social.friendInvite.invalid')} · ${brandName()}`
       }
     } else {
       invite.value = value

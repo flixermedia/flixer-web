@@ -11,8 +11,8 @@ export interface PaymentPending {
   token: string
 }
 
-export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; audioLanguage?: string }
-export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; audioLanguage?: string | null }
+export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; audioLanguage?: string; themeId?: string }
+export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; audioLanguage?: string | null; themeId?: string | null }
 
 export async function getPreferences(): Promise<AppPreferences> {
   const response = await api.get<AppPreferences>('/preferences')

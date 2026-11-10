@@ -1,19 +1,19 @@
 @import 'tailwindcss';
 
-/* Matches the header's outer edge: its px-3/sm:px-6 padding and 110rem max width. */
+/* Matches the header's outer edge: its px-3/sm:px-6 padding and the theme's content width (110rem by default). */
 @utility page-gutter {
-  padding-inline: max(0.75rem, calc((100% - 110rem) / 2));
-  scroll-padding-inline: max(0.75rem, calc((100% - 110rem) / 2));
+  padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
+  scroll-padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
 
   @media (min-width: 40rem) {
-    padding-inline: max(1.5rem, calc((100% - 110rem) / 2));
-    scroll-padding-inline: max(1.5rem, calc((100% - 110rem) / 2));
+    padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
+    scroll-padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
   }
 }
 
 /* The admin dashboard's panels: a soft gradient surface with a hairline border that lifts slightly on hover. */
 @utility admin-card {
-  border-radius: 0.25rem;
+  border-radius: var(--radius, 0.25rem);
   border: 1px solid color-mix(in srgb, var(--color-flixer-border) 80%, transparent);
   background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 85%, transparent), color-mix(in srgb, var(--color-flixer-surface) 45%, transparent));
   box-shadow:
@@ -152,4 +152,44 @@ select:not([multiple]) {
   background-position: right 0.75rem center;
   background-size: 1rem 1rem;
   padding-right: 2.5rem;
+}
+
+/*
+ * Theme variants. The active theme sets these data attributes on <html>; the admin theme editor sets them on its
+ * preview, so the selectors only match the attribute and never name the element carrying it.
+ */
+[data-content-width] .max-w-\[110rem\] {
+  max-width: var(--content-max, 110rem);
+}
+
+[data-card-style='outlined'] .admin-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-card-style='flat'] .admin-card {
+  border-color: transparent;
+  background: var(--color-flixer-surface);
+  box-shadow: none;
+}
+
+[data-card-style='glass'] .admin-card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 55%, transparent), color-mix(in srgb, var(--color-flixer-surface) 25%, transparent));
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+/* Filled call-to-action buttons only: icon buttons, switches and tabs keep their solid fill. */
+[data-button-style='gradient'] :is(button, a).bg-flixer-primary:not([role='switch'], [role='tab'], [role='checkbox'], [role='radio'], [class*='size-']) {
+  background-image: linear-gradient(135deg, var(--color-flixer-primary), var(--color-flixer-secondary));
+}
+
+[data-button-style='soft'] :is(button, a).bg-flixer-primary:not([role='switch'], [role='tab'], [role='checkbox'], [role='radio'], [class*='size-']) {
+  background-color: color-mix(in srgb, var(--color-flixer-primary) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-flixer-primary) 55%, transparent);
+  color: var(--color-flixer-accent);
+}
+
+/* Tailwind's bare `rounded` is a fixed 0.25rem; route it through the theme's corner radius. */
+.rounded {
+  border-radius: var(--radius, 0.25rem);
 }

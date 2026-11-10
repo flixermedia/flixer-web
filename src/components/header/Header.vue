@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink, useRoute } from "vue-router";
 import logoUrl from "../../../resources/logo/flixer-logo.svg";
+import { useAppearance } from "../../composables/useAppearance";
 import { isActivePath } from "../../composables/homeNav";
 import { useProfile } from "../../composables/useProfile";
 import { useRequestsConfig } from "../../composables/useRequestsConfig";
@@ -29,6 +30,18 @@ const props = withDefaults(
 const emit = defineEmits<{ logout: [] }>();
 
 const { t } = useI18n();
+const { logoUrl: customLogo, appName, showName, activeTheme } = useAppearance();
+const logoSrc = computed(() => customLogo.value ?? logoUrl);
+const headerStyle = computed(() => activeTheme.value?.config.header.style ?? "floating");
+const headerHeight = computed(() => ({ compact: "h-14", standard: "h-16", tall: "h-[4.5rem]" })[activeTheme.value?.config.header.height ?? "standard"]);
+const barLook = computed(() => scrolled.value || headerStyle.value === "bar" || headerStyle.value === "minimal");
+const navLook = computed(() => {
+	if (headerStyle.value === "minimal") return "max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background backdrop-blur-none! sm:px-8 md:px-8";
+	if (barLook.value) return "max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8";
+	if (headerStyle.value === "transparent") return "max-w-[110rem] rounded border-transparent bg-transparent backdrop-blur-none!";
+	return "max-w-[110rem] rounded border-white/10 bg-flixer-background/30";
+});
+const effectiveNavPosition = computed(() => (activeTheme.value?.config.header.navAlign === "start" ? "start" : props.navPosition));
 const { profile, load: loadProfile } = useProfile();
 const { load: loadRequestsConfig } = useRequestsConfig();
 const menuOpen = ref(false);
@@ -74,14 +87,14 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 </script>
 
 <template>
-	<header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="scrolled ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
-		<nav data-haptic class="mx-auto grid h-16 grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[navPosition === 'start' ? 'lg:grid-cols-[auto_auto_1fr]' : 'lg:grid-cols-[1fr_auto_1fr]', scrolled ? 'max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8' : 'max-w-[110rem] rounded border-white/10 bg-flixer-background/30']" :aria-label="t('header.mainNavigation')">
+	<header class="app-header fixed inset-x-0 top-0 z-40 transition-[top,padding] duration-300 ease-out" :class="barLook ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
+		<nav data-haptic class="mx-auto grid grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[headerHeight, effectiveNavPosition === 'start' ? 'lg:grid-cols-[auto_auto_1fr]' : 'lg:grid-cols-[1fr_auto_1fr]', navLook]" :aria-label="t('header.mainNavigation')">
 			<RouterLink class="flex items-center gap-2.5 justify-self-start rounded pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
-				<img :src="logoUrl" alt="" class="size-10" />
-				<span class="text-xl font-semibold tracking-tight text-white">Flixer</span>
+				<img :src="logoSrc" alt="" class="size-10 object-contain" />
+				<span v-if="showName" class="text-xl font-semibold tracking-tight text-white">{{ appName }}</span>
 			</RouterLink>
 
-			<div class="hidden lg:block" :class="navPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
+			<div class="hidden lg:block" :class="effectiveNavPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
 				<slot name="nav">
 					<ul v-if="links.length" class="flex items-center gap-1 rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
 						<li v-for="link in links" :key="link.to">

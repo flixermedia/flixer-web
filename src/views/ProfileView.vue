@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { brandName } from '../composables/useAppearance'
 import { openModal } from '@kolirt/vue-modal'
 import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -71,7 +72,7 @@ async function load() {
     }
     if (current !== generation) return
     profile.value = result
-    document.title = `${result.displayName} · Flixer`
+    document.title = `${result.displayName} · ${brandName()}`
   } finally {
     if (current === generation) loading.value = false
   }

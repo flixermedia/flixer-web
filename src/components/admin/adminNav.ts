@@ -13,10 +13,10 @@ export const ADMIN_TABS = {
   mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
   payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
   apikeys: ['apikeys'],
-  drm: ['widevine', 'drmTesting'],
+  videoPlayer: ['playerSettings', 'widevine'],
   communications: ['chatSettings', 'callSettings'],
   plugins: ['plugins'],
-  settings: ['server', 'webhooks', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
+  settings: ['server', 'appearance', 'webhooks', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
 } as const
 
 export type AdminTabId = keyof typeof ADMIN_TABS
@@ -73,6 +73,7 @@ export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): Ad
   if (tab === 'settings' && page === 'chatEncryption') return { tab: 'communications', page: 'chatSettings' }
   if (tab === 'settings' && page === 'calls') return { tab: 'communications', page: 'callSettings' }
   if (tab === 'library' && page === 'advertisements') return { tab: 'advertising', page: 'advertisements' }
+  if (tab === 'drm' || (tab === 'videoPlayer' && page === 'drmTesting')) return { tab: 'videoPlayer', page: 'widevine' }
   if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
     const id = tab as AdminTabId
     const pages = pagesOf(id) as readonly string[]

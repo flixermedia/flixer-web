@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { artworkAccentEnabled, brandName, setArtworkAccent, setLibraryAccent } from '../composables/useAppearance'
+import { accentFromBlob } from '../composables/artworkAccent'
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -241,6 +243,26 @@ const poster = computed(() => {
   if (current.poster !== null) return { itemId: current.id, index: current.poster, version: current.updatedAt }
   return current.type === 'episode' ? seasonPosterArt.value : null
 })
+// A library can have its own accent colour, and a theme can tint the page from the artwork being shown.
+watch(
+  () => (item.value as { libraryId?: string } | null)?.libraryId ?? null,
+  (libraryId) => setLibraryAccent(libraryId),
+  { immediate: true },
+)
+watch(
+  [poster, artworkAccentEnabled],
+  async ([art, enabled]) => {
+    if (!art || !enabled) return setArtworkAccent(null)
+    const color = await fetchHomeImage(art.itemId, art.index, 96, art.version).then(accentFromBlob, () => null)
+    if (poster.value?.itemId === art.itemId && poster.value.index === art.index) setArtworkAccent(color)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  setLibraryAccent(null)
+  setArtworkAccent(null)
+})
+
 function preloadSeasonPosters(series: ItemDetail) {
   if (series.type !== 'series') return
   const width = Math.ceil(320 * Math.min(window.devicePixelRatio || 1, 2))
@@ -407,13 +429,13 @@ async function load(id: string) {
     if ((loaded as { locked?: boolean }).locked || !Array.isArray(loaded.genres)) {
       item.value = null
       failure.value = 'locked'
-      document.title = `${loaded.title} · Flixer`
+      document.title = `${loaded.title} · ${brandName()}`
       // A successful unlock reloads the page, so only a dismissed prompt falls through to the message.
       if ((await refreshAccess())?.hasPin) void requestUnlock()
       return
     }
     item.value = loaded
-    document.title = `${loaded.title} · Flixer`
+    document.title = `${loaded.title} · ${brandName()}`
     preloadSeasonPosters(loaded)
     trackAlbumArt.value = null
     seasonPosterArt.value = null

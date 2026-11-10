@@ -1,6 +1,7 @@
 import { createI18n } from 'vue-i18n'
 import { getAccessToken, getPreferences, updatePreferences } from '../api'
 import en from '../locales/en.json'
+import { brandName, DEFAULT_APP_NAME, syncAppearanceFromAccount } from '../composables/useAppearance'
 import { catchError } from '../utils/catchError'
 
 export type MessageSchema = typeof en
@@ -21,6 +22,11 @@ export const i18n = createI18n<[MessageSchema], string, false>({
   legacy: false,
   locale: SOURCE_LOCALE,
   fallbackLocale: SOURCE_LOCALE,
+  // Admin pages describe the software itself; everything else uses the product name the theme sets.
+  postTranslation: (translated, key) => {
+    const name = brandName()
+    return name === DEFAULT_APP_NAME || key.startsWith('admin.') || typeof translated !== 'string' ? translated : translated.replace(/\bFlixer\b/g, name)
+  },
   messages: { [SOURCE_LOCALE]: en },
 })
 
@@ -81,6 +87,7 @@ export async function syncLocaleFromAccount(): Promise<void> {
   if (!getAccessToken() || !navigator.onLine) return
   const [preferencesError, preferences] = await catchError(getPreferences())
   if (preferencesError) return // Offline or signed out: keep the locally stored language.
+  syncAppearanceFromAccount(preferences.themeId)
 
   if (preferences.language && availableLocales.includes(preferences.language)) {
     const [localeError] = await catchError(applyLocale(preferences.language))
