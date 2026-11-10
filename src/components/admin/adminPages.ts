@@ -29,6 +29,7 @@ const Notifications = lazy(() => import('./NotificationsPanel.vue'))
 const EmailSettings = lazy(() => import('./EmailSettingsSection.vue'))
 const MailAdmin = lazy(() => import('./MailAdminPanel.vue'))
 const Devices = lazy(() => import('./DevicesPanel.vue'))
+const OidcClients = lazy(() => import('./OidcClientsPanel.vue'))
 const General = lazy(() => import('./GeneralPanel.vue'))
 const UserWebhooks = lazy(() => import('./UserWebhookSettings.vue'))
 const Users = lazy(() => import('./UsersPanel.vue'))
@@ -85,7 +86,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
   mailInboxes: [{ component: MailAdmin, props: { screen: 'inboxes' } }],
   mailMessages: [{ component: MailAdmin, props: { screen: 'messages' } }],
   mailTemplates: [{ component: MailAdmin, props: { screen: 'templates' } }],
-  apikeys: [{ component: Devices, props: { part: 'keys' } }],
+  apikeys: [{ component: Devices, props: { part: 'keys' } }, { component: OidcClients }],
   server: [{ component: General }],
   webhooks: [{ component: UserWebhooks }],
   ai: [{ component: Ai }],

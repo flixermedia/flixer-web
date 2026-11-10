@@ -15,6 +15,8 @@ const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8083'
 const streamerProxyTarget = env.VITE_STREAMER_PROXY_TARGET || 'http://localhost:8091'
 
 const proxyOptions: Record<string, string | ProxyOptions> = {
+  '/.well-known/oauth-authorization-server/api/oidc': { target: apiProxyTarget, xfwd: true },
+  '/api/oidc': { target: apiProxyTarget, xfwd: true },
   '/api/socket.io': {
     target: apiProxyTarget,
     changeOrigin: true,

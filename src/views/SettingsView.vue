@@ -2,9 +2,9 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import Header from "../components/header/Header.vue";
 import BillingSection from "../components/payments/BillingSection.vue";
 import ChatEncryptionSection from "../components/settings/ChatEncryptionSection.vue";
+import ConnectedAppsSection from "../components/settings/ConnectedAppsSection.vue";
 import DefaultPlaybackOptionsSection from "../components/settings/DefaultPlaybackOptionsSection.vue";
 import LanguageSection from "../components/settings/LanguageSection.vue";
 import PasskeysSection from "../components/settings/PasskeysSection.vue";
@@ -13,13 +13,11 @@ import ServerSection from "../components/settings/ServerSection.vue";
 import UserWebhooksSection from "../components/settings/UserWebhooksSection.vue";
 import type { SettingsTab } from "../components/settings/SettingsTabs.vue";
 import { usePayments } from "../composables/usePayments.ts";
-import { useSignOut } from "../composables/useSignOut.ts";
 import { isNativeApp } from "../platform/serverConnection";
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const { isSigningOut, signOut } = useSignOut();
 const payments = usePayments();
 void payments.load();
 
@@ -29,12 +27,13 @@ const tabIcons: Record<string, string> = {
 	language: "lucide:languages",
 	defaultPlayback: "lucide:play",
 	chatEncryption: "lucide:lock-keyhole",
+	connectedApps: "lucide:app-window",
 	billing: "lucide:credit-card",
 	webhooks: "lucide:webhook",
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "connectedApps", label: t("oidc.connected.title") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
 });
 
 const activeTab = computed({
@@ -54,7 +53,6 @@ function selectTab(id: string) {
 
 <template>
 	<div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
-		<Header :docked="true" :links="[]" :is-signing-out="isSigningOut" @logout="signOut" />
 
 		<main class="page-gutter mx-auto w-full max-w-[110rem] pb-16 pt-24 lg:pt-28">
 			<header class="admin-card mb-6 flex flex-wrap items-center justify-between gap-5 p-5 sm:p-6">
@@ -92,6 +90,7 @@ function selectTab(id: string) {
 							<LanguageSection v-else-if="activeTab === 'language'" />
 							<DefaultPlaybackOptionsSection v-else-if="activeTab === 'defaultPlayback'" />
 							<ChatEncryptionSection v-else-if="activeTab === 'chatEncryption'" />
+							<ConnectedAppsSection v-else-if="activeTab === 'connectedApps'" />
 							<UserWebhooksSection v-else-if="activeTab === 'webhooks'" />
 							<BillingSection v-else-if="activeTab === 'billing'" />
 							<ServerSection v-else-if="activeTab === 'server'" />

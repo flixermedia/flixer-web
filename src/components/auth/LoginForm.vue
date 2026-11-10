@@ -19,6 +19,8 @@ const props = defineProps<{
   initialUsername?: string
   biometricAvailable?: boolean
   biometricLoginAvailable?: boolean
+  oauthSignIn?: boolean
+  oauthClientName?: string
 }>()
 
 const emit = defineEmits<{
@@ -50,12 +52,19 @@ function handleSubmit() {
 
 <template>
   <div data-haptic class="w-full">
-    <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('auth.loginEyebrow') }}</span>
-    <h1 id="login-title" class="mt-3 text-3xl font-semibold tracking-tight text-flixer-text sm:text-4xl">
-      {{ t('auth.welcomeBack') }}
-      <span class="text-flixer-accent">.</span>
-    </h1>
-    <p class="mt-2 text-sm text-flixer-muted">{{ t('auth.signInDescription') }}</p>
+    <template v-if="oauthSignIn">
+      <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('oidc.signInEyebrow') }}</span>
+      <h1 id="login-title" class="mt-3 break-words text-3xl font-semibold tracking-tight text-flixer-text sm:text-4xl">{{ t('oidc.signInTitle', { client: oauthClientName }) }}</h1>
+      <p class="mt-2 text-sm text-flixer-muted">{{ t('oidc.signInDescription') }}</p>
+    </template>
+    <template v-else>
+      <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('auth.loginEyebrow') }}</span>
+      <h1 id="login-title" class="mt-3 text-3xl font-semibold tracking-tight text-flixer-text sm:text-4xl">
+        {{ t('auth.welcomeBack') }}
+        <span class="text-flixer-accent">.</span>
+      </h1>
+      <p class="mt-2 text-sm text-flixer-muted">{{ t('auth.signInDescription') }}</p>
+    </template>
     <output v-if="sessionCheckUnavailable" class="mt-4 block rounded border border-flixer-accent/20 bg-flixer-primary/10 px-4 py-3 text-sm leading-6 text-flixer-accent">{{ t('auth.sessionCheckUnavailable') }}</output>
 
     <form class="mt-8 flex flex-col" @submit.prevent="handleSubmit">
@@ -102,7 +111,7 @@ function handleSubmit() {
           <Icon icon="lucide:key-round" class="size-[17px]" aria-hidden="true" />
           {{ t('auth.signInWithPasskey') }}
         </button>
-        <button v-if="quickConnectEnabled" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('quickConnect')">
+        <button v-if="quickConnectEnabled && !oauthSignIn" class="flex h-12 w-full items-center justify-center gap-2 rounded border border-flixer-accent/40 bg-flixer-primary/10 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="button" :disabled="isSubmitting" @click="emit('quickConnect')">
           <Icon icon="lucide:monitor-smartphone" class="size-[17px]" aria-hidden="true" />
           {{ t('auth.quickConnectSignIn') }}
         </button>
@@ -112,13 +121,13 @@ function handleSubmit() {
       </div>
     </form>
 
-    <div class="my-7 flex items-center gap-3 text-[9px] font-semibold tracking-[0.16em] text-flixer-muted/70">
+    <div v-if="!oauthSignIn" class="my-7 flex items-center gap-3 text-[9px] font-semibold tracking-[0.16em] text-flixer-muted/70">
       <span class="h-px flex-1 bg-flixer-border"></span>
       <span>{{ t('auth.madeForYourMoments') }}</span>
       <span class="h-px flex-1 bg-flixer-border"></span>
     </div>
 
-    <button class="flex w-full items-center gap-3 rounded border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-55" type="button" :disabled="registrationEnabled !== true" @click="emit('switchMode')">
+    <button v-if="!oauthSignIn" class="flex w-full items-center gap-3 rounded border border-flixer-border bg-flixer-surface/50 p-3 text-left transition hover:-translate-y-px hover:border-flixer-accent/40 hover:bg-flixer-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-55" type="button" :disabled="registrationEnabled !== true" @click="emit('switchMode')">
       <span class="grid size-[34px] shrink-0 place-items-center rounded border border-flixer-accent/20 bg-flixer-primary/10 text-flixer-accent" aria-hidden="true">
         <Icon icon="lucide:user-round-plus" class="size-[17px]" aria-hidden="true" />
       </span>
@@ -128,10 +137,10 @@ function handleSubmit() {
       </span>
       <Icon icon="lucide:arrow-right" class="size-[17px] shrink-0 text-flixer-accent" aria-hidden="true" />
     </button>
-    <output v-if="registrationStatusError" class="mt-3 text-center text-xs leading-5 text-flixer-muted">
+    <output v-if="!oauthSignIn && registrationStatusError" class="mt-3 text-center text-xs leading-5 text-flixer-muted">
       {{ registrationStatusError }}
     </output>
-    <output v-else-if="registrationEnabled === false" class="mt-3 text-center text-xs leading-5 text-flixer-muted">{{ t('auth.registrationDisabled') }}</output>
-    <output v-else-if="registrationEnabled === null" class="mt-3 text-center text-xs leading-5 text-flixer-muted">{{ t('auth.checkingRegistration') }}</output>
+    <output v-else-if="!oauthSignIn && registrationEnabled === false" class="mt-3 text-center text-xs leading-5 text-flixer-muted">{{ t('auth.registrationDisabled') }}</output>
+    <output v-else-if="!oauthSignIn && registrationEnabled === null" class="mt-3 text-center text-xs leading-5 text-flixer-muted">{{ t('auth.checkingRegistration') }}</output>
   </div>
 </template>

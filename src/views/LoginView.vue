@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { BiometricAuthError } from '@capgo/capacitor-native-biometric'
 import { SavePassword } from '@capgo/capacitor-autofill-save-password'
-import defaultLogo from '../../resources/logo/flixer-logo.svg'
+import AuthBrandPanel from '../components/auth/AuthBrandPanel.vue'
 import { useAppearance } from '../composables/useAppearance'
 import LoginForm from '../components/auth/LoginForm.vue'
 import QuickConnectLogin from '../components/auth/QuickConnectLogin.vue'
@@ -13,7 +13,7 @@ import SignupPaymentStep from '../components/payments/SignupPaymentStep.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
 import VerificationNotice from '../components/auth/VerificationNotice.vue'
 import { notify } from '../composables/notify'
-import { clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
+import { ChatMlsDeviceUnavailableError, clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
 import { clearAccessToken, getAccessToken, getQuickConnectStatus, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type VerificationPending } from '../api'
@@ -22,11 +22,10 @@ import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
 import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
 import { catchError } from '../utils/catchError'
+import { oauthInteractionPath } from '../router/oauthSignIn'
+import { getOidcInteractionClient } from '../api/oidc'
 
-const appearance = useAppearance()
-const loginBackground = computed(() => appearance.activeTheme.value?.config.branding.loginBackground ?? null)
-const appName = appearance.appName
-const logo = computed(() => appearance.logoUrl.value ?? defaultLogo)
+const appName = useAppearance().appName
 
 const { t } = useI18n()
 const route = useRoute()
@@ -85,6 +84,41 @@ const biometricAvailable = ref(false)
 const biometricLoginAvailable = ref(false)
 const biometricCredentialsForSecondFactor = ref<{ username: string; password: string } | null>(null)
 const isRegistration = computed(() => route.name === 'register')
+const isOAuthSignIn = computed(() => route.name === 'oauth-sign-in')
+const compactOAuthLayout = computed(() => route.name === 'oauth-sign-in' || (isRegistration.value && !!oauthInteractionPath(route.query.redirect)))
+const oauthClientName = ref('')
+const oauthClientLoading = ref(false)
+const oauthClientError = ref('')
+let oauthClientRequest = 0
+
+async function loadOAuthClient() {
+  const request = ++oauthClientRequest
+  oauthClientName.value = ''
+  oauthClientError.value = ''
+  if (!isOAuthSignIn.value) {
+    oauthClientLoading.value = false
+    return
+  }
+  quickConnectMode.value = false
+  const path = oauthInteractionPath(route.query.redirect)
+  if (!path) {
+    oauthClientLoading.value = false
+    oauthClientError.value = t('oidc.interactionError')
+    return
+  }
+  oauthClientLoading.value = true
+  const [error, result] = await catchError(getOidcInteractionClient(path.slice('/oauth/interaction/'.length)))
+  if (request !== oauthClientRequest) return
+  oauthClientLoading.value = false
+  if (error || !result.clientName) {
+    if (error) console.error('[oidc] Could not load the requesting application', error)
+    oauthClientError.value = t('oidc.interactionError')
+  } else {
+    oauthClientName.value = result.clientName
+  }
+}
+
+watch([isOAuthSignIn, () => route.query.redirect], () => void loadOAuthClient(), { immediate: true })
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
 const SESSION_RECOVERY_INTERVAL_MS = 5_000
 let sessionRecoveryTimer: ReturnType<typeof setInterval> | undefined
@@ -198,7 +232,7 @@ async function handleQuickConnectAuthentication(result: AuthResult) {
 
 function switchAuthMode() {
   void router.push({
-    name: isRegistration.value ? 'login' : 'register',
+    name: isRegistration.value ? (oauthInteractionPath(route.query.redirect) ? 'oauth-sign-in' : 'login') : 'register',
     query: route.query,
   })
 }
@@ -233,7 +267,10 @@ async function completeAuthentication(
     const [backupError] = await catchError(syncChatMlsHistoryBackup(result.user.id, chatHistoryPassword))
     if (backupError) {
       console.error('[chat encryption] account history could not be synchronized', backupError)
-      notify.error(backupError instanceof Error ? backupError.message : t('settings.chatEncryption.historySyncFailed'))
+      const message = backupError instanceof ChatMlsDeviceUnavailableError
+        ? t(`settings.chatEncryption.device${backupError.reason === 'revoked' ? 'Revoked' : 'Missing'}`)
+        : backupError instanceof Error && !axios.isAxiosError(backupError) ? backupError.message : t('settings.chatEncryption.historySyncFailed')
+      notify.error(message, undefined, { clearOnUrlChange: false })
     }
   }
   if (isNativeApp()) {
@@ -251,13 +288,13 @@ async function completeAuthentication(
       nativeUsername.value = result.user.username
     } else {
       console.warn('[native-account] Could not save the account for reinstall recovery', accountError)
-      notify.error(t('auth.rememberAccountFailed'))
+      notify.error(t('auth.rememberAccountFailed'), undefined, { clearOnUrlChange: false })
     }
     if (biometricCredentials) {
       const [biometricError] = await catchError(saveNativeBiometricCredentials(biometricCredentials.username, biometricCredentials.password))
       if (biometricError) {
         console.warn('[native-auth] Could not enable biometric sign-in', biometricError)
-        notify.error(t('auth.biometricSetupFailed'))
+        notify.error(t('auth.biometricSetupFailed'), undefined, { clearOnUrlChange: false })
       }
     } else if (accountChanged) {
       const [removeError] = await catchError(removeNativeBiometricCredentials())
@@ -265,7 +302,7 @@ async function completeAuthentication(
         biometricLoginAvailable.value = false
       } else {
         console.warn('[native-auth] Could not remove credentials for the previous account', removeError)
-        notify.error(t('auth.biometricRemoveFailed'))
+        notify.error(t('auth.biometricRemoveFailed'), undefined, { clearOnUrlChange: false })
       }
     }
   }
@@ -386,7 +423,7 @@ async function handleResendVerification() {
 
 function leaveVerificationNotice() {
   pendingVerificationEmail.value = ''
-  void router.push({ name: 'login', query: route.query })
+  void router.push({ name: oauthInteractionPath(route.query.redirect) ? 'oauth-sign-in' : 'login', query: route.query })
 }
 
 async function handlePasskeyLogin() {
@@ -520,66 +557,35 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </script>
 
 <template>
-  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text lg:grid lg:grid-cols-2">
-    <section class="relative isolate flex flex-col overflow-hidden px-6 py-6 sm:px-10 lg:h-auto lg:min-h-screen lg:bg-gradient-to-br lg:from-flixer-surface lg:via-flixer-background lg:to-flixer-background lg:px-16 lg:py-11" :aria-label="t('auth.welcomeToFlixer')">
-      <!-- Background image chosen in the active theme -->
-      <template v-if="loginBackground">
-        <div class="pointer-events-none absolute inset-0 -z-20 bg-cover bg-center" :style="{ backgroundImage: `url(${loginBackground})` }" aria-hidden="true"></div>
-        <div class="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-flixer-background/85 via-flixer-background/60 to-flixer-background/90" aria-hidden="true"></div>
-      </template>
-      <!-- Decorative background elements -->
-      <div class="pointer-events-none absolute -left-24 top-1/3 -z-10 hidden size-80 rounded-full bg-flixer-primary/20 blur-3xl lg:block" aria-hidden="true"></div>
-      <div class="pointer-events-none absolute -right-20 top-0 -z-10 hidden size-72 rounded-full bg-flixer-cyan/10 blur-3xl lg:block" aria-hidden="true"></div>
+  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text" :class="{ 'lg:grid lg:grid-cols-2': !compactOAuthLayout }">
+    <AuthBrandPanel :compact="compactOAuthLayout" />
 
-      <!-- Logo and navigation -->
-      <RouterLink class="mx-auto lg:mx-0 relative z-10 inline-flex w-fit items-center lg:gap-3 text-flixer-text no-underline" to="/" :aria-label="t('auth.flixerHome')">
-        <img :src="logo" alt="" class="size-20 mt-15 lg:mt-0 lg:size-10 rounded shadow-lg" aria-hidden="true" />
-        <span class="hidden lg:inline text-2xl font-bold tracking-tight">{{ t('auth.brandName') }}</span>
-      </RouterLink>
-
-      <!-- Welcome message -->
-      <div class="relative z-10 mb-8 mt-8 hidden max-w-xl lg:mt-[12vh] lg:block">
-        <span class="flex items-center gap-2.5 text-[10px] font-bold tracking-[0.2em] text-flixer-muted">
-          <span class="size-2 rounded-full bg-flixer-cyan shadow-[0_0_14px_rgba(75,217,232,0.65)]"></span>
-          {{ t('auth.nextFavoriteIsHere') }}
-        </span>
-        <h2 class="mt-2 text-4xl font-semibold leading-tight tracking-tight text-flixer-text sm:text-5xl lg:text-6xl">
-          {{ t('auth.everyStory') }}
-          <br />
-          {{ t('auth.startsSomewhere') }}
-          <span class="text-flixer-accent">{{ t('auth.somewhere') }}</span>
-        </h2>
-        <p class="mt-4 max-w-sm text-sm leading-5 text-flixer-muted sm:text-base">{{ t('auth.welcomeDescription') }}</p>
-      </div>
-
-      <div class="relative z-10 mt-auto hidden items-center gap-3 pt-12 text-[9px] font-bold tracking-[0.18em] text-flixer-muted lg:flex">
-        <span class="h-px w-7 bg-gradient-to-r from-flixer-primary to-flixer-cyan"></span>
-        {{ t('auth.storiesWorthStayingInFor') }}
-      </div>
-    </section>
-
-    <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10 lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16" :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
-      <div class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted lg:flex">
+    <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10" :class="{ 'lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16': !compactOAuthLayout }" :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
+      <div class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted" :class="{ 'lg:flex': !compactOAuthLayout }">
         <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
         {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
 
       <p v-if="loginBanner" class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">{{ loginBanner }}</p>
 
-      <div class="w-full mt-0 lg:mt-4 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+      <div class="w-full mt-0 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8" :class="{ 'lg:mt-4 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none': !compactOAuthLayout }">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
           <div :key="pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
             <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />
             <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name" :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
             <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor" @back="cancelSecondFactor" />
             <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication" @back="quickConnectMode = false" />
-            <LoginForm v-else-if="!isRegistration" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" @quick-connect="quickConnectMode = true" />
+            <div v-else-if="isOAuthSignIn && !oauthClientName">
+              <p v-if="oauthClientLoading" id="login-title" role="status" class="text-sm text-flixer-muted">{{ t('oidc.loading') }}</p>
+              <template v-else><p id="login-title" role="alert" class="text-sm text-red-200">{{ oauthClientError }}</p><button type="button" class="mt-4 rounded border border-flixer-border px-4 py-2 text-sm" @click="loadOAuthClient">{{ t('oidc.retry') }}</button></template>
+            </div>
+            <LoginForm v-else-if="!isRegistration" :oauth-sign-in="isOAuthSignIn" :oauth-client-name="oauthClientName" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" @quick-connect="quickConnectMode = true" />
             <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" @submit="handleRegistration" @switch-mode="switchAuthMode" />
           </div>
         </Transition>
       </div>
 
-      <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70 lg:flex">
+      <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70" :class="{ 'lg:flex': !compactOAuthLayout }">
         <span>{{ t('auth.copyright', { year: 2026 }) }}</span>
         <span class="text-flixer-accent">·</span>
         <span>{{ t('auth.madeForMovieNights') }}</span>
@@ -592,12 +598,6 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </template>
 
 <style scoped>
-:global(html:has(.login-background)),
-:global(body:has(.login-background)),
-.login-background {
-  background: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
-}
-
 .auth-slide-left-enter-active,
 .auth-slide-left-leave-active,
 .auth-slide-right-enter-active,

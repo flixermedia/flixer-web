@@ -8,6 +8,7 @@ import { i18n } from "../i18n";
 import { setSetupRequiredHandler, setupGuard } from "../setup/setupGate";
 import { getNativeServerUrl } from "../platform/serverConnection";
 import { catchError } from "../utils/catchError";
+import { oauthInteractionPath, signInForRoute } from "./oauthSignIn";
 
 declare module "vue-router" {
 	interface RouteMeta {
@@ -48,10 +49,26 @@ const router = createRouter({
 			component: () => import("../views/LoginView.vue"),
 		},
 		{
+			path: "/oauth/sign-in",
+			name: "oauth-sign-in",
+			component: () => import("../views/LoginView.vue"),
+		},
+		{
 			path: "/quick-connect",
 			name: "quick-connect",
 			component: () => import("../views/QuickConnectView.vue"),
 			meta: { requiresAuth: true },
+		},
+		{
+			path: "/oauth/interaction/:uid",
+			name: "oauth-interaction",
+			component: () => import("../views/OidcInteractionView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/oauth/error",
+			name: "oauth-error",
+			component: () => import("../views/OidcErrorView.vue"),
 		},
 		{
 			path: "/passkey/callback",
@@ -287,7 +304,7 @@ router.beforeEach(async (to) => {
 	if (setupRedirect !== true) return setupRedirect;
 
 	const accessToken = getAccessToken();
-	const isAuthRoute = to.name === "login" || to.name === "register";
+	const isAuthRoute = to.name === "login" || to.name === "register" || to.name === "oauth-sign-in";
 
 	if (isAuthRoute && to.query.sessionCheck === "unavailable") {
 		return true;
@@ -298,7 +315,7 @@ router.beforeEach(async (to) => {
 	}
 
 	if (!accessToken) {
-		return to.meta.requiresAuth ? { name: "login", query: { redirect: to.fullPath } } : true;
+		return to.meta.requiresAuth ? signInForRoute(to.name, to.fullPath) : true;
 	}
 
 	// Offline: trust the stored token so the cached app can still render.
@@ -310,11 +327,11 @@ router.beforeEach(async (to) => {
 	if (error) {
 		if (axios.isAxiosError(error) && error.response?.status === 401) {
 			clearAccessToken();
-			return isAuthRoute ? true : { name: "login", query: { redirect: to.fullPath } };
+			return isAuthRoute ? true : signInForRoute(to.name, to.fullPath);
 		}
 
 		return {
-			name: "login",
+			name: to.name === "oauth-interaction" || to.name === "oauth-sign-in" ? "oauth-sign-in" : "login",
 			query: {
 				...to.query,
 				redirect: to.query.redirect ?? to.fullPath,
@@ -325,7 +342,7 @@ router.beforeEach(async (to) => {
 
 	if (!isValid) {
 		clearAccessToken();
-		return isAuthRoute ? true : { name: "login", query: { redirect: to.fullPath } };
+		return isAuthRoute ? true : signInForRoute(to.name, to.fullPath);
 	}
 
 	if (to.meta.requiresAdmin) {
@@ -346,7 +363,7 @@ router.beforeEach(async (to) => {
 		}
 	}
 
-	return isAuthRoute ? { name: "home" } : true;
+	return isAuthRoute ? (oauthInteractionPath(to.query.redirect) ?? { name: "home" }) : true;
 });
 
 setSetupRequiredHandler(() => {
@@ -354,7 +371,7 @@ setSetupRequiredHandler(() => {
 });
 
 router.afterEach((to) => {
-	document.title = to.name === "setup" ? i18n.global.t("setup.title") : to.name === "register" ? i18n.global.t("router.registerTitle") : to.name === "login" ? i18n.global.t("router.loginTitle") : i18n.global.t("router.defaultTitle");
+	document.title = to.name === "setup" ? i18n.global.t("setup.title") : to.name === "register" ? i18n.global.t("router.registerTitle") : to.name === "login" || to.name === "oauth-sign-in" ? i18n.global.t("router.loginTitle") : i18n.global.t("router.defaultTitle");
 });
 
 export default router;

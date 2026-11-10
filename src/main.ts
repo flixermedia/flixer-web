@@ -21,6 +21,7 @@ import { i18n, initLocale, syncLocaleFromAccount } from "./i18n";
 import { initMonitoring } from "./monitoring";
 import { initBrowserLogging } from "./browserLogging";
 import router from "./router/index.ts";
+import { oauthInteractionPath, signInForRoute } from "./router/oauthSignIn";
 import { getNativeServerUrl } from "./platform/serverConnection";
 import { restoreNativeAccount } from "./platform/nativeAccount";
 import { catchError } from "./utils/catchError";
@@ -60,7 +61,13 @@ initTheme();
 initAppearance();
 
 window.addEventListener(AUTH_INVALID_EVENT, () => {
-	if (router.currentRoute.value.name !== "login") {
+	const current = router.currentRoute.value;
+	const path = window.location.pathname;
+	if (current.name === "login" || (current.name === "register" && oauthInteractionPath(current.query.redirect)) || current.name === "oauth-sign-in" || current.name === "oauth-error" ||
+		path === "/oauth/sign-in" || path === "/oauth/error") return;
+	if (current.name === "oauth-interaction" || /^\/oauth\/interaction\/[\w-]{1,128}$/.test(path)) {
+		void router.replace(signInForRoute("oauth-interaction", current.name === "oauth-interaction" ? current.fullPath : path));
+	} else {
 		void router.replace({ name: "login" });
 	}
 });
