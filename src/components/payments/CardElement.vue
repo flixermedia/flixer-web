@@ -18,6 +18,8 @@ function describe(error: unknown): string {
 	const message = error instanceof Error ? error.message : "";
 	if (message === "payment-sdk-load") return t("payments.card.sdkError");
 	if (message === "payment-setup") return t("payments.card.setupError");
+	if (message === "payment-card") return t("payments.card.cardError");
+	if (message === "payment-verification") return t("payments.card.verificationError");
 	return message || t("payments.card.cardError");
 }
 
@@ -80,6 +82,13 @@ defineExpose({ collect });
 			{{ t("payments.card.loading") }}
 		</div>
 		<p v-if="failure" class="rounded border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200" role="alert">{{ failure }}</p>
-		<div ref="target" data-payment-element></div>
+		<div ref="target" data-payment-element :data-square-card="setup?.provider === 'square' ? '' : undefined"></div>
 	</div>
 </template>
+
+<style scoped>
+/* Chromium paints Square's otherwise transparent iframe white when it inherits a dark color scheme. */
+[data-square-card] :deep(iframe) {
+	color-scheme: light;
+}
+</style>

@@ -192,7 +192,8 @@ async function mountSquare(target: HTMLElement, setup: CardSetup, context: CardC
 	if (!square) throw new Error("payment-sdk-load");
 	const payments = await square.payments(client.applicationId, client.locationId);
 	const theme = readCardTheme();
-	const input = { backgroundColor: theme.surface, color: theme.text, fontSize: "16px", fontFamily: theme.font };
+	// Square rejects some valid CSS font stacks; use its default font.
+	const input = { backgroundColor: theme.surface, color: theme.text, fontSize: "16px" };
 	const card = await payments.card({
 		style: {
 			".input-container": { borderColor: theme.border, borderRadius: "4px", borderWidth: "1px" },
@@ -203,8 +204,10 @@ async function mountSquare(target: HTMLElement, setup: CardSetup, context: CardC
 			".message-text.is-error": { color: theme.danger },
 			".message-icon.is-error": { color: theme.danger },
 			input,
+			"input.is-focus": { backgroundColor: theme.surface, color: theme.text },
 			"input::placeholder": { color: theme.muted },
-			"input.is-error": { color: theme.danger },
+			"input.is-focus::placeholder": { color: theme.muted },
+			"input.is-error": { backgroundColor: theme.surface, color: theme.danger },
 		},
 	});
 	await card.attach(target);
@@ -213,16 +216,20 @@ async function mountSquare(target: HTMLElement, setup: CardSetup, context: CardC
 		async collect() {
 			const result = await card.tokenize();
 			if (result.status !== "OK" || !result.token) throw new Error(result.errors?.[0]?.message || "payment-card");
-			// Strong customer authentication is best effort: the server accepts a card without a verification token.
-			const verification = await payments
-				.verifyBuyer(result.token, {
+			let verification: { token?: string } | null;
+			try {
+				verification = await payments.verifyBuyer(result.token, {
 					intent: "STORE",
 					customerInitiated: true,
 					sellerKeyedIn: false,
 					billingContact: { givenName: context.name || undefined, email: context.email || undefined },
-				})
-				.catch(() => null);
-			return { sourceId: result.token, verificationToken: verification?.token };
+				});
+			} catch (error) {
+				console.warn("[payments] Square card verification failed", error instanceof Error ? error.name : "unknown error");
+				throw new Error("payment-verification");
+			}
+			if (!verification?.token) throw new Error("payment-verification");
+			return { sourceId: result.token, verificationToken: verification.token };
 		},
 		destroy() {
 			void card.destroy().catch(() => undefined);
