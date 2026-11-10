@@ -92,5 +92,19 @@ describe('useSignOut', () => {
     expect(mocks.reload).toHaveBeenCalledWith('/login')
   })
 
+  it('preserves a valid OAuth interaction when switching accounts', async () => {
+    const { signOut } = useSignOut()
+    await signOut('/oauth/interaction/request-123')
+    expect(mocks.logout).toHaveBeenCalledOnce()
+    expect(mocks.clearAccessToken).toHaveBeenCalledOnce()
+    expect(mocks.reload).toHaveBeenCalledWith('/oauth/sign-in?redirect=%2Foauth%2Finteraction%2Frequest-123')
+  })
+
+  it('does not redirect to an invalid OAuth destination', async () => {
+    const { signOut } = useSignOut()
+    await signOut('//example.com')
+    expect(mocks.reload).toHaveBeenCalledWith('/login')
+  })
+
   afterEach(() => vi.unstubAllGlobals())
 })

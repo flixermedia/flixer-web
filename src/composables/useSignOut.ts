@@ -9,6 +9,7 @@ import { clearPluginPages } from './usePluginPages'
 import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
 import { catchError } from '../utils/catchError'
+import { oauthInteractionPath } from '../router/oauthSignIn'
 
 const SIGN_OUT_WAIT_MS = 4000
 
@@ -31,7 +32,10 @@ function notifySignOutError(error: unknown) {
 export function useSignOut() {
   const isSigningOut = ref(false)
 
-  async function signOut() {
+  async function signOut(redirect?: string) {
+    const interaction = oauthInteractionPath(redirect)
+    const destination = interaction ? `/oauth/sign-in?${new URLSearchParams({ redirect: interaction })}` : '/login'
+    if (isSigningOut.value) return
     isSigningOut.value = true
 
     try {
@@ -61,7 +65,7 @@ export function useSignOut() {
       signOutError ??= cleanupError
 
       if (signOutError) notifySignOutError(signOutError)
-      window.location.replace('/login')
+      window.location.replace(destination)
     } finally {
       isSigningOut.value = false
     }
