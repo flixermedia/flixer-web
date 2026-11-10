@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getChatEncryptionStatus, getChatMlsDevices, revokeChatMlsDevice, type ChatMlsDeviceSummary } from '../../api'
-import { exportChatMlsHistory, importChatMlsHistory, initializeChatMlsDevice, syncChatMlsHistoryBackup } from '../../composables/chatMlsClient'
+import { ChatMlsDeviceUnavailableError, exportChatMlsHistory, importChatMlsHistory, initializeChatMlsDevice, syncChatMlsHistoryBackup } from '../../composables/chatMlsClient'
 import { confirmAction } from '../../composables/confirm'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
 
@@ -22,6 +22,11 @@ const transferFile = ref<File | null>(null)
 const historyPassword = ref('')
 const historySyncing = ref(false)
 
+function describeChatError(reason: unknown, fallback: string) {
+  if (reason instanceof ChatMlsDeviceUnavailableError) return t(`settings.chatEncryption.device${reason.reason === 'revoked' ? 'Revoked' : 'Missing'}`)
+  return describeRequestError(reason, fallback)
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -37,7 +42,14 @@ async function load() {
     currentDeviceId.value = device.deviceId
     devices.value = (await getChatMlsDevices()).devices
   } catch (reason) {
-    error.value = describeRequestError(reason, t('settings.chatEncryption.loadFailed'))
+    error.value = describeChatError(reason, t('settings.chatEncryption.loadFailed'))
+    if (reason instanceof ChatMlsDeviceUnavailableError) {
+      try {
+        devices.value = (await getChatMlsDevices()).devices
+      } catch (listError) {
+        console.error('[chat encryption] could not load devices', listError)
+      }
+    }
   } finally {
     loading.value = false
   }
@@ -53,7 +65,7 @@ async function syncHistory() {
     historyPassword.value = ''
     notice.value = t('settings.chatEncryption.historySynced')
   } catch (reason) {
-    error.value = describeRequestError(reason, t('settings.chatEncryption.historySyncFailed'))
+    error.value = describeChatError(reason, t('settings.chatEncryption.historySyncFailed'))
   } finally {
     historySyncing.value = false
   }

@@ -1,3 +1,4 @@
+import axios from "axios";
 import {
 	acknowledgeChatMlsWelcome,
 	addChatMlsKeyPackage,
@@ -69,6 +70,16 @@ interface LocalDeviceRecord {
 	pairingPublicKey: string;
 	pairingPrivateKey: string;
 	keyPackages: Record<string, LocalKeyPackage>;
+}
+
+export class ChatMlsDeviceUnavailableError extends Error {
+	readonly reason: "revoked" | "missing";
+
+	constructor(reason: "revoked" | "missing") {
+		super(`Chat device ${reason}`);
+		this.name = "ChatMlsDeviceUnavailableError";
+		this.reason = reason;
+	}
 }
 
 type ChatMessageWithEncryption = ChatMessage & { encrypted?: boolean };
@@ -239,7 +250,18 @@ async function registerDevice(userId: string): Promise<LocalDeviceRecord> {
 			await saveLocalDevice(userId, record);
 		}
 	}
-	if (record.status === "active") await ensurePackageReserve(userId, record);
+	if (record.status === "active") {
+		try {
+			await ensurePackageReserve(userId, record);
+		} catch (error) {
+			if (!axios.isAxiosError(error) || error.response?.status !== 404 || error.response.data?.message !== "Active chat device not found.") throw error;
+			const { devices } = await getChatMlsDevices();
+			const remote = devices.find((device) => device.deviceId === record.deviceId);
+			if (!remote) throw new ChatMlsDeviceUnavailableError("missing");
+			if (remote.status === "revoked") throw new ChatMlsDeviceUnavailableError("revoked");
+			throw error;
+		}
+	}
 	return record;
 }
 

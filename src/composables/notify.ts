@@ -13,6 +13,6 @@ const baseOptions: ToastOptions = { toastClassName: "flixer-toast" };
 
 export const notify = {
 	success: (message: string) => toast.success(message, baseOptions),
-	error: (message: string, error?: Error | undefined) => toast.error(message, { ...baseOptions, autoClose: 8000 }) && (import.meta.env.DEV ? console.error(error) : false),
+	error: (message: string, error?: Error | undefined, options?: Pick<ToastOptions, "clearOnUrlChange">) => toast.error(message, { ...baseOptions, autoClose: 8000, ...options }) && (import.meta.env.DEV && error ? console.error(error) : false),
 	info: (message: string) => toast.info(message, baseOptions),
 };
