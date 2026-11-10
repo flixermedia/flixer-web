@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import en from '../../locales/en.json'
 import { ADMIN_TABS, ADMIN_TAB_IDS, adminQuery, resolveAdminLocation, tabOf } from './adminNav'
+import { ADMIN_PAGE_BLOCKS } from './adminPages'
 
 describe('admin navigation', () => {
   it('opens the dashboard by default', () => {
@@ -41,6 +42,17 @@ describe('admin navigation', () => {
     expect(resolveAdminLocation('logging')).toEqual({ tab: 'logging', page: 'logging' })
     expect(resolveAdminLocation('logs')).toEqual({ tab: 'logging', page: 'logging' })
     expect(adminQuery('logging', 'logging')).toEqual({ tab: 'logging' })
+  })
+
+  it('gives OAuth applications their own page without moving API keys', () => {
+    expect(ADMIN_TABS.apikeys).toEqual(['apikeys'])
+    expect(ADMIN_TABS.oauth).toEqual(['oauth'])
+    expect(resolveAdminLocation('apikeys')).toEqual({ tab: 'apikeys', page: 'apikeys' })
+    expect(resolveAdminLocation('oauth')).toEqual({ tab: 'oauth', page: 'oauth' })
+    expect(adminQuery('oauth', 'oauth')).toEqual({ tab: 'oauth' })
+    expect(ADMIN_PAGE_BLOCKS.apikeys).toHaveLength(1)
+    expect(ADMIN_PAGE_BLOCKS.oauth).toHaveLength(1)
+    expect(ADMIN_PAGE_BLOCKS.apikeys[0].component).not.toBe(ADMIN_PAGE_BLOCKS.oauth[0].component)
   })
 
   it('groups player settings and DRM while preserving old links', () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createOidcClient, deleteOidcClient, getOidcConfiguration, listOidcClients, updateOidcConfiguration, type OidcClient } from '../../api/oidc'
+import { createOidcClient, deleteOidcClient, getOidcConfiguration, listOidcClients, setOidcResourceScopes, setOidcSubscriptionSharing, updateOidcConfiguration, type OidcClient } from '../../api/oidc'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
@@ -21,6 +21,8 @@ const redirects = ref('')
 const type = ref<'public' | 'confidential'>('confidential')
 const created = ref<(OidcClient & { secret?: string }) | null>(null)
 const busy = ref(false)
+const changingClient = ref('')
+const resourceScopes = ['subscriptions:read', 'entitlements:read', 'purchases:read', 'access:check', 'library:read', 'favorites:read', 'playlists:read', 'progress:read', 'history:read', 'preferences:read'] as const
 
 async function load(loadConfiguration = false) {
   const [clientsError, list] = await catchError(listOidcClients())
@@ -73,6 +75,52 @@ async function remove(client: OidcClient) {
   }
 }
 
+async function changeSharing(client: OidcClient, event: Event) {
+  const input = event.target as HTMLInputElement
+  if (changingClient.value) {
+    input.checked = client.shareSubscription
+    return
+  }
+  const enabled = input.checked
+  changingClient.value = client.id
+  if (!enabled && !(await confirmAction(t('oidc.admin.disableSubscriptionConfirm', { name: client.name }), { danger: true }))) {
+    input.checked = client.shareSubscription
+    changingClient.value = ''
+    return
+  }
+  const [failure] = await catchError(setOidcSubscriptionSharing(client.id, enabled))
+  changingClient.value = ''
+  if (failure) {
+    input.checked = client.shareSubscription
+    notify.error(describeRequestError(failure, t('oidc.admin.subscriptionError')))
+  } else {
+    client.shareSubscription = enabled
+    notify.success(t('oidc.admin.subscriptionSaved'))
+  }
+}
+
+async function changeScope(client: OidcClient, scope: string, event: Event) {
+  const input = event.target as HTMLInputElement
+  if (changingClient.value) { input.checked = client.resourceScopes.includes(scope); return }
+  const enabled = input.checked
+  changingClient.value = client.id
+  if (!enabled && !(await confirmAction(t('oidc.admin.disableScopeConfirm', { name: client.name }), { danger: true }))) {
+    input.checked = true
+    changingClient.value = ''
+    return
+  }
+  const scopes = enabled ? [...client.resourceScopes, scope] : client.resourceScopes.filter((value) => value !== scope)
+  const [failure] = await catchError(setOidcResourceScopes(client.id, scopes))
+  changingClient.value = ''
+  if (failure) {
+    input.checked = !enabled
+    notify.error(describeRequestError(failure, t('oidc.admin.scopeError')))
+  } else {
+    client.resourceScopes = scopes
+    notify.success(t('oidc.admin.scopeSaved'))
+  }
+}
+
 onMounted(() => void load(true))
 </script>
 
@@ -103,7 +151,7 @@ onMounted(() => void load(true))
     </form>
     <ul class="mt-6 divide-y divide-flixer-border">
       <li v-for="client in clients" :key="client.id" class="flex flex-wrap items-start justify-between gap-3 py-3 text-sm">
-        <div class="min-w-0"><p class="font-semibold">{{ client.name }}</p><p class="break-all font-mono text-xs text-flixer-muted">{{ client.id }}</p><p v-for="uri in client.redirectUris" :key="uri" class="break-all text-xs text-flixer-muted">{{ uri }}</p></div>
+        <div class="min-w-0"><p class="font-semibold">{{ client.name }}</p><p class="break-all font-mono text-xs text-flixer-muted">{{ client.id }}</p><p v-for="uri in client.redirectUris" :key="uri" class="break-all text-xs text-flixer-muted">{{ uri }}</p><label class="mt-2 flex items-center gap-2"><input type="checkbox" :checked="client.shareSubscription" :disabled="changingClient !== ''" @change="changeSharing(client, $event)" />{{ t('oidc.admin.shareSubscription') }}</label><p class="mt-1 text-xs text-flixer-muted">{{ t('oidc.admin.shareSubscriptionHint') }}</p><fieldset class="mt-4"><legend class="font-semibold">{{ t('oidc.admin.resourcePermissions') }}</legend><p class="mt-1 text-xs text-flixer-muted">{{ t('oidc.admin.resourcePermissionsHint') }}</p><label v-for="scope in resourceScopes" :key="scope" class="mt-2 flex items-center gap-2"><input type="checkbox" :checked="client.resourceScopes.includes(scope)" :disabled="changingClient !== ''" @change="changeScope(client, scope, $event)" />{{ t(`oidc.scopes.${scope}`) }}</label></fieldset></div>
         <button type="button" class="text-red-300 underline" @click="remove(client)">{{ t('oidc.admin.delete') }}</button>
       </li>
     </ul>

@@ -13,6 +13,7 @@ export const ADMIN_TABS = {
   mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
   payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
   apikeys: ['apikeys'],
+  oauth: ['oauth'],
   videoPlayer: ['playerSettings', 'widevine'],
   communications: ['chatSettings', 'callSettings'],
   plugins: ['plugins'],
