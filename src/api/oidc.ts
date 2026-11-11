@@ -5,7 +5,6 @@ export interface OidcClient {
   name: string
   redirectUris: string[]
   type: 'public' | 'confidential'
-  shareSubscription: boolean
   resourceScopes: string[]
   createdAt: string
 }
@@ -54,10 +53,6 @@ export async function createOidcClient(input: { name: string; redirectUris: stri
 
 export async function deleteOidcClient(id: string): Promise<void> {
   await api.delete(`/admin/oidc/clients/${encodeURIComponent(id)}`)
-}
-
-export async function setOidcSubscriptionSharing(id: string, shareSubscription: boolean): Promise<void> {
-  await api.put(`/admin/oidc/clients/${encodeURIComponent(id)}/subscription-sharing`, { shareSubscription })
 }
 
 export async function setOidcResourceScopes(id: string, scopes: string[]): Promise<void> {
