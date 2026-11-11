@@ -101,7 +101,7 @@ async function run(term: string) {
   externalResults.value = []
   pluginSections.value = []
   const secondary = Promise.all([
-    externalAllowed
+    externalAllowed && term.length >= MIN_LENGTH
       ? searchRequests(term, externalType, signal).then(
           (external) => {
             if (signal.aborted) return
@@ -110,7 +110,7 @@ async function run(term: string) {
           () => undefined,
         )
       : undefined,
-    pluginType === null
+    pluginType === null || term.length < MIN_LENGTH
       ? undefined
       : searchPluginSections(term, pluginType, signal).then(
           (sections) => {
@@ -284,9 +284,9 @@ function subtitleOf(item: SearchCard) {
         <p v-if="tooShort" class="text-center text-sm text-flixer-muted">{{ t('search.hint') }}</p>
         <CardGridSkeleton v-else-if="isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" />
         <p v-else-if="failed && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
-        <p v-if="!tooShort && !isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed }) }}</p>
+        <p v-if="!tooShort && !isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed || genre }) }}</p>
         <div v-if="results.length" :class="isLoading ? 'opacity-60' : ''" class="transition-opacity duration-200">
-          <h2 class="mb-5 text-lg font-semibold text-white">{{ t('search.results', { count: results.length, query: trimmed }) }}</h2>
+          <h2 class="mb-5 text-lg font-semibold text-white">{{ t('search.results', { count: results.length, query: trimmed || genre }) }}</h2>
           <TransitionGroup tag="ul" name="result" class="relative grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
             <MediaCard v-for="(item, index) in results" :key="item.id" class="!w-auto" :style="{ '--i': Math.min(index, 14) }" :variant="item.type === 'album' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" :locked="item.locked" />
           </TransitionGroup>

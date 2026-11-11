@@ -9,6 +9,8 @@ import AuthBrandPanel from '../components/auth/AuthBrandPanel.vue'
 import { useAppearance } from '../composables/useAppearance'
 import LoginForm from '../components/auth/LoginForm.vue'
 import QuickConnectLogin from '../components/auth/QuickConnectLogin.vue'
+import ExternalProviderLogin from '../components/auth/ExternalProviderLogin.vue'
+import { completeExternalOAuth } from '../composables/externalOAuth'
 import SignupPaymentStep from '../components/payments/SignupPaymentStep.vue'
 import RegistrationForm from '../components/auth/RegistrationForm.vue'
 import VerificationNotice from '../components/auth/VerificationNotice.vue'
@@ -16,7 +18,7 @@ import { notify } from '../composables/notify'
 import { ChatMlsDeviceUnavailableError, clearChatMlsHistoryBackupPassword, syncChatMlsHistoryBackup } from '../composables/chatMlsClient'
 import { useProfile } from '../composables/useProfile'
 import PasskeySecondFactor from '../components/auth/PasskeySecondFactor.vue'
-import { clearAccessToken, getAccessToken, getQuickConnectStatus, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type VerificationPending } from '../api'
+import { clearAccessToken, getAccessToken, getQuickConnectStatus, getRegistrationStatus, login, loginWithPasskey, loginWithPasskeySecondFactor, register, resendVerification, saveAccessToken, validateAccessToken, type AuthResult, type ExternalAuthResult, type VerificationPending } from '../api'
 import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
@@ -33,6 +35,10 @@ const router = useRouter()
 const isSubmitting = ref(false)
 const pendingVerificationEmail = ref('')
 const passkeyTicket = ref('')
+const callbackLoading = ref(route.name === 'external-auth-callback')
+const callbackRedirect = ref<string>()
+let processedOAuthCallbackPath = ''
+const externalFormOpen = ref(false)
 // An account that still has to pay survives reloads; other browsers learn about it when the account signs in.
 const PENDING_PAYMENT_KEY = 'flixer.pendingPayment'
 const pendingPayment = ref<{ token: string; name: string; email: string } | null>(readPendingPayment())
@@ -119,6 +125,12 @@ async function loadOAuthClient() {
 }
 
 watch([isOAuthSignIn, () => route.query.redirect], () => void loadOAuthClient(), { immediate: true })
+function processExternalOAuthCallback() {
+  if (route.name !== 'external-auth-callback' || route.fullPath === processedOAuthCallbackPath) return
+  processedOAuthCallbackPath = route.fullPath
+  void finishProviderCallback()
+}
+watch(() => route.fullPath, processExternalOAuthCallback)
 const sessionCheckUnavailable = computed(() => route.query.sessionCheck === 'unavailable')
 const SESSION_RECOVERY_INTERVAL_MS = 5_000
 let sessionRecoveryTimer: ReturnType<typeof setInterval> | undefined
@@ -131,6 +143,7 @@ function getPostLoginDestination(): string | undefined {
 
 onMounted(() => {
   void loadRegistrationStatus()
+  processExternalOAuthCallback()
   if (isNativeApp()) void loadNativeSignInOptions()
   startSessionRecovery()
 })
@@ -241,11 +254,11 @@ async function promptNativePasswordSave(username: string, password: string) {
   if (!isNativeApp()) return
 
   const [error] = await catchError(Promise.resolve().then(() => SavePassword.promptDialog({
-      username,
-      password,
-      url: window.location.hostname,
-      title: appName.value,
-    })))
+    username,
+    password,
+    url: window.location.hostname,
+    title: appName.value,
+  })))
   if (error) {
     console.warn('[native-auth] Password manager save prompt failed', error)
   }
@@ -309,11 +322,36 @@ async function completeAuthentication(
   // Language preference is cosmetic; it applies once it arrives instead of delaying sign-in.
   void catchError(syncLocaleFromAccount())
 
-  const redirect = route.query.redirect
+  const redirect = callbackRedirect.value ?? route.query.redirect
   const destination = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
 
   const [navigationError] = await catchError(router.replace(destination))
   return navigationError
+}
+
+async function handleExternalAuthentication(result: ExternalAuthResult) {
+  if ('paymentRequired' in result) { externalFormOpen.value = false; startPayment(result.token); return }
+  if ('passkeyRequired' in result) { externalFormOpen.value = false; passkeyTicket.value = result.ticket; return }
+  const error = await completeAuthentication(result)
+  if (error) notify.error(getRequestErrorMessage(error, false))
+}
+
+async function finishProviderCallback() {
+  callbackLoading.value = true
+  const state = typeof route.query.state === 'string' ? route.query.state : ''
+  const code = typeof route.query.code === 'string' ? route.query.code : ''
+  window.history.replaceState(window.history.state, '', '/auth/provider-callback')
+  try {
+    const { result, redirect } = await completeExternalOAuth(state, code)
+    callbackRedirect.value = redirect
+    if ('linked' in result) {
+      notify.success(t('externalAuth.linkedSuccess'))
+      await router.replace({ name: 'settings', query: { tab: 'profile' } })
+    } else await handleExternalAuthentication(result)
+  } catch (error) {
+    notify.error(getRequestErrorMessage(error, false), undefined, { clearOnUrlChange: false })
+    await router.replace({ name: 'login' })
+  } finally { callbackLoading.value = false }
 }
 
 function handleLoginError(error: unknown) {
@@ -557,40 +595,77 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </script>
 
 <template>
-  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text" :class="{ 'lg:grid lg:grid-cols-2': !compactOAuthLayout }">
+  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text"
+    :class="{ 'lg:grid lg:grid-cols-2': !compactOAuthLayout }">
     <AuthBrandPanel :compact="compactOAuthLayout" />
 
-    <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10" :class="{ 'lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16': !compactOAuthLayout }" :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
-      <div class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted" :class="{ 'lg:flex': !compactOAuthLayout }">
+    <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10"
+      :class="{ 'lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16': !compactOAuthLayout }"
+      :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
+      <div
+        class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted"
+        :class="{ 'lg:flex': !compactOAuthLayout }">
         <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
         {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
       </div>
 
-      <p v-if="loginBanner" class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">{{ loginBanner }}</p>
+      <p v-if="loginBanner"
+        class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">
+        {{ loginBanner }}</p>
 
-      <div class="w-full mt-0 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8" :class="{ 'lg:mt-4 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none': !compactOAuthLayout }">
+      <div
+        class="w-full mt-0 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
+        :class="{ 'lg:mt-4 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none': !compactOAuthLayout }">
         <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
-          <div :key="pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
-            <VerificationNotice v-if="pendingVerificationEmail" :email="pendingVerificationEmail" @back="leaveVerificationNotice" />
-            <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name" :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
-            <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor" @back="cancelSecondFactor" />
-            <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication" @back="quickConnectMode = false" />
+          <div
+            :key="callbackLoading ? 'callback' : pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
+            <p v-if="callbackLoading" role="status" class="text-sm text-flixer-muted">{{
+              t('externalAuth.callbackLoading') }}</p>
+            <VerificationNotice v-else-if="pendingVerificationEmail" :email="pendingVerificationEmail"
+              @back="leaveVerificationNotice" />
+            <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name"
+              :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
+            <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor"
+              @back="cancelSecondFactor" />
+            <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication"
+              @back="quickConnectMode = false" />
             <div v-else-if="isOAuthSignIn && !oauthClientName">
-              <p v-if="oauthClientLoading" id="login-title" role="status" class="text-sm text-flixer-muted">{{ t('oidc.loading') }}</p>
-              <template v-else><p id="login-title" role="alert" class="text-sm text-red-200">{{ oauthClientError }}</p><button type="button" class="mt-4 rounded border border-flixer-border px-4 py-2 text-sm" @click="loadOAuthClient">{{ t('oidc.retry') }}</button></template>
+              <p v-if="oauthClientLoading" id="login-title" role="status" class="text-sm text-flixer-muted">{{
+                t('oidc.loading') }}</p>
+              <template v-else>
+                <p id="login-title" role="alert" class="text-sm text-red-200">{{ oauthClientError }}</p><button
+                  type="button" class="mt-4 rounded border border-flixer-border px-4 py-2 text-sm"
+                  @click="loadOAuthClient">{{ t('oidc.retry') }}</button>
+              </template>
             </div>
-            <LoginForm v-else-if="!isRegistration" :oauth-sign-in="isOAuthSignIn" :oauth-client-name="oauthClientName" :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending" :initial-username="nativeUsername" :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification" @switch-mode="switchAuthMode" @quick-connect="quickConnectMode = true" />
-            <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError" @submit="handleRegistration" @switch-mode="switchAuthMode" />
+            <template v-else-if="!isRegistration">
+              <LoginForm v-if="!externalFormOpen" :oauth-sign-in="isOAuthSignIn" :oauth-client-name="oauthClientName"
+                :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable"
+                :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError"
+                :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending"
+                :initial-username="nativeUsername" :biometric-available="biometricAvailable"
+                :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin"
+                @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin"
+                @resend="handleResendVerification" @switch-mode="switchAuthMode"
+                @quick-connect="quickConnectMode = true" />
+              <ExternalProviderLogin :redirect="getPostLoginDestination()" @authenticated="handleExternalAuthentication"
+                @selection="externalFormOpen = $event" />
+            </template>
+            <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled"
+              :registration-status-error="registrationStatusError" @submit="handleRegistration"
+              @switch-mode="switchAuthMode" />
           </div>
         </Transition>
       </div>
 
-      <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70" :class="{ 'lg:flex': !compactOAuthLayout }">
+      <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70"
+        :class="{ 'lg:flex': !compactOAuthLayout }">
         <span>{{ t('auth.copyright', { year: 2026 }) }}</span>
         <span class="text-flixer-accent">·</span>
         <span>{{ t('auth.madeForMovieNights') }}</span>
       </footer>
-      <RouterLink v-if="isNativeApp()" :to="{ name: 'connect' }" class="mt-5 text-sm text-flixer-muted underline hover:text-flixer-text">
+      <RouterLink v-if="isNativeApp()" :to="{ name: 'connect' }"
+        class="mt-5 text-sm text-flixer-muted underline hover:text-flixer-text">
         {{ t('native.changeServer') }}
       </RouterLink>
     </section>
@@ -633,6 +708,7 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .auth-slide-left-enter-active,
   .auth-slide-left-leave-active,
   .auth-slide-right-enter-active,

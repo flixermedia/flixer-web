@@ -52,7 +52,6 @@ async function markWatched(id: string) {
   musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
 }
 
-// Recommendations can take minutes; leaving the page must release their connections.
 let recommendationsAbort: AbortController | undefined
 onBeforeUnmount(() => recommendationsAbort?.abort())
 const isCanceled = (error: unknown) => (error as { code?: string }).code === 'ERR_CANCELED'
@@ -157,12 +156,8 @@ onMounted(() => {
             :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt"
             :progress="entry.progress" markable @watched="markWatched(entry.id)" />
         </MediaRow>
-        <MediaRow key="recommendations" v-if="recommendations.length > 0 || recommendationsLoading"
+        <MediaRow key="recommendations" v-if="recommendations.length > 0"
           :title="t('home.recommendedForYou')">
-          <template v-if="recommendationsLoading">
-            <li v-for="index in 6" :key="`ai-skeleton-${index}`"
-              class="aspect-[2/3] w-36 shrink-0 animate-pulse rounded bg-white/10 sm:w-44" />
-          </template>
           <MediaCard v-for="item in recommendations" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
             :version="item.updatedAt" />
@@ -177,12 +172,8 @@ onMounted(() => {
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
             :version="item.updatedAt" markable @watched="markWatched(item.id)" />
         </MediaRow>
-        <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0 || musicRecommendationsLoading"
+        <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0"
           :title="t('home.musicRecommendations')">
-          <template v-if="musicRecommendationsLoading">
-            <li v-for="index in 6" :key="`music-ai-skeleton-${index}`"
-              class="aspect-square w-36 shrink-0 animate-pulse rounded bg-white/10 sm:w-44" />
-          </template>
           <MediaCard v-for="item in musicRecommendations" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
             :version="item.updatedAt" />

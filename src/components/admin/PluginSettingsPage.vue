@@ -5,11 +5,13 @@ import { useRouter } from 'vue-router'
 import { listPluginInstallations } from '../../api'
 import { catchError } from '../../utils/catchError'
 import PluginSettingsForm from './PluginSettingsForm.vue'
+import OAuthProvidersSettings from './OAuthProvidersSettings.vue'
 
 const props = defineProps<{ pluginId: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const name = ref('')
+const hasOAuthProfiles = ref(false)
 
 function back() {
   void router.push({ query: { tab: 'plugins' } })
@@ -20,14 +22,21 @@ onMounted(async () => {
   if (error) {
     name.value = ''
   } else {
-    name.value = installations.find((plugin) => plugin.id === props.pluginId)?.manifest.name ?? ''
+    const plugin = installations.find((installation) => installation.id === props.pluginId)
+    name.value = plugin?.manifest.name ?? ''
+    hasOAuthProfiles.value = plugin?.manifest.capabilities.includes('auth.oauth.profiles') ?? false
   }
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <button type="button" class="w-fit text-sm text-flixer-muted transition hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="back">&larr; {{ t('admin.plugins.backToPlugins') }}</button>
-    <PluginSettingsForm :plugin-id="pluginId" :title="t('admin.plugins.settingsTitle', { name: name || pluginId })" />
+    <button type="button"
+      class="w-fit text-sm text-flixer-muted transition hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent"
+      @click="back">&larr; {{ t('admin.plugins.backToPlugins') }}</button>
+    <OAuthProvidersSettings v-if="hasOAuthProfiles" :plugin-id="pluginId"
+      :title="t('admin.plugins.settingsTitle', { name: name || pluginId })" />
+    <PluginSettingsForm v-else :plugin-id="pluginId"
+      :title="t('admin.plugins.settingsTitle', { name: name || pluginId })" />
   </div>
 </template>

@@ -88,7 +88,9 @@ onBeforeUnmount(() => {
 <template>
   <div ref="root" class="relative overflow-hidden bg-flixer-surface" role="img" :aria-label="name">
     <img v-if="src" :src="src" alt="" class="size-full object-cover object-top" />
-    <AuthImage v-else-if="fallback" scope="library" :item-id="fallback.itemId" :index="fallback.index" :version="fallback.version" :width="width" alt="" />
-    <span v-else class="grid size-full place-items-center text-sm font-semibold text-flixer-muted" aria-hidden="true">{{ initials }}</span>
+    <slot v-else>
+      <AuthImage v-if="fallback" scope="library" :item-id="fallback.itemId" :index="fallback.index" :version="fallback.version" :width="width" alt="" />
+      <span v-else class="grid size-full place-items-center text-sm font-semibold text-flixer-muted" aria-hidden="true">{{ initials }}</span>
+    </slot>
   </div>
 </template>

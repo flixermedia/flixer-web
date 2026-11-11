@@ -69,6 +69,8 @@ export const pluginCatalogFixture: PluginCatalogEntry[] = [
 		repository: { id: "repo-1", name: "Official plugins", url: "https://plugins.flixer.example/index.json", isOfficial: true },
 		id: "flixer-subtitles-extra",
 		name: "Extra Subtitles",
+		icon: "plugins/subtitles/icon.png",
+		banner: "plugins/subtitles/banner.webp",
 		description: "Adds more subtitle providers.",
 		author: "Flixer",
 		capabilities: ["subtitles"],

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # Run this in your Coder Linux workspace, from your VS Code project directory.
 # Chrome and mcp-chrome-bridge must already be running on your local Mac.
-MAC_SSH_HOST="${MAC_SSH_HOST:-ashley@ashleys-macbook-pro}"
+MAC_SSH_HOST="${MAC_SSH_HOST:-ashley@100.114.75.104}"
 MAC_MCP_HOST="${MAC_MCP_HOST:-127.0.0.1}"
 LOCAL_PORT="${LOCAL_PORT:-12306}"
 REMOTE_PORT="${REMOTE_PORT:-12306}"

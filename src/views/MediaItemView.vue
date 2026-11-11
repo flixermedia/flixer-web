@@ -18,6 +18,7 @@ import { thumbnailStyle } from '../composables/trickplay.ts'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import MusicBanner from '../components/ui/MusicBanner.vue'
+import PluginSlotHost from '../components/plugins/PluginSlotHost.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
 import { useParty } from '../composables/useParty'
@@ -533,10 +534,10 @@ watch(
               </div>
 
               <ul v-if="item.genres.length > 0" class="mt-3 flex flex-wrap gap-2">
-                <li v-for="genre in item.genres" :key="genre" class="rounded border border-white/20 bg-white/10 px-3 py-1 text-xs text-white">{{ genre }}</li>
+                <li v-for="genre in item.genres" :key="genre"><RouterLink :to="{ name: 'search', query: { genre } }" class="block rounded border border-white/20 bg-white/10 px-3 py-1 text-xs text-white transition hover:border-white/40 hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent">{{ genre }}</RouterLink></li>
               </ul>
 
-              <ClampedText v-if="item.overview" class="mt-4" :text="item.overview" :title="item.title" />
+              <ClampedText v-if="item.overview" class="mt-4" :text="item.overview" :title="item.title" clip />
               <p v-else class="mt-4 text-sm text-flixer-muted">{{ t('mediaItem.noOverview') }}</p>
 
               <p v-if="quality.length > 0" class="mt-4 text-xs text-flixer-muted">{{ quality.join(' · ') }}</p>
@@ -596,6 +597,7 @@ watch(
         </section>
 
         <div class="space-y-10 pt-4">
+          <PluginSlotHost location="media.detail" :context="{ itemId: item.id, title: item.title, type: item.type }" class="page-gutter" />
           <MediaRow v-if="playTarget && item.chapters.length > 0 && PLAYABLE.includes(item.type)" :title="t('mediaItem.chapters')">
             <li v-for="(chapter, index) in item.chapters" :key="chapter.startMs" class="shrink-0 snap-start">
               <button type="button" class="group relative block aspect-video w-56 overflow-hidden rounded border border-flixer-border bg-flixer-surface text-left transition duration-300 hover:-translate-y-1 hover:border-white/30 hover:shadow-xl hover:shadow-black/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent sm:w-64" :style="chapterThumbStyle(chapter.startMs)" @click="play({ ...playTarget, startAt: chapter.startMs / 1000 })">

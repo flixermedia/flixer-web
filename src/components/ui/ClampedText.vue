@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextModal from './TextModal.vue'
 
-const props = defineProps<{ text: string; title: string }>()
+const props = defineProps<{ text: string; title: string; clip?: boolean }>()
 const { t } = useI18n()
 const element = ref<HTMLElement | null>(null)
 const overflowing = ref(false)
+const preview = computed(() => props.clip ? props.text.trim().replace(/\r?\n[\t ]*(?:\r?\n[\t ]*)+/g, '\n') : props.text)
 
 function measure() {
   const el = element.value
@@ -35,7 +36,15 @@ function open() {
 
 <template>
   <div>
-    <p ref="element" class="line-clamp-4 whitespace-pre-line text-base leading-relaxed text-flixer-text/90">{{ text }}</p>
+    <p ref="element" class="line-clamp-4 whitespace-pre-line text-base leading-relaxed text-flixer-text/90" :class="{ 'clip-preview': clip }">{{ preview }}</p>
     <button v-if="overflowing" type="button" class="mt-2 text-sm font-semibold text-flixer-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="open">{{ t('common.readMore') }}</button>
   </div>
 </template>
+
+<style scoped>
+.clip-preview {
+  display: block;
+  max-height: 3.25em;
+  -webkit-line-clamp: unset;
+}
+</style>

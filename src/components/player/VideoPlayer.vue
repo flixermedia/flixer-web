@@ -7,6 +7,7 @@ import { buildHlsUrl, buildStreamUrl, detectCompatProfile, getStreamInfo, getSub
 import { useParty } from '../../composables/useParty'
 import PartyChat from '../party/PartyChat.vue'
 import PartyPanel from '../party/PartyPanel.vue'
+import PluginSlotHost from '../plugins/PluginSlotHost.vue'
 import { audioTrackLabel, preferredAudioTrack, selectedAudioStreamIndex } from '../../composables/audioTracks'
 import { thumbnailAt } from '../../composables/trickplay'
 import { cueTextAt, languageName, parseVtt, type SubtitleCue } from '../../composables/subtitles'
@@ -623,6 +624,15 @@ function togglePlay() {
   else el.pause()
 }
 
+function pluginPlayback(command: { action: 'play' | 'pause' | 'toggle' | 'seek'; position?: number }) {
+  if (props.locked) return
+  if (command.action === 'seek') {
+    if (!props.live && command.position !== undefined) seekTo(command.position, true)
+  } else if (command.action === 'toggle' || (command.action === 'play' && paused.value) || (command.action === 'pause' && !paused.value)) {
+    togglePlay()
+  }
+}
+
 function setVolume(value: number) {
   const el = video.value
   if (!el) return
@@ -1218,6 +1228,7 @@ onBeforeUnmount(() => {
 
     <!-- Bottom controls -->
     <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-3 pt-16 transition-opacity duration-300 sm:px-6 sm:pb-4" :class="controlsShown ? 'opacity-100' : 'pointer-events-none opacity-0'" @pointerup="releaseFocus">
+      <PluginSlotHost v-if="!mini" location="player.controls" :context="{ itemId: analyticsTarget?.kind === 'video' ? analyticsTarget.itemId : null, title: title ?? '', live }" @playback="pluginPlayback" />
       <div v-if="!live" ref="bar" class="group/seek relative flex h-6 cursor-pointer touch-none items-center" role="slider" :aria-label="t('player.seek')" :aria-valuemin="0" :aria-valuemax="Math.floor(duration)" :aria-valuenow="Math.floor(position)" :aria-valuetext="t('player.seekValue', { current: format(position), duration: format(duration) })" @pointerdown="onBarDown" @pointermove="onBarMove" @pointerup="onBarUp" @pointercancel="onBarCancel" @pointerleave="onBarLeave">
         <div class="relative h-1 w-full rounded bg-white/20 transition-[height] group-hover/seek:h-1.5" :class="{ 'h-1.5': scrubbing }">
           <div class="absolute inset-y-0 left-0 rounded bg-white/30" :style="{ width: `${percent(bufferedEnd)}%` }"></div>

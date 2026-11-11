@@ -2,13 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, refreshPluginRepository, removePluginRepository, uninstallPlugin, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginUpdateHistoryEntry } from '../../api'
+import { addPluginRepository, disablePlugin, discoverPlugins, enablePlugin, importLocalPluginPackage, installPlugin as installPluginRequest, listPluginInstallations, listPluginRepositories, listPluginUpdateHistory, localPluginImportStatus, previewLocalPluginPackage, refreshPluginRepository, removePluginRepository, uninstallPlugin, type LocalPluginManifest, type PluginCatalogEntry, type PluginInstallation, type PluginRepository, type PluginUpdateHistoryEntry } from '../../api'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { refreshPluginPages } from '../../composables/usePluginPages'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
+import PluginCatalogImage from './PluginCatalogImage.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -30,6 +31,12 @@ const refreshing = ref<string | null>(null)
 const installing = ref<string | null>(null)
 const updating = ref<string | null>(null)
 const loadError = ref('')
+const localImportEnabled = ref(false)
+const localPackage = ref<File | null>(null)
+const localManifest = ref<LocalPluginManifest | null>(null)
+const localApprovedPermissions = ref<string[]>([])
+const localPreviewing = ref(false)
+const localImporting = ref(false)
 
 const inputClass = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none focus:border-flixer-accent'
 const buttonClass = 'rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
@@ -51,6 +58,8 @@ async function load() {
   loadError.value = ''
   // The catalogue comes from remote repositories and can be slow; it must not hold back the local lists.
   const catalogLoad = loadCatalog()
+  const [featureError, featureEnabled] = await catchError(localPluginImportStatus())
+  localImportEnabled.value = !featureError && featureEnabled
   try {
     const [error, result] = await catchError(Promise.all([listPluginInstallations(), listPluginRepositories()]))
     if (error) {
@@ -62,6 +71,55 @@ async function load() {
     isLoading.value = false
   }
   await catalogLoad
+}
+
+function selectLocalPackage(event: Event) {
+  const input = event.currentTarget as HTMLInputElement
+  localPackage.value = input.files?.[0] ?? null
+  localManifest.value = null
+  localApprovedPermissions.value = []
+}
+
+async function previewLocalPackage() {
+  if (!localPackage.value) return
+  localPreviewing.value = true
+  localManifest.value = null
+  localApprovedPermissions.value = []
+  try {
+    const [error, manifest] = await catchError(previewLocalPluginPackage(localPackage.value))
+    if (error) notify.error(describeRequestError(error))
+    else localManifest.value = manifest
+  } finally {
+    localPreviewing.value = false
+  }
+}
+
+async function importLocalPackage() {
+  if (!localPackage.value || !localManifest.value) return
+  const importedName = localManifest.value.name
+  const permissions = localManifest.value.permissions
+  if (permissions.some((permission) => !localApprovedPermissions.value.includes(permission))) return
+  if (!(await confirmAction(t('admin.plugins.confirmLocalImport', {
+    name: localManifest.value.name,
+    version: localManifest.value.version,
+    permissions: permissions.length ? permissions.join(', ') : t('admin.plugins.noPermissions'),
+  })))) return
+
+  localImporting.value = true
+  try {
+    const [error] = await catchError(importLocalPluginPackage(localPackage.value, localApprovedPermissions.value))
+    if (error) notify.error(describeRequestError(error))
+    else {
+      localPackage.value = null
+      localManifest.value = null
+      localApprovedPermissions.value = []
+      await load()
+      void refreshPluginPages()
+      notify.success(t('admin.plugins.localImportSuccess', { name: importedName }))
+    }
+  } finally {
+    localImporting.value = false
+  }
 }
 
 async function refreshRepository(repository: PluginRepository) {
@@ -236,7 +294,8 @@ onMounted(load)
         {{ t('admin.plugins.noInstalled') }}
       </p>
       <ul v-else class="divide-y divide-flixer-border" aria-label="Installed plugins">
-        <li v-for="plugin in installations" :key="plugin.id" class="flex flex-wrap items-start justify-between gap-3 py-4 first:pt-0 last:pb-0">
+        <li v-for="plugin in installations" :key="plugin.id"
+          class="flex flex-wrap items-start justify-between gap-3 py-4 first:pt-0 last:pb-0">
           <div class="min-w-0">
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <h3 class="font-semibold">{{ plugin.manifest.name }}</h3>
@@ -251,26 +310,35 @@ onMounted(load)
               {{ plugin.repository?.name }}
             </p>
             <p v-if="plugin.activationReason" class="mt-2 text-xs text-flixer-muted">{{ plugin.activationReason }}</p>
-            <p v-if="Object.keys(plugin.targetStatus).length" class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-flixer-muted">
-              <span v-for="(state, target) in plugin.targetStatus" :key="target">{{ t('admin.plugins.targetState', { target, state }) }}</span>
+            <p v-if="Object.keys(plugin.targetStatus).length"
+              class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-flixer-muted">
+              <span v-for="(state, target) in plugin.targetStatus" :key="target">{{ t('admin.plugins.targetState', {
+                target, state
+              }) }}</span>
             </p>
             <p v-if="plugin.lastError" class="mt-2 text-sm text-red-300" role="status">{{ plugin.lastError }}</p>
           </div>
           <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <span class="rounded border border-flixer-border px-2 py-1 text-xs capitalize" :data-status="plugin.status">{{ plugin.status }}</span>
-            <button v-if="plugin.activationSupported && !plugin.enabled" :class="quietButtonClass" type="button" @click="setEnabled(plugin, true)">
+            <span class="rounded border border-flixer-border px-2 py-1 text-xs capitalize"
+              :data-status="plugin.status">{{ plugin.status }}</span>
+            <button v-if="plugin.activationSupported && !plugin.enabled" :class="quietButtonClass" type="button"
+              @click="setEnabled(plugin, true)">
               {{ t('admin.plugins.enable') }}
             </button>
             <button v-if="plugin.enabled" :class="quietButtonClass" type="button" @click="setEnabled(plugin, false)">
               {{ t('admin.plugins.disable') }}
             </button>
-            <button v-if="plugin.availableUpdate" :class="quietButtonClass" type="button" :disabled="updating === plugin.id || plugin.enabled" @click="updateInstalled(plugin)">
-              {{ updating === plugin.id ? t('admin.plugins.updating') : `${t('admin.plugins.update')} ${plugin.availableUpdate.version}` }}
+            <button v-if="plugin.availableUpdate" :class="quietButtonClass" type="button"
+              :disabled="updating === plugin.id || plugin.enabled" @click="updateInstalled(plugin)">
+              {{ updating === plugin.id ? t('admin.plugins.updating') : `${t('admin.plugins.update')}
+              ${plugin.availableUpdate.version}` }}
             </button>
-            <button v-if="plugin.manifest.settingsSchema" :class="quietButtonClass" type="button" @click="openSettings(plugin)">
+            <button v-if="plugin.manifest.settingsSchema" :class="quietButtonClass" type="button"
+              @click="openSettings(plugin)">
               {{ t('admin.plugins.settings') }}
             </button>
-            <button :class="quietButtonClass" type="button" :aria-expanded="historyOpen.includes(plugin.id)" @click="toggleHistory(plugin)">
+            <button :class="quietButtonClass" type="button" :aria-expanded="historyOpen.includes(plugin.id)"
+              @click="toggleHistory(plugin)">
               {{ historyLoading === plugin.id ? t('admin.plugins.historyLoading') : t('admin.plugins.history') }}
             </button>
             <button v-if="!plugin.enabled" :class="quietButtonClass" type="button" @click="uninstall(plugin)">
@@ -278,12 +346,15 @@ onMounted(load)
             </button>
           </div>
           <ol v-if="historyOpen.includes(plugin.id)" class="mt-4 w-full border-t border-flixer-border pt-3 text-sm">
-            <li v-if="!updateHistory[plugin.id]?.length" class="text-flixer-muted">{{ t('admin.plugins.noHistory') }}</li>
+            <li v-if="!updateHistory[plugin.id]?.length" class="text-flixer-muted">{{ t('admin.plugins.noHistory') }}
+            </li>
             <li v-for="entry in updateHistory[plugin.id]" :key="entry.id" class="py-2 first:pt-0">
               <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span class="font-medium capitalize">{{ entry.action }} {{ entry.outcome }}</span>
-                <span class="text-flixer-muted"> {{ entry.fromVersion ? `${entry.fromVersion} → ` : '' }}{{ entry.toVersion }} </span>
-                <time class="text-xs text-flixer-muted" :datetime="entry.createdAt">{{ new Date(entry.createdAt).toLocaleString() }}</time>
+                <span class="text-flixer-muted"> {{ entry.fromVersion ? `${entry.fromVersion} → ` : '' }}{{
+                  entry.toVersion }} </span>
+                <time class="text-xs text-flixer-muted" :datetime="entry.createdAt">{{ new
+                  Date(entry.createdAt).toLocaleString() }}</time>
               </div>
               <p v-if="entry.errorMessage" class="mt-1 text-sm text-red-300">{{ entry.errorMessage }}</p>
             </li>
@@ -292,15 +363,54 @@ onMounted(load)
       </ul>
     </AdminSection>
 
+    <AdminSection v-if="localImportEnabled" :title="t('admin.plugins.localImport')"
+      :description="t('admin.plugins.localImportDescription')">
+      <form class="grid gap-3 sm:grid-cols-[minmax(16rem,1fr)_auto] sm:items-end" @submit.prevent="previewLocalPackage">
+        <label class="grid gap-1 text-sm">
+          <span>{{ t('admin.plugins.packageFile') }}</span>
+          <input :class="inputClass" type="file" accept=".tar.gz,.tgz,application/gzip" required
+            @change="selectLocalPackage" />
+        </label>
+        <button :class="buttonClass" type="submit" :disabled="localPreviewing || !localPackage">
+          {{ localPreviewing ? t('admin.plugins.inspectingPackage') : t('admin.plugins.inspectPackage') }}
+        </button>
+      </form>
+
+      <div v-if="localManifest" class="mt-5 border-t border-flixer-border pt-4">
+        <h3 class="font-semibold">{{ localManifest.name }} <span class="text-xs font-normal text-flixer-muted">{{
+          localManifest.id }} · {{ localManifest.version }}</span></h3>
+        <p class="mt-1 text-sm text-flixer-muted">{{ localManifest.description }}</p>
+        <p class="mt-1 text-xs text-flixer-muted">{{ localManifest.capabilities.join(', ') }} · {{
+          Object.keys(localManifest.targets).join(', ') }}</p>
+        <fieldset v-if="localManifest.permissions.length" class="mt-4 grid gap-2">
+          <legend class="mb-2 text-sm font-semibold">{{ t('admin.plugins.requestedPermissions') }}</legend>
+          <label v-for="permission in localManifest.permissions" :key="permission"
+            class="flex items-start gap-2 text-sm">
+            <input v-model="localApprovedPermissions" type="checkbox" :value="permission"
+              class="mt-1 accent-flixer-primary" />
+            <span class="break-all">{{ permission }}</span>
+          </label>
+        </fieldset>
+        <p v-else class="mt-4 text-sm text-flixer-muted">{{ t('admin.plugins.noPermissions') }}</p>
+        <button :class="buttonClass" type="button" class="mt-4"
+          :disabled="localImporting || localManifest.permissions.some((permission) => !localApprovedPermissions.includes(permission))"
+          @click="importLocalPackage">
+          {{ localImporting ? t('admin.plugins.importingPackage') : t('admin.plugins.importPackage') }}
+        </button>
+      </div>
+    </AdminSection>
+
     <AdminSection :title="t('admin.plugins.repositories')" :description="t('admin.plugins.repositoriesDescription')">
-      <form class="grid gap-3 sm:grid-cols-[minmax(10rem,0.7fr)_minmax(16rem,1.3fr)_auto] sm:items-end" @submit.prevent="addRepository">
+      <form class="grid gap-3 sm:grid-cols-[minmax(10rem,0.7fr)_minmax(16rem,1.3fr)_auto] sm:items-end"
+        @submit.prevent="addRepository">
         <label class="grid gap-1 text-sm">
           <span>{{ t('admin.plugins.repositoryName') }}</span>
           <input v-model="name" :class="inputClass" maxlength="120" required autocomplete="off" />
         </label>
         <label class="grid gap-1 text-sm">
           <span>{{ t('admin.plugins.repositoryUrl') }}</span>
-          <input v-model="url" :class="inputClass" type="url" maxlength="2048" placeholder="https://example.org/plugins/repository.json" required autocomplete="url" />
+          <input v-model="url" :class="inputClass" type="url" maxlength="2048"
+            placeholder="https://example.org/plugins/repository.json" required autocomplete="url" />
         </label>
         <button :class="buttonClass" type="submit" :disabled="isSaving || !name.trim() || !url.trim()">
           {{ isSaving ? t('admin.plugins.saving') : t('admin.plugins.addRepository') }}
@@ -314,22 +424,27 @@ onMounted(load)
         {{ t('admin.plugins.noRepositories') }}
       </p>
       <ul v-else class="mt-5 divide-y divide-flixer-border" :aria-label="t('admin.plugins.repositories')">
-        <li v-for="repository in repositories" :key="repository.id" class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+        <li v-for="repository in repositories" :key="repository.id"
+          class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="font-medium">{{ repository.name }}</h3>
-              <span v-if="repository.isOfficial" class="rounded border border-flixer-accent px-2 py-0.5 text-xs text-flixer-accent">
+              <span v-if="repository.isOfficial"
+                class="rounded border border-flixer-accent px-2 py-0.5 text-xs text-flixer-accent">
                 {{ t('admin.plugins.official') }}
               </span>
             </div>
             <p class="mt-1 break-all text-xs text-flixer-muted">{{ repository.url }}</p>
-            <p v-if="repository.lastError" class="mt-1 text-sm text-red-300" role="status">{{ repository.lastError }}</p>
+            <p v-if="repository.lastError" class="mt-1 text-sm text-red-300" role="status">{{ repository.lastError }}
+            </p>
           </div>
           <div class="flex shrink-0 gap-2">
-            <button :class="quietButtonClass" type="button" :disabled="refreshing === repository.id" @click="refreshRepository(repository)">
+            <button :class="quietButtonClass" type="button" :disabled="refreshing === repository.id"
+              @click="refreshRepository(repository)">
               {{ refreshing === repository.id ? t('admin.plugins.refreshing') : t('admin.plugins.refresh') }}
             </button>
-            <button v-if="!repository.isOfficial" :class="quietButtonClass" type="button" @click="removeRepository(repository)">
+            <button v-if="!repository.isOfficial" :class="quietButtonClass" type="button"
+              @click="removeRepository(repository)">
               {{ t('admin.plugins.removeRepository') }}
             </button>
           </div>
@@ -357,25 +472,34 @@ onMounted(load)
           <span>{{ t('admin.plugins.capability') }}</span>
           <input v-model="capability" :class="inputClass" maxlength="100" autocomplete="off" />
         </label>
-        <button :class="quietButtonClass" type="submit" :disabled="catalogLoading">{{ t('admin.plugins.search') }}</button>
+        <button :class="quietButtonClass" type="submit" :disabled="catalogLoading">{{ t('admin.plugins.search')
+        }}</button>
       </form>
       <p v-if="catalog.length === 0" class="mt-5 text-sm text-flixer-muted">
         {{ catalogLoading ? t('admin.plugins.loading') : t('admin.plugins.noAvailable') }}
       </p>
       <ul v-else class="mt-5 divide-y divide-flixer-border" :aria-label="t('admin.plugins.discover')">
         <li v-for="plugin in catalog" :key="`${plugin.repository?.id}:${plugin.id}`" class="py-4 first:pt-0 last:pb-0">
+          <PluginCatalogImage v-if="plugin.banner && plugin.repository?.id" :repository-id="plugin.repository.id"
+            :path="plugin.banner" kind="banner" class="mb-3 h-24 w-full rounded" />
           <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <h3 class="font-semibold">{{ plugin.name }}</h3>
-                <span class="text-xs text-flixer-muted">{{ plugin.id }}</span>
+            <div class="flex min-w-0 gap-3">
+              <PluginCatalogImage v-if="plugin.icon && plugin.repository?.id" :repository-id="plugin.repository.id"
+                :path="plugin.icon" kind="icon" class="h-12 w-12 shrink-0 rounded" />
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <h3 class="font-semibold">{{ plugin.name }}</h3>
+                  <span class="text-xs text-flixer-muted">{{ plugin.id }}</span>
+                </div>
+                <p class="mt-1 text-sm text-flixer-muted">{{ plugin.description }}</p>
+                <p class="mt-1 text-xs text-flixer-muted">
+                  {{ t('admin.plugins.byAuthor', { author: plugin.author }) }}
+                  <span class="mx-1">·</span>{{ plugin.repository?.name }} <span class="mx-1">·</span>{{
+                    plugin.targets.join(', ') }}
+                </p>
+                <p v-if="plugin.capabilities?.length" class="mt-1 text-xs text-flixer-muted">{{
+                  plugin.capabilities.join(', ') }}</p>
               </div>
-              <p class="mt-1 text-sm text-flixer-muted">{{ plugin.description }}</p>
-              <p class="mt-1 text-xs text-flixer-muted">
-                {{ t('admin.plugins.byAuthor', { author: plugin.author }) }}
-                <span class="mx-1">·</span>{{ plugin.repository?.name }} <span class="mx-1">·</span>{{ plugin.targets.join(', ') }}
-              </p>
-              <p v-if="plugin.capabilities?.length" class="mt-1 text-xs text-flixer-muted">{{ plugin.capabilities.join(', ') }}</p>
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-2">
               <template v-if="installations.some((installed) => installed.id === plugin.id)">
@@ -383,8 +507,11 @@ onMounted(load)
               </template>
               <template v-else v-for="release in plugin.versions" :key="release.version">
                 <span class="text-xs text-flixer-muted">{{ release.version }}</span>
-                <button :class="quietButtonClass" type="button" :disabled="installing === `${plugin.id}:${release.version}`" @click="install(plugin, release.version)">
-                  {{ installing === `${plugin.id}:${release.version}` ? t('admin.plugins.installing') : t('admin.plugins.install') }}
+                <button :class="quietButtonClass" type="button"
+                  :disabled="installing === `${plugin.id}:${release.version}`"
+                  @click="install(plugin, release.version)">
+                  {{ installing === `${plugin.id}:${release.version}` ? t('admin.plugins.installing') :
+                    t('admin.plugins.install') }}
                 </button>
               </template>
             </div>

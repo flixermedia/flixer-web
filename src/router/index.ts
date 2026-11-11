@@ -54,6 +54,11 @@ const router = createRouter({
 			component: () => import("../views/LoginView.vue"),
 		},
 		{
+			path: "/auth/provider-callback",
+			name: "external-auth-callback",
+			component: () => import("../views/LoginView.vue"),
+		},
+		{
 			path: "/quick-connect",
 			name: "quick-connect",
 			component: () => import("../views/QuickConnectView.vue"),
