@@ -10,12 +10,15 @@ import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import PluginCatalogImage from './PluginCatalogImage.vue'
+import { isValidPluginVersion, pluginVersionAction, sortPluginVersions } from './pluginVersions'
 
 const { t } = useI18n()
 const router = useRouter()
 const installations = ref<PluginInstallation[]>([])
+const installationsReady = ref(false)
 const repositories = ref<PluginRepository[]>([])
 const catalog = ref<PluginCatalogEntry[]>([])
+const selectedVersions = ref<Record<string, string>>({})
 const updateHistory = ref<Record<string, PluginUpdateHistoryEntry[]>>({})
 const historyOpen = ref<string[]>([])
 const historyLoading = ref<string | null>(null)
@@ -30,6 +33,7 @@ const isSaving = ref(false)
 const refreshing = ref<string | null>(null)
 const installing = ref<string | null>(null)
 const updating = ref<string | null>(null)
+const uninstalling = ref<string | null>(null)
 const loadError = ref('')
 const localImportEnabled = ref(false)
 const localPackage = ref<File | null>(null)
@@ -39,6 +43,7 @@ const localPreviewing = ref(false)
 const localImporting = ref(false)
 
 const inputClass = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none focus:border-flixer-accent'
+const versionSelectClass = 'max-w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm outline-none focus:border-flixer-accent disabled:opacity-60'
 const buttonClass = 'rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-60'
 const quietButtonClass = 'rounded border border-flixer-border px-3 py-2 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-60'
 
@@ -49,12 +54,39 @@ async function loadCatalog() {
   if (request !== catalogRequest) return
   catalogLoading.value = false
   if (error) loadError.value = describeRequestError(error)
-  else catalog.value = result
+  else catalog.value = result.map((plugin) => ({ ...plugin, versions: sortPluginVersions(plugin.versions) }))
 }
 let catalogRequest = 0
 
+function catalogKey(plugin: PluginCatalogEntry) {
+  return `${plugin.repository?.id ?? ''}:${plugin.id}`
+}
+
+function selectedVersion(plugin: PluginCatalogEntry): string {
+  const selected = selectedVersions.value[catalogKey(plugin)]
+  return plugin.versions.some((release) => release.version === selected) ? selected! : plugin.versions[0]?.version ?? ''
+}
+
+function selectVersion(plugin: PluginCatalogEntry, event: Event) {
+  selectedVersions.value[catalogKey(plugin)] = (event.target as HTMLSelectElement).value
+}
+
+function installedPlugin(plugin: PluginCatalogEntry) {
+  return installations.value.find((installed) => installed.id === plugin.id)
+}
+
+function catalogAction(plugin: PluginCatalogEntry) {
+  return pluginVersionAction(selectedVersion(plugin), installedPlugin(plugin)?.version)
+}
+
+function catalogActionLabel(plugin: PluginCatalogEntry) {
+  const action = catalogAction(plugin)
+  return t(`admin.plugins.${action === 'switch' ? 'changeVersion' : action}`)
+}
+
 async function load() {
   isLoading.value = true
+  installationsReady.value = false
   loadError.value = ''
   // The catalogue comes from remote repositories and can be slow; it must not hold back the local lists.
   const catalogLoad = loadCatalog()
@@ -66,6 +98,7 @@ async function load() {
       loadError.value = describeRequestError(error)
     } else {
       ;[installations.value, repositories.value] = result
+      installationsReady.value = true
     }
   } finally {
     isLoading.value = false
@@ -136,18 +169,27 @@ async function refreshRepository(repository: PluginRepository) {
 async function install(plugin: PluginCatalogEntry, version: string) {
   const repositoryId = plugin.repository?.id
   if (!repositoryId) return
-  const permissions = plugin.permissions ?? []
-  if (
-    permissions.length &&
-    !(await confirmAction(
-      t('admin.plugins.confirmInstall', {
-        name: plugin.name,
-        version,
-        permissions: permissions.join(', '),
-      }),
-    ))
-  )
+  const existing = installedPlugin(plugin)
+  if (existing?.enabled) {
+    notify.error(t('admin.plugins.disableBeforeUpdate'))
     return
+  }
+  const permissions = plugin.permissions ?? []
+  if (existing) {
+    const newPermissions = permissions.filter((permission) => !existing.approvedPermissions.includes(permission))
+    const action = pluginVersionAction(version, existing.version)
+    if (!(await confirmAction(t(action === 'downgrade' ? 'admin.plugins.confirmDowngrade' : 'admin.plugins.confirmUpdate', {
+      name: plugin.name,
+      version,
+      permissions: newPermissions.length ? newPermissions.join(', ') : t('admin.plugins.noNewPermissions'),
+    })))) return
+  } else if (permissions.length && !(await confirmAction(
+    t('admin.plugins.confirmInstall', {
+      name: plugin.name,
+      version,
+      permissions: permissions.join(', '),
+    }),
+  ))) return
 
   installing.value = `${plugin.id}:${version}`
   try {
@@ -157,7 +199,7 @@ async function install(plugin: PluginCatalogEntry, version: string) {
     } else {
       await load()
       void refreshPluginPages()
-      notify.success(t('admin.plugins.installedSuccess', { name: plugin.name }))
+      notify.success(existing ? t('admin.plugins.versionChangedSuccess', { name: plugin.name, version }) : t('admin.plugins.installedSuccess', { name: plugin.name }))
     }
   } finally {
     installing.value = null
@@ -214,14 +256,25 @@ async function setEnabled(plugin: PluginInstallation, enabled: boolean) {
 }
 
 async function uninstall(plugin: PluginInstallation) {
+  if (uninstalling.value) return
   if (!(await confirmAction(t('admin.plugins.confirmUninstall', { name: plugin.manifest.name }), { danger: true }))) return
-  const [error] = await catchError(uninstallPlugin(plugin.id))
-  if (error) {
-    notify.error(describeRequestError(error))
-  } else {
-    await load()
-    void refreshPluginPages()
+  uninstalling.value = plugin.id
+  try {
+    const [error] = await catchError(uninstallPlugin(plugin.id))
+    if (error) {
+      notify.error(describeRequestError(error))
+    } else {
+      await load()
+      void refreshPluginPages()
+    }
+  } finally {
+    uninstalling.value = null
   }
+}
+
+function uninstallCatalog(plugin: PluginCatalogEntry) {
+  const installed = installedPlugin(plugin)
+  if (installed) void uninstall(installed)
 }
 
 async function toggleHistory(plugin: PluginInstallation) {
@@ -341,7 +394,8 @@ onMounted(load)
               @click="toggleHistory(plugin)">
               {{ historyLoading === plugin.id ? t('admin.plugins.historyLoading') : t('admin.plugins.history') }}
             </button>
-            <button v-if="!plugin.enabled" :class="quietButtonClass" type="button" @click="uninstall(plugin)">
+            <button v-if="!plugin.enabled" :class="quietButtonClass" type="button"
+              :disabled="uninstalling === plugin.id" @click="uninstall(plugin)">
               {{ t('admin.plugins.uninstall') }}
             </button>
           </div>
@@ -502,18 +556,26 @@ onMounted(load)
               </div>
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-2">
-              <template v-if="installations.some((installed) => installed.id === plugin.id)">
-                <span class="text-xs text-flixer-muted">{{ t('admin.plugins.alreadyInstalled') }}</span>
-              </template>
-              <template v-else v-for="release in plugin.versions" :key="release.version">
-                <span class="text-xs text-flixer-muted">{{ release.version }}</span>
+              <template v-if="installationsReady">
+                <select :value="selectedVersion(plugin)"
+                  :aria-label="t('admin.plugins.versionFor', { name: plugin.name })" :class="versionSelectClass"
+                  :disabled="Boolean(installing) || updating === plugin.id || uninstalling === plugin.id"
+                  @change="selectVersion(plugin, $event)">
+                  <option v-for="release in plugin.versions" :key="release.version" :value="release.version"
+                    :disabled="!isValidPluginVersion(release.version)">{{
+                      release.version }}</option>
+                </select>
                 <button :class="quietButtonClass" type="button"
-                  :disabled="installing === `${plugin.id}:${release.version}`"
-                  @click="install(plugin, release.version)">
-                  {{ installing === `${plugin.id}:${release.version}` ? t('admin.plugins.installing') :
-                    t('admin.plugins.install') }}
+                  :disabled="Boolean(installing) || updating === plugin.id || uninstalling === plugin.id || Boolean(installedPlugin(plugin)?.enabled) || !isValidPluginVersion(selectedVersion(plugin))"
+                  :title="installedPlugin(plugin)?.enabled ? t(catalogAction(plugin) === 'uninstall' ? 'admin.plugins.disableBeforeUninstall' : 'admin.plugins.disableBeforeUpdate') : undefined"
+                  @click="catalogAction(plugin) === 'uninstall' ? uninstallCatalog(plugin) : install(plugin, selectedVersion(plugin))">
+                  {{ installing === `${plugin.id}:${selectedVersion(plugin)}` ? t(installedPlugin(plugin) ?
+                    'admin.plugins.updating' : 'admin.plugins.installing') :
+                  catalogActionLabel(plugin) }}
                 </button>
               </template>
+              <span v-else-if="isLoading" class="text-xs text-flixer-muted" role="status">{{ t('admin.plugins.loading')
+                }}</span>
             </div>
           </div>
         </li>
