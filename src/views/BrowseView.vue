@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { browseArtists, browseMedia, getPreferences, updatePreferences, type BrowseArtist, type BrowseKind, type BrowseSort, type HomeCard } from '../api'
+import { browseArtists, browseMedia, getPreferences, getSearchGenres, updatePreferences, type BrowseArtist, type BrowseKind, type BrowseSort, type HomeCard, type SearchFilters } from '../api'
 import MediaCard from '../components/home/MediaCard.vue'
 import AuthImage from '../components/ui/AuthImage.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
@@ -30,6 +30,35 @@ const artists = ref<BrowseArtist[]>([])
 const total = ref(0)
 const isLoading = ref(false)
 const failed = ref(false)
+const filtersOpen = ref(false)
+const genres = ref<string[]>([])
+const genre = ref('')
+const yearFrom = ref('')
+const yearTo = ref('')
+const cast = ref('')
+const studio = ref('')
+const runtimeFrom = ref('')
+const runtimeTo = ref('')
+const hdr = ref('')
+const resolution = ref('')
+const audioLanguage = ref('')
+const unwatched = ref(false)
+const number = (value: string) => value.trim() && Number.isFinite(Number(value)) ? Number(value) : undefined
+const filters = computed<SearchFilters>(() => ({
+  genre: genre.value || undefined,
+  yearFrom: number(yearFrom.value),
+  yearTo: number(yearTo.value),
+  cast: cast.value.trim() || undefined,
+  studio: studio.value.trim() || undefined,
+  runtimeFrom: number(runtimeFrom.value),
+  runtimeTo: number(runtimeTo.value),
+  hdr: hdr.value || undefined,
+  resolution: number(resolution.value),
+  audioLanguage: audioLanguage.value.trim() || undefined,
+  unwatched: unwatched.value ? 'true' : undefined,
+}))
+const filterCount = computed(() => Object.values(filters.value).filter((value) => value !== undefined).length)
+let filterTimer: ReturnType<typeof setTimeout> | undefined
 
 let controller: AbortController | undefined
 let savedBrowseColumns = 0
@@ -88,7 +117,7 @@ async function load(reset: boolean) {
   const artistView = showingArtists.value
   const request: Promise<{ total: number; items: BrowseArtist[] | HomeCard[] }> = artistView
     ? browseArtists(sort.value, offset, controller.signal)
-    : browseMedia(props.kind, sort.value, offset, controller.signal)
+    : browseMedia(props.kind, sort.value, offset, controller.signal, props.kind === 'music' ? {} : filters.value)
   const [error, page] = await catchError(request)
   if (error) {
     if ((error as { code?: string }).code === 'ERR_CANCELED') return
@@ -104,11 +133,16 @@ async function load(reset: boolean) {
 }
 
 watch([() => props.kind, sort, musicView], () => void load(true))
+watch(filters, () => {
+  clearTimeout(filterTimer)
+  filterTimer = setTimeout(() => void load(true), 250)
+})
 onMounted(() => {
   void load(true)
   void loadPreferences()
+  void getSearchGenres().then((items) => { genres.value = items }).catch(() => undefined)
 })
-onBeforeUnmount(() => controller?.abort())
+onBeforeUnmount(() => { controller?.abort(); clearTimeout(filterTimer) })
 </script>
 
 <template>
@@ -121,6 +155,7 @@ onBeforeUnmount(() => controller?.abort())
           <div v-if="kind === 'music'" class="flex rounded border border-flixer-border bg-flixer-surface p-0.5" role="group" :aria-label="t('browse.musicView')">
             <button v-for="view in (['artists', 'albums'] as const)" :key="view" type="button" class="rounded px-3 py-1.5 text-sm transition" :class="musicView === view ? 'bg-white/15 text-white' : 'text-flixer-muted hover:text-white'" :aria-pressed="musicView === view" @click="musicView = view">{{ t(`browse.${view}`) }}</button>
           </div>
+          <button v-if="kind !== 'music'" type="button" class="inline-flex items-center gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white hover:bg-white/10" :aria-expanded="filtersOpen" aria-controls="browse-filters" @click="filtersOpen = !filtersOpen"><Icon icon="lucide:list-filter" class="size-4" aria-hidden="true" />{{ t('search.filters') }}<span v-if="filterCount" class="text-flixer-muted">{{ filterCount }}</span></button>
           <label class="flex items-center gap-2 text-sm text-flixer-muted">
             {{ t('browse.sortBy') }}
             <select v-model="sort" class="rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
@@ -135,6 +170,20 @@ onBeforeUnmount(() => controller?.abort())
             </select>
           </label>
         </div>
+      </div>
+
+      <div v-if="filtersOpen && kind !== 'music'" id="browse-filters" class="mt-5 grid gap-3 border-b border-flixer-border pb-5 sm:grid-cols-2 lg:grid-cols-4">
+        <label class="text-xs text-flixer-muted">{{ t('search.genre') }}<select v-model="genre" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white"><option value="">{{ t('search.anyGenre') }}</option><option v-for="entry in genres" :key="entry" :value="entry">{{ entry }}</option></select></label>
+        <label class="text-xs text-flixer-muted">{{ t('search.yearFrom') }}<input v-model="yearFrom" type="number" min="1800" max="2200" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('search.yearTo') }}<input v-model="yearTo" type="number" min="1800" max="2200" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.cast') }}<input v-model="cast" type="search" maxlength="100" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.studio') }}<input v-model="studio" type="search" maxlength="100" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.runtimeFrom') }}<input v-model="runtimeFrom" type="number" min="0" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.runtimeTo') }}<input v-model="runtimeTo" type="number" min="0" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.hdr') }}<select v-model="hdr" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white"><option value="">{{ t('browseFilters.any') }}</option><option value="hdr10">HDR10</option><option value="hdr10plus">HDR10+</option><option value="dolbyvision">Dolby Vision</option><option value="hlg">HLG</option></select></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.resolution') }}<select v-model="resolution" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white"><option value="">{{ t('browseFilters.any') }}</option><option value="720">720p+</option><option value="1080">1080p+</option><option value="2160">2160p+</option></select></label>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.audioLanguage') }}<input v-model="audioLanguage" maxlength="30" class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
+        <label class="flex items-center gap-2 self-end py-2 text-sm text-white"><input v-model="unwatched" type="checkbox" class="size-4 accent-flixer-accent" />{{ t('search.unwatched') }}</label>
       </div>
 
       <div class="mt-6" aria-live="polite">

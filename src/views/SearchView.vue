@@ -280,7 +280,7 @@ function subtitleOf(item: SearchCard) {
         </div>
       </div>
 
-      <div class="mx-auto mt-10 max-w-[100rem]" aria-live="polite">
+      <div class="mt-10" aria-live="polite">
         <p v-if="tooShort" class="text-center text-sm text-flixer-muted">{{ t('search.hint') }}</p>
         <CardGridSkeleton v-else-if="isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" />
         <p v-else-if="failed && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
