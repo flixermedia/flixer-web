@@ -14,13 +14,14 @@ import PlayerOverlay from "./components/player/PlayerOverlay.vue";
 import Header from "./components/header/Header.vue";
 import { getHeaderRoute } from "./components/header/headerRoute";
 import LyricsView from "./views/LyricsView.vue";
-import { useAudioPlayer } from "./composables/useAudioPlayer";
+import { useAudioPlayer, type QueueTrack } from "./composables/useAudioPlayer";
 import { useIdleSplash } from "./composables/useIdleSplash";
 import { useParty } from "./composables/useParty";
 import { getMobileTabs, getNavLinks } from "./composables/homeNav";
 import { useSignOut } from "./composables/useSignOut";
 import { useVideoOverlay } from "./composables/useVideoOverlay";
 import { getAccessToken } from "./api";
+import { publishRemotePlayback, registerRemoteCommandHandler, startRemotePlayback, stopRemotePlayback, type RemotePlaybackCommand } from "./composables/useRemotePlayback";
 import { useMailSummary } from "./composables/useMailSummary";
 import { nativeMoreMenuNativeActive, nativeMusicPlayerNativeActive, nativeNavigationEnabled, setNativeMoreTabs, setNativePlayerOpen } from "./platform/nativeNavigation";
 
@@ -28,8 +29,17 @@ const route = useRoute();
 const compactScreen = window.matchMedia("(max-width: 1023px)");
 const compact = ref(compactScreen.matches);
 const updateCompact = () => { compact.value = compactScreen.matches; };
-onMounted(() => compactScreen.addEventListener("change", updateCompact));
-onBeforeUnmount(() => compactScreen.removeEventListener("change", updateCompact));
+let remoteStateTimer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => {
+	compactScreen.addEventListener("change", updateCompact);
+	startRemotePlayback();
+	remoteStateTimer = setInterval(publishLocalAudio, 2_000);
+});
+onBeforeUnmount(() => {
+	compactScreen.removeEventListener("change", updateCompact);
+	clearInterval(remoteStateTimer);
+	stopRemotePlayback();
+});
 const headerRoute = computed(() => getHeaderRoute(route.name, compact.value));
 const headerLinks = computed(() => headerRoute.value.showLinks ? getNavLinks() : []);
 const { isSigningOut, signOut } = useSignOut();
@@ -39,10 +49,52 @@ useMailSummary();
 const audio = useAudioPlayer();
 const { lyricsOpen } = audio;
 const party = useParty();
-const { playing, close: closeVideo } = useVideoOverlay();
+const { playing, close: closeVideo, play: playVideo } = useVideoOverlay();
 const idle = useIdleSplash(() => playing.value !== null);
 watch(playing, (value) => setNativePlayerOpen(value !== null), { immediate: true });
 if (getAccessToken()) void party.resume();
+
+function publishLocalAudio() {
+	if (playing.value) return;
+	const track = audio.current.value;
+	if (!track) {
+		publishRemotePlayback(null);
+		return;
+	}
+	publishRemotePlayback({
+		kind: "audio",
+		title: track.title,
+		...(track.artist ? { subtitle: track.artist } : {}),
+		itemId: track.id,
+		playing: audio.isPlaying.value,
+		position: audio.currentTime.value,
+		duration: audio.duration.value,
+		volume: audio.volume.value,
+		muted: audio.volume.value === 0,
+	});
+}
+
+watch([audio.current, audio.isPlaying, audio.currentTime, audio.duration, playing], publishLocalAudio, { immediate: true });
+watch(playing, (value) => {
+	if (value) publishRemotePlayback(null);
+	else publishLocalAudio();
+});
+const unregisterRemoteAudio = registerRemoteCommandHandler((command: RemotePlaybackCommand) => {
+	if (party.isGuest.value) return false;
+	if (command.action === "play-item") {
+		if (command.item.kind === "video") {
+			audio.stop();
+			playVideo({ id: command.item.itemId, title: command.item.title, startAt: command.item.startAt ?? 0, autoplay: true });
+		} else {
+			closeVideo();
+			audio.playQueue(command.item.tracks as QueueTrack[], command.item.startIndex);
+		}
+		return true;
+	}
+	if (playing.value || command.action === "audio-track" || command.action === "subtitle" || command.action === "skip") return false;
+	return audio.applyRemoteCommand(command);
+});
+onBeforeUnmount(unregisterRemoteAudio);
 
 if (Capacitor.isNativePlatform()) {
 	void CapacitorApp.addListener("appStateChange", ({ isActive }) => {

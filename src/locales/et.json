@@ -1,4 +1,82 @@
 {
+  "collectionsPage": {
+    "title": "Kogud",
+    "all": "Kõik",
+    "automatic": "Automaatsed",
+    "custom": "Minu kogud",
+    "search": "Otsi kogusid",
+    "sortName": "Nimi",
+    "sortCount": "Üksuste arv",
+    "empty": "Kogusid ei leitud.",
+    "itemCount": "{count} üksus | {count} üksust",
+    "back": "Kõik kogud",
+    "automaticLabel": "Automaatne kogu"
+  },
+  "playbackTabs": {
+    "title": "Esitus",
+    "options": "Valikud",
+    "history": "Ajalugu"
+  },
+  "recommendationReview": {
+    "title": "Peidetud soovitused",
+    "restore": "Taasta soovitus"
+  },
+  "userMediaOrder": {
+    "up": "Liiguta üles",
+    "down": "Liiguta alla",
+    "edit": "Muuda kogu",
+    "description": "Kirjeldus"
+  },
+  "browseFilters": {
+    "cast": "Osatäitjad",
+    "studio": "Stuudio",
+    "runtimeFrom": "Vähim pikkus (minutites)",
+    "runtimeTo": "Suurim pikkus (minutites)",
+    "hdr": "HDR-vorming",
+    "resolution": "Vähim eraldusvõime",
+    "audioLanguage": "Heli keelekood",
+    "any": "Kõik"
+  },
+  "recommendationFeedback": {
+    "dismiss": "Pole huvitatud"
+  },
+  "userMedia": {
+    "watchLater": "Vaata hiljem",
+    "queue": "Järgmisena",
+    "save": "Vaata hiljem",
+    "saved": "Hiljem vaatamiseks salvestatud",
+    "addQueue": "Lisa järjekorda",
+    "queueAdded": "Lisatud järjekorda.",
+    "empty": "Siin pole veel midagi.",
+    "remove": "Eemalda",
+    "error": "Meedialoendi uuendamine ebaõnnestus.",
+    "clear": "Tühjenda järjekord",
+    "clearConfirm": "Kas tühjendada järjekord?",
+    "collections": "Videokogud",
+    "create": "Loo kogu",
+    "name": "Kogu nimi",
+    "public": "Avalik",
+    "private": "Privaatne",
+    "addCollection": "Lisa kogusse",
+    "collectionAdded": "Lisatud kogusse.",
+    "delete": "Kustuta kogu",
+    "deleteConfirm": "Kas kustutada see kogu?",
+    "share": "Kopeeri link",
+    "copied": "Link kopeeritud."
+  },
+  "playbackHistory": {
+    "title": "Esituse ajalugu",
+    "empty": "Esituse ajalugu on tühi.",
+    "error": "Esituse ajalugu ei õnnestunud laadida ega muuta.",
+    "clear": "Kustuta ajalugu",
+    "clearConfirm": "Kas kustutada kogu esituse ajalugu? Seda ei saa tagasi võtta.",
+    "remove": "Eemalda ajaloost",
+    "more": "Laadi rohkem",
+    "pagination": "Esitusajaloo leheküljed",
+    "previous": "Eelmine",
+    "next": "Järgmine",
+    "page": "Lehekülg {page}"
+  },
   "common": {
     "loading": "Laadin andmeid",
     "save": "Salvesta muudatused",
@@ -340,7 +418,88 @@
       "billing": "Arveldus"
     }
   },
+  "remotePlayback": {
+    "menu": "Kaugjuhtimine",
+    "title": "Kaugjuhtimine",
+    "description": "Juhi taasesitust teises seadmes, mis on sinu kontole sisse logitud.",
+    "castTitle": "Esita seadmes",
+    "castDescription": "Vali aktiivne seade, kus seda sisu esitada.",
+    "cast": "Esita seadmes",
+    "castFailed": "Sisu ei õnnestunud seadmesse saata.",
+    "controlTitle": "Taasesituse juhtelemendid",
+    "nowPlaying": "Esitamisel",
+    "paused": "Peatatud",
+    "connecting": "Ühendamine sinu seadmetega…",
+    "noDevices": "Üheski teises seadmes praegu ei esitata.",
+    "castNoDevices": "Ükski teine sisselogitud seade pole praegu aktiivne.",
+    "deviceOffline": "See seade pole enam aktiivne.",
+    "readyToCast": "Valmis taasesitust vastu võtma",
+    "play": "Esita seadmes {device}",
+    "pause": "Peata seadmes {device}",
+    "seek": "Otsi seadmes {device}",
+    "seekChapter": "Liigu peatükki {chapter}",
+    "rewind": "Keri {seconds} sekundit tagasi",
+    "forward": "Keri {seconds} sekundit edasi",
+    "volume": "Helitugevus",
+    "audioTrack": "Helivoog",
+    "subtitles": "Subtiitrid",
+    "skipSegment": "Jäta vahele: {segment}"
+  },
   "admin": {
+    "loginSecurity": {
+      "title": "Sisselogimise turvalisus",
+      "timing": "Ühtlusta ebaõnnestunud sisselogimiste vastuseaeg",
+      "minimumMs": "Minimaalne vastuseaeg (ms)",
+      "jitterMs": "Maksimaalne juhuslik viivitus (ms)",
+      "throttle": "Piira ebaõnnestunud sisselogimiskatseid",
+      "disabledWarning": "Mõned sisselogimiskaitsed on keelatud.",
+      "limitScope": "Piirangud kehtivad API protsessi kohta ja lähtestatakse sätete muutmisel või teenuse taaskäivitamisel.",
+      "ipLimit": "Katseid IP kohta",
+      "usernameLimit": "Katseid kasutajanime kohta",
+      "windowSeconds": "Ajavahemik (sekundit)",
+      "invalid": "Sisesta lubatud vahemikus täisarvud.",
+      "saveLogin": "Salvesta sisselogimiskaitse",
+      "trustProxies": "Usalda seadistatud puhverservereid",
+      "proxyWarning": "Usalda ainult enda hallatavaid puhverservereid. Ilma usaldatud puhverserveriteta jagavad sama puhverserveri kliendid IP-piirangut.",
+      "proxyAddresses": "Usaldatud IP-aadressid või CIDR-id, üks rea kohta",
+      "proxyLimit": "Sisesta kuni 32 aadressi.",
+      "proxyRequired": "Sisesta vähemalt üks usaldatud aadress enne puhverserverite usaldamise lubamist.",
+      "saveProxies": "Salvesta usaldatud puhverserverid",
+      "confirmWeaker": "Kas vähendada sisselogimiskaitset? See võib lihtsustada kontode tuvastamist või parooliründeid.",
+      "confirmProxies": "Kas usaldada neid puhverservereid? Valed kirjed võivad võimaldada IP-aadressi võltsimist.",
+      "loadFailed": "Sisselogimise turvasätteid ei õnnestunud laadida.",
+      "saveFailed": "Sisselogimise turvasätteid ei õnnestunud salvestada.",
+      "saved": "Sisselogimise turvasätted salvestatud."
+    },
+    "users": {
+      "bulk": {
+        "selected": "Valitud: {count}",
+        "selectVisible": "Vali kõik nähtavad kasutajad",
+        "selectUser": "Vali {name}",
+        "currentAccount": "Oma kontot ei saa hulgitoiminguteks valida.",
+        "action": "Hulgitoiming",
+        "chooseAction": "Vali toiming",
+        "apply": "Rakenda",
+        "applying": "Rakendamine...",
+        "clear": "Tühista valik",
+        "confirm": "Kas rakendada toiming {action} {count} kasutajale: {users}?",
+        "success": "Uuendatud kasutajaid: {count}.",
+        "partial": "Uuendatud: {succeeded}; ebaõnnestunud: {failed}.",
+        "failedUsers": "Neid kontosid ei õnnestunud uuendada:",
+        "error": "Toiming ebaõnnestus.",
+        "actions": {
+          "makeAdmin": "Määra roll: administraator",
+          "makeUser": "Määra roll: kasutaja",
+          "enable": "Aktiveeri kontod",
+          "disable": "Keela kontod",
+          "originalInherit": "Algfaili juurdepääs: serveri säte",
+          "originalAllow": "Algfaili juurdepääs: luba",
+          "originalDeny": "Algfaili juurdepääs: keela",
+          "revokeSessions": "Logi kõikjalt välja",
+          "delete": "Kustuta kontod jäädavalt"
+        }
+      }
+    },
     "groups": {
       "payments": "Maksed"
     },

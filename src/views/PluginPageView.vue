@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
 
-    <main class="page-gutter mx-auto max-w-6xl">
+    <main class="page-gutter">
       <div v-if="page" :aria-busy="loading">
         <PluginNode :node="page.view" />
       </div>

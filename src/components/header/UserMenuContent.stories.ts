@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { fn, mocked } from "storybook/test";
+import { expect, fn, mocked, userEvent, within } from "storybook/test";
 import { getAccessMe, getRequestsConfig, type AccessMe, type UserProfile } from "../../api";
 import { useAccess } from "../../composables/useAccess";
 import { useProfile } from "../../composables/useProfile";
@@ -35,7 +35,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const User: Story = { render: menuStory({ profile: userFixture }) };
+export const User: Story = {
+	render: menuStory({ profile: userFixture }),
+	play: async ({ canvas }) => {
+		await userEvent.click(canvas.getByRole("menuitem", { name: "Remote playback" }));
+		await expect(await within(document.body).findByRole("heading", { name: "Remote playback" })).toBeInTheDocument();
+		await expect(within(document.body).getByText("Connecting to your devices…")).toBeInTheDocument();
+	},
+};
 export const Admin: Story = { render: menuStory({ profile: adminFixture, requests: true }) };
 export const SigningOut: Story = { args: { isSigningOut: true }, render: menuStory({ profile: userFixture }) };
 export const WithViewingLimits: Story = { render: menuStory({ profile: userFixture, access: { ...accessFixture, enforced: true, hasPin: true } }) };

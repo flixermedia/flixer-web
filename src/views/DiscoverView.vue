@@ -39,7 +39,7 @@ function subtitle(item: ExternalMediaCard) {
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
 
     <main>
-      <header class="page-gutter mx-auto max-w-[110rem]">
+      <header class="page-gutter">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-flixer-accent">{{ t('requests.discover') }}</p>
         <h1 class="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">{{ t('requests.discover') }}</h1>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-flixer-muted">{{ t('requests.discoverDescription') }}</p>
@@ -57,14 +57,14 @@ function subtitle(item: ExternalMediaCard) {
       </div>
       <div v-else-if="Object.values(rows).some((row) => row.length)" class="mt-9 space-y-9">
         <section v-for="section in sections" :key="section" v-show="rows[section]?.length" class="group/requests-row" :aria-label="t(`requests.sections.${section}`)">
-          <div class="page-gutter mx-auto mb-4 flex max-w-[110rem] items-end justify-between">
+          <div class="page-gutter mb-4 flex items-end justify-between">
             <div>
               <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">{{ t(`requests.sections.${section}`) }}</h2>
               <div class="mt-2 h-0.5 w-10 rounded-full bg-flixer-accent/80" />
             </div>
             <span class="text-xs text-flixer-muted">{{ rows[section]?.length }}</span>
           </div>
-          <ul class="page-gutter mx-auto flex max-w-[110rem] snap-x gap-4 overflow-x-auto scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <ul class="page-gutter flex snap-x gap-4 overflow-x-auto scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <MediaCard v-for="item in rows[section]" :key="`${item.source}:${item.id}`" :variant="item.type === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitle(item)" :poster-url="item.poster" :request-status="item.status" :to="{ name: 'request-item', params: { type: item.type, id: item.id } }" />
           </ul>
         </section>

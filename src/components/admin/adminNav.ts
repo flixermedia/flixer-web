@@ -1,94 +1,94 @@
 /** Each top-level tab holds one or more pages. The first page is the tab's own; the others appear in its dropdown. */
 export const ADMIN_TABS = {
-  dashboard: ['overview'],
-  guide: ['guide'],
-  library: ['libraries', 'tasks', 'media', 'transcoding'],
-  advertising: ['advertisements'],
-  analytics: ['analyticsOverview', 'analyticsVideo', 'analyticsMusic', 'analyticsHistory', 'analyticsAdvertising', 'analyticsGuide', 'analyticsPayments'],
-  logging: ['logging'],
-  providers: ['metadata', 'subtitles', 'themes', 'trailerCache'],
-  requests: ['requests'],
-  issues: ['tickets', 'issueReports'],
-  notifications: ['notifications', 'smtp'],
-  mail: ['mailOverview', 'mailDomains', 'mailInboxes', 'mailMessages', 'mailTemplates'],
-  payments: ['payments', 'paymentsCatalog', 'paymentsSales'],
-  apikeys: ['apikeys'],
-  oauth: ['oauth'],
-  videoPlayer: ['playerSettings', 'widevine'],
-  communications: ['chatSettings', 'callSettings'],
-  plugins: ['plugins'],
-  settings: ['server', 'appearance', 'webhooks', 'ai', 'users', 'networking', 'search', 'updates', 'backups'],
-} as const
+	dashboard: ["overview"],
+	guide: ["guide"],
+	library: ["libraries", "tasks", "media", "duplicateSuggestions", "transcoding"],
+	advertising: ["advertisements"],
+	analytics: ["analyticsOverview", "analyticsVideo", "analyticsMusic", "analyticsHistory", "analyticsAdvertising", "analyticsGuide", "analyticsPayments"],
+	logging: ["logging"],
+	providers: ["metadata", "subtitles", "themes", "trailerCache"],
+	requests: ["requests"],
+	issues: ["tickets", "issueReports"],
+	notifications: ["notifications", "smtp"],
+	mail: ["mailOverview", "mailDomains", "mailInboxes", "mailMessages", "mailTemplates"],
+	payments: ["payments", "paymentsCatalog", "paymentsSales"],
+	apikeys: ["apikeys"],
+	oauth: ["oauth"],
+	videoPlayer: ["playerSettings", "widevine"],
+	communications: ["chatSettings", "callSettings"],
+	plugins: ["plugins"],
+	settings: ["server", "appearance", "webhooks", "ai", "users", "networking", "search", "updates", "backups"],
+} as const;
 
-export type AdminTabId = keyof typeof ADMIN_TABS
-export type AdminPageId = (typeof ADMIN_TABS)[AdminTabId][number]
+export type AdminTabId = keyof typeof ADMIN_TABS;
+export type AdminPageId = (typeof ADMIN_TABS)[AdminTabId][number];
 
 export interface AdminLocation {
-  tab: AdminTabId
-  page: AdminPageId
+	tab: AdminTabId;
+	page: AdminPageId;
 }
 
 export interface AdminTabItem {
-  id: AdminTabId
-  label: string
-  pages: { id: AdminPageId; label: string }[]
+	id: AdminTabId;
+	label: string;
+	pages: { id: AdminPageId; label: string }[];
 }
 
-export const ADMIN_TAB_IDS = Object.keys(ADMIN_TABS) as AdminTabId[]
+export const ADMIN_TAB_IDS = Object.keys(ADMIN_TABS) as AdminTabId[];
 
 export function pagesOf(tab: AdminTabId): readonly AdminPageId[] {
-  return ADMIN_TABS[tab]
+	return ADMIN_TABS[tab];
 }
 
 /** Where links from before the dropdown navigation (a whole-page tab, or a single page of one) now lead. */
 const LEGACY: Record<string, AdminLocation> = {
-  overview: { tab: 'dashboard', page: 'overview' },
-  streams: { tab: 'dashboard', page: 'overview' },
-  logs: { tab: 'logging', page: 'logging' },
-  libraries: { tab: 'library', page: 'libraries' },
-  indexer: { tab: 'library', page: 'tasks' },
-  tasks: { tab: 'library', page: 'tasks' },
-  media: { tab: 'library', page: 'media' },
-  transcoding: { tab: 'library', page: 'transcoding' },
-  users: { tab: 'settings', page: 'users' },
-  devices: { tab: 'settings', page: 'users' },
-  general: { tab: 'settings', page: 'server' },
-  updates: { tab: 'settings', page: 'updates' },
-  backups: { tab: 'settings', page: 'backups' },
-  plugins: { tab: 'plugins', page: 'plugins' },
-  tickets: { tab: 'issues', page: 'tickets' },
-  issueReports: { tab: 'issues', page: 'issueReports' },
-  mail: { tab: 'mail', page: 'mailOverview' },
-}
+	overview: { tab: "dashboard", page: "overview" },
+	streams: { tab: "dashboard", page: "overview" },
+	logs: { tab: "logging", page: "logging" },
+	libraries: { tab: "library", page: "libraries" },
+	indexer: { tab: "library", page: "tasks" },
+	tasks: { tab: "library", page: "tasks" },
+	media: { tab: "library", page: "media" },
+	transcoding: { tab: "library", page: "transcoding" },
+	users: { tab: "settings", page: "users" },
+	devices: { tab: "settings", page: "users" },
+	general: { tab: "settings", page: "server" },
+	updates: { tab: "settings", page: "updates" },
+	backups: { tab: "settings", page: "backups" },
+	plugins: { tab: "plugins", page: "plugins" },
+	tickets: { tab: "issues", page: "tickets" },
+	issueReports: { tab: "issues", page: "issueReports" },
+	mail: { tab: "mail", page: "mailOverview" },
+};
 
 function text(value: unknown): string {
-  return Array.isArray(value) ? text(value[0]) : typeof value === 'string' ? value : ''
+	return Array.isArray(value) ? text(value[0]) : typeof value === "string" ? value : "";
 }
 
 /** Works out the tab and page from the `tab` and `page` query values, falling back to the dashboard. */
 export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): AdminLocation {
-  const tab = text(tabQuery)
-  const page = text(pageQuery)
-  if (tab === 'requests' && page === 'tickets') return { tab: 'issues', page: 'tickets' }
-  if (tab === 'settings' && page === 'issueReports') return { tab: 'issues', page: 'issueReports' }
-  if (tab === 'settings' && page === 'chatEncryption') return { tab: 'communications', page: 'chatSettings' }
-  if (tab === 'settings' && page === 'calls') return { tab: 'communications', page: 'callSettings' }
-  if (tab === 'library' && page === 'advertisements') return { tab: 'advertising', page: 'advertisements' }
-  if (tab === 'drm' || (tab === 'videoPlayer' && page === 'drmTesting')) return { tab: 'videoPlayer', page: 'widevine' }
-  if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
-    const id = tab as AdminTabId
-    const pages = pagesOf(id) as readonly string[]
-    return { tab: id, page: (pages.includes(page) ? page : pages[0]) as AdminPageId }
-  }
-  return LEGACY[tab] ?? { tab: 'dashboard', page: 'overview' }
+	const tab = text(tabQuery);
+	const page = text(pageQuery);
+	if (tab === "requests" && page === "tickets") return { tab: "issues", page: "tickets" };
+	if (tab === "settings" && page === "issueReports") return { tab: "issues", page: "issueReports" };
+	if (tab === "settings" && page === "chatEncryption") return { tab: "communications", page: "chatSettings" };
+	if (tab === "settings" && page === "calls") return { tab: "communications", page: "callSettings" };
+	if (tab === "library" && page === "advertisements") return { tab: "advertising", page: "advertisements" };
+	if (tab === "drm" || (tab === "videoPlayer" && page === "drmTesting")) return { tab: "videoPlayer", page: "widevine" };
+	if ((ADMIN_TAB_IDS as string[]).includes(tab)) {
+		const id = tab as AdminTabId;
+		const pages = pagesOf(id) as readonly string[];
+		return { tab: id, page: (pages.includes(page) ? page : pages[0]) as AdminPageId };
+	}
+	return LEGACY[tab] ?? { tab: "dashboard", page: "overview" };
 }
 
 /** The tab a page lives in. */
 export function tabOf(page: string): AdminTabId | null {
-  return ADMIN_TAB_IDS.find((tab) => (ADMIN_TABS[tab] as readonly string[]).includes(page)) ?? null
+	return ADMIN_TAB_IDS.find((tab) => (ADMIN_TABS[tab] as readonly string[]).includes(page)) ?? null;
 }
 
 /** The query that opens a page; the default page of a tab needs no `page`. */
 export function adminQuery(tab: AdminTabId, page?: AdminPageId): Record<string, string> {
-  return page && page !== pagesOf(tab)[0] ? { tab, page } : { tab }
+	return page && page !== pagesOf(tab)[0] ? { tab, page } : { tab };
 }

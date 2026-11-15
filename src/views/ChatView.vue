@@ -725,7 +725,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
 
-    <main class="chat-main mx-auto w-full max-w-[110rem] px-3 pb-6 pt-24 sm:px-6 sm:pt-28 lg:pt-32">
+    <main class="chat-main page-gutter w-full pb-6 pt-24 sm:pt-28 lg:pt-32">
       <div class="chat-grid grid grid-rows-[minmax(0,1fr)] overflow-hidden border-white/10 lg:h-[calc(100dvh-11rem)] lg:grid-cols-[21rem_minmax(0,1fr)] lg:rounded lg:border" :class="locked ? 'fixed inset-x-0 z-30 bg-flixer-background' : ''" :style="locked ? { top: `${frame.top}px`, height: `${frame.height}px` } : undefined">
         <aside class="chat-pane flex min-h-0 flex-col border-white/10 bg-flixer-background max-lg:absolute max-lg:inset-0 lg:border-r" :class="hasSelection ? 'max-lg:-translate-x-1/4 max-lg:pointer-events-none max-lg:opacity-0' : ''" :inert="isCompact && hasSelection" :aria-label="t('chat.conversations')">
           <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">

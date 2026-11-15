@@ -81,7 +81,7 @@ watch([scope, status, type], () => {
 <template>
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-28 pt-24 text-flixer-text md:pb-12 md:pt-28">
 
-    <main class="page-gutter mx-auto max-w-6xl">
+    <main class="page-gutter">
       <header class="flex flex-wrap items-end justify-between gap-4 border-b border-flixer-border pb-5">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-flixer-accent">{{ t('requests.title') }}</p>

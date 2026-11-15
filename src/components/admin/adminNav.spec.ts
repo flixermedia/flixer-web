@@ -1,115 +1,121 @@
-import { describe, expect, it } from 'vitest'
-import en from '../../locales/en.json'
-import { ADMIN_TABS, ADMIN_TAB_IDS, adminQuery, resolveAdminLocation, tabOf } from './adminNav'
-import { ADMIN_PAGE_BLOCKS } from './adminPages'
+import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+import { ADMIN_TABS, ADMIN_TAB_IDS, adminQuery, resolveAdminLocation, tabOf } from "./adminNav";
+import { ADMIN_PAGE_BLOCKS } from "./adminPages";
 
-describe('admin navigation', () => {
-  it('opens the dashboard by default', () => {
-    expect(resolveAdminLocation(undefined)).toEqual({ tab: 'dashboard', page: 'overview' })
-    expect(resolveAdminLocation('nonsense')).toEqual({ tab: 'dashboard', page: 'overview' })
-  })
+describe("admin navigation", () => {
+	it("opens the dashboard by default", () => {
+		expect(resolveAdminLocation(undefined)).toEqual({ tab: "dashboard", page: "overview" });
+		expect(resolveAdminLocation("nonsense")).toEqual({ tab: "dashboard", page: "overview" });
+	});
 
-  it('opens the first page of a tab, or the requested one', () => {
-    expect(resolveAdminLocation('library')).toEqual({ tab: 'library', page: 'libraries' })
-    expect(resolveAdminLocation('guide')).toEqual({ tab: 'guide', page: 'guide' })
-    expect(resolveAdminLocation('library', 'tasks')).toEqual({ tab: 'library', page: 'tasks' })
-    expect(resolveAdminLocation('library', 'themes')).toEqual({ tab: 'library', page: 'libraries' })
-    expect(resolveAdminLocation(['providers', 'x'], ['themes'])).toEqual({ tab: 'providers', page: 'themes' })
-  })
+	it("opens the first page of a tab, or the requested one", () => {
+		expect(resolveAdminLocation("library")).toEqual({ tab: "library", page: "libraries" });
+		expect(resolveAdminLocation("guide")).toEqual({ tab: "guide", page: "guide" });
+		expect(resolveAdminLocation("library", "tasks")).toEqual({ tab: "library", page: "tasks" });
+		expect(resolveAdminLocation("library", "themes")).toEqual({ tab: "library", page: "libraries" });
+		expect(resolveAdminLocation(["providers", "x"], ["themes"])).toEqual({ tab: "providers", page: "themes" });
+	});
 
-  it('groups ticket management and issue report settings together', () => {
-    expect(ADMIN_TABS.issues).toEqual(['tickets', 'issueReports'])
-    expect(ADMIN_TABS.requests).not.toContain('tickets')
-    expect(ADMIN_TABS.settings).not.toContain('issueReports')
-    expect(resolveAdminLocation('issues', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
-    expect(resolveAdminLocation('issues', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })
-  })
+	it("places duplicate suggestions under the Library tab", () => {
+		expect(ADMIN_TABS.library).toContain("duplicateSuggestions");
+		expect(resolveAdminLocation("library", "duplicateSuggestions")).toEqual({ tab: "library", page: "duplicateSuggestions" });
+		expect(ADMIN_PAGE_BLOCKS.duplicateSuggestions).toHaveLength(1);
+	});
 
-  it('places trailer cache settings under providers', () => {
-    expect(ADMIN_TABS.providers).toContain('trailerCache')
-    expect(tabOf('trailerCache')).toBe('providers')
-    expect(resolveAdminLocation('providers', 'trailerCache')).toEqual({ tab: 'providers', page: 'trailerCache' })
-    expect(adminQuery('providers', 'trailerCache')).toEqual({ tab: 'providers', page: 'trailerCache' })
-  })
+	it("groups ticket management and issue report settings together", () => {
+		expect(ADMIN_TABS.issues).toEqual(["tickets", "issueReports"]);
+		expect(ADMIN_TABS.requests).not.toContain("tickets");
+		expect(ADMIN_TABS.settings).not.toContain("issueReports");
+		expect(resolveAdminLocation("issues", "tickets")).toEqual({ tab: "issues", page: "tickets" });
+		expect(resolveAdminLocation("issues", "issueReports")).toEqual({ tab: "issues", page: "issueReports" });
+	});
 
-  it('gives advertising and analytics their own categories and preserves old ad links', () => {
-    expect(tabOf('advertisements')).toBe('advertising')
-    expect(resolveAdminLocation('library', 'advertisements')).toEqual({ tab: 'advertising', page: 'advertisements' })
-    expect(ADMIN_TABS.analytics).toContain('analyticsHistory')
-  })
+	it("places trailer cache settings under providers", () => {
+		expect(ADMIN_TABS.providers).toContain("trailerCache");
+		expect(tabOf("trailerCache")).toBe("providers");
+		expect(resolveAdminLocation("providers", "trailerCache")).toEqual({ tab: "providers", page: "trailerCache" });
+		expect(adminQuery("providers", "trailerCache")).toEqual({ tab: "providers", page: "trailerCache" });
+	});
 
-  it('opens the dedicated logging page from current and legacy links', () => {
-    expect(resolveAdminLocation('logging')).toEqual({ tab: 'logging', page: 'logging' })
-    expect(resolveAdminLocation('logs')).toEqual({ tab: 'logging', page: 'logging' })
-    expect(adminQuery('logging', 'logging')).toEqual({ tab: 'logging' })
-  })
+	it("gives advertising and analytics their own categories and preserves old ad links", () => {
+		expect(tabOf("advertisements")).toBe("advertising");
+		expect(resolveAdminLocation("library", "advertisements")).toEqual({ tab: "advertising", page: "advertisements" });
+		expect(ADMIN_TABS.analytics).toContain("analyticsHistory");
+	});
 
-  it('gives OAuth applications their own page without moving API keys', () => {
-    expect(ADMIN_TABS.apikeys).toEqual(['apikeys'])
-    expect(ADMIN_TABS.oauth).toEqual(['oauth'])
-    expect(resolveAdminLocation('apikeys')).toEqual({ tab: 'apikeys', page: 'apikeys' })
-    expect(resolveAdminLocation('oauth')).toEqual({ tab: 'oauth', page: 'oauth' })
-    expect(adminQuery('oauth', 'oauth')).toEqual({ tab: 'oauth' })
-    expect(ADMIN_PAGE_BLOCKS.apikeys).toHaveLength(1)
-    expect(ADMIN_PAGE_BLOCKS.oauth).toHaveLength(1)
-    expect(ADMIN_PAGE_BLOCKS.apikeys[0].component).not.toBe(ADMIN_PAGE_BLOCKS.oauth[0].component)
-  })
+	it("opens the dedicated logging page from current and legacy links", () => {
+		expect(resolveAdminLocation("logging")).toEqual({ tab: "logging", page: "logging" });
+		expect(resolveAdminLocation("logs")).toEqual({ tab: "logging", page: "logging" });
+		expect(adminQuery("logging", "logging")).toEqual({ tab: "logging" });
+	});
 
-  it('groups player settings and DRM while preserving old links', () => {
-    expect(ADMIN_TABS.videoPlayer).toEqual(['playerSettings', 'widevine'])
-    expect(tabOf('widevine')).toBe('videoPlayer')
-    expect(resolveAdminLocation('drm')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
-    expect(resolveAdminLocation('drm', 'drmTesting')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
-    expect(adminQuery('videoPlayer', 'widevine')).toEqual({ tab: 'videoPlayer', page: 'widevine' })
-    expect(ADMIN_TABS.settings).not.toContain('widevine')
-  })
+	it("gives OAuth applications their own page without moving API keys", () => {
+		expect(ADMIN_TABS.apikeys).toEqual(["apikeys"]);
+		expect(ADMIN_TABS.oauth).toEqual(["oauth"]);
+		expect(resolveAdminLocation("apikeys")).toEqual({ tab: "apikeys", page: "apikeys" });
+		expect(resolveAdminLocation("oauth")).toEqual({ tab: "oauth", page: "oauth" });
+		expect(adminQuery("oauth", "oauth")).toEqual({ tab: "oauth" });
+		expect(ADMIN_PAGE_BLOCKS.apikeys).toHaveLength(1);
+		expect(ADMIN_PAGE_BLOCKS.oauth).toHaveLength(1);
+		expect(ADMIN_PAGE_BLOCKS.apikeys[0].component).not.toBe(ADMIN_PAGE_BLOCKS.oauth[0].component);
+	});
 
-  it('groups chat and audio/video call settings in Communications', () => {
-    expect(ADMIN_TABS.communications).toEqual(['chatSettings', 'callSettings'])
-    expect(tabOf('chatSettings')).toBe('communications')
-    expect(tabOf('callSettings')).toBe('communications')
-    expect(resolveAdminLocation('communications')).toEqual({ tab: 'communications', page: 'chatSettings' })
-    expect(resolveAdminLocation('communications', 'callSettings')).toEqual({ tab: 'communications', page: 'callSettings' })
-    expect(resolveAdminLocation('settings', 'chatEncryption')).toEqual({ tab: 'communications', page: 'chatSettings' })
-    expect(resolveAdminLocation('settings', 'calls')).toEqual({ tab: 'communications', page: 'callSettings' })
-    expect(ADMIN_TABS.settings).not.toContain('chatSettings')
-    expect(ADMIN_TABS.settings).not.toContain('callSettings')
-  })
+	it("groups player settings and DRM while preserving old links", () => {
+		expect(ADMIN_TABS.videoPlayer).toEqual(["playerSettings", "widevine"]);
+		expect(tabOf("widevine")).toBe("videoPlayer");
+		expect(resolveAdminLocation("drm")).toEqual({ tab: "videoPlayer", page: "widevine" });
+		expect(resolveAdminLocation("drm", "drmTesting")).toEqual({ tab: "videoPlayer", page: "widevine" });
+		expect(adminQuery("videoPlayer", "widevine")).toEqual({ tab: "videoPlayer", page: "widevine" });
+		expect(ADMIN_TABS.settings).not.toContain("widevine");
+	});
 
-  it('redirects existing issue-report admin links to the new category', () => {
-    expect(resolveAdminLocation('requests', 'tickets')).toEqual({ tab: 'issues', page: 'tickets' })
-    expect(resolveAdminLocation('settings', 'issueReports')).toEqual({ tab: 'issues', page: 'issueReports' })
-  })
+	it("groups chat and audio/video call settings in Communications", () => {
+		expect(ADMIN_TABS.communications).toEqual(["chatSettings", "callSettings"]);
+		expect(tabOf("chatSettings")).toBe("communications");
+		expect(tabOf("callSettings")).toBe("communications");
+		expect(resolveAdminLocation("communications")).toEqual({ tab: "communications", page: "chatSettings" });
+		expect(resolveAdminLocation("communications", "callSettings")).toEqual({ tab: "communications", page: "callSettings" });
+		expect(resolveAdminLocation("settings", "chatEncryption")).toEqual({ tab: "communications", page: "chatSettings" });
+		expect(resolveAdminLocation("settings", "calls")).toEqual({ tab: "communications", page: "callSettings" });
+		expect(ADMIN_TABS.settings).not.toContain("chatSettings");
+		expect(ADMIN_TABS.settings).not.toContain("callSettings");
+	});
 
-  it('keeps old links working', () => {
-    expect(resolveAdminLocation('indexer')).toEqual({ tab: 'library', page: 'tasks' })
-    expect(resolveAdminLocation('tasks')).toEqual({ tab: 'library', page: 'tasks' })
-    expect(resolveAdminLocation('media')).toEqual({ tab: 'library', page: 'media' })
-    expect(resolveAdminLocation('transcoding')).toEqual({ tab: 'library', page: 'transcoding' })
-    expect(resolveAdminLocation('users')).toEqual({ tab: 'settings', page: 'users' })
-    expect(resolveAdminLocation('devices')).toEqual({ tab: 'settings', page: 'users' })
-    expect(resolveAdminLocation('updates')).toEqual({ tab: 'settings', page: 'updates' })
-    expect(resolveAdminLocation('backups')).toEqual({ tab: 'settings', page: 'backups' })
-    expect(resolveAdminLocation('settings')).toEqual({ tab: 'settings', page: 'server' })
-    expect(resolveAdminLocation('plugins')).toEqual({ tab: 'plugins', page: 'plugins' })
-  })
+	it("redirects existing issue-report admin links to the new category", () => {
+		expect(resolveAdminLocation("requests", "tickets")).toEqual({ tab: "issues", page: "tickets" });
+		expect(resolveAdminLocation("settings", "issueReports")).toEqual({ tab: "issues", page: "issueReports" });
+	});
 
-  it('places every page in exactly one tab', () => {
-    const all = Object.values(ADMIN_TABS).flat()
-    expect(new Set(all).size).toBe(all.length)
-    expect(all.every((page) => tabOf(page) !== null)).toBe(true)
-    expect(ADMIN_TAB_IDS.every((tab) => ADMIN_TABS[tab].length > 0)).toBe(true)
-  })
+	it("keeps old links working", () => {
+		expect(resolveAdminLocation("indexer")).toEqual({ tab: "library", page: "tasks" });
+		expect(resolveAdminLocation("tasks")).toEqual({ tab: "library", page: "tasks" });
+		expect(resolveAdminLocation("media")).toEqual({ tab: "library", page: "media" });
+		expect(resolveAdminLocation("transcoding")).toEqual({ tab: "library", page: "transcoding" });
+		expect(resolveAdminLocation("users")).toEqual({ tab: "settings", page: "users" });
+		expect(resolveAdminLocation("devices")).toEqual({ tab: "settings", page: "users" });
+		expect(resolveAdminLocation("updates")).toEqual({ tab: "settings", page: "updates" });
+		expect(resolveAdminLocation("backups")).toEqual({ tab: "settings", page: "backups" });
+		expect(resolveAdminLocation("settings")).toEqual({ tab: "settings", page: "server" });
+		expect(resolveAdminLocation("plugins")).toEqual({ tab: "plugins", page: "plugins" });
+	});
 
-  it('provides English labels and subtitles for every admin page', () => {
-    for (const page of Object.values(ADMIN_TABS).flat()) {
-      expect(en.admin.pages).toHaveProperty(page, expect.any(String))
-      expect(en.admin.subtitles).toHaveProperty(page, expect.any(String))
-    }
-  })
+	it("places every page in exactly one tab", () => {
+		const all = Object.values(ADMIN_TABS).flat();
+		expect(new Set(all).size).toBe(all.length);
+		expect(all.every((page) => tabOf(page) !== null)).toBe(true);
+		expect(ADMIN_TAB_IDS.every((tab) => ADMIN_TABS[tab].length > 0)).toBe(true);
+	});
 
-  it('leaves the default page out of the link', () => {
-    expect(adminQuery('library', 'libraries')).toEqual({ tab: 'library' })
-    expect(adminQuery('library', 'media')).toEqual({ tab: 'library', page: 'media' })
-  })
-})
+	it("provides English labels and subtitles for every admin page", () => {
+		for (const page of Object.values(ADMIN_TABS).flat()) {
+			expect(en.admin.pages).toHaveProperty(page, expect.any(String));
+			expect(en.admin.subtitles).toHaveProperty(page, expect.any(String));
+		}
+	});
+
+	it("leaves the default page out of the link", () => {
+		expect(adminQuery("library", "libraries")).toEqual({ tab: "library" });
+		expect(adminQuery("library", "media")).toEqual({ tab: "library", page: "media" });
+	});
+});

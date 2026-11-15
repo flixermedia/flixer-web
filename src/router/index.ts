@@ -160,6 +160,38 @@ const router = createRouter({
 			meta: { requiresAuth: true },
 		},
 		{
+			path: "/history",
+			name: "history",
+			redirect: { name: "settings", query: { tab: "defaultPlayback", playbackTab: "history" } },
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/up-next",
+			name: "up-next",
+			component: () => import("../views/UserMediaListView.vue"),
+			props: { kind: "queue" },
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/collections/automatic/:id",
+			name: "automatic-collection",
+			component: () => import("../views/VideoCollectionsView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/collections/:id?",
+			name: "video-collections",
+			component: () => import("../views/VideoCollectionsView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/dismissed-recommendations",
+			name: "dismissed-recommendations",
+			component: () => import("../views/UserMediaListView.vue"),
+			props: { kind: "dismissed" },
+			meta: { requiresAuth: true },
+		},
+		{
 			path: "/chat/:id?",
 			name: "chat",
 			component: () => import("../views/ChatView.vue"),

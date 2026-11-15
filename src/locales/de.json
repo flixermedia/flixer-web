@@ -1,4 +1,70 @@
 {
+  "collectionsPage": {"title":"Sammlungen","all":"Alle","automatic":"Automatisch","custom":"Meine Sammlungen","search":"Sammlungen suchen","sortName":"Name","sortCount":"Anzahl","empty":"Keine Sammlungen gefunden.","itemCount":"{count} Element | {count} Elemente","back":"Alle Sammlungen","automaticLabel":"Automatische Sammlung"},
+  "playbackTabs": {
+    "title": "Wiedergabe",
+    "options": "Optionen",
+    "history": "Verlauf"
+  },
+  "recommendationReview": {
+    "title": "Ausgeblendete Empfehlungen",
+    "restore": "Empfehlung wiederherstellen"
+  },
+  "userMediaOrder": {
+    "up": "Nach oben",
+    "down": "Nach unten",
+    "edit": "Sammlung bearbeiten",
+    "description": "Beschreibung"
+  },
+  "browseFilters": {
+    "cast": "Besetzung",
+    "studio": "Studio",
+    "runtimeFrom": "Mindestlaufzeit (Minuten)",
+    "runtimeTo": "Höchstlaufzeit (Minuten)",
+    "hdr": "HDR-Format",
+    "resolution": "Mindestauflösung",
+    "audioLanguage": "Audiosprachcode",
+    "any": "Alle"
+  },
+  "recommendationFeedback": {
+    "dismiss": "Nicht interessiert"
+  },
+  "userMedia": {
+    "watchLater": "Später ansehen",
+    "queue": "Als Nächstes",
+    "save": "Später ansehen",
+    "saved": "Für später gespeichert",
+    "addQueue": "Zu Als Nächstes hinzufügen",
+    "queueAdded": "Zu Als Nächstes hinzugefügt.",
+    "empty": "Noch keine Einträge.",
+    "remove": "Entfernen",
+    "error": "Die Medienliste konnte nicht aktualisiert werden.",
+    "clear": "Warteschlange leeren",
+    "clearConfirm": "Warteschlange leeren?",
+    "collections": "Videosammlungen",
+    "create": "Sammlung erstellen",
+    "name": "Name der Sammlung",
+    "public": "Öffentlich",
+    "private": "Privat",
+    "addCollection": "Zur Sammlung hinzufügen",
+    "collectionAdded": "Zur Sammlung hinzugefügt.",
+    "delete": "Sammlung löschen",
+    "deleteConfirm": "Diese Sammlung löschen?",
+    "share": "Link kopieren",
+    "copied": "Link kopiert."
+  },
+  "playbackHistory": {
+    "title": "Wiedergabeverlauf",
+    "empty": "Noch kein Wiedergabeverlauf.",
+    "error": "Der Wiedergabeverlauf konnte nicht geladen oder aktualisiert werden.",
+    "clear": "Verlauf löschen",
+    "clearConfirm": "Den gesamten Wiedergabeverlauf löschen? Dies kann nicht rückgängig gemacht werden.",
+    "remove": "Aus dem Verlauf entfernen",
+    "more": "Mehr laden",
+    "pagination": "Seiten des Wiedergabeverlaufs",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "page": "Seite {page}"
+  },
   "payments": {
     "loading": "Wird geladen…",
     "total": "Gesamt",
@@ -334,7 +400,88 @@
       "billing": "Abrechnung"
     }
   },
+  "remotePlayback": {
+    "menu": "Wiedergabe fernsteuern",
+    "title": "Wiedergabe fernsteuern",
+    "description": "Steuere die Wiedergabe auf einem anderen Gerät, das bei deinem Konto angemeldet ist.",
+    "castTitle": "Auf ein Gerät übertragen",
+    "castDescription": "Wähle ein aktives Gerät, um diesen Inhalt dort abzuspielen.",
+    "cast": "Übertragen",
+    "castFailed": "Die Wiedergabe konnte nicht an dieses Gerät gesendet werden.",
+    "controlTitle": "Wiedergabesteuerung",
+    "nowPlaying": "Wird wiedergegeben",
+    "paused": "Pausiert",
+    "connecting": "Verbindung zu deinen Geräten wird hergestellt…",
+    "noDevices": "Auf anderen Geräten läuft derzeit keine Wiedergabe.",
+    "castNoDevices": "Derzeit sind keine anderen angemeldeten Geräte aktiv.",
+    "deviceOffline": "Dieses Gerät ist nicht mehr aktiv.",
+    "readyToCast": "Bereit, die Wiedergabe zu empfangen",
+    "play": "Auf {device} abspielen",
+    "pause": "Auf {device} pausieren",
+    "seek": "Auf {device} springen",
+    "seekChapter": "Zu {chapter} springen",
+    "rewind": "{seconds} Sekunden zurück",
+    "forward": "{seconds} Sekunden vor",
+    "volume": "Lautstärke",
+    "audioTrack": "Audiospur",
+    "subtitles": "Untertitel",
+    "skipSegment": "{segment} überspringen"
+  },
   "admin": {
+    "loginSecurity": {
+      "title": "Anmeldesicherheit",
+      "timing": "Antwortzeit bei fehlgeschlagener Anmeldung angleichen",
+      "minimumMs": "Minimale Antwortzeit (ms)",
+      "jitterMs": "Maximale zufällige Verzögerung (ms)",
+      "throttle": "Fehlgeschlagene Anmeldeversuche begrenzen",
+      "disabledWarning": "Einige Anmeldeschutzmaßnahmen sind deaktiviert.",
+      "limitScope": "Limits gelten pro API-Prozess und werden bei Einstellungsänderungen oder einem Neustart zurückgesetzt.",
+      "ipLimit": "Versuche pro IP",
+      "usernameLimit": "Versuche pro Nutzername",
+      "windowSeconds": "Zeitraum (Sekunden)",
+      "invalid": "Gib ganze Zahlen innerhalb der zulässigen Bereiche ein.",
+      "saveLogin": "Anmeldeschutz speichern",
+      "trustProxies": "Konfigurierten Proxys vertrauen",
+      "proxyWarning": "Vertraue nur Proxyadressen, die du kontrollierst. Ohne vertrauenswürdige Proxys teilen sich Clients hinter demselben Proxy ein IP-Limit.",
+      "proxyAddresses": "Vertrauenswürdige IP-Adressen oder CIDRs, eine pro Zeile",
+      "proxyLimit": "Gib höchstens 32 Adressen ein.",
+      "proxyRequired": "Gib mindestens eine vertrauenswürdige Adresse ein, bevor du Proxyvertrauen aktivierst.",
+      "saveProxies": "Vertrauenswürdige Proxys speichern",
+      "confirmWeaker": "Anmeldeschutz verringern? Dies kann die Ermittlung von Konten oder Passwortangriffe erleichtern.",
+      "confirmProxies": "Diesen Proxyadressen vertrauen? Falsche Einträge können Clients erlauben, ihre IP-Adresse vorzutäuschen.",
+      "loadFailed": "Anmeldesicherheit konnte nicht geladen werden.",
+      "saveFailed": "Anmeldesicherheit konnte nicht gespeichert werden.",
+      "saved": "Anmeldesicherheit gespeichert."
+    },
+    "users": {
+      "bulk": {
+        "selected": "{count} ausgewählt",
+        "selectVisible": "Alle sichtbaren Nutzer auswählen",
+        "selectUser": "{name} auswählen",
+        "currentAccount": "Das eigene Konto kann nicht für Sammelaktionen ausgewählt werden.",
+        "action": "Sammelaktion",
+        "chooseAction": "Aktion auswählen",
+        "apply": "Anwenden",
+        "applying": "Wird angewendet...",
+        "clear": "Auswahl aufheben",
+        "confirm": "{action} auf {count} Nutzer anwenden: {users}?",
+        "success": "{count} Nutzer aktualisiert.",
+        "partial": "{succeeded} Nutzer aktualisiert; {failed} fehlgeschlagen.",
+        "failedUsers": "Diese Konten konnten nicht aktualisiert werden:",
+        "error": "Die Aktion ist fehlgeschlagen.",
+        "actions": {
+          "makeAdmin": "Rolle festlegen: Administrator",
+          "makeUser": "Rolle festlegen: Nutzer",
+          "enable": "Konten aktivieren",
+          "disable": "Konten deaktivieren",
+          "originalInherit": "Zugriff auf Originaldateien: Servereinstellung",
+          "originalAllow": "Zugriff auf Originaldateien: erlauben",
+          "originalDeny": "Zugriff auf Originaldateien: verweigern",
+          "revokeSessions": "Überall abmelden",
+          "delete": "Konten dauerhaft löschen"
+        }
+      }
+    },
     "groups": {
       "requests": "Anfragen",
       "payments": "Zahlungen"
@@ -380,6 +527,7 @@
       "libraries": "Bibliotheken",
       "tasks": "Aufgaben",
       "media": "Medien",
+      "duplicateSuggestions": "Duplikate",
       "transcoding": "Transcodierung",
       "metadata": "Metadaten-Anbieter",
       "subtitles": "Untertitel",

@@ -65,7 +65,7 @@ watch(() => props.id, () => void load())
 <template>
   <div class="min-h-screen bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
 
-    <main class="page-gutter mx-auto max-w-5xl pt-28">
+    <main class="page-gutter pt-28">
       <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 class="text-3xl font-bold text-white">{{ active ? active.title : t('issues.myReports') }}</h1>

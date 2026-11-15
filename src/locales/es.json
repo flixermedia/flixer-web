@@ -1,4 +1,70 @@
 {
+  "collectionsPage": {"title":"Colecciones","all":"Todas","automatic":"Automáticas","custom":"Mis colecciones","search":"Buscar colecciones","sortName":"Nombre","sortCount":"Cantidad","empty":"No se encontraron colecciones.","itemCount":"{count} elemento | {count} elementos","back":"Todas las colecciones","automaticLabel":"Colección automática"},
+  "playbackTabs": {
+    "title": "Reproducción",
+    "options": "Opciones",
+    "history": "Historial"
+  },
+  "recommendationReview": {
+    "title": "Recomendaciones descartadas",
+    "restore": "Restaurar recomendación"
+  },
+  "userMediaOrder": {
+    "up": "Subir",
+    "down": "Bajar",
+    "edit": "Editar colección",
+    "description": "Descripción"
+  },
+  "browseFilters": {
+    "cast": "Reparto",
+    "studio": "Estudio",
+    "runtimeFrom": "Duración mínima (minutos)",
+    "runtimeTo": "Duración máxima (minutos)",
+    "hdr": "Formato HDR",
+    "resolution": "Resolución mínima",
+    "audioLanguage": "Código de idioma de audio",
+    "any": "Cualquiera"
+  },
+  "recommendationFeedback": {
+    "dismiss": "No me interesa"
+  },
+  "userMedia": {
+    "watchLater": "Ver más tarde",
+    "queue": "A continuación",
+    "save": "Ver más tarde",
+    "saved": "Guardado para más tarde",
+    "addQueue": "Añadir a continuación",
+    "queueAdded": "Añadido a la cola.",
+    "empty": "Todavía no hay elementos.",
+    "remove": "Eliminar",
+    "error": "No se pudo actualizar tu lista multimedia.",
+    "clear": "Vaciar cola",
+    "clearConfirm": "¿Vaciar la cola?",
+    "collections": "Colecciones de vídeo",
+    "create": "Crear colección",
+    "name": "Nombre de la colección",
+    "public": "Pública",
+    "private": "Privada",
+    "addCollection": "Añadir a colección",
+    "collectionAdded": "Añadido a la colección.",
+    "delete": "Eliminar colección",
+    "deleteConfirm": "¿Eliminar esta colección?",
+    "share": "Copiar enlace",
+    "copied": "Enlace copiado."
+  },
+  "playbackHistory": {
+    "title": "Historial de reproducción",
+    "empty": "Todavía no hay historial de reproducción.",
+    "error": "No se pudo cargar o actualizar el historial de reproducción.",
+    "clear": "Borrar historial",
+    "clearConfirm": "¿Borrar todo el historial de reproducción? Esta acción no se puede deshacer.",
+    "remove": "Eliminar del historial",
+    "more": "Cargar más",
+    "pagination": "Páginas del historial de reproducción",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {page}"
+  },
   "payments": {
     "loading": "Cargando…",
     "total": "Total",
@@ -349,7 +415,88 @@
       "help": "¿Traducciones perdidas o incorrectas? Ayuda a mejorarlos en Weblate."
     }
   },
+  "remotePlayback": {
+    "menu": "Control remoto de reproducción",
+    "title": "Control remoto de reproducción",
+    "description": "Controla la reproducción en otro dispositivo con tu cuenta iniciada.",
+    "castTitle": "Enviar a un dispositivo",
+    "castDescription": "Elige un dispositivo activo para reproducir este contenido allí.",
+    "cast": "Enviar",
+    "castFailed": "No se pudo enviar la reproducción a ese dispositivo.",
+    "controlTitle": "Controles de reproducción",
+    "nowPlaying": "En reproducción",
+    "paused": "En pausa",
+    "connecting": "Conectando con tus dispositivos…",
+    "noDevices": "Ningún otro dispositivo está reproduciendo ahora.",
+    "castNoDevices": "No hay otros dispositivos con la sesión iniciada activos.",
+    "deviceOffline": "Este dispositivo ya no está activo.",
+    "readyToCast": "Listo para recibir la reproducción",
+    "play": "Reproducir en {device}",
+    "pause": "Pausar en {device}",
+    "seek": "Avanzar en {device}",
+    "seekChapter": "Ir a {chapter}",
+    "rewind": "Retroceder {seconds} segundos",
+    "forward": "Avanzar {seconds} segundos",
+    "volume": "Volumen",
+    "audioTrack": "Pista de audio",
+    "subtitles": "Subtítulos",
+    "skipSegment": "Omitir {segment}"
+  },
   "admin": {
+    "loginSecurity": {
+      "title": "Seguridad de inicio de sesión",
+      "timing": "Igualar el tiempo de respuesta de los inicios fallidos",
+      "minimumMs": "Tiempo mínimo de respuesta (ms)",
+      "jitterMs": "Variación aleatoria máxima (ms)",
+      "throttle": "Limitar los intentos fallidos",
+      "disabledWarning": "Algunas protecciones de inicio de sesión están desactivadas.",
+      "limitScope": "Los límites son por proceso de API y se restablecen al cambiar los ajustes o reiniciar el servicio.",
+      "ipLimit": "Intentos por IP",
+      "usernameLimit": "Intentos por usuario",
+      "windowSeconds": "Intervalo (segundos)",
+      "invalid": "Introduce números enteros dentro de los límites permitidos.",
+      "saveLogin": "Guardar protección de inicio de sesión",
+      "trustProxies": "Confiar en los proxies configurados",
+      "proxyWarning": "Confía solo en proxies que controles. Sin proxies de confianza, los clientes detrás del mismo proxy comparten un límite por IP.",
+      "proxyAddresses": "Direcciones IP o CIDR de confianza, una por línea",
+      "proxyLimit": "Introduce como máximo 32 direcciones.",
+      "proxyRequired": "Introduce al menos una dirección de confianza antes de activar la confianza en proxies.",
+      "saveProxies": "Guardar proxies de confianza",
+      "confirmWeaker": "¿Reducir la protección de inicio de sesión? Esto puede facilitar la enumeración de cuentas o los ataques de contraseñas.",
+      "confirmProxies": "¿Confiar en estas direcciones de proxy? Las entradas incorrectas pueden permitir suplantar direcciones IP.",
+      "loadFailed": "No se pudo cargar la seguridad de inicio de sesión.",
+      "saveFailed": "No se pudo guardar la seguridad de inicio de sesión.",
+      "saved": "Seguridad de inicio de sesión guardada."
+    },
+    "users": {
+      "bulk": {
+        "selected": "{count} seleccionados",
+        "selectVisible": "Seleccionar todos los usuarios visibles",
+        "selectUser": "Seleccionar a {name}",
+        "currentAccount": "No puedes seleccionar tu propia cuenta para acciones masivas.",
+        "action": "Acción masiva",
+        "chooseAction": "Elige una acción",
+        "apply": "Aplicar",
+        "applying": "Aplicando...",
+        "clear": "Borrar selección",
+        "confirm": "¿Aplicar {action} a {count} usuarios: {users}?",
+        "success": "Se actualizaron {count} usuarios.",
+        "partial": "Se actualizaron {succeeded} usuarios; {failed} fallaron.",
+        "failedUsers": "No se pudieron actualizar estas cuentas:",
+        "error": "La acción falló.",
+        "actions": {
+          "makeAdmin": "Establecer rol: administrador",
+          "makeUser": "Establecer rol: usuario",
+          "enable": "Activar cuentas",
+          "disable": "Desactivar cuentas",
+          "originalInherit": "Acceso al archivo original: configuración del servidor",
+          "originalAllow": "Acceso al archivo original: permitir",
+          "originalDeny": "Acceso al archivo original: denegar",
+          "revokeSessions": "Cerrar sesión en todos los dispositivos",
+          "delete": "Eliminar cuentas permanentemente"
+        }
+      }
+    },
     "groups": {
       "requests": "Solicitudes",
       "payments": "Pagos"
@@ -395,6 +542,7 @@
       "libraries": "Bibliotecas",
       "tasks": "Tareas",
       "media": "Contenido",
+      "duplicateSuggestions": "Duplicados",
       "transcoding": "Transcodificación",
       "metadata": "Proveedores de metadatos",
       "subtitles": "Subtítulos",
