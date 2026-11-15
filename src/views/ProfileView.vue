@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { brandName } from '../composables/useAppearance'
+import { Capacitor } from '@capacitor/core'
+import { Share } from '@capacitor/share'
 import { openModal } from '@kolirt/vue-modal'
 import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -74,7 +76,25 @@ async function load() {
   }
 }
 async function shareProfile() {
-  await openModal<void>(FriendInviteModal, { props: { username: username.value } }).catch(() => undefined)
+  if (!profile.value) return
+  if (profile.value.isSelf) {
+    await openModal<void>(FriendInviteModal, { props: { username: profile.value.username } }).catch(() => undefined)
+    return
+  }
+  const url = new URL(router.resolve({ name: 'profile', params: { username: profile.value.username } }).href, window.location.origin).toString()
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Share.share({ title: t('social.shareProfile'), url, dialogTitle: t('social.shareProfile') })
+    } else if (typeof navigator.share === 'function') {
+      await navigator.share({ title: t('social.shareProfile'), url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      notify.success(t('social.linkCopied'))
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return
+    notify.error(t('social.shareError'))
+  }
 }
 function asQueueTrack(item: SocialItem): QueueTrack {
   return { id: item.id, title: item.title, artist: item.subtitle, artistId: null, album: null, albumId: null, art: item.imageIndex === null ? null : { itemId: item.imageItemId, index: item.imageIndex, version: item.imageUpdatedAt } }
