@@ -21,6 +21,7 @@ export interface QueueTrack {
 
 export type RepeatMode = "off" | "all" | "one";
 export type PartyAudioCommand = { action: "play" | "pause" } | { action: "seek"; position: number } | { action: "change-item"; itemId: string };
+export type RemoteAudioCommand = { action: "play" | "pause" } | { action: "seek"; position: number } | { action: "volume"; volume: number; muted: boolean };
 
 // One audio element for the whole app, so playback survives page navigation.
 const audio = typeof Audio === "undefined" ? null : new Audio();
@@ -79,9 +80,7 @@ async function detachHls() {
 	hlsPlayer = null;
 	hlsPlay = false;
 	if (player) {
-		adaptiveAudioDestroy = adaptiveAudioDestroy
-			.then(() => destroyShakaPlayer(player))
-			.catch((cause: unknown) => console.warn("Could not stop adaptive audio playback", cause));
+		adaptiveAudioDestroy = adaptiveAudioDestroy.then(() => destroyShakaPlayer(player)).catch((cause: unknown) => console.warn("Could not stop adaptive audio playback", cause));
 	}
 	await adaptiveAudioDestroy;
 }
@@ -248,18 +247,15 @@ async function startHls(streamUrl: string, startAt: number, token: number): Prom
 		const resumeAt = playbackPosition();
 		const resume = isPlaying.value || !audio.paused;
 		hlsPlayer = null;
-		adaptiveAudioDestroy = adaptiveAudioDestroy
-			.then(() => destroyShakaPlayer(player))
-			.catch((cause: unknown) => console.warn("Could not stop failed adaptive audio playback", cause));
-		void adaptiveAudioDestroy
-			.then(() => {
-				if (token !== loadToken || !streamBase) return;
-				hlsPlay = false;
-				// Fall back to the progressive transcode from where playback stopped.
-				streamOffset = resumeAt;
-				audio.src = streamUrlAt(resumeAt);
-				if (resume) void Promise.resolve(audio.play()).catch(() => undefined);
-			})
+		adaptiveAudioDestroy = adaptiveAudioDestroy.then(() => destroyShakaPlayer(player)).catch((cause: unknown) => console.warn("Could not stop failed adaptive audio playback", cause));
+		void adaptiveAudioDestroy.then(() => {
+			if (token !== loadToken || !streamBase) return;
+			hlsPlay = false;
+			// Fall back to the progressive transcode from where playback stopped.
+			streamOffset = resumeAt;
+			audio.src = streamUrlAt(resumeAt);
+			if (resume) void Promise.resolve(audio.play()).catch(() => undefined);
+		});
 	});
 	try {
 		await player.load(buildHlsUrl(streamUrl), startAt > 0 ? startAt : undefined);
@@ -559,6 +555,24 @@ function toggle() {
 	else audio.pause();
 }
 
+function applyRemoteCommand(command: RemoteAudioCommand): boolean {
+	if (!audio || !current.value) return false;
+	if (command.action === "play") {
+		if (audio.paused) void audio.play().catch(() => undefined);
+	} else if (command.action === "pause") {
+		if (!audio.paused) audio.pause();
+	} else if (command.action === "seek") {
+		const target = Math.max(0, Math.min(command.position, duration.value || command.position));
+		currentTime.value = target;
+		restartAt(target);
+	} else if (command.action === "volume") {
+		setVolume(command.muted ? 0 : command.volume);
+	} else {
+		return false;
+	}
+	return true;
+}
+
 function seek(seconds: number) {
 	if (!audio || !Number.isFinite(seconds)) return;
 	const position = Math.max(0, Math.min(seconds, duration.value || seconds));
@@ -668,5 +682,5 @@ if (audio) {
 }
 
 export function useAudioPlayer() {
-	return { queue, current, position, isPlaying, isLoading, currentTime, duration, audioEngine, audioBitrate, nativeNavigationArtworkUri, volume, shuffle, repeat, error, lyrics, lyricsLoading, lyricsOpen, hasNext, playQueue, next, previous, toggle, seek, setVolume, setAudioBitrate, toggleShuffle, cycleRepeat, stop, applyPartyPlayback, correctPartyDrift, setPartyControlHandler, refreshPlayback };
+	return { queue, current, position, isPlaying, isLoading, currentTime, duration, audioEngine, audioBitrate, nativeNavigationArtworkUri, volume, shuffle, repeat, error, lyrics, lyricsLoading, lyricsOpen, hasNext, playQueue, next, previous, toggle, seek, setVolume, setAudioBitrate, toggleShuffle, cycleRepeat, stop, applyRemoteCommand, applyPartyPlayback, correctPartyDrift, setPartyControlHandler, refreshPlayback };
 }

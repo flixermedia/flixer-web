@@ -4,6 +4,7 @@ import { accentFromBlob } from '../composables/artworkAccent'
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import RemotePlaybackModal from '../components/player/RemotePlaybackModal.vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { fetchHomeImage, getItemDetail, getItemPlaybackInfo, getItemTrailer, getTrickplay, setItemWatched, type ItemDetail, type ItemSummary, type Trickplay } from '../api'
 import MediaChapterModal from '../components/admin/MediaChapterModal.vue'
@@ -24,8 +25,10 @@ import FavoriteToggle from '../components/ui/FavoriteToggle.vue'
 import { useParty } from '../composables/useParty'
 import { notify } from '../composables/notify'
 import AddToPlaylistModal from '../components/AddToPlaylistModal.vue'
+import AddToVideoCollectionModal from '../components/AddToVideoCollectionModal.vue'
 import { getMobileTabs } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
+import type { RemoteCastItem } from '../composables/useRemotePlayback'
 import { describeRequestError, useProfile } from '../composables/useProfile'
 import { useAccess } from '../composables/useAccess'
 import { lockOf, openOffers, refreshLocks, requestLock, usePayments } from '../composables/usePayments'
@@ -38,6 +41,8 @@ import { limitedImageLoad } from '../composables/imageQueue'
 import IssueReportModal from '../components/issues/IssueReportModal.vue'
 import TrailerModal from '../components/media/TrailerModal.vue'
 import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
+import { getWatchLaterIds, setWatchLater } from '../api/userMedia'
+import { useVideoQueue } from '../composables/useVideoQueue'
 
 const { t, te } = useI18n()
 const { requestUnlock, refresh: refreshAccess, canUnlock } = useAccess()
@@ -107,7 +112,50 @@ const listTitle = computed(() => {
 })
 const ratings = computed(() => Object.entries(item.value?.ratings ?? {}).filter(([, value]) => Number.isFinite(value) && value > 0))
 const PLAYABLE = ['movie', 'episode', 'video']
+const WATCH_LATER_TYPES = ['movie', 'series', 'season', 'episode', 'video']
+const canWatchLater = computed(() => !!item.value && WATCH_LATER_TYPES.includes(item.value.type))
 const videoOverlay = useVideoOverlay()
+const videoQueue = useVideoQueue()
+const savedForLater = ref(false)
+const savingForLater = ref(false)
+watch(() => item.value?.id, async (id) => {
+  savedForLater.value = false
+  if (!id) return
+  try {
+    const ids = await getWatchLaterIds()
+    if (item.value?.id === id) savedForLater.value = ids.includes(id)
+  } catch (error) {
+    if (item.value?.id === id) notify.error(describeRequestError(error, t('userMedia.error')))
+  }
+})
+async function toggleWatchLater() {
+  const id = item.value?.id
+  if (!id || savingForLater.value) return
+  savingForLater.value = true
+  try {
+    const next = !savedForLater.value
+    await setWatchLater(id, next)
+    if (item.value?.id === id) savedForLater.value = next
+  } catch (error) {
+    notify.error(describeRequestError(error, t('userMedia.error')))
+  } finally {
+    savingForLater.value = false
+  }
+}
+async function queueVideo() {
+  const target = playTarget.value
+  if (!target) return
+  try {
+    await videoQueue.add(target.id)
+    notify.info(t('userMedia.queueAdded'))
+  } catch (error) {
+    notify.error(describeRequestError(error, t('userMedia.error')))
+  }
+}
+function addToVideoCollection() {
+  const current = item.value
+  if (current) void openModal(AddToVideoCollectionModal, { props: { itemId: current.id, title: current.title } }).catch(() => undefined)
+}
 const canManageSubtitles = computed(() => isAdmin.value && item.value !== null && PLAYABLE.includes(item.value.type))
 const canManageChapters = computed(() => isAdmin.value && item.value !== null && PLAYABLE.includes(item.value.type))
 function manageSubtitles() {
@@ -152,6 +200,25 @@ const playTarget = computed<{ id: string; title: string } | null>(() => {
   }
   return null
 })
+
+const remoteCastItem = computed<RemoteCastItem | null>(() => {
+  const current = item.value
+  if (!current) return null
+  if (playTarget.value) {
+    return { kind: 'video', itemId: playTarget.value.id, title: playTarget.value.title }
+  }
+  if (current.type === 'album' && current.children.length > 0 && current.children.length <= 200) {
+    return { kind: 'audio', tracks: current.children.map((track) => queueTrack(track, current)), startIndex: 0 }
+  }
+  if (current.type === 'track') return { kind: 'audio', tracks: [queueTrack(current, current)], startIndex: 0 }
+  return null
+})
+
+function castItem() {
+  const cast = remoteCastItem.value
+  if (!cast || paywalled.value) return
+  void openModal<void>(RemotePlaybackModal, { props: { cast } }).catch(() => undefined)
+}
 function play(target: { id: string; title: string; startAt?: number }) {
   themeMusic.stop()
   videoOverlay.play(target)
@@ -565,11 +632,25 @@ watch(
                   <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.play') }}
                 </button>
+                <button v-if="remoteCastItem && !paywalled" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="castItem">
+                  <Icon icon="lucide:cast" class="size-5" aria-hidden="true" />
+                  {{ t('remotePlayback.cast') }}
+                </button>
                 <button v-if="item.type === 'movie' || item.type === 'series'" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" :disabled="trailerLoading" @click="playTrailer">
                   <Icon icon="lucide:clapperboard" class="size-5" aria-hidden="true" />
                   {{ t('mediaItem.trailer') }}
                 </button>
                 <FavoriteToggle v-if="canFavorite" :item-id="item.id" />
+                <button v-if="canWatchLater" type="button" class="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white/70 hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-60" :aria-label="t(savedForLater ? 'userMedia.saved' : 'userMedia.save')" :title="t(savedForLater ? 'userMedia.saved' : 'userMedia.save')" :aria-pressed="savedForLater" :disabled="savingForLater" @click="toggleWatchLater">
+                  <Icon :icon="savedForLater ? 'lucide:bookmark-check' : 'lucide:bookmark'" class="size-5" aria-hidden="true" />
+                  {{ t(savedForLater ? 'userMedia.saved' : 'userMedia.save') }}
+                </button>
+                <button v-if="playTarget && !paywalled" type="button" class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded border border-white/30 bg-white/10 text-white/70 hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('userMedia.addQueue')" :title="t('userMedia.addQueue')" @click="queueVideo">
+                  <Icon icon="lucide:list-plus" class="size-5" aria-hidden="true" />
+                </button>
+                <button v-if="playTarget" type="button" class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded border border-white/30 bg-white/10 text-white/70 hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('userMedia.addCollection')" :title="t('userMedia.addCollection')" @click="addToVideoCollection">
+                  <Icon icon="lucide:library" class="size-5" aria-hidden="true" />
+                </button>
                 <button v-if="canReportIssue" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="reportIssue">
                   <Icon icon="lucide:flag" class="size-5" aria-hidden="true" />
                   {{ t('issues.reportIssue') }}

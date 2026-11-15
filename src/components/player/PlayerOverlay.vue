@@ -6,7 +6,9 @@ import { expectedPosition, useParty } from '../../composables/useParty'
 import { notify } from '../../composables/notify'
 import { handlePaymentRequired } from '../../composables/usePayments'
 import { useVideoOverlay } from '../../composables/useVideoOverlay'
+import { useVideoQueue } from '../../composables/useVideoQueue'
 import VideoPlayer from './VideoPlayer.vue'
+import UserMediaListView from '../../views/UserMediaListView.vue'
 import PlayerSkeleton from './PlayerSkeleton.vue'
 import { isNativeApp } from '../../platform/serverConnection'
 import { describeRequestError } from '../../composables/useProfile'
@@ -16,6 +18,7 @@ import LiveGuidePanel from './LiveGuidePanel.vue'
 import AdvertisementPlayer from './AdvertisementPlayer.vue'
 import type { PlaybackAdvertisement } from '../../api/advertisements'
 import type { ViewingTarget } from '../../api/analytics'
+import { publishRemotePlayback, registerRemoteCommandHandler, registerRemotePreviewHandler } from '../../composables/useRemotePlayback'
 
 const NativeVideoPlayer = defineAsyncComponent(() => import('./NativeVideoPlayer.vue'))
 
@@ -30,6 +33,7 @@ const defaultAudioLanguage = ref('')
 const error = ref('')
 const liveTitle = ref(props.title)
 const liveGuideOpen = ref(false)
+const videoQueueOpen = ref(false)
 const switchingChannelId = ref('')
 const liveGuideError = ref('')
 const startAt = ref(0)
@@ -40,11 +44,19 @@ const consumedBreaks = new Set<number>()
 const resumePlaying = ref(props.autoplay)
 const party = useParty()
 const nativePlayback = isNativeApp()
-const videoPlayer = ref<{ getState: () => { playing: boolean; position: number }; applyRemote: (state: { playing: boolean; position: number }) => void }>()
+const videoPlayer = ref<{
+  getState: () => { playing: boolean; position: number }
+  applyRemote: (state: { playing: boolean; position: number }) => void
+  getRemoteControlsState?: () => Record<string, unknown>
+  applyRemoteCommand?: (command: import('../../composables/useRemotePlayback').RemotePlaybackCommand) => boolean | Promise<boolean>
+  getRemoteTrickplayPreview?: (position: number) => Promise<string | null>
+}>()
 const videoParty = computed(() => party.party.value?.kind === 'video')
 // Guests follow the host, so their own controls are disabled.
 const locked = computed(() => videoParty.value && party.isGuest.value)
 const { play } = useVideoOverlay()
+const videoQueue = useVideoQueue()
+onMounted(() => void videoQueue.load().catch(() => undefined))
 
 function isGuidePlayback(value: PlaybackInfo | GuidePlaybackInfo | null): value is GuidePlaybackInfo {
   return Boolean(value && 'playSessionId' in value)
@@ -71,6 +83,7 @@ const segments = computed(() => (playback.value && 'segments' in playback.value 
 const nextEpisode = computed(() => (playback.value && 'nextEpisode' in playback.value ? playback.value.nextEpisode : null))
 const container = computed<'m3u8' | 'mpd'>(() => livePlayback.value?.mediaSource.container ?? 'm3u8')
 const nextLabel = computed(() => {
+	if (!isLive.value && !videoParty.value && videoQueue.items.value[0]) return videoQueue.items.value[0].title
   const next = nextEpisode.value
   if (!next) return undefined
   const code = next.seasonNumber != null && next.episodeNumber != null ? `S${next.seasonNumber}:E${next.episodeNumber} ` : ''
@@ -78,7 +91,16 @@ const nextLabel = computed(() => {
 })
 
 // Swapping the playing item reloads in place, so a corner player stays in the corner.
-function playNext() {
+async function playNext() {
+  const queued = !isLive.value && !videoParty.value ? videoQueue.items.value[0] : undefined
+  if (queued) {
+    try {
+      if (await videoQueue.remove(queued.id)) play({ id: queued.id, title: queued.title })
+    } catch (error) {
+      notify.error(describeRequestError(error, t('userMedia.error')))
+    }
+    return
+  }
   const next = nextEpisode.value
   if (next) play({ id: next.id, title: next.title })
 }
@@ -98,6 +120,40 @@ function syncVideo() {
 watch([() => party.latest.value, videoPlayer], syncVideo, { flush: 'post' })
 
 let partyBeat: ReturnType<typeof setInterval> | undefined
+let remotePlaybackBeat: ReturnType<typeof setInterval> | undefined
+
+function publishVideoState() {
+  const state = videoPlayer.value?.getState()
+  if (activeAd.value || !playback.value || !info.value || !state) {
+    publishRemotePlayback(null)
+    return
+  }
+  publishRemotePlayback({
+    kind: 'video',
+    title: currentTitle.value,
+    itemId: props.itemId,
+    playing: state.playing,
+    position: state.position,
+    duration: info.value.source.durationSeconds,
+    ...videoPlayer.value?.getRemoteControlsState?.(),
+  })
+}
+
+const unregisterRemoteVideo = registerRemoteCommandHandler(async (command) => {
+  const player = videoPlayer.value
+  const state = player?.getState()
+  if (!player || !state || locked.value) return false
+  if (player.applyRemoteCommand) return player.applyRemoteCommand(command)
+  if (command.action === 'volume' || command.action === 'audio-track' || command.action === 'subtitle' || command.action === 'skip') return false
+  player.applyRemote({
+    playing: command.action === 'play' ? true : command.action === 'pause' ? false : state.playing,
+    position: command.action === 'seek' ? command.position : state.position,
+  })
+  publishVideoState()
+  return true
+})
+
+const unregisterRemotePreview = registerRemotePreviewHandler((position) => videoPlayer.value?.getRemoteTrickplayPreview?.(position) ?? Promise.resolve(null))
 
 function onProgress(position: number, duration: number) {
   if (isLive.value) return
@@ -142,6 +198,7 @@ function setMini(value: boolean) {
   if (value && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
   mini.value = value
   if (value) liveGuideOpen.value = false
+  if (value) videoQueueOpen.value = false
   // The page behind a corner player stays scrollable.
   document.body.style.overflow = value ? '' : 'hidden'
 }
@@ -263,11 +320,15 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   void loadPlaybackPreferences().then(() => load(props.itemId))
   partyBeat = setInterval(syncVideo, 5_000)
+  remotePlaybackBeat = setInterval(publishVideoState, 2_000)
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   clearInterval(partyBeat)
+  clearInterval(remotePlaybackBeat)
+  unregisterRemoteVideo()
+  unregisterRemotePreview()
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -276,13 +337,17 @@ onBeforeUnmount(() => {
   <div class="theme-dark fixed z-[100] overflow-hidden bg-black transition-[top,left,width,height,border-radius,box-shadow] duration-300 ease-in-out motion-reduce:transition-none" :class="mini ? 'rounded shadow-2xl shadow-black/70 ring-1 ring-white/15' : ''" :style="frameStyle" role="dialog" :aria-modal="!mini" :aria-label="currentTitle">
     <AdvertisementPlayer v-if="activeAd" :key="`${activeAd.id}-${activeAd.atSeconds}`" :ad="activeAd" :item-id="itemId" :autoplay="resumePlaying" @started="resumePlaying = true" @done="finishAd" @close="closeOverlay()" />
     <NativeVideoPlayer v-else-if="playback && info && nativePlayback && !isLive && adBreaks.length === 0" ref="videoPlayer" :analytics-target="analyticsTarget" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :container="playback.mediaSource.container" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="resumePlaying" :next-label="nextLabel" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
-    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :crop-category="cropCategory" :analytics-target="analyticsTarget" :live="isLive" :live-guide-open="liveGuideOpen" :container="container" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="resumePlaying" :chapters="chapters" :segments="segments" :auto-skip-intro-credits="autoSkipIntroCredits" :next-label="nextLabel" show-back allow-mini :mini="mini" @ready="syncVideo" @position="onPosition" @toggle-mini="setMini(!mini)" @toggle-live-guide="liveGuideOpen = !liveGuideOpen" @auto-skip-intro-credits-change="updateAutoSkipIntroCredits" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
+    <VideoPlayer v-else-if="playback && info" ref="videoPlayer" :crop-category="cropCategory" :analytics-target="analyticsTarget" :live="isLive" :live-guide-open="liveGuideOpen" :show-queue="!videoParty" :queue-open="videoQueueOpen" :container="container" :locked="locked" :stream-url="playback.mediaSource.streamUrl" :info="info" :default-audio-language="defaultAudioLanguage" :title="currentTitle" :start-at="startAt" :autoplay="resumePlaying" :chapters="chapters" :segments="segments" :auto-skip-intro-credits="autoSkipIntroCredits" :next-label="nextLabel" show-back allow-mini :mini="mini" @ready="syncVideo(); publishVideoState()" @position="onPosition" @toggle-mini="setMini(!mini)" @toggle-live-guide="liveGuideOpen = !liveGuideOpen" @toggle-queue="videoQueueOpen = !videoQueueOpen" @auto-skip-intro-credits-change="updateAutoSkipIntroCredits" @back="closeOverlay()" @error="error = $event" @progress="onProgress" @control="onControl" @next="playNext" />
     <LiveGuidePanel v-if="livePlayback && liveGuideOpen && !mini" :current-channel-id="livePlayback.mediaSource.id" :switching-channel-id="switchingChannelId" :switch-error="liveGuideError" @close="liveGuideOpen = false" @select-channel="switchLiveChannel" />
     <div v-else-if="!activeAd && !(playback && info)" class="relative size-full">
       <p v-if="error" class="absolute inset-0 grid place-items-center p-6 text-center text-sm text-red-400" role="alert">{{ error }}</p>
       <PlayerSkeleton v-else />
     </div>
     <p v-if="error && playback && info && nativePlayback && !isLive && adBreaks.length === 0" class="absolute inset-x-4 bottom-4 rounded bg-red-950/90 p-3 text-center text-sm text-red-100" role="alert">{{ error }}</p>
+    <div v-if="videoQueueOpen && !mini && !isLive && !videoParty" class="absolute bottom-20 right-3 top-16 z-30 w-96 max-w-[calc(100%-1.5rem)] overflow-y-auto rounded border border-flixer-border bg-flixer-surface/95 p-4 text-flixer-text shadow-2xl shadow-black/60 backdrop-blur" role="region" :aria-label="t('userMedia.queue')">
+      <div class="flex justify-end"><button type="button" class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :aria-label="t('common.close')" :title="t('common.close')" @click="videoQueueOpen = false"><Icon icon="lucide:x" class="size-5" aria-hidden="true" /></button></div>
+      <UserMediaListView kind="queue" embedded />
+    </div>
     <button v-if="(!(playback && info) || (error && nativePlayback && !isLive && adBreaks.length === 0)) && !mini" type="button" class="absolute left-4 top-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20" @click="closeOverlay()">{{ t('mediaItem.close') }}</button>
   </div>
 </template>

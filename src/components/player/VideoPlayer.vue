@@ -16,6 +16,7 @@ import type { ViewingTarget } from '../../api/analytics'
 import { ViewingTracker } from './viewingTracker'
 import { WebhookPlaybackTracker } from './webhookPlaybackTracker'
 import { useBlackBarCrop } from './useBlackBarCrop'
+import type { RemotePlaybackCommand } from '../../composables/useRemotePlayback'
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +35,8 @@ const props = withDefaults(
     allowMini?: boolean
     /** Shows whether the live guide panel is open. */
     liveGuideOpen?: boolean
+    showQueue?: boolean
+    queueOpen?: boolean
     /** Compact corner layout: only a small control strip is shown. */
     mini?: boolean
     /** Where playback begins, in seconds. */
@@ -57,6 +60,7 @@ const emit = defineEmits<{
   back: []
   'toggle-mini': []
   'toggle-live-guide': []
+  'toggle-queue': []
   'auto-skip-intro-credits-change': [enabled: boolean]
   next: []
   error: [message: string]
@@ -651,6 +655,83 @@ function toggleMute() {
   }
 }
 
+function getRemoteControlsState() {
+  return {
+    volume: volume.value,
+    muted: muted.value,
+    audioTracks: audioTrackOptions.value.map((option) => ({ id: String(option.track.index), label: option.label })),
+    audioTrackIndex: selectedAudioTrackIndex.value,
+    subtitles: subtitleTracks.value.map((track) => ({ id: track.id, label: subtitleLabel(track) })),
+    subtitleId: subtitleId.value,
+    chapters: props.chapters.map((chapter) => ({ start: chapter.startMs / 1000, title: chapter.title })),
+    segments: props.segments.map((segment) => ({ start: segment.startMs / 1000, end: segment.endMs / 1000, type: segment.type })),
+    ...(trickplay.value ? { trickplay: { manifest: trickplay.value.manifest } } : {}),
+  }
+}
+
+async function applyRemoteCommand(command: RemotePlaybackCommand): Promise<boolean> {
+  if (!video.value || props.locked) return false
+  if (command.action === 'play' || command.action === 'pause') {
+    applyRemote({ playing: command.action === 'play', position: position.value })
+    return true
+  }
+  if (command.action === 'seek') {
+    applyRemote({ playing: !paused.value, position: command.position })
+    return true
+  }
+  if (command.action === 'volume') {
+    setVolume(command.volume)
+    video.value.muted = command.muted
+    return true
+  }
+  if (command.action === 'audio-track') {
+    if (!audioTracks.value.some((track) => track.index === command.index)) return false
+    await setAudioTrack(command.index)
+    return selectedAudioTrackIndex.value === command.index
+  }
+  if (command.action === 'subtitle') {
+    if (command.id && !subtitleTracks.value.some((track) => track.id === command.id)) return false
+    await selectSubtitle(command.id)
+    return subtitleId.value === command.id
+  }
+  if (command.action === 'skip') {
+    if (!activeSegment.value) return false
+    skipSegment(activeSegment.value)
+    return true
+  }
+  return false
+}
+
+async function getRemoteTrickplayPreview(seconds: number): Promise<string | null> {
+  const data = trickplay.value
+  if (!data || !Number.isFinite(seconds) || seconds < 0) return null
+  const frame = Math.min(data.manifest.count - 1, Math.floor(seconds * 1000 / data.manifest.intervalMs))
+  const perSheet = data.manifest.columns * data.manifest.rows
+  const sheet = Math.floor(frame / perSheet)
+  const tile = frame % perSheet
+  const sourceX = (tile % data.manifest.columns) * data.manifest.thumbWidth
+  const sourceY = Math.floor(tile / data.manifest.columns) * data.manifest.thumbHeight
+  try {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.src = data.sheetUrl(sheet)
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('Could not load trickplay sheet'))
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = 176
+    canvas.height = Math.round(176 * data.manifest.thumbHeight / data.manifest.thumbWidth)
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    context.drawImage(image, sourceX, sourceY, data.manifest.thumbWidth, data.manifest.thumbHeight, 0, 0, canvas.width, canvas.height)
+    const preview = canvas.toDataURL('image/jpeg', 0.45)
+    return preview.length <= 32_000 ? preview : null
+  } catch {
+    return null
+  }
+}
+
 function onVolumeInput(event: Event) {
   setVolume(Number((event.target as HTMLInputElement).value))
 }
@@ -809,7 +890,7 @@ function applyRemote(state: { playing: boolean; position: number }) {
   }
 }
 
-defineExpose({ getState, applyRemote })
+defineExpose({ getState, applyRemote, getRemoteControlsState, applyRemoteCommand, getRemoteTrickplayPreview })
 
 function onPlay() {
   webhookPlayback.play(props.analyticsTarget, position.value)
@@ -1153,7 +1234,8 @@ onBeforeUnmount(() => {
         <Icon icon="lucide:arrow-left" class="size-6" aria-hidden="true" />
       </button>
       <h2 v-if="title" class="truncate text-base font-semibold tracking-tight sm:text-lg">{{ title }}</h2>
-      <button v-if="cropAllowed" type="button" class="ml-auto shrink-0 rounded px-2 py-1 text-xs font-semibold text-white hover:bg-white/15 disabled:opacity-60" :disabled="cropUnavailable" :aria-pressed="cropEnabled" :title="cropUnavailable ? t('player.cropUnavailable') : t('player.cropBars')" @click="cropEnabled = !cropEnabled">
+      <button v-if="showQueue && !mini && !live && !standalone" type="button" class="ml-auto grid size-10 shrink-0 place-items-center rounded text-white/90 hover:bg-white/15" :aria-label="t('userMedia.queue')" :title="t('userMedia.queue')" :aria-expanded="queueOpen" @click="emit('toggle-queue')"><Icon icon="lucide:list-video" class="size-6" aria-hidden="true" /></button>
+      <button v-if="cropAllowed" type="button" class="shrink-0 rounded px-2 py-1 text-xs font-semibold text-white hover:bg-white/15 disabled:opacity-60" :class="showQueue ? '' : 'ml-auto'" :disabled="cropUnavailable" :aria-pressed="cropEnabled" :title="cropUnavailable ? t('player.cropUnavailable') : t('player.cropBars')" @click="cropEnabled = !cropEnabled">
         {{ cropUnavailable ? t('player.cropUnavailable') : `${t('player.cropBars')}: ${cropEnabled ? t('player.cropOn') : t('player.cropOff')}` }}
       </button>
     </div>
