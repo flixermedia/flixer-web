@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import BillingSection from "../components/payments/BillingSection.vue";
@@ -11,6 +11,7 @@ import PasskeysSection from "../components/settings/PasskeysSection.vue";
 import ProfileSection from "../components/settings/ProfileSection.vue";
 import ServerSection from "../components/settings/ServerSection.vue";
 import UserWebhooksSection from "../components/settings/UserWebhooksSection.vue";
+import PlaybackHistoryView from "./PlaybackHistoryView.vue";
 import type { SettingsTab } from "../components/settings/SettingsTabs.vue";
 import { usePayments } from "../composables/usePayments.ts";
 import { isNativeApp } from "../platform/serverConnection";
@@ -33,7 +34,7 @@ const tabIcons: Record<string, string> = {
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("settings.tabs.defaultPlayback") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "connectedApps", label: t("oidc.connected.title") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("playbackTabs.title") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "connectedApps", label: t("oidc.connected.title") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
 });
 
 const activeTab = computed({
@@ -49,12 +50,25 @@ const activeTab = computed({
 function selectTab(id: string) {
 	activeTab.value = id;
 }
+
+const playbackTab = computed({
+	get: () => route.query.playbackTab === "history" ? "history" : "options",
+	set: (value: string) => {
+		void router.replace({ query: { ...route.query, tab: "defaultPlayback", playbackTab: value }, hash: "" });
+	},
+});
+const playbackOpen = ref(activeTab.value === "defaultPlayback");
+watch(activeTab, (tab) => { playbackOpen.value = tab === "defaultPlayback"; });
+const playbackPages = [
+	{ id: "options", icon: "lucide:sliders-horizontal" },
+	{ id: "history", icon: "lucide:history" },
+];
 </script>
 
 <template>
 	<div class="min-h-screen overflow-x-hidden bg-flixer-background font-sans text-flixer-text">
 
-		<main class="page-gutter mx-auto w-full max-w-[110rem] pb-16 pt-24 lg:pt-28">
+		<main class="page-gutter w-full pb-16 pt-24 lg:pt-28">
 			<header class="admin-card mb-6 flex flex-wrap items-center justify-between gap-5 p-5 sm:p-6">
 				<div class="flex min-w-0 items-center gap-4">
 					<span class="grid size-12 shrink-0 place-items-center rounded border border-flixer-accent/25 bg-flixer-primary/20 text-flixer-accent shadow-inner shadow-white/5">
@@ -72,23 +86,47 @@ function selectTab(id: string) {
 			</header>
 
 			<div class="grid min-w-0 gap-5 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
-				<nav class="admin-card flex min-w-0 gap-1 overflow-x-auto p-2 lg:sticky lg:top-20 lg:flex-col" :aria-label="t('settings.title')" role="tablist">
-					<button v-for="tab in tabs" :id="`settings-tab-${tab.id}`" :key="tab.id" type="button" role="tab" class="group relative inline-flex min-h-11 shrink-0 items-center gap-3 rounded px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent lg:w-full" :class="activeTab === tab.id ? 'bg-flixer-primary/20 text-white shadow-inner shadow-white/5' : 'text-flixer-text/70 hover:bg-white/5 hover:text-white'" :aria-selected="activeTab === tab.id" aria-controls="settings-panel" @click="selectTab(tab.id)">
-						<span class="grid size-8 shrink-0 place-items-center rounded" :class="activeTab === tab.id ? 'bg-flixer-primary/30 text-flixer-accent' : 'text-flixer-muted transition group-hover:text-white'">
-							<Icon :icon="tabIcons[tab.id] ?? 'lucide:settings-2'" class="size-4" aria-hidden="true" />
-						</span>
-						<span class="whitespace-nowrap">{{ tab.label }}</span>
-						<Icon v-if="activeTab === tab.id" icon="lucide:chevron-right" class="ml-auto hidden size-4 text-flixer-accent lg:block" aria-hidden="true" />
-					</button>
+				<nav class="admin-card min-w-0 p-2 lg:sticky lg:top-20" :aria-label="t('settings.title')">
+					<div class="lg:hidden">
+						<div class="flex gap-1 overflow-x-auto" role="tablist" :aria-label="t('settings.title')">
+							<button v-for="tab in tabs" :key="tab.id" type="button" role="tab" class="flex h-11 shrink-0 items-center gap-2 rounded px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="activeTab === tab.id ? 'bg-flixer-primary/20 text-white' : 'text-flixer-text/70'" :aria-selected="activeTab === tab.id" aria-controls="settings-panel" @click="tab.id === 'defaultPlayback' ? playbackTab = 'options' : selectTab(tab.id)">
+								<Icon :icon="tabIcons[tab.id] ?? 'lucide:settings-2'" class="size-4 shrink-0" aria-hidden="true" /><span class="whitespace-nowrap">{{ tab.label }}</span>
+							</button>
+						</div>
+						<div v-if="activeTab === 'defaultPlayback'" class="mt-1 flex gap-1 overflow-x-auto border-t border-flixer-border/20 pt-1" :aria-label="t('playbackTabs.title')">
+							<button v-for="entry in playbackPages" :key="entry.id" type="button" class="flex h-8 shrink-0 items-center gap-2 rounded border px-3 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="playbackTab === entry.id ? 'border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border-transparent text-flixer-text/70'" :aria-current="playbackTab === entry.id ? 'page' : undefined" @click="playbackTab = entry.id"><Icon :icon="entry.icon" class="size-3.5 shrink-0" aria-hidden="true" />{{ t(`playbackTabs.${entry.id}`) }}</button>
+						</div>
+					</div>
+					<div class="hidden space-y-1 lg:block">
+						<div v-for="tab in tabs" :key="tab.id">
+							<button v-if="tab.id === 'defaultPlayback'" type="button" class="group flex min-h-11 w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm font-medium text-flixer-text/70 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="activeTab === tab.id ? 'text-white' : ''" :aria-expanded="playbackOpen" aria-controls="settings-playback-pages" @click="playbackOpen = !playbackOpen">
+								<span class="grid size-8 shrink-0 place-items-center rounded" :class="activeTab === tab.id ? 'bg-flixer-primary/30 text-flixer-accent' : 'text-flixer-muted group-hover:text-white'"><Icon :icon="tabIcons[tab.id]" class="size-4" aria-hidden="true" /></span>
+								<span class="min-w-0 flex-1 truncate">{{ tab.label }}</span><Icon icon="lucide:chevron-down" class="size-4 shrink-0 transition-transform motion-reduce:transition-none" :class="playbackOpen ? 'rotate-180' : ''" aria-hidden="true" />
+							</button>
+							<Transition name="settings-subnav">
+								<div v-if="tab.id === 'defaultPlayback' && playbackOpen" id="settings-playback-pages" class="overflow-hidden">
+									<ul class="ml-5 mt-1 grid gap-1 border-l border-flixer-border/50 pl-3">
+										<li v-for="entry in playbackPages" :key="entry.id"><button type="button" class="flex h-9 w-full items-center gap-2.5 rounded border px-3 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="activeTab === 'defaultPlayback' && playbackTab === entry.id ? 'border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border-transparent text-flixer-text/70 hover:bg-white/5 hover:text-white'" :aria-current="activeTab === 'defaultPlayback' && playbackTab === entry.id ? 'page' : undefined" @click="playbackTab = entry.id"><Icon :icon="entry.icon" class="size-4 shrink-0 opacity-80" aria-hidden="true" /><span class="truncate">{{ t(`playbackTabs.${entry.id}`) }}</span></button></li>
+									</ul>
+								</div>
+							</Transition>
+							<button v-if="tab.id !== 'defaultPlayback'" type="button" class="group flex min-h-11 w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="activeTab === tab.id ? 'bg-flixer-primary/20 text-white shadow-inner shadow-white/5' : 'text-flixer-text/70 hover:bg-white/5 hover:text-white'" :aria-current="activeTab === tab.id ? 'page' : undefined" @click="selectTab(tab.id)">
+								<span class="grid size-8 shrink-0 place-items-center rounded" :class="activeTab === tab.id ? 'bg-flixer-primary/30 text-flixer-accent' : 'text-flixer-muted transition group-hover:text-white'"><Icon :icon="tabIcons[tab.id] ?? 'lucide:settings-2'" class="size-4" aria-hidden="true" /></span><span class="min-w-0 flex-1 truncate">{{ tab.label }}</span><Icon v-if="activeTab === tab.id" icon="lucide:chevron-right" class="size-4" aria-hidden="true" />
+							</button>
+						</div>
+					</div>
 				</nav>
 
-				<section id="settings-panel" class="admin-card min-w-0 p-5 sm:p-6 lg:p-7" role="tabpanel" :aria-labelledby="`settings-tab-${activeTab}`" tabindex="0">
+				<section id="settings-panel" class="admin-card min-w-0 p-5 sm:p-6 lg:p-7" role="region" :aria-label="activeTab === 'defaultPlayback' ? t(`playbackTabs.${playbackTab}`) : tabs.find((tab) => tab.id === activeTab)?.label" tabindex="0">
 					<Transition name="settings-panel" mode="out-in">
 						<div :key="activeTab">
 							<ProfileSection v-if="activeTab === 'profile'" />
 							<PasskeysSection v-else-if="activeTab === 'passkeys'" />
 							<LanguageSection v-else-if="activeTab === 'language'" />
-							<DefaultPlaybackOptionsSection v-else-if="activeTab === 'defaultPlayback'" />
+							<template v-else-if="activeTab === 'defaultPlayback'">
+								<DefaultPlaybackOptionsSection v-if="playbackTab === 'options'" />
+								<PlaybackHistoryView v-else embedded />
+							</template>
 							<ChatEncryptionSection v-else-if="activeTab === 'chatEncryption'" />
 							<ConnectedAppsSection v-else-if="activeTab === 'connectedApps'" />
 							<UserWebhooksSection v-else-if="activeTab === 'webhooks'" />
@@ -103,6 +141,17 @@ function selectTab(id: string) {
 </template>
 
 <style scoped>
+.settings-subnav-enter-active,
+.settings-subnav-leave-active {
+	transition: max-height 240ms ease, opacity 240ms ease;
+	max-height: 6rem;
+}
+.settings-subnav-enter-from,
+.settings-subnav-leave-to {
+	max-height: 0;
+	opacity: 0;
+}
+
 .settings-panel-enter-active,
 .settings-panel-leave-active {
 	transition:
@@ -121,6 +170,10 @@ function selectTab(id: string) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.settings-subnav-enter-active,
+	.settings-subnav-leave-active {
+		transition: none;
+	}
 	.settings-panel-enter-active,
 	.settings-panel-leave-active {
 		transition: none;

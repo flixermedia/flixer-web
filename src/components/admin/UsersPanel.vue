@@ -3,8 +3,9 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { listAdminUsers, listSettings, updateSetting, type AdminUser } from '../../api'
+import { deleteAdminUser, listAdminUsers, listSettings, revokeAdminUserSessions, updateAdminUser, updateSetting, type AdminUser, type AdminUserChanges, type ServerSetting } from '../../api'
 import { getMailStatus } from '../../api/mail'
+import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -16,15 +17,23 @@ import AccessControlsModal from './AccessControlsModal.vue'
 import EditUserModal from './EditUserModal.vue'
 import StatusPill from './StatusPill.vue'
 import UserPaymentsModal from './UserPaymentsModal.vue'
+import LoginSecuritySection from './LoginSecuritySection.vue'
 import { usePayments } from '../../composables/usePayments'
+import { runUserBatch } from './userBatch'
 
 const { t, locale } = useI18n()
 const payments = usePayments()
 
 const users = ref<AdminUser[]>([])
+const settingsValues = ref<ServerSetting[]>([])
 const isLoading = ref(true)
 const loadError = ref('')
 const query = ref('')
+const selectedIds = ref<string[]>([])
+let selectionAnchor: string | null = null
+const bulkAction = ref('')
+const bulkBusy = ref(false)
+const bulkErrors = ref<Array<{ name: string; message: string }>>([])
 const registrationEnabled = ref(true)
 const smtpConfigured = ref(false)
 const verificationEnabled = ref(true)
@@ -38,6 +47,87 @@ const filtered = computed(() => {
   const needle = query.value.trim().toLowerCase()
   return users.value.filter((user) => `${user.displayName} ${user.username} ${user.email ?? ''}`.toLowerCase().includes(needle))
 })
+const selectableVisible = computed(() => filtered.value.filter((user) => !user.current))
+const selectedUsers = computed(() => users.value.filter((user) => !user.current && selectedIds.value.includes(user.id)))
+const allVisibleSelected = computed(() => selectableVisible.value.length > 0 && selectableVisible.value.every((user) => selectedIds.value.includes(user.id)))
+const someVisibleSelected = computed(() => selectableVisible.value.some((user) => selectedIds.value.includes(user.id)))
+
+const bulkChanges: Record<string, AdminUserChanges> = {
+  makeAdmin: { role: 'admin' },
+  makeUser: { role: 'user' },
+  enable: { disabled: false },
+  disable: { disabled: true },
+  originalInherit: { originalAccess: 'inherit' },
+  originalAllow: { originalAccess: 'allow' },
+  originalDeny: { originalAccess: 'deny' },
+}
+const bulkActions = [...Object.keys(bulkChanges), 'revokeSessions', 'delete']
+
+function selectVisible(event: Event) {
+  selectionAnchor = null
+  const checked = (event.target as HTMLInputElement).checked
+  const visible = new Set(selectableVisible.value.map((user) => user.id))
+  selectedIds.value = checked
+    ? [...new Set([...selectedIds.value, ...visible])]
+    : selectedIds.value.filter((id) => !visible.has(id))
+}
+
+function selectUser(user: AdminUser, event: MouseEvent) {
+  const checked = (event.currentTarget as HTMLInputElement).checked
+  const visible = selectableVisible.value
+  const currentIndex = visible.findIndex((item) => item.id === user.id)
+  const anchorIndex = visible.findIndex((item) => item.id === selectionAnchor)
+  const range = event.shiftKey && anchorIndex !== -1 && currentIndex !== -1
+    ? visible.slice(Math.min(anchorIndex, currentIndex), Math.max(anchorIndex, currentIndex) + 1)
+    : [user]
+  const selected = new Set(selectedIds.value)
+  for (const item of range) {
+    if (checked) selected.add(item.id)
+    else selected.delete(item.id)
+  }
+  selectedIds.value = [...selected]
+  selectionAnchor = user.id
+}
+
+function clearSelection() {
+  selectedIds.value = []
+  selectionAnchor = null
+}
+
+async function applyBulkAction() {
+  const targets = [...selectedUsers.value]
+  const action = bulkAction.value
+  if (bulkBusy.value || !targets.length || !bulkActions.includes(action)) return
+  bulkBusy.value = true
+  try {
+    const confirmed = await confirmAction(t('admin.users.bulk.confirm', {
+      action: t(`admin.users.bulk.actions.${action}`),
+      count: targets.length,
+      users: targets.map((user) => user.username).join(', '),
+    }), { danger: action === 'delete' || action === 'disable' || action === 'revokeSessions' })
+    if (!confirmed) return
+    bulkErrors.value = []
+    const result = await runUserBatch(targets, (user) => {
+      if (action === 'delete') return deleteAdminUser(user.id)
+      if (action === 'revokeSessions') return revokeAdminUserSessions(user.id)
+      return updateAdminUser(user.id, bulkChanges[action])
+    })
+    selectedIds.value = result.failed.map(({ user }) => user.id)
+    bulkErrors.value = result.failed.map(({ user, error }) => ({
+      name: user.username,
+      message: describeRequestError(error, t('admin.users.bulk.error')),
+    }))
+    if (result.failed.length) {
+      notify.error(t('admin.users.bulk.partial', { succeeded: result.succeeded.length, failed: result.failed.length }))
+    } else {
+      notify.success(t('admin.users.bulk.success', { count: result.succeeded.length }))
+      bulkAction.value = ''
+    }
+    await load()
+  } finally {
+    bulkBusy.value = false
+  }
+}
 
 type Status = 'active' | 'unverified' | 'disabled'
 const statusTone = { active: 'good', unverified: 'warn', disabled: 'bad' } as const
@@ -66,6 +156,9 @@ async function load() {
     } else {
       const [list, settings, mail] = result
       users.value = list
+      settingsValues.value = settings
+      selectionAnchor = null
+      selectedIds.value = selectedIds.value.filter((id) => list.some((user) => user.id === id && !user.current))
       registrationEnabled.value = settings.find((setting) => setting.key === 'registration_enabled')?.value !== false
       const host = settings.find((setting) => setting.key === 'smtp_host')?.value
       smtpConfigured.value = Boolean(mail?.outboundReady) || (typeof host === 'string' && host.trim() !== '')
@@ -167,16 +260,30 @@ onMounted(() => {
   <div class="flex flex-col gap-6">
     <AdminSection :title="t('admin.users.title')" :description="t('admin.users.description')">
       <template #actions>
-        <input v-model="query" type="search" :placeholder="t('admin.users.searchPlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm" />
-        <button type="button" :class="primaryButton" @click="openCreate">{{ t('admin.users.addUser') }}</button>
+        <input v-model="query" type="search" :placeholder="t('admin.users.searchPlaceholder')" :disabled="bulkBusy" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm" />
+        <button type="button" :class="primaryButton" :disabled="bulkBusy" @click="openCreate">{{ t('admin.users.addUser') }}</button>
       </template>
 
       <p v-if="loadError" role="alert" class="mb-3 text-sm text-red-300">{{ loadError }}</p>
+      <div v-if="selectedUsers.length" class="mb-3 flex flex-wrap items-center gap-2 border-b border-flixer-border pb-3">
+        <span class="mr-2 text-sm font-semibold" aria-live="polite">{{ t('admin.users.bulk.selected', { count: selectedUsers.length }) }}</span>
+        <select v-model="bulkAction" :aria-label="t('admin.users.bulk.action')" :disabled="bulkBusy" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm disabled:opacity-60">
+          <option value="">{{ t('admin.users.bulk.chooseAction') }}</option>
+          <option v-for="action in bulkActions" :key="action" :value="action">{{ t(`admin.users.bulk.actions.${action}`) }}</option>
+        </select>
+        <button type="button" :class="primaryButton" :disabled="bulkBusy || !bulkAction" @click="applyBulkAction">{{ bulkBusy ? t('admin.users.bulk.applying') : t('admin.users.bulk.apply') }}</button>
+        <button type="button" :class="secondaryButton" :disabled="bulkBusy" @click="clearSelection">{{ t('admin.users.bulk.clear') }}</button>
+      </div>
+      <div v-if="bulkErrors.length" role="alert" class="mb-3 text-sm text-red-300">
+        <p>{{ t('admin.users.bulk.failedUsers') }}</p>
+        <ul class="mt-1 list-inside list-disc"><li v-for="failure in bulkErrors" :key="failure.name">{{ failure.name }}: {{ failure.message }}</li></ul>
+      </div>
       <AdminSkeleton v-if="isLoading" variant="table" :rows="3" />
       <div v-else class="overflow-x-auto">
         <table class="w-full min-w-160 text-left text-sm">
           <thead class="text-xs text-flixer-muted">
             <tr>
+              <th class="w-10 pb-2"><input type="checkbox" :checked="allVisibleSelected" :indeterminate="someVisibleSelected && !allVisibleSelected" :disabled="bulkBusy || !selectableVisible.length" :aria-label="t('admin.users.bulk.selectVisible')" class="accent-flixer-accent" @change="selectVisible" /></th>
               <th class="pb-2 font-medium">{{ t('admin.users.user') }}</th>
               <th class="pb-2 font-medium">{{ t('admin.users.role') }}</th>
               <th class="pb-2 font-medium">{{ t('admin.users.status') }}</th>
@@ -187,6 +294,7 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-for="user in filtered" :key="user.id" class="border-t border-flixer-border">
+              <td><input type="checkbox" :checked="selectedIds.includes(user.id)" :value="user.id" :disabled="bulkBusy || user.current" :aria-label="t('admin.users.bulk.selectUser', { name: user.username })" :title="user.current ? t('admin.users.bulk.currentAccount') : undefined" class="accent-flixer-accent" @click="selectUser(user, $event)" /></td>
               <td class="py-3">
                 <div class="flex items-center gap-3">
                   <div class="size-8 shrink-0 overflow-hidden rounded text-xs"><UserAvatar :avatar-url="user.avatarUrl" :name="user.displayName" /></div>
@@ -210,19 +318,21 @@ onMounted(() => {
               <td class="text-flixer-muted">{{ relativeTime(user.lastActiveAt) }}</td>
               <td class="text-right">
                 <div class="flex justify-end gap-2">
-                  <button type="button" :class="secondaryButton" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
-                  <button v-if="payments.active.value" type="button" :class="secondaryButton" class="inline-flex items-center gap-1.5" :aria-label="t('payments.admin.userPayments.manage', { name: user.displayName || user.username })" @click="openPayments(user)"><Icon icon="lucide:credit-card" class="size-3.5" aria-hidden="true" />{{ t('payments.admin.userPayments.button') }}</button>
-                  <button type="button" :class="secondaryButton" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
+                  <button type="button" :class="secondaryButton" :disabled="bulkBusy" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
+                  <button v-if="payments.active.value" type="button" :class="secondaryButton" :disabled="bulkBusy" class="inline-flex items-center gap-1.5" :aria-label="t('payments.admin.userPayments.manage', { name: user.displayName || user.username })" @click="openPayments(user)"><Icon icon="lucide:credit-card" class="size-3.5" aria-hidden="true" />{{ t('payments.admin.userPayments.button') }}</button>
+                  <button type="button" :class="secondaryButton" :disabled="bulkBusy" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
                 </div>
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="6" class="py-6 text-center text-flixer-muted">{{ users.length === 0 ? t('admin.users.noUsers') : t('admin.users.noSearchMatches') }}</td>
+              <td colspan="7" class="py-6 text-center text-flixer-muted">{{ users.length === 0 ? t('admin.users.noUsers') : t('admin.users.noSearchMatches') }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </AdminSection>
+
+    <LoginSecuritySection :settings="settingsValues" :loading="isLoading" />
 
     <AdminSection :title="t('admin.users.signUpPolicy')" :description="t('admin.users.signUpPolicyDescription')">
       <AdminToggle :model-value="registrationEnabled" :label="t('admin.users.allowPublicRegistration')" :description="t('admin.users.publicRegistrationDescription')" @update:model-value="setRegistration" />
