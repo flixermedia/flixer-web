@@ -108,7 +108,7 @@ watch(live.data, (value) => {
             <p class="text-sm font-semibold">
               {{ share.name }} <StatusPill :tone="TONES[share.status]" class="ml-2">{{ t(`admin.networkShares.status.${share.status}`) }}</StatusPill>
             </p>
-            <p class="mt-1 truncate font-mono text-xs text-flixer-muted">smb://{{ share.host }}/{{ share.share }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-flixer-muted">{{ share.protocol.toUpperCase() }} · {{ share.host }} / {{ share.share }}</p>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" :disabled="busyId === share.id" class="rounded bg-white/10 px-4 py-1.5 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="reconnect(share)">{{ t('admin.networkShares.reconnect') }}</button>

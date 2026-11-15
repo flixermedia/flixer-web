@@ -2,7 +2,7 @@
 import { ModalContent, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createNetworkShare, updateNetworkShare, type NetworkShare } from '../../api'
+import { createNetworkShare, updateNetworkShare, type NetworkShare, type NetworkShareProtocol } from '../../api'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -17,17 +17,39 @@ const { t } = useI18n()
 const saving = ref(false)
 const formError = ref('')
 const name = ref(props.share?.name ?? '')
+const protocol = ref<NetworkShareProtocol>(props.share?.protocol ?? 'smb')
 const host = ref(props.share?.host ?? '')
 const shareName = ref(props.share?.share ?? '')
 const username = ref(props.share?.username ?? '')
 const domain = ref(props.share?.domain ?? '')
+const region = ref(props.share?.region ?? 'us-east-1')
 const password = ref('')
 const readOnly = ref(props.share?.readOnly ?? true)
+
+const protocols: Array<{ value: NetworkShareProtocol; label: string }> = [
+  { value: 'smb', label: 'SMB' },
+  { value: 'nfs', label: 'NFS' },
+  { value: 'webdav', label: 'WebDAV' },
+  { value: 's3', label: 'S3-compatible / MinIO' },
+]
+
+function onProtocolChange() {
+  if (protocol.value !== 'smb') readOnly.value = true
+}
 
 async function save() {
   saving.value = true
   formError.value = ''
-  const input = { name: name.value.trim(), host: host.value.trim(), share: shareName.value.trim(), username: username.value.trim(), domain: domain.value.trim(), readOnly: readOnly.value }
+  const input = {
+    name: name.value.trim(),
+    protocol: protocol.value,
+    host: host.value.trim(),
+    share: shareName.value.trim(),
+    username: protocol.value === 'nfs' ? '' : username.value.trim(),
+    domain: protocol.value === 'smb' ? domain.value.trim() : '',
+    region: protocol.value === 's3' ? region.value.trim() : '',
+    readOnly: protocol.value === 'smb' ? readOnly.value : true,
+  }
   try {
     if (props.share) {
       const [error] = await catchError(updateNetworkShare(props.share.id, password.value ? { ...input, password: password.value } : input))
@@ -64,31 +86,42 @@ async function save() {
               <input v-model="name" type="text" maxlength="100" required :placeholder="t('admin.networkShares.namePlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
             </label>
             <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-              {{ t('admin.networkShares.host') }}
-              <input v-model="host" type="text" maxlength="255" required autocapitalize="none" :placeholder="t('admin.networkShares.hostPlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+              {{ t('admin.networkShares.protocol') }}
+              <select v-model="protocol" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" @change="onProtocolChange">
+                <option v-for="item in protocols" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
             <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-              {{ t('admin.networkShares.share') }}
-              <input v-model="shareName" type="text" maxlength="255" required autocapitalize="none" :placeholder="t('admin.networkShares.sharePlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+              {{ protocol === 'webdav' || protocol === 's3' ? t('admin.networkShares.endpoint') : t('admin.networkShares.host') }}
+              <input v-model="host" type="text" maxlength="255" required autocapitalize="none" :placeholder="protocol === 'smb' ? t('admin.networkShares.hostPlaceholder') : protocol === 'nfs' ? 'nas.local' : protocol === 'webdav' ? 'https://dav.example.com' : 'http://minio.local:9000'" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
             </label>
             <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-              {{ t('admin.networkShares.username') }}
-              <input v-model="username" type="text" maxlength="255" autocomplete="off" autocapitalize="none" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
-              <span>{{ t('admin.networkShares.usernameHint') }}</span>
+              {{ protocol === 'nfs' ? t('admin.networkShares.nfsExport') : protocol === 'webdav' ? t('admin.networkShares.remotePath') : protocol === 's3' ? t('admin.networkShares.bucketPath') : t('admin.networkShares.share') }}
+              <input v-model="shareName" type="text" maxlength="255" required autocapitalize="none" :placeholder="protocol === 'nfs' ? '/exports/media' : protocol === 'webdav' ? '/remote.php/dav/files/user' : protocol === 's3' ? 'movies/library' : t('admin.networkShares.sharePlaceholder')" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
             </label>
-            <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-              {{ t('admin.networkShares.password') }}
-              <input v-model="password" type="password" maxlength="512" autocomplete="new-password" :placeholder="share?.hasPassword ? t('admin.networkShares.passwordKeep') : ''" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+            <label v-if="protocol !== 'nfs'" class="flex flex-col gap-1 text-xs text-flixer-muted">
+              {{ protocol === 's3' ? t('admin.networkShares.accessKey') : t('admin.networkShares.username') }}
+              <input v-model="username" type="text" maxlength="255" autocomplete="off" autocapitalize="none" :required="protocol === 's3'" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+              <span v-if="protocol === 'smb'">{{ t('admin.networkShares.usernameHint') }}</span>
             </label>
-            <label class="flex flex-col gap-1 text-xs text-flixer-muted">
+            <label v-if="protocol !== 'nfs'" class="flex flex-col gap-1 text-xs text-flixer-muted">
+              {{ protocol === 's3' ? t('admin.networkShares.secretKey') : t('admin.networkShares.password') }}
+              <input v-model="password" type="password" maxlength="512" autocomplete="new-password" :required="protocol === 's3' && (!share || share.protocol !== 's3' || !share.hasPassword)" :placeholder="share?.hasPassword && share.protocol === protocol ? t('admin.networkShares.passwordKeep') : ''" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+            </label>
+            <label v-if="protocol === 'smb'" class="flex flex-col gap-1 text-xs text-flixer-muted">
               {{ t('admin.networkShares.domain') }}
               <input v-model="domain" type="text" maxlength="64" autocomplete="off" autocapitalize="none" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
             </label>
+            <label v-if="protocol === 's3'" class="flex flex-col gap-1 text-xs text-flixer-muted">
+              {{ t('admin.networkShares.region') }}
+              <input v-model="region" type="text" maxlength="64" autocapitalize="none" placeholder="us-east-1" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+            </label>
           </div>
-          <label class="flex flex-col gap-1 text-xs text-flixer-muted">
+          <label v-if="protocol === 'smb'" class="flex flex-col gap-1 text-xs text-flixer-muted">
             <span class="flex items-center gap-2 text-sm text-flixer-text"><input v-model="readOnly" type="checkbox" /> {{ t('admin.networkShares.readOnly') }}</span>
             <span>{{ t('admin.networkShares.readOnlyHint') }}</span>
           </label>
+          <p v-else class="text-xs text-flixer-muted">{{ t('admin.networkShares.remoteReadOnly') }}</p>
           <p v-if="formError" role="alert" class="text-sm text-red-300">{{ formError }}</p>
         </div>
         <div class="flixer-modal-actions flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

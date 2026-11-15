@@ -170,10 +170,11 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
-    const [error] = await catchError(updateMediaItem(current.id, changes))
+    const [error, updated] = await catchError(updateMediaItem(current.id, changes))
     if (error) {
       saveError.value = describeRequestError(error, t('admin.media.saveError'))
     } else {
+      if (updated.nfoWriteFailed) notify.error(t('admin.media.nfoWriteFailed'))
       if (changes.providerIds) {
         const [refreshError, refresh] = await catchError(refreshMediaItem(current.id, true))
         if (refreshError) {

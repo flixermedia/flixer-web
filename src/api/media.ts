@@ -2,11 +2,24 @@
 import { api, apiRequest } from "./client";
 import { resolveServerResourceUrl } from "../platform/serverConnection";
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from "flixer-api-client";
-import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
-export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, NetworkShare, NetworkShareInput, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
+import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
+export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
+
+export type NetworkShareProtocol = "smb" | "nfs" | "webdav" | "s3";
+export type NetworkShare = Omit<ApiNetworkShare, "protocol" | "region"> & { protocol: NetworkShareProtocol; region?: string | null };
+export type NetworkShareInput = Omit<ApiNetworkShareInput, "protocol" | "region"> & { protocol?: NetworkShareProtocol; region?: string | null };
 /** A card as returned for the current viewer; `locked` is set for restricted titles when the server shows them locked. */
 export type HomeCard = ApiHomeCard & { locked?: boolean; lockReason?: "rating" | "unrated" | "tags" };
-export type SearchFilters = ApiSearchFilters & { includeChildren?: boolean };
+export interface ExtendedMediaFilters {
+	cast?: string;
+	studio?: string;
+	runtimeFrom?: number;
+	runtimeTo?: number;
+	hdr?: string;
+	resolution?: number;
+	audioLanguage?: string;
+}
+export type SearchFilters = ApiSearchFilters & ExtendedMediaFilters & { includeChildren?: boolean };
 
 export type HomeRecommendations = FlixerApiRouteData<"get", "/recommendations/home">;
 export type HomeRecommendation = HomeRecommendations["items"][number];
@@ -24,8 +37,12 @@ export const MEDIA_IMAGE_TYPES = ["poster", "backdrop", "logo", "banner", "thumb
 
 export type MediaItemCategory = "movies" | "tvShows" | "music";
 
-export async function listMediaItems(query: Omit<MediaItemQuery, "type"> & { type?: MediaItemType | MediaItemCategory }): Promise<MediaItemPage & { categoryCounts: Record<MediaItemCategory, number> }> {
-	const response = await api.get<MediaItemPage & { categoryCounts: Record<MediaItemCategory, number> }>("/admin/media/items", { params: query });
+export type MediaMatchConfidence = "unknown" | "high" | "medium" | "low" | "unidentified";
+export type AdminMediaItemSummary = MediaItemSummary & { matchConfidence?: MediaMatchConfidence; matchEvidence?: string };
+export type AdminMediaItemPage = Omit<MediaItemPage, "items"> & { items: AdminMediaItemSummary[]; categoryCounts: Record<MediaItemCategory, number> };
+
+export async function listMediaItems(query: Omit<MediaItemQuery, "type"> & { type?: MediaItemType | MediaItemCategory; review?: boolean }): Promise<AdminMediaItemPage> {
+	const response = await api.get<AdminMediaItemPage>("/admin/media/items", { params: query });
 	return response.data;
 }
 
@@ -46,8 +63,8 @@ export async function getMediaMatchConflicts(id: string): Promise<MediaMatchConf
 	return response.data.items;
 }
 
-export async function updateMediaItem(id: string, changes: MediaItemChanges): Promise<MediaItemDetail> {
-	const response = await api.patch<MediaItemDetail>(`/admin/media/items/${encodeURIComponent(id)}`, changes);
+export async function updateMediaItem(id: string, changes: MediaItemChanges): Promise<MediaItemDetail & { nfoWriteFailed?: boolean }> {
+	const response = await api.patch<MediaItemDetail & { nfoWriteFailed?: boolean }>(`/admin/media/items/${encodeURIComponent(id)}`, changes);
 	return response.data;
 }
 
@@ -169,8 +186,8 @@ export async function getSearchGenres(): Promise<string[]> {
 	return response.data;
 }
 
-export async function browseMedia(kind: BrowseKind, sort: BrowseSort, offset: number, signal?: AbortSignal): Promise<FlixerApiRouteData<"get", "/media/browse/{param}">> {
-	const params: FlixerApiRouteQuery<"get", "/media/browse/{param}"> = { sort, offset, limit: 48 };
+export async function browseMedia(kind: BrowseKind, sort: BrowseSort, offset: number, signal?: AbortSignal, filters: SearchFilters = {}): Promise<FlixerApiRouteData<"get", "/media/browse/{param}">> {
+	const params: FlixerApiRouteQuery<"get", "/media/browse/{param}"> & SearchFilters = { sort, offset, limit: 48, ...filters };
 	const response = await api.get<FlixerApiRouteData<"get", "/media/browse/{param}">>(`/media/browse/${kind}`, { params, signal });
 	return response.data;
 }
