@@ -4,13 +4,17 @@ import MediaCard from '../components/home/MediaCard.vue'
 import MediaRow from '../components/home/MediaRow.vue'
 import HomeSkeleton from '../components/home/HomeSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
+import UserMediaListModal from '../components/home/UserMediaListModal.vue'
+import { openModal } from '@kolirt/vue-modal'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAccess } from '../composables/useAccess'
 import { useI18n } from 'vue-i18n'
-import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation } from '../api'
+import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, setItemWatched, type HomeContent, type HomeMusicRecommendation, type HomeRecommendation, type SocialItem } from '../api'
 import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { catchError } from '../utils/catchError'
+import { getDismissedRecommendations, getWatchLater, setRecommendationFeedback, setWatchLater } from '../api/userMedia'
+import { useVideoQueue } from '../composables/useVideoQueue'
 
 const { t } = useI18n()
 const mobileTabs = computed(getMobileTabs)
@@ -23,10 +27,15 @@ const musicRecommendationsLoading = ref(false)
 const recommendationsUnavailable = ref(false)
 const isLoading = ref(true)
 const loadFailed = ref(false)
+const watchLater = ref<SocialItem[]>([])
+const watchLaterLoading = ref(true)
+const watchLaterFailed = ref(false)
+const videoQueue = useVideoQueue()
+const hasDismissedRecommendations = ref(false)
 
 const isEmpty = computed(() => {
   const home = content.value
-  return !!home && !recommendationsLoading.value && !musicRecommendationsLoading.value && home.libraries.length === 0 && home.featured.length === 0 && home.continueWatching.length === 0 && home.recentMovies.length === 0 && home.recentShows.length === 0 && home.recentAlbums.length === 0 && recommendations.value.length === 0 && musicRecommendations.value.length === 0
+  return !!home && !recommendationsLoading.value && !musicRecommendationsLoading.value && home.libraries.length === 0 && home.featured.length === 0 && home.continueWatching.length === 0 && home.recentMovies.length === 0 && home.recentShows.length === 0 && home.recentAlbums.length === 0 && recommendations.value.length === 0 && musicRecommendations.value.length === 0 && watchLater.value.length === 0 && videoQueue.items.value.length === 0 && !hasDismissedRecommendations.value
 })
 
 // Libraries open the section that matches their content type.
@@ -50,6 +59,49 @@ async function markWatched(id: string) {
   home.featured = home.featured.filter((entry) => entry.id !== id)
   recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
   musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+}
+
+async function dismissRecommendation(id: string) {
+  const [error] = await catchError(setRecommendationFeedback(id, 'dismiss'))
+  if (error) { notify.error(t('userMedia.error')); return }
+  hasDismissedRecommendations.value = true
+  recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
+  musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+}
+
+async function reviewRecommendations() {
+  await openModal<void>(UserMediaListModal, { props: { kind: 'dismissed' } }).catch(() => undefined)
+  const [error, items] = await catchError(getDismissedRecommendations())
+  if (!error) hasDismissedRecommendations.value = items.length > 0
+  void loadRecommendations()
+  void loadMusicRecommendations()
+}
+
+function reviewQueue() {
+  void openModal<void>(UserMediaListModal, { props: { kind: 'queue' } }).catch(() => undefined)
+}
+
+async function removeWatchLater(id: string) {
+  const [error] = await catchError(setWatchLater(id, false))
+  if (error) { notify.error(t('userMedia.error')); return }
+  watchLater.value = watchLater.value.filter((entry) => entry.id !== id)
+}
+
+async function loadWatchLater() {
+  watchLaterLoading.value = true
+  watchLaterFailed.value = false
+  try {
+    watchLater.value = await getWatchLater()
+  } catch {
+    watchLaterFailed.value = true
+  } finally {
+    watchLaterLoading.value = false
+  }
+}
+
+async function removeQueued(id: string) {
+  const [error] = await catchError(videoQueue.remove(id))
+  if (error) notify.error(t('userMedia.error'))
 }
 
 let recommendationsAbort: AbortController | undefined
@@ -116,6 +168,9 @@ const pausedUntil = computed(() => (access.value?.schedule.nextAllowedAt ? new D
 onMounted(() => {
   void loadAccess()
   void load()
+  void loadWatchLater()
+  void getDismissedRecommendations().then((items) => { hasDismissedRecommendations.value = items.length > 0 }).catch(() => undefined)
+  void videoQueue.load().catch(() => undefined)
 })
 </script>
 
@@ -144,7 +199,7 @@ onMounted(() => {
         <p class="mt-2 max-w-xl text-sm text-flixer-muted">{{ t('home.emptyBody') }}</p>
       </div>
 
-      <TransitionGroup v-else-if="content" tag="div" name="home-row" class="relative flex flex-col gap-8 pt-2">
+      <TransitionGroup v-if="!isLoading && !loadFailed && content" tag="div" name="home-row" class="relative flex flex-col gap-8 pt-2">
         <MediaRow key="libraries" v-if="content.libraries.length > 0" :title="t('home.myMedia')">
           <MediaCard v-for="library in content.libraries" :key="library.id" variant="library" :title="library.name"
             :to="libraryRoute(library.type)" :item-id="library.cover?.itemId" :image-index="library.cover?.index"
@@ -156,11 +211,21 @@ onMounted(() => {
             :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt"
             :progress="entry.progress" markable @watched="markWatched(entry.id)" />
         </MediaRow>
+        <MediaRow key="watch-later" v-if="watchLater.length > 0 || watchLaterFailed" :title="t('userMedia.watchLater')">
+          <li v-if="watchLaterLoading" class="py-3 text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</li>
+          <li v-else-if="watchLaterFailed" class="flex items-center gap-3 py-3 text-sm text-red-400" role="alert">{{ t('userMedia.error') }}<button type="button" class="rounded bg-white/10 px-3 py-1 text-flixer-text hover:bg-white/20" @click="loadWatchLater">{{ t('home.retry') }}</button></li>
+          <MediaCard v-for="item in watchLater" :key="item.id" :title="item.title" :subtitle="item.subtitle ?? undefined" :item-id="item.imageItemId" :image-index="item.imageIndex" :version="item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: item.id } }" dismissible :dismiss-label="t('userMedia.remove')" @dismiss="removeWatchLater(item.id)" />
+        </MediaRow>
+        <MediaRow key="up-next" v-if="videoQueue.items.value.length > 0" :title="t('userMedia.queue')">
+          <template #actions><button type="button" class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :title="t('userMedia.queue')" :aria-label="t('userMedia.queue')" @click="reviewQueue"><Icon icon="lucide:list-video" class="size-4" aria-hidden="true" /></button></template>
+          <MediaCard v-for="item in videoQueue.items.value" :key="item.id" :title="item.title" :subtitle="item.subtitle ?? undefined" :item-id="item.imageItemId" :image-index="item.imageIndex" :version="item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: item.id } }" dismissible :dismiss-label="t('userMedia.remove')" @dismiss="removeQueued(item.id)" />
+        </MediaRow>
         <MediaRow key="recommendations" v-if="recommendations.length > 0"
           :title="t('home.recommendedForYou')">
+          <template #actions><button v-if="hasDismissedRecommendations" type="button" class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')" @click="reviewRecommendations"><Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" /></button></template>
           <MediaCard v-for="item in recommendations" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" />
+            :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
         </MediaRow>
         <MediaRow key="movies" v-if="content.recentMovies.length > 0" :title="t('home.recentMovies')">
           <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title"
@@ -174,10 +239,12 @@ onMounted(() => {
         </MediaRow>
         <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0"
           :title="t('home.musicRecommendations')">
+          <template #actions><button v-if="hasDismissedRecommendations && !recommendations.length" type="button" class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')" @click="reviewRecommendations"><Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" /></button></template>
           <MediaCard v-for="item in musicRecommendations" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" />
+            :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
         </MediaRow>
+        <section v-if="hasDismissedRecommendations && !recommendations.length && !musicRecommendations.length" key="recommendation-review" class="page-gutter flex items-center gap-3"><h2 class="text-xl font-semibold text-white">{{ t('home.recommendedForYou') }}</h2><button type="button" class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')" @click="reviewRecommendations"><Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" /></button></section>
         <MediaRow key="music" v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
           <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
