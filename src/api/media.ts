@@ -1,6 +1,7 @@
 /** Media-library browsing, item metadata, artwork, and network-share operations. */
 import { api, apiRequest } from "./client";
-import { resolveServerResourceUrl } from "../platform/serverConnection";
+import { isNativeApp, resolveServerResourceUrl } from "../platform/serverConnection";
+import { fetchNativeImage } from "../composables/nativeImageCache";
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from "flixer-api-client";
 import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
 export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerProviderSetting, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
@@ -84,7 +85,9 @@ export async function fetchMediaImage(id: string, index: number, width?: number,
 		...(width ? { w: width } : {}),
 		...(version ? { v: version } : {}),
 	};
-	const response = await api.get<Blob>(`/admin/media/items/${encodeURIComponent(id)}/images/${index}`, { params, responseType: "blob" });
+	const url = `/admin/media/items/${encodeURIComponent(id)}/images/${index}`;
+	if (isNativeApp()) return fetchNativeImage(url, { params });
+	const response = await api.get<Blob>(url, { params, responseType: "blob" });
 	return response.data;
 }
 
@@ -206,7 +209,9 @@ export async function browseArtists(sort: BrowseSort, offset: number, signal?: A
 
 export async function fetchPersonImage(id: string, width?: number): Promise<Blob> {
 	const params: FlixerApiRouteQuery<"get", "/media/people/{param}/image"> = width ? { w: width } : {};
-	const response = await api.get<Blob>(`/media/people/${encodeURIComponent(id)}/image`, { params, responseType: "blob" });
+	const url = `/media/people/${encodeURIComponent(id)}/image`;
+	if (isNativeApp()) return fetchNativeImage(url, { params });
+	const response = await api.get<Blob>(url, { params, responseType: "blob" });
 	return response.data;
 }
 
@@ -227,7 +232,9 @@ export async function fetchHomeImage(id: string, index: number, width?: number, 
 		...(width ? { w: width } : {}),
 		...(version ? { v: version } : {}),
 	};
-	const response = await api.get<Blob>(`/media/items/${encodeURIComponent(id)}/images/${index}`, { params, responseType: "blob" });
+	const url = `/media/items/${encodeURIComponent(id)}/images/${index}`;
+	if (isNativeApp()) return fetchNativeImage(url, { params });
+	const response = await api.get<Blob>(url, { params, responseType: "blob" });
 	return response.data;
 }
 

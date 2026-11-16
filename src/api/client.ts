@@ -122,14 +122,14 @@ export const api = new Proxy(apiTransport, {
 export function configureNativeServer(serverUrl: string): boolean {
 	const changed = saveNativeServerUrl(serverUrl);
 	api.defaults.baseURL = getApiBaseUrl();
-	if (changed) clearAccessToken();
+	if (changed) clearAccessToken(true);
 	return changed;
 }
 
 export function disconnectNativeServer(): void {
 	forgetNativeServerUrl();
 	api.defaults.baseURL = getApiBaseUrl();
-	clearAccessToken();
+	clearAccessToken(true);
 }
 
 export function getAccessToken(): string | null {
@@ -150,11 +150,11 @@ export function saveAccessToken(accessToken: string): void {
 	if (previous !== accessToken) window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
 }
 
-export function clearAccessToken(): void {
+export function clearAccessToken(forceInvalidate = false): void {
 	const hadToken = localStorage.getItem(ACCESS_TOKEN_KEY) !== null || sessionStorage.getItem(ACCESS_TOKEN_KEY) !== null;
 	localStorage.removeItem(ACCESS_TOKEN_KEY);
 	sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-	if (hadToken) window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
+	if (hadToken || forceInvalidate) window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
 }
 
 function shouldInvalidateSession(error: AxiosError): boolean {

@@ -1,10 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { clearImageBlobCache, fetchCachedImageBlob } from './imageBlobCache'
 
+const platform = vi.hoisted(() => ({ native: false }))
+vi.mock('../platform/serverConnection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../platform/serverConnection')>(),
+  isNativeApp: () => platform.native,
+}))
+
 describe('image blob cache', () => {
   afterEach(() => {
+    platform.native = false
     clearImageBlobCache()
     vi.useRealTimers()
+  })
+
+  it('does not bypass native authorization checks on later image loads', async () => {
+    platform.native = true
+    const fetcher = vi.fn(async () => new Blob(['poster']))
+    await fetchCachedImageBlob('poster-v1', fetcher, 'v1')
+    await fetchCachedImageBlob('poster-v1', fetcher, 'v1')
+    expect(fetcher).toHaveBeenCalledTimes(2)
   })
 
   it('deduplicates in-flight requests and reuses versioned blobs', async () => {

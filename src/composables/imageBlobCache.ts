@@ -1,4 +1,5 @@
 import { ACCESS_TOKEN_KEY, AUTH_TOKEN_CHANGED_EVENT } from '../api/client'
+import { isNativeApp } from '../platform/serverConnection'
 
 const MAX_CACHE_BYTES = 32 * 1024 * 1024
 const MAX_CACHE_ENTRIES = 256
@@ -39,7 +40,7 @@ export function clearImageBlobCache() {
 
 export function fetchCachedImageBlob(key: string, fetcher: () => Promise<Blob>, version?: string): Promise<Blob> {
   const cached = cache.get(key)
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!isNativeApp() && cached && cached.expiresAt > Date.now()) {
     cache.delete(key)
     cache.set(key, cached)
     return Promise.resolve(cached.blob)
@@ -56,7 +57,7 @@ export function fetchCachedImageBlob(key: string, fetcher: () => Promise<Blob>, 
   const expiresAt = version ? Number.POSITIVE_INFINITY : Date.now() + UNVERSIONED_TTL_MS
   const request = fetcher()
     .then((blob) => {
-      if (cacheGeneration === generation) remember(key, blob, expiresAt)
+      if (!isNativeApp() && cacheGeneration === generation) remember(key, blob, expiresAt)
       return blob
     })
     .finally(() => {

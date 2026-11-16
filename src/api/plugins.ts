@@ -1,5 +1,6 @@
 /** Plugin catalog, installation, settings, and plugin-provided routes. */
 import { api } from "./client";
+import { isNativeApp } from "../platform/serverConnection";
 import type { PluginCatalogEntry as BasePluginCatalogEntry, PluginInstallation, PluginPageEntry, PluginRepository, PluginSettingsView, PluginUpdateHistoryEntry, FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from "flixer-api-client";
 export type { PluginInstallation, PluginPageEntry, PluginRepository, PluginSettingsSchema, PluginSettingsView, PluginUpdateHistoryEntry } from "flixer-api-client";
 export type PluginCatalogEntry = BasePluginCatalogEntry & { icon?: string; banner?: string };
@@ -25,7 +26,10 @@ export async function discoverPlugins(filters: FlixerApiRouteQuery<"get", "/admi
 }
 
 export async function fetchPluginRepositoryImage(repositoryId: string, path: string, signal?: AbortSignal): Promise<Blob> {
-	return (await api.get<Blob>(`/admin/plugins/repositories/${encodeURIComponent(repositoryId)}/image`, { params: { path }, responseType: "blob", signal })).data;
+	return (await api.get<Blob>(`/admin/plugins/repositories/${encodeURIComponent(repositoryId)}/image`, {
+		params: { path }, responseType: "blob", signal,
+		...(isNativeApp() ? { headers: { "Cache-Control": "no-cache, no-store" } } : {}),
+	})).data;
 }
 
 export async function addPluginRepository(name: string, url: string): Promise<PluginRepository> {

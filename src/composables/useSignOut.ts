@@ -10,6 +10,7 @@ import { useProfile } from './useProfile'
 import { useVideoOverlay } from './useVideoOverlay'
 import { catchError } from '../utils/catchError'
 import { oauthInteractionPath } from '../router/oauthSignIn'
+import { waitForNativeImageCacheClear } from './nativeImageCache'
 
 const SIGN_OUT_WAIT_MS = 4000
 
@@ -63,6 +64,9 @@ export function useSignOut() {
         }),
       )
       signOutError ??= cleanupError
+
+      const [artworkCleanupError] = await catchError(waitForNativeImageCacheClear())
+      signOutError ??= artworkCleanupError
 
       if (signOutError) notifySignOutError(signOutError)
       window.location.replace(destination)
