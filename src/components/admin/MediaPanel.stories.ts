@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
+import { expect, mocked, waitFor } from "storybook/test";
 import { deleteMediaItem, getMediaItem, listMediaItems, listMediaLibraries, rebuildMediaSearchIndex, refreshMediaItem } from "../../api";
 import { mediaItemDetail, mediaItemPage, mediaLibraries } from "../../storybook/fixturesMediaAdmin";
+import { isTvMode } from "../../platform/tvMode";
 import MediaPanel from "./MediaPanel.vue";
 
 const meta = {
@@ -24,6 +25,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const TvMediaActions: Story = {
+	beforeEach: () => {
+		isTvMode.value = true;
+		return () => { isTvMode.value = false; };
+	},
+	play: async ({ canvas }) => {
+		await waitFor(() => expect(canvas.getByText("Arrival")).toBeInTheDocument());
+		expect(canvas.queryByRole("button", { name: "Edit" })).toBeNull();
+		expect(canvas.queryByRole("button", { name: "Manage Chapters" })).toBeNull();
+		expect(canvas.getAllByRole("button", { name: "Rescan" }).length).toBeGreaterThan(0);
+	},
+};
+export const WebMediaActions: Story = {
+	play: async ({ canvas }) => {
+		await waitFor(() => expect(canvas.getAllByRole("button", { name: "Edit" }).length).toBeGreaterThan(0));
+		expect(canvas.getAllByRole("button", { name: "Manage Chapters" }).length).toBeGreaterThan(0);
+	},
+};
 export const Empty: Story = {
 	beforeEach: () => {
 		mocked(listMediaItems).mockResolvedValue({ ...mediaItemPage, items: [], total: 0, categoryCounts: { movies: 0, tvShows: 0, music: 0 } });

@@ -7,6 +7,7 @@ import { describeRequestError } from '../composables/useProfile'
 import { catchError } from '../utils/catchError'
 import { useSignOut } from '../composables/useSignOut'
 import AuthBrandPanel from '../components/auth/AuthBrandPanel.vue'
+import { tvNavigationWindow } from '../platform/tvFrame'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -39,7 +40,7 @@ async function decide(action: 'login' | 'approve' | 'deny') {
     busy.value = false
     return
   }
-  window.location.assign(target.href)
+  tvNavigationWindow().location.assign(target.href)
 }
 
 onMounted(async () => {

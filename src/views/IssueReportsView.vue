@@ -9,6 +9,7 @@ import { useIssueReportsConfig } from '../composables/useIssueReportsConfig'
 import { getMobileTabs } from '../composables/homeNav'
 import { describeRequestError } from '../composables/useProfile'
 import { catchError } from '../utils/catchError'
+import { isTvMode } from '../platform/tvMode'
 
 const props = defineProps<{ id?: string }>()
 const { t } = useI18n()
@@ -72,7 +73,7 @@ watch(() => props.id, () => void load())
           <p class="mt-1 text-sm text-flixer-muted">{{ active ? t('issues.ticketNumber', { id: active.id.slice(0, 8) }) : t('issues.pageDescription') }}</p>
         </div>
         <RouterLink v-if="active" :to="{ name: 'issues' }" class="rounded border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">{{ t('issues.backToReports') }}</RouterLink>
-        <button v-else-if="config?.enabled" type="button" class="rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = !createOpen">
+        <button v-else-if="!isTvMode && config?.enabled" type="button" class="rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = !createOpen">
           {{ createOpen ? t('common.cancel') : t('issues.newReport') }}
         </button>
       </header>
@@ -116,7 +117,7 @@ watch(() => props.id, () => void load())
         </section>
       </template>
       <template v-else>
-        <section v-if="createOpen" class="mb-6 rounded border border-flixer-border bg-flixer-surface/70 p-5">
+        <section v-if="!isTvMode && createOpen" class="mb-6 rounded border border-flixer-border bg-flixer-surface/70 p-5">
           <h2 class="mb-4 font-semibold text-white">{{ t('issues.newReport') }}</h2>
           <IssueReportForm @submitted="submitted" />
         </section>
@@ -137,7 +138,7 @@ watch(() => props.id, () => void load())
         </ul>
         <div v-else class="rounded border border-flixer-border bg-flixer-surface/50 p-8 text-center">
           <p class="text-sm text-flixer-muted">{{ t('issues.empty') }}</p>
-          <button v-if="config?.enabled" type="button" class="mt-4 rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = true">{{ t('issues.newReport') }}</button>
+          <button v-if="!isTvMode && config?.enabled" type="button" class="mt-4 rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = true">{{ t('issues.newReport') }}</button>
         </div>
       </template>
     </main>

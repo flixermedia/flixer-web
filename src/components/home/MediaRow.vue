@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { isTvMode } from '../../platform/tvMode'
 
 defineProps<{ title: string }>()
 const { t } = useI18n()
@@ -16,28 +17,38 @@ function scrollBy(direction: -1 | 1) {
 </script>
 
 <template>
-  <section class="group/row" :aria-label="title">
+  <section class="group/row" data-tv-row :aria-label="title">
     <div class="mb-3 flex items-end justify-between page-gutter">
       <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">{{ title }}</h2>
       <div class="flex items-center gap-2">
         <slot name="actions" />
-        <div class="hidden gap-2 opacity-0 transition group-hover/row:opacity-100 group-focus-within/row:opacity-100 md:flex">
-        <button type="button" class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('home.scrollLeft', { title })" @click="scrollBy(-1)">
-          <Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />
-        </button>
-        <button type="button" class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('home.scrollRight', { title })" @click="scrollBy(1)">
-          <Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" />
-        </button>
+        <div
+          class="hidden gap-2 opacity-0 transition group-hover/row:opacity-100 group-focus-within/row:opacity-100 md:flex">
+          <button type="button" :tabindex="isTvMode ? -1 : undefined"
+            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+            :aria-label="t('home.scrollLeft', { title })" @click="scrollBy(-1)">
+            <Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />
+          </button>
+          <button type="button" :tabindex="isTvMode ? -1 : undefined"
+            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+            :aria-label="t('home.scrollRight', { title })" @click="scrollBy(1)">
+            <Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
     </div>
-    <TransitionGroup ref="scroller" tag="ul" name="row-card" class="-mt-5 flex snap-x gap-4 overflow-x-auto scroll-smooth page-gutter pb-5 pt-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <TransitionGroup ref="scroller" tag="ul" name="row-card"
+      class="-mt-5 flex snap-x gap-4 overflow-x-auto scroll-smooth page-gutter pb-5 pt-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <slot />
     </TransitionGroup>
   </section>
 </template>
 
 <style>
+html.flixer-tv [data-tv-row] {
+  scroll-margin-top: 1rem;
+}
+
 /* Unscoped: the transition classes land on the slotted cards. */
 .row-card-move,
 .row-card-leave-active {
@@ -45,14 +56,18 @@ function scrollBy(direction: -1 | 1) {
     transform 0.3s ease,
     opacity 0.25s ease;
 }
+
 .row-card-leave-active {
   position: absolute;
 }
+
 .row-card-leave-to {
   opacity: 0;
   transform: scale(0.9);
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .row-card-move,
   .row-card-leave-active {
     transition: none;

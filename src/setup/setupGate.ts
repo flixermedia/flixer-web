@@ -39,7 +39,7 @@ export function resetSetupGate(): void {
 
 /** Router guard. Setup is only demanded when the server clearly says so; failing to find out is "unavailable", never "setup required". */
 export async function setupGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
-  if (to.name === 'unavailable') return true
+  if (to.name === 'unavailable' || to.name === 'quick-setup') return true
   if (confirmedReady && to.name !== 'setup') return true
 
   // A previously completed install renders straight away; the server is still asked, and a reset server is sent to setup as soon as it answers.

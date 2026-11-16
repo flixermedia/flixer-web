@@ -163,7 +163,7 @@ function renderNativeChrome(): Promise<void> {
 }
 
 export async function initializeNativeNavigation(appRouter: Router): Promise<void> {
-	if (!Capacitor.isNativePlatform()) return;
+	if (!Capacitor.isNativePlatform() || Capacitor.isPluginAvailable("FlixerTv")) return;
 
 	router = appRouter;
 	const audio = useAudioPlayer();
@@ -226,7 +226,7 @@ export async function initializeNativeNavigation(appRouter: Router): Promise<voi
 		if (action === "previous") audio.previous();
 		else if (action === "playPause") audio.toggle();
 		else if (action === "next") audio.next();
-		else if (action === "open") audio.lyricsOpen.value = true;
+		else if (action === "open") void router?.push({ name: "lyrics" });
 	});
 	watch(() => [audio.current.value, audio.isPlaying.value, audio.isLoading.value, audio.nativeNavigationArtworkUri.value, audio.hasNext.value, audio.lyricsOpen.value, nativeMoreMenuOpen.value, nativeMoreMenuNativeActive.value], syncMusicPlayer, { immediate: true });
 	watch(

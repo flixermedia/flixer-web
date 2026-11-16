@@ -20,7 +20,7 @@ echo 'Setting up Mac-side bridge and signing check...'
 ssh "${SSH_OPTS[@]}" "$MAC_HOST" /bin/bash -s -- "$MAC_PROJECT" "$SIGN_IDENTITY" <<'MAC_SETUP'
 set -Eeuo pipefail
 PROJECT="$1"
-SIGN_IDENTITY="$2"
+SIGN_IDENTITY="${2-}"
 BASE="$HOME/.local/share/flixer-mobilebuild"
 SOCKET="$BASE/mobilebuild.sock"
 LABEL="org.flixer.mobilebuild.bridge"

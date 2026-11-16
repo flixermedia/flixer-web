@@ -11,8 +11,13 @@ withDefaults(defineProps<{ rows?: number }>(), { rows: 3 })
   <div class="space-y-8 pt-2" role="status" :aria-label="t('common.loading')" aria-busy="true">
     <section v-for="row in rows" :key="row" class="page-gutter">
       <Skeleton class="mb-3 h-5 w-40" />
-      <div class="flex gap-3 overflow-hidden">
-        <Skeleton v-for="n in 8" :key="n" class="aspect-[2/3] w-36 shrink-0 rounded sm:w-44" />
+      <div class="flex gap-4 overflow-hidden">
+        <template v-if="row === 1">
+          <Skeleton v-for="n in 8" :key="n" class="aspect-video w-56 shrink-0 rounded sm:w-64" />
+        </template>
+        <template v-else>
+          <Skeleton v-for="n in 8" :key="n" class="aspect-[2/3] w-36 shrink-0 rounded sm:w-44" />
+        </template>
       </div>
     </section>
   </div>

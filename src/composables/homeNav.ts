@@ -10,7 +10,7 @@ export function getNavLinks(): NavLink[] {
 	void load();
 	const plugins = usePluginPages();
 	void plugins.load();
-	return [{ label: i18n.global.t("home.nav.home"), to: "/" }, { label: i18n.global.t("home.nav.movies"), to: "/movies" }, { label: i18n.global.t("home.nav.tvShows"), to: "/tv" }, { label: i18n.global.t("home.nav.music"), to: "/music" }, { label: i18n.global.t("collectionsPage.title"), to: "/collections" }, { label: i18n.global.t("home.nav.guide"), to: "/guide" }, ...(enabled.value ? [{ label: i18n.global.t("requests.nav.discover"), to: "/discover" }] : []), ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page) }))];
+	return [{ label: i18n.global.t("home.nav.home"), to: "/" }, { label: i18n.global.t("home.nav.movies"), to: "/movies" }, { label: i18n.global.t("home.nav.tvShows"), to: "/shows" }, { label: i18n.global.t("home.nav.music"), to: "/music" }, { label: i18n.global.t("collectionsPage.title"), to: "/collections" }, { label: i18n.global.t("home.nav.guide"), to: "/guide" }, ...(enabled.value ? [{ label: i18n.global.t("requests.nav.discover"), to: "/discover" }] : []), ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page) }))];
 }
 
 export function getMobileTabs(): NavTab[] {
@@ -21,7 +21,7 @@ export function getMobileTabs(): NavTab[] {
 	return [
 		{ label: i18n.global.t("home.nav.home"), to: "/", icon: "lucide:house" },
 		{ label: i18n.global.t("home.nav.movies"), to: "/movies", icon: "lucide:film" },
-		{ label: i18n.global.t("home.nav.tv"), to: "/tv", icon: "lucide:tv" },
+		{ label: i18n.global.t("home.nav.tv"), to: "/shows", icon: "lucide:tv" },
 		{ label: i18n.global.t("home.nav.music"), to: "/music", icon: "lucide:music-2" },
 		{ label: i18n.global.t("collectionsPage.title"), to: "/collections", icon: "lucide:library" },
 		{ label: i18n.global.t("chat.title"), to: "/chat", icon: "lucide:messages-square" },

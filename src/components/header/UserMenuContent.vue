@@ -11,6 +11,7 @@ import LanguageModal from "../ui/LanguageModal.vue";
 import ThemeModal from "../ui/ThemeModal.vue";
 import UserAvatar from "../ui/UserAvatar.vue";
 import RemotePlaybackModal from "../player/RemotePlaybackModal.vue";
+import { isTvMode } from "../../platform/tvMode";
 
 defineProps<{ isSigningOut: boolean }>();
 const emit = defineEmits<{ close: []; logout: [] }>();
@@ -102,7 +103,7 @@ function openRemotePlayback() {
 	<div v-if="profile" class="my-1.5 h-px bg-white/10"></div>
 
 	<RouterLink v-if="profile" :to="{ name: 'profile', params: { username: profile.username } }" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:user-round" :class="iconClass" aria-hidden="true" />{{ t("header.profile") }}</RouterLink>
-	<button type="button" :class="row" role="menuitem" aria-haspopup="dialog" @click="openRemotePlayback"><Icon icon="lucide:monitor-play" :class="iconClass" aria-hidden="true" />{{ t("remotePlayback.menu") }}</button>
+	<button v-if="!isTvMode" type="button" :class="row" role="menuitem" aria-haspopup="dialog" @click="openRemotePlayback"><Icon icon="lucide:monitor-play" :class="iconClass" aria-hidden="true" />{{ t("remotePlayback.menu") }}</button>
 
 	<RouterLink to="/people" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:users" :class="iconClass" aria-hidden="true" />{{ t("header.people") }}</RouterLink>
 	<RouterLink to="/issues" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:flag" :class="iconClass" aria-hidden="true" />{{ t("issues.myReports") }}</RouterLink>

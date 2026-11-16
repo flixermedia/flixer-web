@@ -419,7 +419,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen overflow-x-clip bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
+  <div class="epg-view min-h-screen overflow-x-clip bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
 
     <main class="page-gutter pt-20 sm:pt-24">
       <p class="sr-only" role="status" aria-live="polite">{{ actionMessage }}</p>
@@ -720,6 +720,15 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+:global(html.capacitor.flixer-tv .epg-view),
+:global(html.capacitor.flixer-tv .epg-view *),
+:global(html.capacitor.flixer-tv .epg-view *::before),
+:global(html.capacitor.flixer-tv .epg-view *::after) {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 .guide-frame {
   overflow: clip;
 }

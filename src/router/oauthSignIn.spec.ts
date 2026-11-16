@@ -15,4 +15,12 @@ describe('OAuth sign-in routing', () => {
       expect(oauthInteractionPath(value)).toBeUndefined()
     }
   })
+
+  it('opens registration for a TV registration link while preserving the approval destination', () => {
+    const path = '/quick-connect?code=2ABC2345&register=1'
+    expect(signInForRoute('quick-connect', path)).toEqual({ name: 'register', query: { redirect: path } })
+    expect(signInForRoute('quick-connect', '/quick-connect?code=2ABC2345')).toEqual({
+      name: 'login', query: { redirect: '/quick-connect?code=2ABC2345' },
+    })
+  })
 })

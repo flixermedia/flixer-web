@@ -62,6 +62,22 @@ npm run cap:ios
 
 Android requires Android Studio/SDK; iOS requires macOS/Xcode. Native app setup asks users for an HTTPS Flixer server address. See the existing Capacitor configuration for platform-specific requirements.
 
+Native builds use the packaged web interface by default. For development live reload, set `CAPACITOR_LIVE_URL` before syncing the native project.
+
+On Capacitor, Flixer-served library and person artwork is kept in a bounded private cache across app restarts. The server verifies access and freshness before cached artwork is used; offline or denied checks cannot use the cached image. The cache is cleared on sign-out, account or server changes. Images larger than 1 MiB are not persisted. External images follow their providers' caching policies; authenticated plugin-catalog images are requested without native caching so access is checked again. Persistent artwork caching requires a Flixer server that supports revalidation.
+
+For Android TV, run `npm run cap:android:tv` to build the separate debug APK at `android/tv/build/outputs/apk/debug/tv-debug.apk`. Install it on an authorized TV device with `adb install -r android/tv/build/outputs/apk/debug/tv-debug.apk`. The TV application ID is `com.flixermedia.flixer.tv`; the mobile Android app is unchanged. The build uses the server URL configured in `capacitor.config.ts`.
+
+In TV mode, video playback opens on a dedicated player page using Flixer's custom controls for movies, episodes, streamed trailers and live TV. Back returns to the previous page; the mini-player remains available only outside TV mode. On mobile, ad-free on-demand video continues to use the native player.
+
+TV mode offers username and password sign-in, or a QR code for signing in or registering on a phone. Phone sign-in supports the phone's passkeys and external providers; the signed-in user must approve the matching Quick Connect code before the TV signs in. If a password requires a passkey, sign in fully on the phone and approve the TV instead. Quick Connect must be enabled by the server administrator for phone sign-in. The server must provide its public application URL (`APP_URL`, or `FLIXER_PUBLIC_URL`) for native TV QR codes, and the phone must be able to reach it. Codes expire after five minutes; if verification or payment takes longer, request a new code and scan it again.
+
+On the TV server-connection screen, phone setup is available as a local alternative to entering the address with the remote. Open this Flixer server's `/quick-setup` route on the phone, scan the TV code, and confirm the server address. The phone and TV must be on the same local network; the pairing listener uses a one-time code and expires after five minutes. After setup, the phone opens `/quick-connect`, where a signed-in user can scan the TV's sign-in QR code or enter its code manually, then approve the request. This flow does not use a cloud relay.
+
+TV mode hides casting, Up Next management, adding to collections, issue reporting, watch-party joining, manual watched status and media editing, including subtitle and chapter management. Subtitle selection remains available in the player.
+
+TV mode fits a fixed 1280×720 layout to the available viewport, with black bars when needed. It blocks browser zoom shortcuts and zoom gestures when the browser allows it; browser menus, extensions and settings may still change zoom.
+
 ## ⚙️ Configuration
 
 | Setting | Role |

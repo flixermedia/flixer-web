@@ -1,12 +1,13 @@
 import { computed, ref } from "vue";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
-import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getItemPlaybackInfo, getStreamInfo, getTrackLyrics, reportListening } from "../api";
+import { buildAudioBitrateUrl, buildHlsUrl, fetchHomeImage, getAccessToken, getItemPlaybackInfo, getStreamInfo, getTrackLyrics, reportListening } from "../api";
 import { parseLrc, type ParsedLyrics } from "./lrc";
 import { catchError } from "../utils/catchError";
 import { handlePaymentRequired } from "./usePayments";
 import { WebhookPlaybackTracker } from "../components/player/webhookPlaybackTracker";
 import { configureWidevinePlayer, createShakaPlayer, destroyShakaPlayer, isCriticalShakaError, isShakaSupported } from "../components/player/adaptivePlayback";
+import { trackNativeArtworkWrite } from "./nativeImageCache";
 
 export interface QueueTrack {
 	id: string;
@@ -95,6 +96,7 @@ function requestPartyControl(command: PartyAudioCommand): boolean {
 
 async function cacheNativeNavigationArtwork(track: QueueTrack): Promise<string | undefined> {
 	if (!track.art) return undefined;
+	const token = getAccessToken();
 	const { itemId, index, version } = track.art;
 	const path = `flixer-art-${encodeURIComponent(itemId)}-${index}-${encodeURIComponent(version ?? "current")}.jpg`;
 	const blob = await fetchHomeImage(itemId, index, 512, version);
@@ -111,6 +113,10 @@ async function cacheNativeNavigationArtwork(track: QueueTrack): Promise<string |
 		reader.readAsDataURL(blob);
 	});
 	await Filesystem.writeFile({ path, data: base64, directory: Directory.Cache });
+	if (getAccessToken() !== token) {
+		await Filesystem.deleteFile({ path, directory: Directory.Cache });
+		throw new DOMException("Artwork session changed", "AbortError");
+	}
 	const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
 	return uri;
 }
@@ -370,7 +376,7 @@ async function loadCurrent(autoplay = true, startAt = 0): Promise<void> {
 	streamBase = "";
 	nativeNavigationArtworkUri.value = null;
 	if (Capacitor.isNativePlatform()) {
-		void cacheNativeNavigationArtwork(track)
+		void trackNativeArtworkWrite(cacheNativeNavigationArtwork(track))
 			.then((artworkUrl) => {
 				if (token === loadToken) nativeNavigationArtworkUri.value = artworkUrl ?? null;
 			})

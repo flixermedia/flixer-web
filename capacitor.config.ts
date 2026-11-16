@@ -2,6 +2,8 @@
 
 import type { CapacitorConfig } from '@capacitor/cli'
 
+const liveUrl = process.env.CAPACITOR_LIVE_URL?.trim()
+
 const config: CapacitorConfig = {
   appId: 'com.flixermedia.flixer',
   appName: 'Flixer',
@@ -26,7 +28,7 @@ const config: CapacitorConfig = {
     },
   },
   server: {
-    url: 'https://web--my-flixer--realashleybailey-coder.gitcloud.org',
+    ...(liveUrl ? { url: liveUrl } : {}),
     allowNavigation: ['*.gitcloud.org', '*.stripe.com', '*.stripe.network', '*.squarecdn.com', '*.squareup.com', '*.squareupsandbox.com'],
     iosScheme: 'https',
     androidScheme: 'https',

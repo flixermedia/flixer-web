@@ -7,6 +7,7 @@ import PlayerSkeleton from '../components/player/PlayerSkeleton.vue'
 import { takePendingLivePlayback } from '../composables/livePlayback'
 import { useVideoOverlay } from '../composables/useVideoOverlay'
 import { catchError } from '../utils/catchError'
+import { isTvMode } from '../platform/tvMode'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +23,9 @@ const channelId = computed(() => String(route.params.channelId ?? ''))
 async function openPlayer(next: GuidePlaybackInfo, id: string) {
   playback.value = next
   videoOverlay.play({ id, title: next.mediaSource.title, livePlayback: next })
-  const [navigationError] = await catchError(router.replace({ name: 'guide' }))
+  const [navigationError] = await catchError(router.replace(isTvMode.value
+    ? { name: 'tv-player', query: { returnTo: '/guide' } }
+    : { name: 'guide' }))
   if (navigationError) console.error('[live-player] failed to return to the guide', navigationError)
 }
 

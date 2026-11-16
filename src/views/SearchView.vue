@@ -103,21 +103,21 @@ async function run(term: string) {
   const secondary = Promise.all([
     externalAllowed && term.length >= MIN_LENGTH
       ? searchRequests(term, externalType, signal).then(
-          (external) => {
-            if (signal.aborted) return
-            externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
-          },
-          () => undefined,
-        )
+        (external) => {
+          if (signal.aborted) return
+          externalResults.value = external.filter((item) => (item.type === 'movie' ? enabledTypes?.movies : item.type === 'tv' ? enabledTypes?.tv : enabledTypes?.music))
+        },
+        () => undefined,
+      )
       : undefined,
     pluginType === null || term.length < MIN_LENGTH
       ? undefined
       : searchPluginSections(term, pluginType, signal).then(
-          (sections) => {
-            if (!signal.aborted) pluginSections.value = sanitizeSearchSections(sections)
-          },
-          () => undefined,
-        ),
+        (sections) => {
+          if (!signal.aborted) pluginSections.value = sanitizeSearchSections(sections)
+        },
+        () => undefined,
+      ),
   ])
   const [error, local] = await catchError(searchMedia(term, filters.value, signal))
   if (error) {
@@ -202,67 +202,104 @@ function subtitleOf(item: SearchCard) {
   <div class="min-h-screen overflow-x-hidden bg-flixer-background pb-24 font-sans text-flixer-text md:pb-12">
 
     <main class="page-gutter relative pt-28 sm:pt-32">
-      <div class="pointer-events-none absolute inset-x-0 top-0 -z-0 h-80 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),transparent_70%)]" aria-hidden="true"></div>
+      <div
+        class="pointer-events-none absolute inset-x-0 top-0 -z-0 h-80 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),transparent_70%)]"
+        aria-hidden="true"></div>
 
-      <div class="search-enter relative mx-auto flex max-w-3xl flex-col items-center text-center" :class="hasActivity ? 'pt-0' : 'pt-6 sm:pt-12'" style="transition: padding 0.4s ease">
-        <h1 class="text-3xl font-bold tracking-tight text-white transition-all duration-500 sm:text-5xl" :class="hasActivity ? 'mb-4 !text-2xl sm:!text-3xl' : 'mb-6'">{{ t('search.label') }}</h1>
+      <div class="search-enter relative mx-auto flex max-w-3xl flex-col items-center text-center"
+        :class="hasActivity ? 'pt-0' : 'pt-6 sm:pt-12'" style="transition: padding 0.4s ease">
+        <h1 class="text-3xl font-bold tracking-tight text-white transition-all duration-500 sm:text-5xl"
+          :class="hasActivity ? 'mb-4 !text-2xl sm:!text-3xl' : 'mb-6'">{{ t('search.label') }}</h1>
 
         <div ref="searchBarRoot" class="relative w-full">
           <form role="search" class="group relative w-full" @submit.prevent="run(trimmed)">
-            <Icon icon="lucide:search" class="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-flixer-muted transition-colors group-focus-within:text-white" aria-hidden="true" />
-            <input ref="input" v-model="query" type="search" maxlength="100" autocomplete="off" :placeholder="t('search.placeholder')" :aria-label="t('search.label')" class="w-full rounded border border-white/10 bg-white/[0.06] py-4 pl-14 pr-24 text-lg text-white shadow-lg shadow-black/30 backdrop-blur transition duration-300 placeholder:text-flixer-muted focus:border-white/40 focus:bg-white/10 focus:shadow-2xl focus:shadow-black/50 focus:outline-none sm:pr-14" />
-            <span v-if="isLoading" class="absolute right-16 top-1/2 size-5 -translate-y-1/2 animate-spin rounded-full border-2 border-white/20 border-t-white sm:right-5" role="status" :aria-label="t('search.searching')"></span>
-            <button type="button" class="absolute right-2 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:hidden" :aria-label="t('search.filters')" :aria-expanded="mobileFiltersOpen" aria-controls="mobile-search-filters" @click="mobileFiltersOpen = !mobileFiltersOpen">
+            <Icon icon="lucide:search"
+              class="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-flixer-muted transition-colors group-focus-within:text-white"
+              aria-hidden="true" />
+            <input ref="input" v-model="query" type="search" maxlength="100" autocomplete="off"
+              :placeholder="t('search.placeholder')" :aria-label="t('search.label')"
+              class="w-full rounded border border-white/10 bg-white/[0.06] py-4 pl-14 pr-24 text-lg text-white shadow-lg shadow-black/30 backdrop-blur transition duration-300 placeholder:text-flixer-muted focus:border-white/40 focus:bg-white/10 focus:shadow-2xl focus:shadow-black/50 focus:outline-none sm:pr-14" />
+            <span v-if="isLoading"
+              class="absolute right-16 top-1/2 size-5 -translate-y-1/2 animate-spin rounded-full border-2 border-white/20 border-t-white sm:right-5"
+              role="status" :aria-label="t('search.searching')"></span>
+            <button type="button"
+              class="absolute right-2 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:hidden"
+              :aria-label="t('search.filters')" :aria-expanded="mobileFiltersOpen" aria-controls="mobile-search-filters"
+              @click="mobileFiltersOpen = !mobileFiltersOpen">
               <Icon icon="lucide:sliders-horizontal" class="size-5" aria-hidden="true" />
-              <span v-if="type || activeCount" class="absolute right-1.5 top-1.5 size-2 rounded-full bg-flixer-accent"></span>
+              <span v-if="type || activeCount"
+                class="absolute right-1.5 top-1.5 size-2 rounded-full bg-flixer-accent"></span>
             </button>
           </form>
-          <div v-if="mobileFiltersOpen" id="mobile-search-filters" class="absolute inset-x-0 top-full z-30 mt-2 rounded border border-white/10 bg-flixer-surface/95 p-3 text-left shadow-2xl shadow-black/60 backdrop-blur-xl sm:hidden">
+          <div v-if="mobileFiltersOpen" id="mobile-search-filters"
+            class="absolute inset-x-0 top-full z-30 mt-2 rounded border border-white/10 bg-flixer-surface/95 p-3 text-left shadow-2xl shadow-black/60 backdrop-blur-xl sm:hidden">
             <div class="grid grid-cols-2 gap-2" role="group" :aria-label="t('search.type')">
-              <button v-for="entry in TYPES" :key="entry" type="button" :aria-pressed="type === entry" class="rounded border px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="type === entry ? 'border-white bg-white text-flixer-background' : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10'" @click="selectType(entry)">
+              <button v-for="entry in TYPES" :key="entry" type="button" :aria-pressed="type === entry"
+                class="rounded border px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+                :class="type === entry ? 'border-white bg-white text-flixer-background' : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10'"
+                @click="selectType(entry)">
                 {{ entry ? t(`home.itemType.${entry}`) : t('search.anyType') }}
               </button>
             </div>
-            <button type="button" class="mt-3 flex w-full items-center justify-between rounded border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-expanded="showFilters" @click="toggleMobileAdvancedFilters">
+            <button type="button"
+              class="mt-3 flex w-full items-center justify-between rounded border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+              :aria-expanded="showFilters" @click="toggleMobileAdvancedFilters">
               <span>{{ t('search.filters') }}</span>
-              <span v-if="activeCount > 0" class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{ activeCount }}</span>
+              <span v-if="activeCount > 0"
+                class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{
+                activeCount }}</span>
             </button>
           </div>
         </div>
 
-        <div class="mt-4 hidden w-full flex-wrap items-center justify-center gap-2 sm:flex" role="group" :aria-label="t('search.type')">
-          <button v-for="entry in TYPES" :key="entry" type="button" :aria-pressed="type === entry" class="rounded border px-3.5 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="type === entry ? 'border-white bg-white text-flixer-background' : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10'" @click="selectType(entry)">
+        <div class="mt-4 hidden w-full flex-wrap items-center justify-center gap-2 sm:flex" role="group"
+          :aria-label="t('search.type')">
+          <button v-for="entry in TYPES" :key="entry" type="button" :aria-pressed="type === entry"
+            class="rounded border px-3.5 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+            :class="type === entry ? 'border-white bg-white text-flixer-background' : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10'"
+            @click="selectType(entry)">
             {{ entry ? t(`home.itemType.${entry}`) : t('search.anyType') }}
           </button>
-          <button type="button" class="ml-1 inline-flex items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-expanded="showFilters" @click="showFilters = !showFilters">
-            <Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-300" :class="showFilters ? 'rotate-180' : ''" aria-hidden="true" />
-            {{ t('search.filters') }}<span v-if="activeCount > 0" class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{ activeCount }}</span>
+          <button type="button"
+            class="ml-1 inline-flex items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+            :aria-expanded="showFilters" @click="showFilters = !showFilters">
+            <Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-300"
+              :class="showFilters ? 'rotate-180' : ''" aria-hidden="true" />
+            {{ t('search.filters') }}<span v-if="activeCount > 0"
+              class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{
+              activeCount }}</span>
           </button>
         </div>
 
-        <div class="grid w-full transition-[grid-template-rows,opacity] duration-300 ease-out" :class="showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" :inert="!showFilters">
+        <div class="grid w-full transition-[grid-template-rows,opacity] duration-300 ease-out"
+          :class="showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" :inert="!showFilters">
           <div class="overflow-hidden">
-            <div class="mt-4 grid gap-4 rounded border border-white/10 bg-white/[0.04] p-5 text-left backdrop-blur sm:grid-cols-2">
+            <div
+              class="mt-4 grid gap-4 rounded border border-white/10 bg-white/[0.04] p-5 text-left backdrop-blur sm:grid-cols-2">
               <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
                 {{ t('search.genre') }}
-                <select v-model="genre" class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
+                <select v-model="genre"
+                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
                   <option value="">{{ t('search.anyGenre') }}</option>
                   <option v-for="entry in genres" :key="entry" :value="entry">{{ entry }}</option>
                 </select>
               </label>
               <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
                 {{ t('search.sort') }}
-                <select v-model="sort" class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
+                <select v-model="sort"
+                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
                   <option v-for="entry in SORTS" :key="entry" :value="entry">{{ t(`search.sorts.${entry}`) }}</option>
                 </select>
               </label>
               <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
                 {{ t('search.yearFrom') }}
-                <input v-model="yearFrom" type="number" inputmode="numeric" min="1800" max="2200" class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none" />
+                <input v-model="yearFrom" type="number" inputmode="numeric" min="1800" max="2200"
+                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none" />
               </label>
               <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
                 {{ t('search.yearTo') }}
-                <input v-model="yearTo" type="number" inputmode="numeric" min="1800" max="2200" class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none" />
+                <input v-model="yearTo" type="number" inputmode="numeric" min="1800" max="2200"
+                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none" />
               </label>
               <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
                 <label class="flex cursor-pointer items-center gap-2.5 text-sm text-white">
@@ -273,7 +310,9 @@ function subtitleOf(item: SearchCard) {
                   <input v-model="includeChildren" type="checkbox" class="size-4 accent-flixer-accent" />
                   {{ t('search.includeChildren') }}
                 </label>
-                <button v-if="hasFilters || includeChildren || sort !== 'relevance'" type="button" class="text-sm text-flixer-muted underline-offset-2 transition hover:text-white hover:underline" @click="clearFilters">{{ t('search.clear') }}</button>
+                <button v-if="hasFilters || includeChildren || sort !== 'relevance'" type="button"
+                  class="text-sm text-flixer-muted underline-offset-2 transition hover:text-white hover:underline"
+                  @click="clearFilters">{{ t('search.clear') }}</button>
               </div>
             </div>
           </div>
@@ -282,34 +321,55 @@ function subtitleOf(item: SearchCard) {
 
       <div class="mt-10" aria-live="polite">
         <p v-if="tooShort" class="text-center text-sm text-flixer-muted">{{ t('search.hint') }}</p>
-        <CardGridSkeleton v-else-if="isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" />
-        <p v-else-if="failed && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
-        <p v-if="!tooShort && !isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed || genre }) }}</p>
+        <CardGridSkeleton
+          v-else-if="isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0" />
+        <p v-else-if="failed && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0"
+          class="text-center text-sm text-red-400" role="alert">{{ t('search.error') }}</p>
+        <p v-if="!tooShort && !isLoading && results.length === 0 && externalResults.length === 0 && pluginItemCount === 0"
+          class="text-center text-sm text-flixer-muted">{{ t('search.noResults', { query: trimmed || genre }) }}</p>
         <div v-if="results.length" :class="isLoading ? 'opacity-60' : ''" class="transition-opacity duration-200">
-          <h2 class="mb-5 text-lg font-semibold text-white">{{ t('search.results', { count: results.length, query: trimmed || genre }) }}</h2>
-          <TransitionGroup tag="ul" name="result" class="relative grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
-            <MediaCard v-for="(item, index) in results" :key="item.id" class="!w-auto" :style="{ '--i': Math.min(index, 14) }" :variant="item.type === 'album' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" :locked="item.locked" />
+          <h2 class="mb-5 text-lg font-semibold text-white">{{ t('search.results', {
+            count: results.length, query:
+              trimmed || genre }) }}</h2>
+          <TransitionGroup tag="ul" name="result" data-tv-row data-tv-grid data-tv-scroll="nearest"
+            class="relative grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
+            <MediaCard v-for="(item, index) in results" :key="item.id" class="!w-auto"
+              :style="{ '--i': Math.min(index, 14) }" :variant="item.type === 'album' ? 'square' : 'poster'"
+              :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id"
+              :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" :locked="item.locked" />
           </TransitionGroup>
         </div>
-        <section v-if="externalResults.length" class="mt-9 rounded border border-flixer-border bg-flixer-surface/35 p-4 sm:mt-12 sm:p-6">
+        <section v-if="externalResults.length"
+          class="mt-9 rounded border border-flixer-border bg-flixer-surface/35 p-4 sm:mt-12 sm:p-6">
           <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-flixer-accent">{{ t('requests.discover') }}</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-flixer-accent">{{ t('requests.discover')
+                }}</p>
               <h2 class="mt-1 text-lg font-semibold text-white sm:text-xl">{{ t('requests.notInLibrary') }}</h2>
             </div>
-            <span class="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-flixer-muted">{{ externalResults.length }}</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-flixer-muted">{{
+              externalResults.length }}</span>
           </div>
-          <ul class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4">
-            <MediaCard v-for="item in externalResults" :key="`${item.source}:${item.type}:${item.id}`" class="!w-auto" :variant="item.type === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="externalSubtitle(item)" :poster-url="item.poster" :request-status="item.status" :to="{ name: 'request-item', params: { type: item.type, id: item.id } }" />
+          <ul data-tv-row data-tv-grid data-tv-scroll="nearest"
+            class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4">
+            <MediaCard v-for="item in externalResults" :key="`${item.source}:${item.type}:${item.id}`" class="!w-auto"
+              :variant="item.type === 'music' ? 'square' : 'poster'" :title="item.title"
+              :subtitle="externalSubtitle(item)" :poster-url="item.poster" :request-status="item.status"
+              :to="{ name: 'request-item', params: { type: item.type, id: item.id } }" />
           </ul>
         </section>
-        <section v-for="section in pluginSections" :key="section.pluginId + section.title" class="mt-9 rounded border border-flixer-border bg-flixer-surface/35 p-4 sm:mt-12 sm:p-6">
+        <section v-for="section in pluginSections" :key="section.pluginId + section.title"
+          class="mt-9 rounded border border-flixer-border bg-flixer-surface/35 p-4 sm:mt-12 sm:p-6">
           <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
             <h2 class="text-lg font-semibold text-white sm:text-xl">{{ section.title }}</h2>
-            <span class="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-flixer-muted">{{ section.items.length }}</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-flixer-muted">{{
+              section.items.length }}</span>
           </div>
-          <ul class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4">
-            <MediaCard v-for="(item, index) in section.items" :key="index" class="!w-auto" :variant="item.shape" :title="item.title" :subtitle="item.subtitle" :poster-url="item.poster" :badge="item.badge" :to="searchItemRoute(section.pluginId, item)" />
+          <ul data-tv-row data-tv-grid data-tv-scroll="nearest"
+            class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4">
+            <MediaCard v-for="(item, index) in section.items" :key="index" class="!w-auto" :variant="item.shape"
+              :title="item.title" :subtitle="item.subtitle" :poster-url="item.poster" :badge="item.badge"
+              :to="searchItemRoute(section.pluginId, item)" />
           </ul>
         </section>
       </div>
@@ -325,46 +385,58 @@ function subtitleOf(item: SearchCard) {
     opacity: 0;
     transform: translateY(14px);
   }
+
   to {
     opacity: 1;
     transform: none;
   }
 }
+
 .search-enter {
   animation: search-rise 0.5s ease-out both;
 }
+
 .result-enter-active {
   animation: search-rise 0.45s ease-out both;
   animation-delay: calc(var(--i, 0) * 35ms);
 }
+
 .result-leave-active {
   position: absolute;
   transition: opacity 0.2s ease;
 }
+
 .result-leave-to {
   opacity: 0;
 }
+
 .result-move {
   transition: transform 0.35s ease;
 }
+
 .fade-swap-enter-active,
 .fade-swap-leave-active {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
 }
+
 .fade-swap-enter-from {
   opacity: 0;
   transform: translateY(8px);
 }
+
 .fade-swap-leave-to {
   opacity: 0;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .search-enter,
   .result-enter-active {
     animation: none;
   }
+
   .result-move,
   .fade-swap-enter-active,
   .fade-swap-leave-active {

@@ -1,4 +1,5 @@
 import { finishExternalOAuth, startExternalOAuth } from "../api";
+import { tvNavigationWindow } from "../platform/tvFrame";
 
 const KEY = "flixer.externalOAuth";
 const KEY_PREFIX = `${KEY}.`;
@@ -73,7 +74,7 @@ export async function beginExternalOAuth(pluginId: string, link: boolean, accoun
 	const destination = new URL(result.authorizationUrl);
 	if (destination.protocol !== "https:" || destination.username || destination.password) throw new Error("Invalid authorization destination.");
 	savePending({ pluginId, browserSecret, state: result.state, redirect });
-	window.location.assign(destination.toString());
+	tvNavigationWindow().location.assign(destination.toString());
 }
 
 export async function completeExternalOAuth(state: string, code: string) {

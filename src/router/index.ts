@@ -7,6 +7,7 @@ import { initializeChatMlsDevice } from "../composables/chatMlsClient";
 import { i18n } from "../i18n";
 import { setSetupRequiredHandler, setupGuard } from "../setup/setupGate";
 import { getNativeServerUrl } from "../platform/serverConnection";
+import { setTvMode } from "../platform/tvMode";
 import { catchError } from "../utils/catchError";
 import { oauthInteractionPath, signInForRoute } from "./oauthSignIn";
 
@@ -32,6 +33,11 @@ const router = createRouter({
 			path: "/connect",
 			name: "connect",
 			component: () => import("../views/ConnectServerView.vue"),
+		},
+		{
+			path: "/quick-setup",
+			name: "quick-setup",
+			component: () => import("../views/QuickSetupView.vue"),
 		},
 		{
 			path: "/setup",
@@ -257,6 +263,12 @@ const router = createRouter({
 		},
 		{
 			path: "/tv",
+			name: "tv-home",
+			component: () => import("../views/HomeView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/shows",
 			name: "tv",
 			component: () => import("../views/BrowseView.vue"),
 			props: { kind: "tv" },
@@ -270,6 +282,12 @@ const router = createRouter({
 			meta: { requiresAuth: true },
 		},
 		{
+			path: "/lyrics",
+			name: "lyrics",
+			component: () => import("../views/LyricsView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
 			path: "/guide",
 			name: "guide",
 			component: () => import("../views/EpgView.vue"),
@@ -279,6 +297,12 @@ const router = createRouter({
 			path: "/live/:channelId",
 			name: "live-player",
 			component: () => import("../views/LivePlayerView.vue"),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: "/tv/player",
+			name: "tv-player",
+			component: () => import("../views/TvPlayerView.vue"),
 			meta: { requiresAuth: true },
 		},
 		{
@@ -333,6 +357,7 @@ async function isSessionValid(): Promise<boolean> {
 }
 
 router.beforeEach(async (to) => {
+	if (to.name === "tv-home") setTvMode(true);
 	if (to.name === "connect") return Capacitor.isNativePlatform() ? true : { name: "login" };
 	if (Capacitor.isNativePlatform() && !getNativeServerUrl()) return { name: "connect" };
 	if (to.name === "passkey-callback" || to.name === "passkey-handoff") return true;

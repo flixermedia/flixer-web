@@ -76,6 +76,7 @@ export interface QuickConnectStartResult {
 	userCode: string;
 	pollToken: string;
 	expiresAt: string;
+	appUrl?: string;
 }
 
 export type QuickConnectPollResult = { status: "pending" | "denied" | "expired" } | { status: "approved"; auth: AuthResult };

@@ -8,6 +8,7 @@ import UserAvatar from '../components/ui/UserAvatar.vue'
 import { useParty } from '../composables/useParty'
 import { lockOf, openOffers, requestLock, usePayments } from '../composables/usePayments'
 import { catchError } from '../utils/catchError'
+import { isTvMode } from '../platform/tvMode'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -90,12 +91,13 @@ async function join() {
               {{ member.displayName }}
             </li>
           </ul>
-          <div v-if="locked" class="mt-4 rounded border border-amber-400/30 bg-amber-400/10 p-3" role="status">
+          <div v-if="locked && (!isTvMode || music)" class="mt-4 rounded border border-amber-400/30 bg-amber-400/10 p-3" role="status">
             <p class="text-sm text-amber-200">{{ t('party.lockedJoinNotice', { title: snapshot.item.title }) }}</p>
             <button type="button" class="mt-3 w-full rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="unlock">{{ t('payments.lock.unlock') }}</button>
           </div>
           <p v-if="error" class="mt-3 text-sm text-red-400" role="alert">{{ error }}</p>
-          <button type="button" class="mt-4 w-full rounded bg-white px-4 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="joining" @click="join">{{ joining ? t('common.loading') : locked ? t('party.joinAnyway') : t('party.join') }}</button>
+          <p v-if="isTvMode && !music" class="mt-4 text-sm text-flixer-muted" role="status">{{ t('party.watchUnavailableOnTv') }}</p>
+          <button v-else type="button" class="mt-4 w-full rounded bg-white px-4 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60" :disabled="joining" @click="join">{{ joining ? t('common.loading') : locked ? t('party.joinAnyway') : t('party.join') }}</button>
         </div>
       </section>
     </main>

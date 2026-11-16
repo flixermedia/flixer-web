@@ -1,42 +1,42 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* Matches the header's outer edge: its px-3/sm:px-6 padding and the theme's content width (110rem by default). */
 @utility page-gutter {
-  padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
-  scroll-padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
+	padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
+	scroll-padding-inline: max(0.75rem, calc((100% - var(--content-max, 110rem)) / 2));
 
-  @media (min-width: 40rem) {
-    padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
-    scroll-padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
-  }
+	@media (min-width: 40rem) {
+		padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
+		scroll-padding-inline: max(1.5rem, calc((100% - var(--content-max, 110rem)) / 2));
+	}
 }
 
 /* The admin dashboard's panels: a soft gradient surface with a hairline border that lifts slightly on hover. */
 @utility admin-card {
-  border-radius: var(--radius, 0.25rem);
-  border: 1px solid color-mix(in srgb, var(--color-flixer-border) 80%, transparent);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 85%, transparent), color-mix(in srgb, var(--color-flixer-surface) 45%, transparent));
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-white) 5%, transparent) inset,
-    0 8px 24px -16px rgb(0 0 0 / 0.5);
-  transition: border-color 150ms ease;
+	border-radius: var(--radius, 0.25rem);
+	border: 1px solid color-mix(in srgb, var(--color-flixer-border) 80%, transparent);
+	background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 85%, transparent), color-mix(in srgb, var(--color-flixer-surface) 45%, transparent));
+	box-shadow:
+		0 1px 0 color-mix(in srgb, var(--color-white) 5%, transparent) inset,
+		0 8px 24px -16px rgb(0 0 0 / 0.5);
+	transition: border-color 150ms ease;
 
-  &:hover {
-    border-color: color-mix(in srgb, var(--color-flixer-accent) 35%, var(--color-flixer-border));
-  }
+	&:hover {
+		border-color: color-mix(in srgb, var(--color-flixer-accent) 35%, var(--color-flixer-border));
+	}
 }
 
 @theme {
-  --color-flixer-background: #080811;
-  --color-flixer-surface: #14131d;
-  --color-flixer-border: #292735;
-  --color-flixer-primary: #7645d7;
-  --color-flixer-secondary: #5366e7;
-  --color-flixer-accent: #a789ff;
-  --color-flixer-cyan: #4bd9e8;
-  --color-flixer-text: #f4f2fb;
-  --color-flixer-muted: #9492a4;
-  --font-sans: 'Segoe UI', system-ui, sans-serif;
+	--color-flixer-background: #080811;
+	--color-flixer-surface: #14131d;
+	--color-flixer-border: #292735;
+	--color-flixer-primary: #7645d7;
+	--color-flixer-secondary: #5366e7;
+	--color-flixer-accent: #a789ff;
+	--color-flixer-cyan: #4bd9e8;
+	--color-flixer-text: #f4f2fb;
+	--color-flixer-muted: #9492a4;
+	--font-sans: "Segoe UI", system-ui, sans-serif;
 }
 
 /*
@@ -44,114 +44,133 @@
  * so white becomes the dark ink colour here and every such utility inverts with it.
  */
 html.light {
-  --color-flixer-background: #f5f4fa;
-  --color-flixer-surface: #ffffff;
-  --color-flixer-border: #dcd9e8;
-  --color-flixer-primary: #6a3bc9;
-  --color-flixer-secondary: #4b5ed6;
-  --color-flixer-accent: #6d3fd0;
-  --color-flixer-cyan: #0e8fa0;
-  --color-flixer-text: #1c1b29;
-  --color-flixer-muted: #5f5d72;
-  --color-white: #14131d;
-  color-scheme: light;
+	--color-flixer-background: #f5f4fa;
+	--color-flixer-surface: #ffffff;
+	--color-flixer-border: #dcd9e8;
+	--color-flixer-primary: #6a3bc9;
+	--color-flixer-secondary: #4b5ed6;
+	--color-flixer-accent: #6d3fd0;
+	--color-flixer-cyan: #0e8fa0;
+	--color-flixer-text: #1c1b29;
+	--color-flixer-muted: #5f5d72;
+	--color-white: #14131d;
+	color-scheme: light;
+}
+
+html:has(.login-background),
+body:has(.login-background),
+.login-background {
+	background: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
 }
 
 /* Keeps a region dark (video player, lyrics, text over artwork) while the page is light. */
 .theme-dark {
-  --color-flixer-background: #080811;
-  --color-flixer-surface: #14131d;
-  --color-flixer-border: #292735;
-  --color-flixer-primary: #7645d7;
-  --color-flixer-secondary: #5366e7;
-  --color-flixer-accent: #a789ff;
-  --color-flixer-cyan: #4bd9e8;
-  --color-flixer-text: #f4f2fb;
-  --color-flixer-muted: #9492a4;
-  --color-white: #ffffff;
-  color-scheme: dark;
+	--color-flixer-background: #080811;
+	--color-flixer-surface: #14131d;
+	--color-flixer-border: #292735;
+	--color-flixer-primary: #7645d7;
+	--color-flixer-secondary: #5366e7;
+	--color-flixer-accent: #a789ff;
+	--color-flixer-cyan: #4bd9e8;
+	--color-flixer-text: #f4f2fb;
+	--color-flixer-muted: #9492a4;
+	--color-white: #ffffff;
+	color-scheme: dark;
 }
 
 @layer base {
-  /* Room for the fixed mini player so it never covers the end of a page. */
-  html.has-mini-player body {
-    padding-bottom: 4.5rem;
-  }
+	/* Room for the fixed mini player so it never covers the end of a page. */
+	html.has-mini-player body {
+		padding-bottom: 4.5rem;
+	}
 
-  @media (max-width: 47.99rem) {
-    html.has-mini-player body {
-      padding-bottom: calc(4.5rem + var(--tabbar-height, 0px));
-    }
-  }
+	@media (max-width: 47.99rem) {
+		html.has-mini-player body {
+			padding-bottom: calc(4.5rem + var(--tabbar-height, 0px));
+		}
+	}
 
-  html {
-    overflow-y: scroll;
-    touch-action: pan-x pan-y;
-    -webkit-text-size-adjust: 100%;
-  }
+	html {
+		overflow-y: scroll;
+		touch-action: pan-x pan-y;
+		-webkit-text-size-adjust: 100%;
+	}
 
-  html.capacitor,
-  html.capacitor body,
-  html.capacitor body * {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-  }
+	html.capacitor,
+	html.capacitor body,
+	html.capacitor body * {
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-touch-callout: none;
+	}
 
-  html.capacitor :is(input, textarea, select, [contenteditable='true'], [contenteditable=''], [role='textbox']),
-  html.capacitor :is([contenteditable='true'], [contenteditable=''], [role='textbox']) * {
-    -webkit-user-select: text;
-    user-select: text;
-    -webkit-touch-callout: default;
-  }
+	html.capacitor :is(input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]),
+	html.capacitor :is([contenteditable="true"], [contenteditable=""], [role="textbox"]) * {
+		-webkit-user-select: text;
+		user-select: text;
+		-webkit-touch-callout: default;
+	}
 
-  /* Scrollbars are hidden everywhere; scrolling still works. */
-  * {
-    scrollbar-width: none;
-  }
+	/* Scrollbars are hidden everywhere; scrolling still works. */
+	* {
+		scrollbar-width: none;
+	}
 
-  *::-webkit-scrollbar {
-    display: none;
-  }
+	*::-webkit-scrollbar {
+		display: none;
+	}
 
-  /* Inputs under 16px make iOS Safari zoom in on focus. */
-  input,
-  select,
-  textarea {
-    font-size: max(16px, 1em);
-  }
+	/* Inputs under 16px make iOS Safari zoom in on focus. */
+	input,
+	select,
+	textarea {
+		font-size: max(16px, 1em);
+	}
 
-  html,
-  body {
-    background-color: var(--color-flixer-background);
-    color-scheme: dark;
-  }
+	html,
+	body {
+		background-color: var(--color-flixer-background);
+		color-scheme: dark;
+	}
 
-  html.light,
-  html.light body {
-    color-scheme: light;
-  }
+	html.light,
+	html.light body {
+		color-scheme: light;
+	}
 
-  input:autofill,
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px var(--color-flixer-surface) inset;
-    -webkit-text-fill-color: var(--color-flixer-text) !important;
-    color: var(--color-flixer-text) !important;
-    caret-color: var(--color-flixer-text);
-  }
+	input:autofill,
+	input:-webkit-autofill,
+	input:-webkit-autofill:hover,
+	input:-webkit-autofill:focus {
+		-webkit-box-shadow: 0 0 0 1000px var(--color-flixer-surface) inset;
+		-webkit-text-fill-color: var(--color-flixer-text) !important;
+		color: var(--color-flixer-text) !important;
+		caret-color: var(--color-flixer-text);
+	}
+}
+
+html.flixer-tv,
+html.flixer-tv body,
+html.flixer-tv body * {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+html.flixer-tv body :is(input, textarea, [contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"]),
+html.flixer-tv body :is([contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"]) * {
+	-webkit-user-select: text;
+	user-select: text;
 }
 
 /* Native dropdowns: a custom chevron with room from the right edge. Unlayered so it wins over padding utilities. */
 select:not([multiple]) {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238b8b99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem 1rem;
-  padding-right: 2.5rem;
+	appearance: none;
+	-webkit-appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238b8b99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.75rem center;
+	background-size: 1rem 1rem;
+	padding-right: 2.5rem;
 }
 
 /*
@@ -159,37 +178,62 @@ select:not([multiple]) {
  * preview, so the selectors only match the attribute and never name the element carrying it.
  */
 [data-content-width] .max-w-\[110rem\] {
-  max-width: var(--content-max, 110rem);
+	max-width: var(--content-max, 110rem);
 }
 
-[data-card-style='outlined'] .admin-card {
-  background: transparent;
-  box-shadow: none;
+[data-card-style="outlined"] .admin-card {
+	background: transparent;
+	box-shadow: none;
 }
 
-[data-card-style='flat'] .admin-card {
-  border-color: transparent;
-  background: var(--color-flixer-surface);
-  box-shadow: none;
+[data-card-style="flat"] .admin-card {
+	border-color: transparent;
+	background: var(--color-flixer-surface);
+	box-shadow: none;
 }
 
-[data-card-style='glass'] .admin-card {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 55%, transparent), color-mix(in srgb, var(--color-flixer-surface) 25%, transparent));
-  backdrop-filter: blur(14px) saturate(140%);
+[data-card-style="glass"] .admin-card {
+	background: linear-gradient(160deg, color-mix(in srgb, var(--color-flixer-surface) 55%, transparent), color-mix(in srgb, var(--color-flixer-surface) 25%, transparent));
+	backdrop-filter: blur(14px) saturate(140%);
 }
 
 /* Filled call-to-action buttons only: icon buttons, switches and tabs keep their solid fill. */
-[data-button-style='gradient'] :is(button, a).bg-flixer-primary:not([role='switch'], [role='tab'], [role='checkbox'], [role='radio'], [class*='size-']) {
-  background-image: linear-gradient(135deg, var(--color-flixer-primary), var(--color-flixer-secondary));
+[data-button-style="gradient"] :is(button, a).bg-flixer-primary:not([role="switch"], [role="tab"], [role="checkbox"], [role="radio"], [class*="size-"]) {
+	background-image: linear-gradient(135deg, var(--color-flixer-primary), var(--color-flixer-secondary));
 }
 
-[data-button-style='soft'] :is(button, a).bg-flixer-primary:not([role='switch'], [role='tab'], [role='checkbox'], [role='radio'], [class*='size-']) {
-  background-color: color-mix(in srgb, var(--color-flixer-primary) 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-flixer-primary) 55%, transparent);
-  color: var(--color-flixer-accent);
+[data-button-style="soft"] :is(button, a).bg-flixer-primary:not([role="switch"], [role="tab"], [role="checkbox"], [role="radio"], [class*="size-"]) {
+	background-color: color-mix(in srgb, var(--color-flixer-primary) 22%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-flixer-primary) 55%, transparent);
+	color: var(--color-flixer-accent);
 }
 
 /* Tailwind's bare `rounded` is a fixed 0.25rem; route it through the theme's corner radius. */
 .rounded {
-  border-radius: var(--radius, 0.25rem);
+	border-radius: var(--radius, 0.25rem);
+}
+
+.flixer-icon-button-tooltip {
+	position: fixed;
+	z-index: 10000;
+	max-width: min(20rem, calc(100vw - 1rem));
+	padding: 0.375rem 0.625rem;
+	border: 1px solid color-mix(in srgb, var(--color-flixer-border) 85%, transparent);
+	border-radius: 0.375rem;
+	background: var(--color-flixer-surface);
+	box-shadow: 0 10px 24px rgb(0 0 0 / 0.35);
+	color: var(--color-flixer-text);
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1rem;
+	text-align: center;
+	pointer-events: none;
+}
+
+.flixer-icon-button-tooltip[hidden] {
+	display: none;
+}
+
+.multiline-text {
+	white-space: pre-line;
 }

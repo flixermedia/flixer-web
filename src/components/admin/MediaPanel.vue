@@ -10,6 +10,7 @@ import { notify } from "../../composables/notify";
 import { useInfiniteScroll } from "../../composables/useInfiniteScroll";
 import { describeRequestError } from "../../composables/useProfile";
 import { catchError } from "../../utils/catchError";
+import { isTvMode } from "../../platform/tvMode";
 import AdminSection from "./AdminSection.vue";
 import AuthImage from "../ui/AuthImage.vue";
 import MediaChapterModal from "./MediaChapterModal.vue";
@@ -435,10 +436,10 @@ onMounted(async () => {
 							<button v-if="CONTAINER_TYPES.includes(item.type)" type="button" :aria-label="t('admin.media.browseChildren')" :title="t('admin.media.browseChildren')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openChildren(item)">
 								<Icon icon="lucide:folder-open" class="size-4" aria-hidden="true" />
 							</button>
-							<button type="button" :aria-label="t('admin.media.edit')" :title="t('admin.media.edit')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="edit(item)">
+							<button v-if="!isTvMode" type="button" :aria-label="t('admin.media.edit')" :title="t('admin.media.edit')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="edit(item)">
 								<Icon icon="lucide:pencil" class="size-4" aria-hidden="true" />
 							</button>
-							<button v-if="CHAPTER_TYPES.includes(item.type)" type="button" :aria-label="t('mediaItem.manageChapters')" :title="t('mediaItem.manageChapters')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="editChapters(item)">
+							<button v-if="!isTvMode && CHAPTER_TYPES.includes(item.type)" type="button" :aria-label="t('mediaItem.manageChapters')" :title="t('mediaItem.manageChapters')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="editChapters(item)">
 								<Icon icon="lucide:clapperboard" class="size-4" aria-hidden="true" />
 							</button>
 							<button type="button" :aria-label="t('admin.media.rescan')" :title="t('admin.media.rescan')" class="flex h-8 min-w-0 flex-1 items-center justify-center rounded bg-white/10 text-flixer-text transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="rescan(item)">

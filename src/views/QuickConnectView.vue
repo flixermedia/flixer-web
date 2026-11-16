@@ -12,9 +12,9 @@ const route = useRoute()
     <section class="w-full max-w-md rounded border border-flixer-border/70 bg-flixer-surface/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8" aria-labelledby="quick-connect-approval-title">
       <span class="text-[9px] font-bold tracking-[0.2em] text-flixer-accent">{{ t('auth.loginEyebrow') }}</span>
       <h1 id="quick-connect-approval-title" class="mt-3 text-3xl font-semibold tracking-tight">{{ t('auth.quickConnectApprovalTitle') }}</h1>
-      <p class="mt-3 text-sm leading-6 text-flixer-muted">{{ t('auth.quickConnectApprovalInstructions') }}</p>
+      <p class="mt-3 text-sm leading-6 text-flixer-muted">{{ t('auth.quickConnectScanInstructions') }}</p>
 
-      <QuickConnectApproval :initial-code="typeof route.query.code === 'string' ? route.query.code : ''" />
+      <QuickConnectApproval :initial-code="typeof route.query.code === 'string' ? route.query.code : ''" allow-scanner :start-scanner="route.query.scan === '1'" />
     </section>
   </main>
 </template>

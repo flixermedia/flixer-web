@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { expect, fn, mocked, userEvent, waitFor } from "storybook/test";
-import { getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay } from "../../api";
+import { expect, fn, mocked, spyOn, userEvent, waitFor } from "storybook/test";
+import { Capacitor } from "@capacitor/core";
+import { getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, type StreamInfo } from "../../api";
 import { reportWebhookPlayback } from "../../api/userWebhooks";
 import { getAccessToken } from "../../api/client";
 import { mockPlayerHelpers, playbackInfoFixture, sampleClipUrl, streamInfoFixture, trickplayFixture } from "../../storybook/fixturesPlayer";
+import { isTvMode } from "../../platform/tvMode";
 import VideoPlayer from "./VideoPlayer.vue";
 
 const meta = {
@@ -51,6 +53,34 @@ export const NoSubtitlesOrTrickplay: Story = {
 	},
 };
 export const PlaybackFails: Story = { args: { streamUrl: "/missing/stream/clip.mp4" } };
+let finishTvStreamInspection: (info: StreamInfo) => void;
+export const AndroidTvInitialFrame: Story = {
+	beforeEach: () => {
+		const platform = spyOn(Capacitor, "getPlatform").mockReturnValue("android");
+		const previousTvMode = isTvMode.value;
+		isTvMode.value = true;
+		mocked(getStreamInfo).mockReturnValue(new Promise((resolve) => { finishTvStreamInspection = resolve; }));
+		return () => {
+			platform.mockRestore();
+			isTvMode.value = previousTvMode;
+		};
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const video = canvasElement.querySelector("video")!;
+		expect(video).not.toBeVisible();
+		expect(canvas.getByRole("status", { name: "Buffering" })).toBeVisible();
+		isTvMode.value = false;
+		await waitFor(() => expect(video).toBeVisible());
+		isTvMode.value = true;
+		await waitFor(() => expect(video).not.toBeVisible());
+		finishTvStreamInspection(streamInfoFixture);
+		await waitFor(() => expect(video.readyState).toBeGreaterThanOrEqual(2), { timeout: 15000 });
+		await waitFor(() => expect(video).toBeVisible());
+		video.muted = true;
+		await userEvent.click(canvas.getAllByRole("button", { name: "Play" })[0]!);
+		await waitFor(() => expect(video.paused).toBe(false));
+	},
+};
 export const WebhookPlayback: Story = {
 	args: { analyticsTarget: { kind: "video", itemId: "movie1" } },
 	beforeEach: () => { mocked(getAccessToken).mockReturnValue("story-token"); },

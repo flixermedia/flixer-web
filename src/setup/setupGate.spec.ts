@@ -76,6 +76,12 @@ describe('fetchSetupGate', () => {
 })
 
 describe('setupGuard', () => {
+  it('allows the public phone setup page without checking server setup status', async () => {
+    const { setupGuard } = await import('./setupGate')
+    expect(await setupGuard(route('quick-setup'))).toBe(true)
+    expect(get).not.toHaveBeenCalled()
+  })
+
   it('sends unfinished installs to setup but still allows signing in', async () => {
     const { setupGuard } = await import('./setupGate')
     get.mockResolvedValue(status({ state: 'in_progress', mode: 'ready' }))

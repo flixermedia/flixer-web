@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { ModalOverlay, ModalTarget } from "@kolirt/vue-modal";
@@ -13,7 +13,6 @@ import AudioEngineDebug from "./components/player/AudioEngineDebug.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
 import Header from "./components/header/Header.vue";
 import { getHeaderRoute } from "./components/header/headerRoute";
-import LyricsView from "./views/LyricsView.vue";
 import { useAudioPlayer, type QueueTrack } from "./composables/useAudioPlayer";
 import { useIdleSplash } from "./composables/useIdleSplash";
 import { useParty } from "./composables/useParty";
@@ -24,8 +23,13 @@ import { getAccessToken } from "./api";
 import { publishRemotePlayback, registerRemoteCommandHandler, startRemotePlayback, stopRemotePlayback, type RemotePlaybackCommand } from "./composables/useRemotePlayback";
 import { useMailSummary } from "./composables/useMailSummary";
 import { nativeMoreMenuNativeActive, nativeMusicPlayerNativeActive, nativeNavigationEnabled, setNativeMoreTabs, setNativePlayerOpen } from "./platform/nativeNavigation";
+import { isTvMode } from "./platform/tvMode";
+import TvNavigationDrawer from "./components/tv/TvNavigationDrawer.vue";
+import { notify } from "./composables/notify";
+import { i18n } from "./i18n";
 
 const route = useRoute();
+const router = useRouter();
 const compactScreen = window.matchMedia("(max-width: 1023px)");
 const compact = ref(compactScreen.matches);
 const updateCompact = () => { compact.value = compactScreen.matches; };
@@ -51,7 +55,31 @@ const { lyricsOpen } = audio;
 const party = useParty();
 const { playing, close: closeVideo, play: playVideo } = useVideoOverlay();
 const idle = useIdleSplash(() => playing.value !== null);
+watch(() => route.name, (name) => {
+	lyricsOpen.value = name === "lyrics";
+}, { immediate: true });
+watch([isTvMode, headerRoute], () => {
+	document.documentElement.classList.toggle("tv-has-rail", isTvMode.value && headerRoute.value.show);
+}, { immediate: true });
+onBeforeUnmount(() => document.documentElement.classList.remove("tv-has-rail"));
 watch(playing, (value) => setNativePlayerOpen(value !== null), { immediate: true });
+watch([playing, isTvMode], ([value, tv]) => {
+	if (!value || !tv || route.name === "tv-player" || route.name === "live-player") return;
+	void router.push({ name: "tv-player", query: { returnTo: route.fullPath } }).then((failure) => {
+		if (failure && playing.value === value && router.currentRoute.value.name !== "tv-player") {
+			console.error("[tv-player] Could not open player", failure);
+			notify.error(i18n.global.t("errors.generic"));
+			closeVideo();
+		}
+	}).catch((error: unknown) => {
+		console.error("[tv-player] Could not open player", error);
+		notify.error(i18n.global.t("errors.generic"));
+		if (playing.value === value) closeVideo();
+	});
+});
+watch(() => route.name, (name, previous) => {
+	if (previous === "tv-player" && name !== "tv-player") closeVideo();
+});
 if (getAccessToken()) void party.resume();
 
 function publishLocalAudio() {
@@ -108,7 +136,9 @@ if (Capacitor.isNativePlatform()) {
 </script>
 
 <template>
-	<Header v-if="headerRoute.show" :links="headerLinks" :is-signing-out="isSigningOut" :docked="headerRoute.docked" :disable-scroll-collapse="headerRoute.disableScrollCollapse" @logout="signOut" />
+	<Header v-if="headerRoute.show && !isTvMode" :links="headerLinks" :is-signing-out="isSigningOut"
+		:docked="headerRoute.docked" :disable-scroll-collapse="headerRoute.disableScrollCollapse" @logout="signOut" />
+	<TvNavigationDrawer v-if="isTvMode && headerRoute.show" :is-signing-out="isSigningOut" @logout="signOut" />
 	<!-- Main application view -->
 	<RouterView v-slot="{ Component, route }">
 		<Transition name="page" mode="out-in">
@@ -120,14 +150,11 @@ if (Capacitor.isNativePlatform()) {
 
 	<!-- Player components -->
 	<NativeMoreMenu v-if="nativeNavigationEnabled && !nativeMoreMenuNativeActive" />
-	<MiniPlayer v-if="!nativeMusicPlayerNativeActive" />
-	<AudioEngineDebug />
-	<PlayerOverlay v-if="playing" :item-id="playing.id" :start-at-seconds="playing.startAt" :title="playing.title" :autoplay="playing.autoplay" :live-playback="playing.livePlayback" :start-mini="playing.startMini" @close="closeVideo" />
-
-	<!-- Lyrics view -->
-	<Transition name="lyrics">
-		<LyricsView v-if="lyricsOpen" />
-	</Transition>
+	<MiniPlayer v-if="!nativeMusicPlayerNativeActive && !(isTvMode && route.name === 'tv-player')" />
+	<AudioEngineDebug v-if="!isTvMode" />
+	<PlayerOverlay v-if="playing && !isTvMode" :item-id="playing.id" :start-at-seconds="playing.startAt"
+		:title="playing.title" :autoplay="playing.autoplay" :live-playback="playing.livePlayback"
+		:start-mini="playing.startMini" @close="closeVideo" />
 
 	<!-- Idle splash -->
 	<Transition name="idle">
@@ -144,9 +171,47 @@ if (Capacitor.isNativePlatform()) {
 </template>
 
 <style>
+html.flixer-tv :focus {
+	outline: 3px solid #fff;
+	outline-offset: 3px;
+}
+
+html.flixer-tv [data-tv-adjusting="true"] {
+	outline: 4px solid var(--color-flixer-accent);
+	outline-offset: 4px;
+}
+
+html.flixer-tv .mobile-tab-bar {
+	display: none !important;
+}
+
+html.tv-has-rail #app {
+	--tv-rail-size: 5rem;
+	padding-left: var(--tv-rail-size);
+	transition: padding-left 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.tv-has-rail.tv-menu-expanded #app {
+	--tv-rail-size: min(19rem, 85vw);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html.tv-has-rail #app {
+		transition: none;
+	}
+}
+
 html.capacitor main.page-gutter {
 	padding-top: max(env(safe-area-inset-top, 0px), 10.5rem);
 	padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+}
+
+html.flixer-tv main.page-gutter {
+	padding-top: 2rem;
+}
+
+html.flixer-tv [data-tv-grid]>li>a {
+	scroll-margin-top: 2rem;
 }
 
 html.capacitor.native-navigation #app {
@@ -164,43 +229,21 @@ html.capacitor.native-navigation main.page-gutter {
 	padding-top: max(0px, calc(10.5rem - env(safe-area-inset-top, 0px)));
 }
 
-.lyrics-enter-active {
-	transition:
-		transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.3s ease-out;
-}
-.lyrics-leave-active {
-	transition:
-		transform 0.25s ease-in,
-		opacity 0.2s ease-in;
-}
-.lyrics-enter-from,
-.lyrics-leave-to {
-	transform: translateY(5%);
-	opacity: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-	.lyrics-enter-active,
-	.lyrics-leave-active {
-		transition: opacity 0.15s linear;
-	}
-	.lyrics-enter-from,
-	.lyrics-leave-to {
-		transform: none;
-	}
-}
-
 .idle-enter-active {
 	transition: opacity 1.2s ease-out;
 }
+
 .idle-leave-active {
 	transition: opacity 0.3s ease-in;
 }
+
 .idle-enter-from,
 .idle-leave-to {
 	opacity: 0;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
 	.idle-enter-active,
 	.idle-leave-active {
 		transition: none;
@@ -211,14 +254,18 @@ html.capacitor.native-navigation main.page-gutter {
 .page-enter-active {
 	transition: opacity 0.28s ease-out;
 }
+
 .page-leave-active {
 	transition: opacity 0.14s ease-in;
 }
+
 .page-enter-from,
 .page-leave-to {
 	opacity: 0;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
 	.page-enter-active,
 	.page-leave-active {
 		transition: none;

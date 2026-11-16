@@ -22,8 +22,9 @@ const props = withDefaults(
     nextLabel?: string
     locked?: boolean
     analyticsTarget?: ViewingTarget
+    allowPip?: boolean
   }>(),
-  { autoplay: true, startAt: 0, defaultAudioLanguage: '' },
+  { autoplay: true, startAt: 0, defaultAudioLanguage: '', allowPip: true },
 )
 
 const emit = defineEmits<{
@@ -302,7 +303,7 @@ async function loadPlayer(): Promise<Error | undefined> {
         subtitles,
         exitOnEnd: !props.nextLabel,
         loopOnEnd: false,
-        pipEnabled: true,
+        pipEnabled: props.allowPip,
         bkmodeEnabled: true,
         showControls: true,
       }),

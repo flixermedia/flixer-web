@@ -41,11 +41,3 @@ const logo = computed(() => appearance.logoUrl.value ?? defaultLogo)
     </div>
   </section>
 </template>
-
-<style>
-html:has(.login-background),
-body:has(.login-background),
-.login-background {
-  background: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
-}
-</style>

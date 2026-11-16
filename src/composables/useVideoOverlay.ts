@@ -8,6 +8,7 @@ export interface PlayingVideo {
   startAt?: number
   autoplay?: boolean
   livePlayback?: GuidePlaybackInfo
+  trailer?: { streamUrl: string }
   startMini?: boolean
 }
 

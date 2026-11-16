@@ -26,6 +26,8 @@ import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
 import { catchError } from '../utils/catchError'
 import { oauthInteractionPath } from '../router/oauthSignIn'
 import { getOidcInteractionClient } from '../api/oidc'
+import { isTvMode } from '../platform/tvMode'
+import TvAuthScreen from '../components/auth/TvAuthScreen.vue'
 
 const appName = useAppearance().appName
 
@@ -82,6 +84,8 @@ const isResending = ref(false)
 let lastCredentials: { username: string; password: string } | null = null
 const registrationEnabled = ref<boolean | null>(null)
 const quickConnectEnabled = ref(false)
+const quickConnectLoading = ref(true)
+const quickConnectStatusError = ref('')
 const quickConnectMode = ref(false)
 const registrationStatusError = ref('')
 const loginBanner = ref('')
@@ -227,8 +231,10 @@ async function loadRegistrationStatus() {
     loginBanner.value = status.loginBanner ?? ''
   }
   const [quickConnectError, quickConnectStatus] = await catchError(getQuickConnectStatus())
+  quickConnectLoading.value = false
   if (quickConnectError) {
     console.warn('[quick-connect] could not check availability', quickConnectError)
+    quickConnectStatusError.value = t('auth.quickConnectStatusError')
   } else {
     quickConnectEnabled.value = quickConnectStatus.enabled
   }
@@ -251,7 +257,7 @@ function switchAuthMode() {
 }
 
 async function promptNativePasswordSave(username: string, password: string) {
-  if (!isNativeApp()) return
+  if (!isNativeApp() || isTvMode.value) return
 
   const [error] = await catchError(Promise.resolve().then(() => SavePassword.promptDialog({
     username,
@@ -595,7 +601,16 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </script>
 
 <template>
-  <main class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text"
+  <TvAuthScreen v-if="isTvMode && (route.name === 'login' || route.name === 'register' || (isOAuthSignIn && oauthClientName)) && !pendingPayment && !pendingVerificationEmail && !callbackLoading"
+    :app-name="appName" :registration="isRegistration" :registration-enabled="registrationEnabled"
+    :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled"
+    :quick-connect-loading="quickConnectLoading" :quick-connect-status-error="quickConnectStatusError"
+    :is-submitting="isSubmitting" :passkey-required="!!passkeyTicket" :login-banner="loginBanner"
+    :oauth-client-name="isOAuthSignIn ? oauthClientName : undefined"
+    :session-check-unavailable="sessionCheckUnavailable" :can-resend="needsVerification" :is-resending="isResending"
+    :native-app="isNativeApp()" @submit="handleLogin" @authenticated="handleQuickConnectAuthentication"
+    @switch-mode="switchAuthMode" @cancel-second-factor="cancelSecondFactor" @resend="handleResendVerification" />
+  <main v-else class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text"
     :class="{ 'lg:grid lg:grid-cols-2': !compactOAuthLayout }">
     <AuthBrandPanel :compact="compactOAuthLayout" />
 
