@@ -57,10 +57,40 @@ html.light {
 	color-scheme: light;
 }
 
+:root {
+	--flixer-login-gradient: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
+	--flixer-centered-login-gradient: linear-gradient(110deg, color-mix(in srgb, var(--color-flixer-primary) 16%, var(--color-flixer-background)), var(--color-flixer-background) 55%, color-mix(in srgb, var(--color-flixer-cyan) 8%, var(--color-flixer-background)));
+}
+
 html:has(.login-background),
 body:has(.login-background),
 .login-background {
-	background: radial-gradient(ellipse 32rem 28rem at 100% 24%, color-mix(in srgb, var(--color-flixer-cyan) 10%, transparent), transparent), radial-gradient(ellipse 34rem 38rem at 0% 57%, color-mix(in srgb, var(--color-flixer-primary) 20%, transparent), transparent), var(--color-flixer-background);
+	background: var(--flixer-login-gradient);
+}
+
+html:has(.auth-page--centered.auth-page--fit) {
+	background: var(--flixer-centered-login-gradient);
+}
+
+body:has(.auth-page--centered.auth-page--fit) {
+	background: transparent;
+}
+
+@media (max-width: 767px) {
+	html:has(.auth-page--cinema.auth-page--fit) {
+		background: var(--flixer-centered-login-gradient);
+	}
+
+	body:has(.auth-page--cinema.auth-page--fit) {
+		background: transparent;
+	}
+}
+
+html:has(.auth-page--fit),
+body:has(.auth-page--fit) {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
 }
 
 /* Keeps a region dark (video player, lyrics, text over artwork) while the page is light. */

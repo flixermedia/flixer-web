@@ -100,12 +100,13 @@ export async function decideQuickConnect(userCode: string, decision: "approve" |
 	await api.post(`/auth/quick-connect/${decision}`, { userCode });
 }
 
-export async function register(username: string, password: string, email: string, displayName?: string): Promise<AuthResult | VerificationPending | PaymentPending> {
-	const request: FlixerApiRouteBody<"post", "/auth/register"> = {
+export async function register(username: string, password: string, email: string, displayName?: string, customFields?: Record<string, string>): Promise<AuthResult | VerificationPending | PaymentPending> {
+	const request: FlixerApiRouteBody<"post", "/auth/register"> & { customFields?: Record<string, string> } = {
 		username,
 		displayName: displayName || undefined,
 		email,
 		password,
+		...(customFields && Object.keys(customFields).length ? { customFields } : {}),
 	};
 	const response = await api.post<AuthResult | VerificationPending | PaymentPending>("/auth/register", request);
 	return response.data;
@@ -129,6 +130,15 @@ export async function validateAccessToken(): Promise<boolean> {
 export async function getProfile(): Promise<UserProfile> {
 	const response = await api.get<UserProfile>("/auth/me");
 	return response.data;
+}
+
+export interface RegistrationFieldValue {
+	id: string;
+	label: string;
+	value: string;
+}
+export async function getRegistrationFields(): Promise<RegistrationFieldValue[]> {
+	return (await api.get<RegistrationFieldValue[]>("/auth/me/registration-fields")).data;
 }
 
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;

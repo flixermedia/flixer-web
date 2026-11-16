@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
 import { useRouter } from 'vue-router'
-import { clearAccessToken, deleteAccount, updateProfile } from '../../api'
+import { clearAccessToken, deleteAccount, getRegistrationFields, updateProfile, type RegistrationFieldValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { requestPassword } from '../../composables/requestPassword'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
@@ -18,6 +18,8 @@ const router = useRouter()
 const { t } = useI18n()
 const { profile, load, setProfile, clear } = useProfile()
 const isDeletingAccount = ref(false)
+const registrationFields = ref<RegistrationFieldValue[]>([])
+void getRegistrationFields().then((fields) => { registrationFields.value = fields }).catch(() => undefined)
 
 async function confirmDeleteAccount() {
   if (isDeletingAccount.value) return
@@ -123,6 +125,16 @@ async function save() {
     </section>
 
     <PasswordSection />
+
+    <section v-if="registrationFields.length" aria-labelledby="registration-fields-heading">
+      <h2 id="registration-fields-heading" class="text-lg font-semibold">{{ t('pageBuilder.registrationDetails') }}</h2>
+      <dl class="mt-4 grid gap-3">
+        <div v-for="entry in registrationFields" :key="entry.id">
+          <dt class="text-xs text-flixer-muted">{{ entry.label }}</dt>
+          <dd class="break-words text-sm">{{ entry.value }}</dd>
+        </div>
+      </dl>
+    </section>
 
     <PrivacySection />
 

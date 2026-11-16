@@ -47,7 +47,6 @@ async function signIn() {
                 <Icon icon="lucide:log-in" class="size-4 shrink-0" aria-hidden="true" />{{ t('externalAuth.signInWith',
                     { name: provider.name }) }}
             </button>
-            <p class="text-xs leading-relaxed text-flixer-muted">{{ t('externalAuth.linkAccountHint') }}</p>
         </div>
         <form v-else class="mt-3 space-y-3" @submit.prevent="signIn">
             <label class="block text-sm text-flixer-muted">{{ t('externalAuth.username') }}<input

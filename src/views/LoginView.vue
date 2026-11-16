@@ -28,8 +28,17 @@ import { oauthInteractionPath } from '../router/oauthSignIn'
 import { getOidcInteractionClient } from '../api/oidc'
 import { isTvMode } from '../platform/tvMode'
 import TvAuthScreen from '../components/auth/TvAuthScreen.vue'
+import PageCanvas from '../components/pageBuilder/PageCanvas.vue'
+import CustomAuthField from '../components/pageBuilder/CustomAuthField.vue'
+import { getPublishedPage, type PublishedPage } from '../components/pageBuilder/pageBuilder'
+import defaultLogo from '../../resources/logo/flixer-logo.svg'
+import { useAuthViewportFit } from '../components/auth/useAuthViewportFit'
 
-const appName = useAppearance().appName
+const appearance = useAppearance()
+const appName = appearance.appName
+const spotlightLogo = computed(() => appearance.logoUrl.value ?? defaultLogo)
+const { element: authPageElement, scale: authScale, top: authTop } = useAuthViewportFit(computed(() => !isTvMode.value))
+function setAuthPageElement(value: unknown) { authPageElement.value = value instanceof HTMLElement ? value : null }
 
 const { t } = useI18n()
 const route = useRoute()
@@ -96,6 +105,30 @@ const biometricCredentialsForSecondFactor = ref<{ username: string; password: st
 const isRegistration = computed(() => route.name === 'register')
 const isOAuthSignIn = computed(() => route.name === 'oauth-sign-in')
 const compactOAuthLayout = computed(() => route.name === 'oauth-sign-in' || (isRegistration.value && !!oauthInteractionPath(route.query.redirect)))
+const customPage = ref<PublishedPage | null>(null)
+const customCredentials = ref({ username: '', password: '', email: '', displayName: '' })
+const customValues = ref<Record<string, string>>({})
+const requestedLayout = computed(() => isTvMode.value || isNativeApp() || compactOAuthLayout.value ? 'classic' : appearance.loginLayout.value)
+const hasIndividualAuth = computed(() => customPage.value?.blocks.some((block) => block.type === 'auth-field') === true)
+const browserLayout = computed(() => requestedLayout.value === 'custom' && (!customPage.value || (hasIndividualAuth.value && (pendingPayment.value || pendingVerificationEmail.value || callbackLoading.value || passkeyTicket.value || quickConnectMode.value))) ? 'classic' : requestedLayout.value)
+const isCustomFields = computed(() => browserLayout.value === 'custom' && hasIndividualAuth.value)
+const customAuthIndex = computed(() => customPage.value?.blocks.findIndex((block) => block.type === 'auth') ?? -1)
+const customBefore = computed(() => customPage.value?.blocks.slice(0, customAuthIndex.value) ?? [])
+const customAfter = computed(() => customPage.value?.blocks.slice(customAuthIndex.value + 1) ?? [])
+watch(requestedLayout, async (layout, _previous, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  if (layout !== 'custom') { customPage.value = null; return }
+  try {
+    const page = await getPublishedPage('login')
+    const fields = page.blocks.filter((block) => block.type === 'auth-field').map((block) => block.field)
+    const validFields = page.layout === 'free' && ['username', 'password', 'email', 'submit', 'switch'].every((field) => fields.includes(field as typeof fields[number]))
+    if (active) customPage.value = page.blocks.filter((block) => block.type === 'auth').length === 1 || validFields ? page : null
+  } catch {
+    if (active) customPage.value = null
+  }
+}, { immediate: true })
+const loginBackground = computed(() => appearance.activeTheme.value?.config.branding.loginBackground)
 const oauthClientName = ref('')
 const oauthClientLoading = ref(false)
 const oauthClientError = ref('')
@@ -553,7 +586,7 @@ async function handleForgetBiometricLogin() {
   biometricLoginAvailable.value = false
 }
 
-async function handleRegistration(credentials: { username: string; password: string; email: string; displayName: string }) {
+async function handleRegistration(credentials: { username: string; password: string; email: string; displayName: string; customFields?: Record<string, string> }) {
   if (registrationEnabled.value !== true) {
     return
   }
@@ -561,7 +594,7 @@ async function handleRegistration(credentials: { username: string; password: str
   isSubmitting.value = true
 
   try {
-    const [registrationError, result] = await catchError(register(credentials.username, credentials.password, credentials.email, credentials.displayName))
+    const [registrationError, result] = await catchError(register(credentials.username, credentials.password, credentials.email, credentials.displayName, credentials.customFields))
     if (registrationError) {
       notify.error(getRequestErrorMessage(registrationError, true))
       return
@@ -580,6 +613,25 @@ async function handleRegistration(credentials: { username: string; password: str
   } finally {
     isSubmitting.value = false
   }
+}
+
+function submitCustomForm() {
+  const credentials = customCredentials.value
+  if (isRegistration.value) void handleRegistration({ ...credentials, username: credentials.username.trim(), email: credentials.email.trim(), customFields: customValues.value })
+  else void handleLogin({ username: credentials.username.trim(), password: credentials.password, rememberBiometric: false })
+}
+
+async function runCustomAction(path: string | undefined, allowedFields: string[] | undefined) {
+  try {
+    if (!path || !/^\/(?![\/\\])/.test(path) || path.includes('\\')) throw new Error('Invalid action')
+    const url = new URL(path, window.location.origin)
+    if (url.origin !== window.location.origin) throw new Error('Invalid action')
+    const configured = new Set(customPage.value?.blocks.filter((block) => block.type === 'auth-custom').map((block) => block.id) ?? [])
+    const fields = Object.fromEntries((allowedFields ?? []).filter((id) => configured.has(id) && typeof customValues.value[id] === 'string').map((id) => [id, customValues.value[id]]))
+    const response = await fetch(url, { method: 'POST', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) })
+    if (!response.ok) throw new Error('Action failed')
+    notify.success(t('pageBuilder.actionDone'))
+  } catch { notify.error(t('pageBuilder.actionFailed')) }
 }
 
 function getRequestErrorMessage(error: unknown, registration: boolean): string {
@@ -601,7 +653,8 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 </script>
 
 <template>
-  <TvAuthScreen v-if="isTvMode && (route.name === 'login' || route.name === 'register' || (isOAuthSignIn && oauthClientName)) && !pendingPayment && !pendingVerificationEmail && !callbackLoading"
+  <TvAuthScreen
+    v-if="isTvMode && (route.name === 'login' || route.name === 'register' || (isOAuthSignIn && oauthClientName)) && !pendingPayment && !pendingVerificationEmail && !callbackLoading"
     :app-name="appName" :registration="isRegistration" :registration-enabled="registrationEnabled"
     :registration-status-error="registrationStatusError" :quick-connect-enabled="quickConnectEnabled"
     :quick-connect-loading="quickConnectLoading" :quick-connect-status-error="quickConnectStatusError"
@@ -610,84 +663,907 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
     :session-check-unavailable="sessionCheckUnavailable" :can-resend="needsVerification" :is-resending="isResending"
     :native-app="isNativeApp()" @submit="handleLogin" @authenticated="handleQuickConnectAuthentication"
     @switch-mode="switchAuthMode" @cancel-second-factor="cancelSecondFactor" @resend="handleResendVerification" />
-  <main v-else class="login-background relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text"
-    :class="{ 'lg:grid lg:grid-cols-2': !compactOAuthLayout }">
-    <AuthBrandPanel :compact="compactOAuthLayout" />
+  <main v-else :ref="setAuthPageElement"
+    class="login-background auth-page relative isolate min-h-[100dvh] overflow-hidden font-sans text-flixer-text"
+    :class="[`auth-page--${browserLayout}`, { 'auth-page--fit': !isTvMode, 'auth-page--registration': isRegistration, 'lg:grid lg:grid-cols-2': !compactOAuthLayout && (browserLayout === 'classic' || browserLayout === 'spotlight'), 'lg:grid': browserLayout === 'cinema' }]"
+    :style="[loginBackground && browserLayout !== 'classic' ? { '--auth-background': `url(${loginBackground})` } : {}, !isTvMode ? { '--auth-fit-scale': authScale, '--auth-fit-top': `${authTop}px` } : {}]">
+    <AuthBrandPanel v-if="browserLayout !== 'custom'" class="auth-brand" :variant="browserLayout"
+      :aria-hidden="browserLayout === 'spotlight' ? 'true' : undefined"
+      :compact="compactOAuthLayout || browserLayout === 'centered' || browserLayout === 'studio'" />
+    <form v-if="isCustomFields" id="custom-auth-form" @submit.prevent="submitCustomForm"></form>
+    <h1 v-if="isCustomFields" class="sr-only">{{ t(isRegistration ? 'auth.createYourAccountTitle' : 'auth.welcomeBack')
+    }}</h1>
+    <p v-if="isCustomFields && loginBanner" class="whitespace-pre-line px-6 py-3 text-flixer-muted">{{ loginBanner }}
+    </p>
+    <p v-if="isCustomFields && sessionCheckUnavailable" role="status" class="px-6 py-3 text-flixer-accent">{{
+      t('auth.sessionCheckUnavailable') }}</p>
+    <p v-if="isCustomFields && isRegistration && registrationStatusError" role="status"
+      class="px-6 py-3 text-flixer-muted">{{ registrationStatusError }}</p>
+    <p v-else-if="isCustomFields && isRegistration && registrationEnabled !== true" role="status"
+      class="px-6 py-3 text-flixer-muted">{{ t(registrationEnabled === null ? 'auth.checkingRegistration' :
+        'auth.registrationDisabled') }}</p>
+    <PageCanvas v-if="browserLayout === 'custom' && customPage?.layout === 'free'" :blocks="customPage.blocks"
+      layout="free"><template #auth>
+        <div id="custom-auth-slot"></div>
+      </template>
+      <template #auth-field="{ block }">
+        <label v-if="block.type === 'auth-custom' && isRegistration" class="block text-sm font-semibold">{{ block.text
+          }}<input v-model="customValues[block.id]" form="custom-auth-form" type="text" maxlength="500"
+            class="mt-2 h-12 w-full rounded border border-flixer-border bg-flixer-background/90 px-4 text-flixer-text outline-none focus:border-flixer-accent" /></label>
+        <button v-else-if="block.type === 'auth-action'" type="button"
+          class="min-h-12 w-full rounded border border-flixer-border bg-flixer-surface px-4 py-2 text-sm font-semibold"
+          @click="runCustomAction(block.href, block.allowedFields)">{{ block.text }}</button>
+        <ExternalProviderLogin v-else-if="block.field === 'providers' && !isRegistration"
+          :redirect="getPostLoginDestination()" @authenticated="handleExternalAuthentication"
+          @selection="externalFormOpen = $event" />
+        <CustomAuthField v-else-if="block.field && block.field !== 'providers'" v-model="customCredentials"
+          :field="block.field" :registration="isRegistration" :registration-enabled="registrationEnabled"
+          :quick-connect-enabled="quickConnectEnabled" :submitting="isSubmitting"
+          :needs-verification="needsVerification" :resending="isResending" @switch="switchAuthMode"
+          @passkey="handlePasskeyLogin" @quick-connect="quickConnectMode = true" @resend="handleResendVerification" />
+      </template>
+    </PageCanvas>
+    <PageCanvas v-else-if="browserLayout === 'custom' && customBefore.length" :blocks="customBefore" />
 
-    <section class="relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10"
-      :class="{ 'lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16': !compactOAuthLayout }"
-      :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
-      <div
-        class="absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted"
-        :class="{ 'lg:flex': !compactOAuthLayout }">
-        <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
-        {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
-      </div>
+    <Teleport v-if="!isCustomFields" to="#custom-auth-slot"
+      :disabled="browserLayout !== 'custom' || customPage?.layout !== 'free'">
+      <section class="auth-content relative z-10 flex min-h-[420px] flex-col items-center px-6 pb-8 pt-5 sm:px-10"
+        :class="{ 'lg:min-h-screen lg:justify-center lg:bg-flixer-background lg:px-12 lg:py-16': !compactOAuthLayout && (browserLayout === 'classic' || browserLayout === 'spotlight') }"
+        :aria-labelledby="isRegistration ? 'registration-title' : 'login-title'">
+        <img v-if="browserLayout === 'spotlight'" :src="spotlightLogo" class="spotlight-logo" alt=""
+          aria-hidden="true" />
+        <div v-if="browserLayout !== 'centered'"
+          class="auth-security absolute right-8 top-8 hidden items-center gap-2 text-[9px] font-bold tracking-widest text-flixer-muted"
+          :class="{ 'lg:flex': !compactOAuthLayout }">
+          <Icon icon="lucide:lock-keyhole" class="size-3.5" aria-hidden="true" />
+          {{ t('auth.secureMode', { mode: isRegistration ? t('auth.registrationMode') : t('auth.signInMode') }) }}
+        </div>
 
-      <p v-if="loginBanner"
-        class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">
-        {{ loginBanner }}</p>
+        <p v-if="loginBanner"
+          class="w-full max-w-md whitespace-pre-line rounded border border-flixer-border/70 bg-flixer-surface/50 px-4 py-3 text-center text-sm text-flixer-muted">
+          {{ loginBanner }}</p>
 
-      <div
-        class="w-full mt-0 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
-        :class="{ 'lg:mt-4 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none': !compactOAuthLayout }">
-        <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
-          <div
-            :key="callbackLoading ? 'callback' : pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
-            <p v-if="callbackLoading" role="status" class="text-sm text-flixer-muted">{{
-              t('externalAuth.callbackLoading') }}</p>
-            <VerificationNotice v-else-if="pendingVerificationEmail" :email="pendingVerificationEmail"
-              @back="leaveVerificationNotice" />
-            <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name"
-              :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
-            <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor"
-              @back="cancelSecondFactor" />
-            <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication"
-              @back="quickConnectMode = false" />
-            <div v-else-if="isOAuthSignIn && !oauthClientName">
-              <p v-if="oauthClientLoading" id="login-title" role="status" class="text-sm text-flixer-muted">{{
-                t('oidc.loading') }}</p>
-              <template v-else>
-                <p id="login-title" role="alert" class="text-sm text-red-200">{{ oauthClientError }}</p><button
-                  type="button" class="mt-4 rounded border border-flixer-border px-4 py-2 text-sm"
-                  @click="loadOAuthClient">{{ t('oidc.retry') }}</button>
+        <div
+          class="auth-form w-full mt-0 max-w-md rounded border border-flixer-border/70 bg-flixer-surface/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
+          :class="{ 'lg:mt-4 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none': !compactOAuthLayout && (browserLayout === 'classic' || browserLayout === 'spotlight') }">
+          <img v-if="browserLayout === 'centered' || browserLayout === 'cinema'" :src="spotlightLogo"
+            class="centered-form-logo" alt="" aria-hidden="true" />
+          <Transition :name="isRegistration ? 'auth-slide-left' : 'auth-slide-right'" mode="out-in">
+            <div
+              :key="callbackLoading ? 'callback' : pendingVerificationEmail ? 'verification' : pendingPayment ? 'payment' : passkeyTicket ? 'second-factor' : quickConnectMode ? 'quick-connect' : isRegistration ? 'registration' : 'login'">
+              <p v-if="callbackLoading" role="status" class="text-sm text-flixer-muted">{{
+                t('externalAuth.callbackLoading') }}</p>
+              <VerificationNotice v-else-if="pendingVerificationEmail" :email="pendingVerificationEmail"
+                @back="leaveVerificationNotice" />
+              <SignupPaymentStep v-else-if="pendingPayment" :token="pendingPayment.token" :name="pendingPayment.name"
+                :email="pendingPayment.email" @paid="handlePaid" @expired="handlePaymentExpired" @back="endPayment" />
+              <PasskeySecondFactor v-else-if="passkeyTicket" :is-submitting="isSubmitting" @verify="handleSecondFactor"
+                @back="cancelSecondFactor" />
+              <QuickConnectLogin v-else-if="quickConnectMode" @authenticated="handleQuickConnectAuthentication"
+                @back="quickConnectMode = false" />
+              <div v-else-if="isOAuthSignIn && !oauthClientName">
+                <p v-if="oauthClientLoading" id="login-title" role="status" class="text-sm text-flixer-muted">{{
+                  t('oidc.loading') }}</p>
+                <template v-else>
+                  <p id="login-title" role="alert" class="text-sm text-red-200">{{ oauthClientError }}</p><button
+                    type="button" class="mt-4 rounded border border-flixer-border px-4 py-2 text-sm"
+                    @click="loadOAuthClient">{{ t('oidc.retry') }}</button>
+                </template>
+              </div>
+              <template v-else-if="!isRegistration">
+                <LoginForm v-if="!externalFormOpen" :oauth-sign-in="isOAuthSignIn" :oauth-client-name="oauthClientName"
+                  :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable"
+                  :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError"
+                  :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification"
+                  :is-resending="isResending" :initial-username="nativeUsername"
+                  :biometric-available="biometricAvailable" :biometric-login-available="biometricLoginAvailable"
+                  @submit="handleLogin" @passkey="handlePasskeyLogin" @biometric="handleBiometricLogin"
+                  @forget-biometric="handleForgetBiometricLogin" @resend="handleResendVerification"
+                  @switch-mode="switchAuthMode" @quick-connect="quickConnectMode = true" />
+                <ExternalProviderLogin :redirect="getPostLoginDestination()"
+                  @authenticated="handleExternalAuthentication" @selection="externalFormOpen = $event" />
               </template>
+              <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled"
+                :registration-status-error="registrationStatusError" @submit="handleRegistration"
+                @switch-mode="switchAuthMode" />
             </div>
-            <template v-else-if="!isRegistration">
-              <LoginForm v-if="!externalFormOpen" :oauth-sign-in="isOAuthSignIn" :oauth-client-name="oauthClientName"
-                :is-submitting="isSubmitting" :session-check-unavailable="sessionCheckUnavailable"
-                :registration-enabled="registrationEnabled" :registration-status-error="registrationStatusError"
-                :quick-connect-enabled="quickConnectEnabled" :can-resend="needsVerification" :is-resending="isResending"
-                :initial-username="nativeUsername" :biometric-available="biometricAvailable"
-                :biometric-login-available="biometricLoginAvailable" @submit="handleLogin" @passkey="handlePasskeyLogin"
-                @biometric="handleBiometricLogin" @forget-biometric="handleForgetBiometricLogin"
-                @resend="handleResendVerification" @switch-mode="switchAuthMode"
-                @quick-connect="quickConnectMode = true" />
-              <ExternalProviderLogin :redirect="getPostLoginDestination()" @authenticated="handleExternalAuthentication"
-                @selection="externalFormOpen = $event" />
-            </template>
-            <RegistrationForm v-else :is-submitting="isSubmitting" :registration-enabled="registrationEnabled"
-              :registration-status-error="registrationStatusError" @submit="handleRegistration"
-              @switch-mode="switchAuthMode" />
-          </div>
-        </Transition>
-      </div>
+          </Transition>
+        </div>
 
-      <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70"
-        :class="{ 'lg:flex': !compactOAuthLayout }">
-        <span>{{ t('auth.copyright', { year: 2026 }) }}</span>
-        <span class="text-flixer-accent">·</span>
-        <span>{{ t('auth.madeForMovieNights') }}</span>
-      </footer>
-      <RouterLink v-if="isNativeApp()" :to="{ name: 'connect' }"
-        class="mt-5 text-sm text-flixer-muted underline hover:text-flixer-text">
-        {{ t('native.changeServer') }}
-      </RouterLink>
-    </section>
+        <footer class="mt-auto hidden items-center justify-center gap-2 pt-10 text-[10px] text-flixer-muted/70"
+          :class="{ 'lg:flex': !compactOAuthLayout }">
+          <span>{{ t('auth.copyright', { year: 2026 }) }}</span>
+          <span class="text-flixer-accent">·</span>
+          <span>{{ t('auth.madeForMovieNights') }}</span>
+        </footer>
+        <RouterLink v-if="isNativeApp()" :to="{ name: 'connect' }"
+          class="mt-5 text-sm text-flixer-muted underline hover:text-flixer-text">
+          {{ t('native.changeServer') }}
+        </RouterLink>
+      </section>
+    </Teleport>
+    <aside v-if="browserLayout === 'studio'" class="studio-feature" aria-hidden="true">
+      <div class="studio-feature-inner">
+        <div class="studio-feature-icons">
+          <Icon icon="lucide:clapperboard" />
+          <Icon icon="lucide:tv" />
+          <Icon icon="lucide:music-2" />
+        </div>
+        <p class="studio-feature-label">{{ t('auth.nextFavoriteIsHere') }}</p>
+        <p class="studio-feature-title">{{ t(isRegistration ? 'auth.createYourAccountTitle' : 'auth.signInToFlixer') }}
+        </p>
+        <p class="studio-feature-description">{{ t('auth.welcomeDescription') }}</p>
+      </div>
+    </aside>
+    <PageCanvas v-if="browserLayout === 'custom' && customPage?.layout !== 'free' && customAfter.length"
+      :blocks="customAfter" />
   </main>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+.auth-page--fit {
+  position: fixed;
+  top: var(--auth-fit-top, 0px);
+  left: 0;
+  width: 100%;
+  transform: scale(var(--auth-fit-scale, 1));
+  transform-origin: top center;
+}
+
+.auth-page--studio,
+.auth-page--cinema {
+  background-image: linear-gradient(color-mix(in srgb, var(--color-flixer-background) 86%, transparent), color-mix(in srgb, var(--color-flixer-background) 94%, transparent)), var(--auth-background, none);
+  background-size: cover;
+  background-position: center;
+}
+
+.auth-page--centered,
+.auth-page--studio,
+.auth-page--cinema {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-page--centered .auth-content,
+.auth-page--studio .auth-content {
+  flex: 1;
+  justify-content: center;
+  padding-bottom: 4rem;
+}
+
+.auth-page--centered .auth-form {
+  background: color-mix(in srgb, var(--color-flixer-surface) 94%, transparent);
+}
+
+.auth-page--studio .auth-brand {
+  border-bottom: 1px solid var(--color-flixer-border);
+  background: var(--color-flixer-surface);
+}
+
+.auth-page--studio .auth-brand :deep(a) {
+  margin: 0;
+}
+
+.auth-page--studio .auth-brand :deep(img) {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0;
+}
+
+.auth-page--studio .auth-brand :deep(a span) {
+  display: inline;
+  margin-left: .75rem;
+}
+
+.auth-page--studio .auth-form {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.auth-page--cinema .auth-content {
+  justify-content: center;
+  padding-block: 2rem 4rem;
+}
+
+.auth-page--cinema .auth-form {
+  background: color-mix(in srgb, var(--color-flixer-surface) 94%, transparent);
+}
+
+.auth-page--custom .auth-content {
+  min-height: 0;
+  padding-block: 1.5rem;
+}
+
+@media (max-width: 1023px) {
+  .auth-page--spotlight .auth-brand :deep(a) {
+    margin-left: 0;
+  }
+
+  .auth-page--spotlight .auth-brand :deep(img) {
+    width: 3rem;
+    height: 3rem;
+    margin-top: 0;
+  }
+
+  .auth-page--spotlight .auth-form {
+    border: 0;
+    background: transparent;
+    padding-left: 0;
+    padding-right: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .auth-page--cinema .auth-brand :deep(a) {
+    margin-left: 0;
+  }
+
+  .auth-page--cinema .auth-brand :deep(img) {
+    width: 3rem;
+    height: 3rem;
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-page--spotlight .auth-brand {
+    order: 2;
+  }
+
+  .auth-page--spotlight .auth-content {
+    order: 1;
+  }
+
+  .auth-page--centered .auth-brand :deep(img) {
+    margin-top: 1rem;
+  }
+
+  .auth-page--cinema {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(28rem, 2fr);
+  }
+
+  .auth-page--cinema .auth-content {
+    min-height: 100dvh;
+    padding-inline: 3rem;
+  }
+
+  .auth-page--cinema .auth-brand {
+    background: transparent;
+  }
+}
+
+.studio-feature {
+  display: none;
+}
+
+.auth-page--spotlight {
+  background: var(--flixer-login-gradient);
+}
+
+.auth-page--spotlight .auth-content {
+  background: transparent;
+}
+
+.auth-page--spotlight .auth-brand {
+  background: color-mix(in srgb, #197b79 20%, var(--color-flixer-surface));
+}
+
+.auth-page--spotlight .auth-brand :deep(.brand-glow),
+.auth-page--cinema .auth-brand :deep(.brand-glow) {
+  display: none;
+}
+
+.auth-page--spotlight .auth-form {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.auth-page--centered {
+  background: transparent;
+}
+
+.auth-page--centered .auth-brand {
+  padding-block: 2rem 0;
+  background: transparent;
+}
+
+.auth-page--centered .auth-brand :deep(.brand-logo) {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-top: 0;
+}
+
+.auth-page--centered .auth-form {
+  border-top: 3px solid var(--color-flixer-accent);
+  border-radius: 4px;
+  background: var(--color-flixer-surface);
+  padding: 2rem;
+}
+
+.centered-form-logo {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .auth-page--fit.auth-page--centered {
+    transform: scaleY(var(--auth-fit-scale, 1));
+  }
+
+  .auth-page--centered .auth-brand {
+    display: none;
+  }
+
+  .auth-page--centered .auth-content {
+    min-height: 100dvh;
+    padding: 0;
+  }
+
+  .auth-page--centered .auth-form {
+    width: 100%;
+    max-width: none;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 0;
+    border-radius: 0;
+    padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
+  }
+
+  .centered-form-logo {
+    display: block;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1.5rem;
+    border-radius: .5rem;
+  }
+}
+
+.auth-page--studio {
+  background: var(--color-flixer-background);
+}
+
+.auth-page--studio .auth-brand {
+  grid-area: brand;
+  padding-block: 1rem;
+}
+
+.auth-page--studio .auth-content {
+  grid-area: content;
+}
+
+.studio-feature {
+  grid-area: feature;
+  align-items: center;
+  padding: 3rem;
+  color: var(--color-flixer-text);
+  background: color-mix(in srgb, #b85b41 13%, var(--color-flixer-surface));
+}
+
+.studio-feature-inner {
+  max-width: 29rem;
+  border-left: 3px solid #d27b61;
+  padding-left: 2rem;
+}
+
+.studio-feature-icons {
+  display: flex;
+  gap: 1rem;
+  color: #d27b61;
+  font-size: 1.5rem;
+}
+
+.studio-feature-label {
+  margin-top: 2.5rem;
+  color: var(--color-flixer-muted);
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.studio-feature-title {
+  margin-top: 1rem;
+  font-family: Georgia, serif;
+  font-size: 3.5rem;
+  line-height: 1.05;
+}
+
+.studio-feature-title span {
+  color: #d27b61;
+  display: block;
+  margin-top: 1rem;
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.studio-feature-description {
+  margin-top: 1.5rem;
+  color: var(--color-flixer-muted);
+  line-height: 1.7;
+}
+
+.auth-page--cinema {
+  background-color: #111;
+  background-image: var(--auth-background, none);
+  background-position: center;
+  background-size: cover;
+}
+
+.auth-page--cinema .auth-brand {
+  color: #fff;
+}
+
+.auth-page--cinema .auth-brand :deep(.brand-link),
+.auth-page--cinema .auth-brand :deep(.brand-headline) {
+  color: #fff;
+}
+
+.auth-page--cinema .auth-brand :deep(.brand-background) {
+  display: none;
+}
+
+.auth-page--cinema .auth-brand :deep(.brand-story > span),
+.auth-page--cinema .auth-brand :deep(.brand-story p) {
+  color: #e4e6e5;
+}
+
+.auth-page--cinema .auth-brand :deep(.brand-headline span) {
+  color: #b9e8dd;
+}
+
+.auth-page--cinema .auth-content {
+  background: transparent;
+}
+
+.auth-page--cinema .auth-security {
+  display: none;
+}
+
+.auth-page--cinema .auth-form {
+  border: 1px solid var(--color-flixer-border);
+  border-radius: 4px;
+  padding: 2rem;
+  background: var(--color-flixer-surface);
+}
+
+@media (min-width: 1024px) {
+  .auth-page--spotlight {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .auth-page--spotlight .auth-brand {
+    min-height: calc(100dvh - 3rem);
+    border-radius: 4px;
+    padding: 3rem;
+  }
+
+  .auth-page--spotlight .auth-content {
+    min-height: calc(100dvh - 3rem);
+    padding: 3rem;
+  }
+
+  .auth-page--spotlight .auth-brand :deep(.brand-story) {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+
+  .auth-page--spotlight .auth-brand :deep(.brand-headline) {
+    font-size: 4rem;
+  }
+
+  .auth-page--centered .auth-content {
+    padding-top: 2rem;
+  }
+
+  .auth-page--studio {
+    display: grid;
+    grid-template-areas: 'brand brand' 'feature content';
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .auth-page--studio .auth-content {
+    justify-content: center;
+    padding: 3rem 4rem;
+  }
+
+  .studio-feature {
+    display: flex;
+  }
+
+  .auth-page--cinema .auth-brand :deep(.brand-story) {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .auth-page--spotlight .auth-brand {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .auth-page--spotlight .auth-content {
+    justify-content: center;
+    padding-top: 2.5rem;
+  }
+
+  .auth-page--studio .auth-content {
+    padding-top: 3rem;
+  }
+
+  .auth-page--cinema .auth-brand {
+    padding: 1.5rem;
+  }
+}
+
+.spotlight-logo {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-page--spotlight {
+  background: var(--color-flixer-background);
+
+  .auth-brand {
+    min-height: 7rem;
+    background: var(--flixer-login-gradient);
+
+    :deep(.brand-link),
+    :deep(.brand-story),
+    :deep(.brand-tagline),
+    :deep(.brand-background) {
+      display: none;
+    }
+  }
+
+  .auth-content {
+    justify-content: center;
+    padding-block: 3rem;
+  }
+
+  .auth-security,
+  footer {
+    display: none;
+  }
+
+  .auth-form {
+    max-width: 25rem;
+    padding: 0;
+  }
+
+  .auth-form :deep([data-haptic] > span:first-child) {
+    display: none;
+  }
+
+  .auth-form :deep([data-haptic] > h1),
+  .auth-form :deep([data-haptic] > h1 + p) {
+    text-align: center;
+  }
+}
+
+.auth-page--studio {
+  display: grid;
+  grid-template-areas: 'brand' 'feature' 'content';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  background: var(--flixer-login-gradient);
+
+  .auth-brand {
+    border: 0;
+    background: transparent;
+    padding: 1.5rem;
+  }
+
+  .auth-content {
+    padding: 1rem 1.5rem 3rem;
+  }
+
+  .auth-security,
+  .studio-feature-icons {
+    display: none;
+  }
+
+  .auth-form {
+    border: 1px solid var(--color-flixer-border);
+    border-radius: 4px;
+    background: var(--color-flixer-surface);
+    padding: 1.5rem;
+    box-shadow: 0 1rem 3rem rgb(0 0 0 / 15%);
+  }
+
+  .studio-feature {
+    display: flex;
+    padding: 1rem 1.5rem;
+    background: transparent;
+  }
+
+  .studio-feature-inner {
+    border: 0;
+    padding: 0;
+  }
+
+  .studio-feature-label {
+    margin-top: 0;
+  }
+
+  .studio-feature-title {
+    font-family: var(--font-sans);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .studio-feature-description {
+    margin-top: 1rem;
+  }
+}
+
+.auth-page--cinema {
+  background: var(--flixer-login-gradient);
+
+  .auth-brand {
+    min-height: 12rem;
+    align-items: center;
+    justify-content: center;
+    background: var(--flixer-login-gradient);
+    text-align: center;
+
+    :deep(.brand-link) {
+      margin: 0 auto;
+    }
+
+    :deep(.brand-story) {
+      margin: auto;
+    }
+
+    :deep(.brand-tagline),
+    :deep(.brand-glow),
+    :deep(.brand-background) {
+      display: none;
+    }
+  }
+
+  .auth-content {
+    justify-content: center;
+    background: var(--color-flixer-surface);
+    padding: 2rem 1.5rem;
+  }
+
+  .auth-form {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .auth-form :deep([data-haptic] > h1),
+  .auth-form :deep([data-haptic] > h1 + p) {
+    text-align: center;
+  }
+
+  footer,
+  .auth-security {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .auth-page--fit.auth-page--cinema {
+    transform: scaleY(var(--auth-fit-scale, 1));
+    background: transparent;
+  }
+
+  .auth-page--cinema .auth-brand {
+    display: none;
+  }
+
+  .auth-page--cinema .auth-content {
+    min-height: 100dvh;
+    padding: 0 1.5rem;
+    background: transparent;
+  }
+
+  .auth-page--cinema .auth-form {
+    width: 100%;
+    max-width: 28rem;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
+    background: var(--color-flixer-surface);
+  }
+
+  .auth-page--cinema .centered-form-logo {
+    display: block;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1.5rem;
+    border-radius: .5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-page--spotlight {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 0;
+    padding: 0;
+
+    .auth-brand {
+      min-height: 100dvh;
+      border-radius: 0;
+      padding: 0;
+    }
+
+    .auth-content {
+      min-height: 100dvh;
+      padding: 3rem;
+    }
+  }
+
+  .auth-page--studio {
+    grid-template-areas: 'brand brand' 'feature content';
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+
+    .auth-brand {
+      padding: 2.5rem 4rem 0;
+    }
+
+    .studio-feature {
+      padding: 4rem;
+    }
+
+    .studio-feature-title {
+      font-size: 3rem;
+    }
+
+    .auth-content {
+      justify-content: center;
+      padding: 3rem 4rem;
+    }
+
+    .auth-form {
+      max-width: 28rem;
+      padding: 2rem;
+    }
+  }
+
+  .auth-page--cinema {
+    display: grid;
+    grid-template-columns: minmax(0, 24rem) minmax(0, 38rem);
+    align-content: center;
+    justify-content: center;
+    padding: 3rem;
+
+    .auth-content {
+      order: 1;
+      min-height: 40rem;
+      padding: 3rem;
+    }
+
+    .auth-brand {
+      order: 2;
+      min-height: 40rem;
+      padding: 3rem;
+    }
+
+    .auth-brand :deep(.brand-headline) {
+      font-size: 3.5rem;
+    }
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 600px) {
+  .auth-page--fit:not(.auth-page--custom) {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+
+    .auth-brand,
+    .studio-feature,
+    .auth-security,
+    footer {
+      display: none;
+    }
+
+    .auth-content {
+      min-height: 0;
+      justify-content: center;
+      padding: .75rem 1rem;
+    }
+
+    .auth-form {
+      max-width: 32rem;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    .spotlight-logo {
+      width: 2rem;
+      height: 2rem;
+      margin-bottom: .25rem;
+    }
+
+    .auth-form :deep([data-haptic] > span:first-child) {
+      display: none;
+    }
+
+    .auth-form :deep([data-haptic] > h1) {
+      margin-top: 0;
+      font-size: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .auth-form :deep([data-haptic] > h1 + p) {
+      margin-top: .25rem;
+    }
+
+    .auth-form :deep(form) {
+      margin-top: .75rem;
+    }
+
+    .auth-form :deep(form > .flex.flex-col) {
+      margin-top: .5rem;
+    }
+
+    .auth-form :deep(form > .flex.flex-col:first-child) {
+      margin-top: 0;
+    }
+
+    .auth-form :deep(form > .flex.flex-col > label) {
+      margin-bottom: .25rem;
+    }
+
+    .auth-form :deep(form > .flex.flex-col > .relative) {
+      height: 2.5rem;
+    }
+
+    .auth-form :deep([data-haptic] > .my-6),
+    .auth-form :deep([data-haptic] > .my-7) {
+      margin-block: .5rem;
+    }
+  }
+}
+
+@media (min-width: 600px) and (max-width: 1023px) and (max-height: 600px) {
+  .auth-page--fit.auth-page--registration:not(.auth-page--custom) {
+    .auth-form {
+      max-width: 44rem;
+    }
+
+    .auth-form :deep([data-haptic] > form) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .5rem 1rem;
+    }
+
+    .auth-form :deep([data-haptic] > form > .flex.flex-col) {
+      margin-top: 0;
+    }
+
+    .auth-form :deep([data-haptic] > form > button[type='submit']) {
+      grid-column: 1 / -1;
+      margin-top: 0;
+    }
+  }
+}
+
 .auth-slide-left-enter-active,
 .auth-slide-left-leave-active,
 .auth-slide-right-enter-active,

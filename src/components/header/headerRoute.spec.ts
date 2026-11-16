@@ -11,7 +11,7 @@ describe("getHeaderRoute", () => {
 		});
 	});
 
-	it.each(["history", "up-next", "video-collections", "automatic-collection", "dismissed-recommendations"])("shows normal navigation on %s", (name) => {
+	it.each(["history", "up-next", "video-collections", "automatic-collection", "dismissed-recommendations", "custom-page"])("shows normal navigation on %s", (name) => {
 		expect(getHeaderRoute(name, false)).toEqual({
 			show: true,
 			showLinks: true,

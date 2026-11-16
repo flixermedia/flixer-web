@@ -2,6 +2,7 @@ import type { NavLink, NavTab } from "../types/media";
 import { i18n } from "../i18n";
 import { useRequestsConfig } from "./useRequestsConfig";
 import { pagePath, usePluginPages } from "./usePluginPages";
+import { usePageNavigation } from "../components/pageBuilder/usePageNavigation";
 
 const PLUGIN_PAGE_ICON = "M4 4h16v16H4zM8 8h8M8 12h8M8 16h5";
 
@@ -10,7 +11,9 @@ export function getNavLinks(): NavLink[] {
 	void load();
 	const plugins = usePluginPages();
 	void plugins.load();
-	return [{ label: i18n.global.t("home.nav.home"), to: "/" }, { label: i18n.global.t("home.nav.movies"), to: "/movies" }, { label: i18n.global.t("home.nav.tvShows"), to: "/shows" }, { label: i18n.global.t("home.nav.music"), to: "/music" }, { label: i18n.global.t("collectionsPage.title"), to: "/collections" }, { label: i18n.global.t("home.nav.guide"), to: "/guide" }, ...(enabled.value ? [{ label: i18n.global.t("requests.nav.discover"), to: "/discover" }] : []), ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page) }))];
+	const custom = usePageNavigation();
+	void custom.load();
+	return [{ label: i18n.global.t("home.nav.home"), to: "/" }, { label: i18n.global.t("home.nav.movies"), to: "/movies" }, { label: i18n.global.t("home.nav.tvShows"), to: "/shows" }, { label: i18n.global.t("home.nav.music"), to: "/music" }, { label: i18n.global.t("collectionsPage.title"), to: "/collections" }, { label: i18n.global.t("home.nav.guide"), to: "/guide" }, ...(enabled.value ? [{ label: i18n.global.t("requests.nav.discover"), to: "/discover" }] : []), ...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page) })), ...custom.pages.value.map((page) => ({ label: page.title, to: `/pages/${encodeURIComponent(page.slug)}` }))];
 }
 
 export function getMobileTabs(): NavTab[] {
@@ -18,6 +21,8 @@ export function getMobileTabs(): NavTab[] {
 	void load();
 	const plugins = usePluginPages();
 	void plugins.load();
+	const custom = usePageNavigation();
+	void custom.load();
 	return [
 		{ label: i18n.global.t("home.nav.home"), to: "/", icon: "lucide:house" },
 		{ label: i18n.global.t("home.nav.movies"), to: "/movies", icon: "lucide:film" },
@@ -29,6 +34,7 @@ export function getMobileTabs(): NavTab[] {
 		{ label: i18n.global.t("home.nav.search"), to: "/search", icon: "lucide:search" },
 		...(enabled.value ? [{ label: i18n.global.t("requests.nav.discover"), to: "/discover", icon: "lucide:sparkles" }] : []),
 		...plugins.mainPages.value.map((page) => ({ label: page.title, to: pagePath(page), icon: PLUGIN_PAGE_ICON })),
+		...custom.pages.value.map((page) => ({ label: page.title, to: `/pages/${encodeURIComponent(page.slug)}`, icon: "lucide:file-text" })),
 	];
 }
 

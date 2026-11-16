@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
 	clearInterval(remoteStateTimer);
 	stopRemotePlayback();
 });
-const headerRoute = computed(() => getHeaderRoute(route.name, compact.value));
+const headerRoute = computed(() => route.name === "custom-page" && !getAccessToken() ? { show: false, showLinks: false, docked: false, disableScrollCollapse: false } : getHeaderRoute(route.name, compact.value));
 const headerLinks = computed(() => headerRoute.value.showLinks ? getNavLinks() : []);
 const { isSigningOut, signOut } = useSignOut();
 const nativeMenuTabs = computed(getMobileTabs);

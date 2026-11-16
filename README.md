@@ -25,6 +25,7 @@
 - **Media discovery:** Browse titles, series, categories and search results.
 - **Responsive experience:** Layouts for desktop, tablet and mobile, with glassmorphism styling.
 - **Authentication:** Login, registration and protected routes backed by Flixer sessions.
+- **Page builder:** Administrators can design browser sign-in and standalone pages with draggable blocks, responsive positions, drafts and version history. TV sign-in keeps its own layout.
 - **Payments:** Optional paywalls, rentals, purchases and subscriptions with an embedded Stripe or Square card form, a billing page and an admin Payments section. Off unless an admin enables it.
 - **Modern frontend:** Vue 3, Vite, Pinia, Vue Router and Tailwind CSS v4.
 - **Mobile projects:** Capacitor wrappers for Android and iOS alongside the web build.
@@ -78,14 +79,22 @@ TV mode hides casting, Up Next management, adding to collections, issue reportin
 
 TV mode fits a fixed 1280×720 layout to the available viewport, with black bars when needed. It blocks browser zoom shortcuts and zoom gestures when the browser allows it; browser menus, extensions and settings may still change zoom.
 
+### Page builder
+
+Open **Admin → Settings → Appearance → Custom** to edit the browser sign-in page or create other pages. Publishing the login design selects it for browser sign-in; the built-in authentication checks remain in effect. Existing flow layouts remain available, and dragging an element switches the draft to free positioning. Desktop and mobile positions are edited separately.
+
+Standalone pages can be public or restricted to signed-in users. Published pages can be added to navigation or selected as the signed-in home page. Drafts are private to administrators; publishing creates a restorable version, and scheduled publications run through the server scheduler. Unpublished pages are not accessible to visitors.
+
+Custom registration fields are optional and stored privately with the user's account. Custom form actions accept only same-origin paths and send only explicitly selected custom fields, without passwords, passkeys, session tokens or cookies. Do not collect sensitive information in custom fields.
+
 ## ⚙️ Configuration
 
-| Setting | Role |
-| --- | --- |
-| `VITE_API_BASE_URL` | API prefix for non-development web builds; defaults to `/api`. |
-| `VITE_API_PROXY_TARGET` | API target for the development proxy; defaults to `http://localhost:8083`. |
+| Setting                      | Role                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`          | API prefix for non-development web builds; defaults to `/api`.                |
+| `VITE_API_PROXY_TARGET`      | API target for the development proxy; defaults to `http://localhost:8083`.    |
 | `VITE_STREAMER_PROXY_TARGET` | Streamer target for development proxies; defaults to `http://localhost:8091`. |
-| Native server address | HTTPS backend address saved by the mobile app after first launch. |
+| Native server address        | HTTPS backend address saved by the mobile app after first launch.             |
 
 Browser sessions are checked against the API, with access tokens kept in session-scoped storage. Vite handles development proxying; the production Nginx proxy handles CORS for native WebView origins.
 
@@ -145,15 +154,15 @@ npm run build-storybook  # static build in storybook-static/
 
 ## 🧩 Flixer ecosystem
 
-| Repository | Purpose |
-| --- | --- |
-| [Flixer](https://github.com/flixermedia/flixer) | The self-hosted backend API, authentication, libraries, and administration service. |
-| [Flixer Web](https://github.com/flixermedia/flixer-web) | The Vue 3 application that powers browsing, sign-in, discovery, and playback interfaces. |
-| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | The Go service responsible for authorised media delivery and FFmpeg processing. |
-| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer) | The Go worker and API service for discovering, identifying, probing, and enriching media. |
-| [Flixer Updater](https://github.com/flixermedia/flixer-updater) | The Go sidecar that orchestrates Docker Compose updates and restores. |
-| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins) | The official versioned catalogue of Flixer plugins and plugin schemas. |
-| [Flixer Docs](https://github.com/flixermedia/flixer-docs) | The Docusaurus source for Flixer platform documentation. |
+| Repository                                                        | Purpose                                                                                   |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [Flixer](https://github.com/flixermedia/flixer)                   | The self-hosted backend API, authentication, libraries, and administration service.       |
+| [Flixer Web](https://github.com/flixermedia/flixer-web)           | The Vue 3 application that powers browsing, sign-in, discovery, and playback interfaces.  |
+| [Flixer Streamer](https://github.com/flixermedia/flixer-streamer) | The Go service responsible for authorised media delivery and FFmpeg processing.           |
+| [Flixer Indexer](https://github.com/flixermedia/flixer-indexer)   | The Go worker and API service for discovering, identifying, probing, and enriching media. |
+| [Flixer Updater](https://github.com/flixermedia/flixer-updater)   | The Go sidecar that orchestrates Docker Compose updates and restores.                     |
+| [Flixer Plugins](https://github.com/flixermedia/flixer-plugins)   | The official versioned catalogue of Flixer plugins and plugin schemas.                    |
+| [Flixer Docs](https://github.com/flixermedia/flixer-docs)         | The Docusaurus source for Flixer platform documentation.                                  |
 
 ## 🤝 Contributing
 

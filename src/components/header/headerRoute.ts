@@ -5,7 +5,7 @@ export type HeaderRoute = {
 	disableScrollCollapse: boolean;
 };
 
-const standardRoutes = new Set(["home", "tv-home", "discover", "requests", "request-item", "plugin-page", "profile", "friend-invite", "people", "notifications", "chat", "issues", "party", "playlist", "media-item", "person", "movies", "tv", "music", "lyrics", "guide", "search", "history", "up-next", "video-collections", "automatic-collection", "dismissed-recommendations"]);
+const standardRoutes = new Set(["home", "tv-home", "custom-page", "discover", "requests", "request-item", "plugin-page", "profile", "friend-invite", "people", "notifications", "chat", "issues", "party", "playlist", "media-item", "person", "movies", "tv", "music", "lyrics", "guide", "search", "history", "up-next", "video-collections", "automatic-collection", "dismissed-recommendations"]);
 
 const dockedRoutes = new Set(["admin", "admin-activity", "settings"]);
 

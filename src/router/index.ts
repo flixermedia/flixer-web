@@ -101,6 +101,17 @@ const router = createRouter({
 			component: () => import("../views/LoginView.vue"),
 		},
 		{
+			path: "/pages/:slug",
+			name: "custom-page",
+			component: () => import("../components/pageBuilder/CustomPageView.vue"),
+		},
+		{
+			path: "/admin/page-builder",
+			name: "page-builder",
+			component: () => import("../components/pageBuilder/PageBuilderView.vue"),
+			meta: { requiresAuth: true, requiresAdmin: true },
+		},
+		{
 			path: "/verify-email",
 			name: "verify-email",
 			component: () => import("../views/VerifyEmailView.vue"),
@@ -108,7 +119,7 @@ const router = createRouter({
 		{
 			path: "/",
 			name: "home",
-			component: () => import("../views/HomeView.vue"),
+			component: () => import("../components/pageBuilder/HomeEntryView.vue"),
 			meta: { requiresAuth: true },
 		},
 		{
