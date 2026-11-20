@@ -68,10 +68,12 @@ body:has(.login-background),
 	background: var(--flixer-login-gradient);
 }
 
+html:has(.auth-page--classic.auth-page--fit),
 html:has(.auth-page--centered.auth-page--fit) {
 	background: var(--flixer-centered-login-gradient);
 }
 
+body:has(.auth-page--classic.auth-page--fit),
 body:has(.auth-page--centered.auth-page--fit) {
 	background: transparent;
 }

@@ -10,6 +10,8 @@ import { catchError } from '../../utils/catchError'
 const { t, locale } = useI18n()
 const autoSkipIntroCredits = ref(true)
 const savedAutoSkipIntroCredits = ref(true)
+const emulateLyricWordTiming = ref(true)
+const savedEmulateLyricWordTiming = ref(true)
 const audioLanguage = ref('')
 const savedAudioLanguage = ref('')
 const isLoading = ref(true)
@@ -25,6 +27,8 @@ async function load() {
   }
   autoSkipIntroCredits.value = preferences.autoSkipIntroCredits ?? true
   savedAutoSkipIntroCredits.value = autoSkipIntroCredits.value
+  emulateLyricWordTiming.value = preferences.emulateLyricWordTiming ?? true
+  savedEmulateLyricWordTiming.value = emulateLyricWordTiming.value
   audioLanguage.value = preferences.audioLanguage ?? ''
   savedAudioLanguage.value = audioLanguage.value
 }
@@ -38,6 +42,20 @@ async function save() {
     notify.error(describeRequestError(error, t('settings.playback.saveFailed')))
   } else {
     savedAutoSkipIntroCredits.value = autoSkipIntroCredits.value
+    notify.success(t('settings.playback.saved'))
+  }
+  isSaving.value = false
+}
+
+async function saveLyricWordTiming() {
+  isSaving.value = true
+  const [error] = await catchError(updatePreferences({ emulateLyricWordTiming: emulateLyricWordTiming.value }))
+  if (error) {
+    console.error('[settings] lyric word timing preference update failed', error)
+    emulateLyricWordTiming.value = savedEmulateLyricWordTiming.value
+    notify.error(describeRequestError(error, t('settings.playback.saveFailed')))
+  } else {
+    savedEmulateLyricWordTiming.value = emulateLyricWordTiming.value
     notify.success(t('settings.playback.saved'))
   }
   isSaving.value = false
@@ -83,6 +101,14 @@ onMounted(() => {
       <span>
         <span class="block text-sm font-medium">{{ t('settings.playback.autoSkipIntroCredits') }}</span>
         <span class="mt-1 block text-sm text-flixer-muted">{{ t('settings.playback.autoSkipIntroCreditsDescription') }}</span>
+      </span>
+    </label>
+
+    <label class="mt-6 flex items-start gap-3 rounded border border-flixer-border bg-flixer-surface p-4">
+      <input v-model="emulateLyricWordTiming" type="checkbox" class="mt-1 size-4 accent-flixer-primary" :disabled="isLoading || isSaving" @change="saveLyricWordTiming" />
+      <span>
+        <span class="block text-sm font-medium">{{ t('settings.playback.emulateLyricWordTiming') }}</span>
+        <span class="mt-1 block text-sm text-flixer-muted">{{ t('settings.playback.emulateLyricWordTimingDescription') }}</span>
       </span>
     </label>
   </section>

@@ -11,8 +11,8 @@ export interface PaymentPending {
 	token: string;
 }
 
-export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; audioLanguage?: string; themeId?: string };
-export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; audioLanguage?: string | null; themeId?: string | null };
+export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; emulateLyricWordTiming?: boolean; audioLanguage?: string; themeId?: string };
+export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; emulateLyricWordTiming?: boolean | null; audioLanguage?: string | null; themeId?: string | null };
 
 export interface ExternalAuthProvider {
 	id: string;

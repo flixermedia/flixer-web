@@ -248,6 +248,8 @@ export const INDEXER_PROVIDERS = [
 	{ id: "anidb", keyed: true, optionalKey: false },
 	{ id: "musicbrainz", keyed: false, optionalKey: false },
 	{ id: "anilist", keyed: false, optionalKey: false },
+	{ id: "lrclib", keyed: false, optionalKey: true },
+	{ id: "unison", keyed: false, optionalKey: false },
 	{ id: "theintrodb", keyed: false, optionalKey: true },
 	{ id: "introdb", keyed: false, optionalKey: false },
 ] as const;

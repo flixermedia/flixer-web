@@ -11,7 +11,7 @@ import AdminToggle from './AdminToggle.vue'
 const { t } = useI18n()
 
 // The server returns this placeholder for a saved key; sending it back keeps the stored key.
-const providers = reactive<Record<string, { enabled: boolean; apiKey: string; hasKey: boolean }>>(Object.fromEntries(INDEXER_PROVIDERS.map((provider) => [provider.id, { enabled: provider.id === 'theintrodb' || provider.id === 'introdb', apiKey: '', hasKey: false }])))
+const providers = reactive<Record<string, { enabled: boolean; apiKey: string; appId: string; hasKey: boolean }>>(Object.fromEntries(INDEXER_PROVIDERS.map((provider) => [provider.id, { enabled: provider.id === 'lrclib' || provider.id === 'unison' || provider.id === 'theintrodb' || provider.id === 'introdb', apiKey: '', appId: '', hasKey: false }])))
 const language = ref('en')
 const loading = ref(true)
 const saving = ref(false)
@@ -27,8 +27,9 @@ async function load() {
     } else {
       const stored = settings.find((setting) => setting.key === 'indexer_providers')?.value as Record<string, IndexerProviderSetting> | undefined
       for (const [id, provider] of Object.entries(stored ?? {})) {
-        if (providers[id]) providers[id] = { enabled: provider.enabled, apiKey: '', hasKey: Boolean(provider.apiKey) }
+        if (providers[id]) providers[id] = { enabled: provider.enabled, apiKey: '', appId: provider.appId ?? '', hasKey: Boolean(provider.apiKey) }
       }
+      if (!stored?.unison) providers.unison.enabled = providers.lrclib.enabled
       const lang = settings.find((setting) => setting.key === 'indexer_language')?.value
       if (typeof lang === 'string') language.value = lang
       error.value = ''
@@ -48,6 +49,7 @@ async function save() {
       // An empty box leaves a saved key untouched; a typed key replaces it.
       if ((keyed || optionalKey) && provider.apiKey.trim()) entry.apiKey = provider.apiKey.trim()
       else if ((keyed || optionalKey) && provider.hasKey) entry.apiKey = '********'
+      if (id === 'lrclib' && provider.appId.trim()) entry.appId = provider.appId.trim()
       value[id] = entry
     }
     const [languageError] = await catchError(updateSetting('indexer_language', language.value.trim()))
@@ -78,6 +80,10 @@ onMounted(load)
       <li v-for="provider in INDEXER_PROVIDERS" :key="provider.id" class="px-4 py-1">
         <AdminToggle v-model="providers[provider.id].enabled" :label="t(`admin.indexer.providerNames.${provider.id}`)" :description="provider.keyed ? undefined : provider.optionalKey ? t('admin.indexer.optionalKeyDescription') : t('admin.indexer.noKeyNeeded')" :badge="provider.keyed ? t('admin.indexer.keyRequired') : undefined" />
         <div v-if="(provider.keyed || provider.optionalKey) && providers[provider.id].enabled" class="pb-3">
+          <label v-if="provider.id === 'lrclib'" class="block text-xs text-flixer-muted">
+            App ID
+            <input v-model="providers[provider.id].appId" type="text" autocomplete="off" aria-label="LRCLIB App ID" placeholder="LRCLIB App ID" :class="inputClass" />
+          </label>
           <input v-model="providers[provider.id].apiKey" type="password" autocomplete="off" :aria-label="`${t(`admin.indexer.providerNames.${provider.id}`)} ${t('admin.indexer.apiKey')}`" :placeholder="providers[provider.id].hasKey ? '••••••••' : t('admin.indexer.apiKeyPlaceholder')" :class="inputClass" />
           <p v-if="providers[provider.id].hasKey" class="mt-1.5 text-xs text-flixer-muted">{{ t('admin.indexer.keyStored') }}</p>
           <p v-else-if="provider.keyed" class="mt-1.5 text-xs text-amber-300">{{ t('admin.indexer.needsKey') }}</p>

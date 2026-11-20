@@ -810,6 +810,25 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
   transform-origin: top center;
 }
 
+.auth-page--fit.auth-page--classic,
+.auth-page--classic .auth-brand {
+  background: transparent;
+}
+
+.auth-page--classic .auth-brand :deep(.brand-glow) {
+  display: none;
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .auth-page--fit.auth-page--classic .auth-brand :deep(.brand-logo) {
+    margin-top: 0;
+  }
+
+  .auth-page--fit.auth-page--classic .auth-form {
+    max-width: 24rem;
+  }
+}
+
 .auth-page--studio,
 .auth-page--cinema {
   background-image: linear-gradient(color-mix(in srgb, var(--color-flixer-background) 86%, transparent), color-mix(in srgb, var(--color-flixer-background) 94%, transparent)), var(--auth-background, none);
@@ -990,10 +1009,6 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 }
 
 @media (max-width: 767px) {
-  .auth-page--fit.auth-page--centered {
-    transform: scaleY(var(--auth-fit-scale, 1));
-  }
-
   .auth-page--centered .auth-brand {
     display: none;
   }
@@ -1359,7 +1374,6 @@ function getRequestErrorMessage(error: unknown, registration: boolean): string {
 
 @media (max-width: 767px) {
   .auth-page--fit.auth-page--cinema {
-    transform: scaleY(var(--auth-fit-scale, 1));
     background: transparent;
   }
 

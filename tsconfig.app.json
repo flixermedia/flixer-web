@@ -17,7 +17,8 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "vendor/am-lyrics/src/LyricMotion.ts"
   ],
   "exclude": [
     "node_modules",

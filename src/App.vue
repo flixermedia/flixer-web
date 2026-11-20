@@ -9,7 +9,6 @@ import IdleSplash from "./components/ui/IdleSplash.vue";
 import OfflineBanner from "./components/ui/OfflineBanner.vue";
 import ChatCallOverlay from "./components/chat/ChatCallOverlay.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
-import AudioEngineDebug from "./components/player/AudioEngineDebug.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
 import Header from "./components/header/Header.vue";
 import { getHeaderRoute } from "./components/header/headerRoute";
@@ -151,7 +150,6 @@ if (Capacitor.isNativePlatform()) {
 	<!-- Player components -->
 	<NativeMoreMenu v-if="nativeNavigationEnabled && !nativeMoreMenuNativeActive" />
 	<MiniPlayer v-if="!nativeMusicPlayerNativeActive && !(isTvMode && route.name === 'tv-player')" />
-	<AudioEngineDebug v-if="!isTvMode" />
 	<PlayerOverlay v-if="playing && !isTvMode" :item-id="playing.id" :start-at-seconds="playing.startAt"
 		:title="playing.title" :autoplay="playing.autoplay" :live-playback="playing.livePlayback"
 		:start-mini="playing.startMini" @close="closeVideo" />

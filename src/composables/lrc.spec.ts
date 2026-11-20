@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { instrumentalDotCount, isInstrumentalCue, karaokeWordState, parseLrc, type LyricLine } from './lrc.ts'
+import { emulateWordTimings, instrumentalDotCount, isInstrumentalCue, karaokeWordState, parseLrc, type LyricLine } from './lrc.ts'
 
 describe('parseLrc karaoke timestamps', () => {
   it('parses inline word timings and removes timestamp markup from lyric text', () => {
@@ -30,6 +30,79 @@ describe('parseLrc karaoke timestamps', () => {
 
   it('preserves ordinary line-timed LRC lyrics', () => {
     expect(parseLrc('[00:01.00]Hello world').lines).toEqual([{ time: 1, text: 'Hello world' }])
+  })
+})
+
+describe('emulateWordTimings', () => {
+  it('weights estimated word starts by word length and preserves spacing without modifying the source', () => {
+    const source = parseLrc('[00:10.00]I  sing along\n[00:20.00]Next')
+    const result = emulateWordTimings(source, 25)
+
+    expect(result.lines[0].words).toEqual([
+      { time: 10, text: 'I  ' },
+      { time: 11, text: 'sing ' },
+      { time: 15, text: 'along' },
+    ])
+    expect(result.lines[0].words!.map((word) => word.text).join('')).toBe(source.lines[0].text)
+    expect(source.lines[0].words).toBeUndefined()
+  })
+
+  it('always preserves real word timestamps', () => {
+    const source = parseLrc('[00:10.00]<00:10.10>Real <00:11.80>timings\n[00:20.00]Next')
+    expect(emulateWordTimings(source, 25).lines[0]).toBe(source.lines[0])
+  })
+
+  it('uses instrumental timestamps as boundaries but never estimates words for instrumental cues', () => {
+    const source = parseLrc('[00:10.00]One two\n[00:12.00]\n[00:30.00]Next')
+    const result = emulateWordTimings(source, 35)
+    expect(result.lines[0].words).toEqual([{ time: 10, text: 'One ' }, { time: 11, text: 'two' }])
+    expect(result.lines[1].words).toBeUndefined()
+  })
+
+  it('uses track duration for the last line and leaves it unchanged when no valid end is known', () => {
+    const source = parseLrc('[00:10.00]One two')
+    expect(emulateWordTimings(source, 14).lines[0].words?.[1].time).toBe(12)
+    for (const duration of [0, 10, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(emulateWordTimings(source, duration).lines[0]).toBe(source.lines[0])
+    }
+  })
+
+  it('leaves unsynced lyrics unchanged', () => {
+    const source = parseLrc('Plain lyrics')
+    expect(emulateWordTimings(source, 120)).toBe(source)
+  })
+
+  it('handles repeated line timestamps without creating zero-length intervals', () => {
+    const source = parseLrc('[00:10.00]One two\n[00:10.00]Three four\n[00:20.00]Next')
+    expect(emulateWordTimings(source, 30).lines[0].words?.[1].time).toBe(15)
+  })
+})
+
+describe('Unison attribution', () => {
+  const credit = {
+    sourceUrl: 'https://unison.betterlyrics.org/song/Ugr4KKK_SqY',
+    submitterName: 'Curator',
+    submitterUrl: 'https://unison.betterlyrics.org/curator/curator-key',
+  }
+  const source = (data: unknown) => `[unison:${btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data))))}]\n[00:10.00]Lyrics`
+
+  it('retains the provider and submitter links without displaying metadata as lyrics', () => {
+    const lyrics = parseLrc(source(credit))
+    expect(lyrics.attribution).toEqual(credit)
+    expect(lyrics.lines).toEqual([{ time: 10, text: 'Lyrics' }])
+    expect(emulateWordTimings(lyrics, 20).attribution).toEqual(credit)
+  })
+
+  it('preserves Unicode submitter names', () => {
+    const data = { ...credit, submitterName: 'Curator \u00e9\u97f3' }
+    expect(parseLrc(source(data)).attribution).toEqual(data)
+  })
+
+  it('ignores malformed metadata and untrusted links', () => {
+    expect(parseLrc('[unison:invalid]\n[00:10.00]Lyrics').attribution).toBeUndefined()
+    for (const data of [null, { ...credit, sourceUrl: 'javascript:alert(1)' }, { ...credit, submitterUrl: 'https://example.com/curator/key' }, { ...credit, submitterName: '' }]) {
+      expect(parseLrc(source(data)).attribution).toBeUndefined()
+    }
   })
 })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink, useRouter } from "vue-router";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -8,7 +8,10 @@ import AuthImage from "../components/ui/AuthImage.vue";
 import Skeleton from "../components/ui/Skeleton.vue";
 import { formatTime } from "../components/player/formatTime";
 import AudioBitrateSelect from "../components/player/AudioBitrateSelect.vue";
-import { activeLineIndex, instrumentalDotCount, isInstrumentalCue, karaokeWordState } from "../composables/lrc.ts";
+import SyncedLyrics from "../components/player/SyncedLyrics.vue";
+import { getPreferences } from "../api";
+import { emulateWordTimings } from "../composables/lrc";
+import { catchError } from "../utils/catchError";
 import { useAudioPlayer } from "../composables/useAudioPlayer";
 import { isNativeTv, isTvMode } from "../platform/tvMode";
 
@@ -16,11 +19,10 @@ const { t } = useI18n();
 const router = useRouter();
 const player = useAudioPlayer();
 const { current, isPlaying, isLoading, currentTime, duration, lyrics, lyricsLoading } = player;
+const emulateLyricWordTiming = ref(true);
+const displayLyrics = computed(() => lyrics.value && emulateLyricWordTiming.value ? emulateWordTimings(lyrics.value, duration.value) : lyrics.value);
 
-const lineRefs = ref<HTMLElement[]>([]);
-const scroller = ref<HTMLElement | null>(null);
 const progress = computed(() => (duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0));
-const activeIndex = computed(() => (lyrics.value?.synced ? activeLineIndex(lyrics.value.lines, currentTime.value) : -1));
 const noLyrics = computed(() => !lyricsLoading.value && (!lyrics.value || lyrics.value.lines.length === 0));
 let backListener: PluginListenerHandle | undefined;
 let disposed = false;
@@ -34,41 +36,9 @@ function onKeydown(event: KeyboardEvent) {
 	if (event.key === "Escape") close();
 }
 
-function seekToLine(time: number | null) {
-	if (time !== null) player.seek(time);
-}
-
-function updateScrollPadding() {
-	const box = scroller.value;
-	if (!box) return;
-	const padding = `${Math.ceil(box.clientHeight / 2)}px`;
-	box.style.paddingTop = padding;
-	box.style.paddingBottom = padding;
-}
-
-async function centerActiveLine(index = activeIndex.value) {
-	if (index < 0) return;
-	await nextTick();
-	const box = scroller.value;
-	const line = lineRefs.value[index];
-	if (!box || !line) return;
-	updateScrollPadding();
-	const boxRect = box.getBoundingClientRect();
-	const lineRect = line.getBoundingClientRect();
-	const lineTop = box.scrollTop + lineRect.top - boxRect.top;
-	const top = lineTop + line.offsetHeight / 2 - box.clientHeight / 2;
-	box.scrollTo({ top, behavior: "smooth" });
-}
-
-function onResize() {
-	void centerActiveLine();
-}
-
 function onSeek(event: Event) {
 	player.seek((Number((event.target as HTMLInputElement).value) / 100) * duration.value);
 }
-
-watch(activeIndex, (index) => void centerActiveLine(index), { immediate: true, flush: "post" });
 
 watch(
 	current,
@@ -79,8 +49,11 @@ watch(
 );
 
 onMounted(() => {
+	void catchError(getPreferences()).then(([error, preferences]) => {
+		if (error) console.error("[lyrics] preferences load failed", error);
+		else emulateLyricWordTiming.value = preferences.emulateLyricWordTiming ?? true;
+	});
 	window.addEventListener("keydown", onKeydown);
-	window.addEventListener("resize", onResize);
 	if (isNativeTv) void CapacitorApp.addListener("backButton", close).then((listener) => {
 		if (disposed) void listener.remove();
 		else backListener = listener;
@@ -90,13 +63,12 @@ onBeforeUnmount(() => {
 	disposed = true;
 	void backListener?.remove();
 	window.removeEventListener("keydown", onKeydown);
-	window.removeEventListener("resize", onResize);
 });
 </script>
 
 <template>
 	<div v-if="current"
-		class="tv-lyrics theme-dark relative flex min-h-[100dvh] flex-col overflow-hidden bg-flixer-background pt-[env(safe-area-inset-top)] text-flixer-text">
+		class="tv-lyrics theme-dark relative z-50 flex h-[100dvh] flex-col overflow-hidden bg-flixer-background pt-[env(safe-area-inset-top)] text-flixer-text">
 		<div v-if="current.art"
 			class="lyrics-art-background pointer-events-none absolute inset-0 scale-125 opacity-30 blur-3xl"
 			aria-hidden="true">
@@ -156,47 +128,32 @@ onBeforeUnmount(() => {
 				</div>
 			</div>
 
-			<section ref="scroller"
-				class="relative min-h-0 flex-1 self-stretch overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)]"
+			<section
+				class="relative min-h-0 min-w-0 flex-1 self-stretch overflow-hidden"
 				:aria-label="t('music.lyrics')">
 				<div v-if="lyricsLoading" class="w-full max-w-md space-y-4" role="status"
 					:aria-label="t('music.loadingLyrics')">
 					<Skeleton v-for="width in ['w-3/4', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2']" :key="width" class="h-6"
 						:class="width" />
 				</div>
-				<template v-else-if="lyrics">
-					<p v-if="!lyrics.synced" class="mb-4 text-sm text-flixer-muted">{{ t("music.plainLyrics") }}</p>
+				<SyncedLyrics v-else-if="displayLyrics?.synced" :key="current.id" :lyrics="displayLyrics"
+					:current-time="currentTime" :duration="duration" :paused="!isPlaying || isLoading" @seek="player.seek" />
+				<div v-else-if="lyrics" class="h-full overflow-y-auto pb-8">
+					<p class="mb-4 text-sm text-flixer-muted">{{ t("music.plainLyrics") }}</p>
 					<ul class="space-y-3 md:space-y-5">
-						<li v-for="(line, index) in lyrics.lines" :key="index" :ref="(el) => {
-							if (el) lineRefs[index] = el as HTMLElement;
-						}
-							">
-							<button type="button"
-								class="block w-full text-center text-2xl font-bold leading-snug transition duration-300 md:text-4xl"
-								:class="lyrics.synced ? (index === activeIndex ? 'scale-100 text-white' : index < activeIndex ? 'scale-95 text-white/30 hover:text-white/60' : 'scale-95 text-white/40 hover:text-white/70') : 'cursor-default text-white/80'"
-								:disabled="line.time === null" @click="seekToLine(line.time)">
-								<template v-if="line.words">
-									<span v-for="(word, wordIndex) in line.words" :key="wordIndex"
-										class="transition-colors duration-200"
-										:class="index === activeIndex ? (karaokeWordState(line.words, wordIndex, currentTime) === 'upcoming' ? 'text-white/40' : 'text-white') : ''">{{
-											word.text }}</span>
-								</template>
-								<span v-else-if="isInstrumentalCue(line.text)" class="inline-flex items-center gap-1.5"
-									:aria-label="line.text || t('music.instrumental')">
-									<span v-for="dot in 3" :key="dot"
-										class="inline-block transition duration-300 ease-out motion-reduce:transition-none"
-										:class="dot <= instrumentalDotCount(lyrics.lines, index, currentTime) ? 'scale-110 opacity-100' : 'opacity-30'"
-										aria-hidden="true">•</span>
-								</span>
-								<template v-else>{{ line.text || "♪" }}</template>
-							</button>
-						</li>
+						<li v-for="(line, index) in lyrics.lines" :key="index"
+							class="text-2xl font-bold leading-snug text-white/80 md:text-4xl">{{ line.text }}</li>
 					</ul>
-				</template>
+				</div>
 			</section>
 		</main>
 
 		<footer class="relative shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-12 lg:px-24">
+			<p v-if="lyrics?.attribution" class="mb-3 text-center text-xs text-flixer-muted">
+				<a :href="lyrics.attribution.sourceUrl" target="_blank" rel="noopener noreferrer" class="hover:text-white hover:underline">{{ t('music.lyricsFromUnison') }}</a>
+				<span aria-hidden="true"> / </span>
+				<a :href="lyrics.attribution.submitterUrl" target="_blank" rel="noopener noreferrer" class="hover:text-white hover:underline">{{ t('music.lyricsSubmittedBy', { name: lyrics.attribution.submitterName }) }}</a>
+			</p>
 			<div class="mx-auto flex max-w-3xl items-center gap-3 text-xs text-flixer-muted">
 				<span class="w-10 text-right tabular-nums">{{ formatTime(currentTime) }}</span>
 				<input type="range" min="0" max="100" step="0.1" class="h-1 flex-1 cursor-pointer accent-flixer-accent"

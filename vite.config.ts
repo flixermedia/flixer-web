@@ -2,9 +2,19 @@ import tailwindcss from "@tailwindcss/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import vue from "@vitejs/plugin-vue";
 import { existsSync, readFileSync } from "node:fs";
-import { defineConfig, loadEnv, type ProxyOptions } from "vite";
+import { createLogger, defineConfig, loadEnv, type ProxyOptions } from "vite";
 import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
 import type { GenerateSWOptions } from "workbox-build";
+
+const logger = createLogger();
+const logError = logger.error;
+logger.error = (message, options) => {
+	const error = options?.error;
+	if (/(?:http|ws) proxy (?:socket )?error:/.test(message) && error && "code" in error && error.code === "ECONNREFUSED") {
+		return;
+	}
+	logError(message, options);
+};
 
 const certPath = "certs/origin.pem";
 const keyPath = "certs/origin.key";
@@ -100,6 +110,7 @@ const workboxOptions: Partial<GenerateSWOptions> = {
 
 // https://vite.dev/config/
 export default defineConfig({
+	customLogger: logger,
 	optimizeDeps: { include: ["vccs", "motion-v", "vccs > eventemitter3"] },
 	build: {
 		rollupOptions: {

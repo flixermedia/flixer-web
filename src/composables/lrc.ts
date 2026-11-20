@@ -14,12 +14,34 @@ export interface LyricWord {
 export interface ParsedLyrics {
   synced: boolean
   lines: LyricLine[]
+  attribution?: {
+    sourceUrl: string
+    submitterName: string
+    submitterUrl: string
+  }
 }
 
 const TIMESTAMP = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g
 const META_TAG = /^\[[a-zA-Z]+:[^\]]*\]$/
 const KARAOKE_TIMESTAMP = /<(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?>/g
 const INSTRUMENTAL_CUE = /^[♪♫♬♩𝅘𝅥𝅮𝅘𝅥𝅯𝅘𝅥𝅰𝅘𝅥𝅱𝅘𝅥𝅲]*$/u
+
+function unisonAttribution(source: string): ParsedLyrics['attribution'] {
+  const encoded = /^\[unison:([A-Za-z0-9+/=]+)\]$/m.exec(source)?.[1]
+  if (!encoded) return undefined
+  try {
+    const data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))))
+    const validLink = (value: unknown, path: string): value is string => {
+      if (typeof value !== 'string') return false
+      const link = new URL(value)
+      return link.origin === 'https://unison.betterlyrics.org' && !link.username && !link.password && link.pathname.startsWith(path) && link.pathname.length > path.length
+    }
+    if (!data || !validLink(data.sourceUrl, '/song/') || !validLink(data.submitterUrl, '/curator/') || typeof data.submitterName !== 'string' || !data.submitterName.trim()) return undefined
+    return { sourceUrl: data.sourceUrl, submitterName: data.submitterName, submitterUrl: data.submitterUrl }
+  } catch {
+    return undefined
+  }
+}
 
 function timestampSeconds(minutes: string, seconds: string, fraction: string | undefined, offset: number): number {
   return Math.max(0, Number(minutes) * 60 + Number(seconds) + (fraction ? Number(`0.${fraction}`) : 0) - offset)
@@ -51,6 +73,7 @@ export function isInstrumentalCue(text: string): boolean {
 
 /** Parses LRC text (including multi-timestamp lines and the [offset:] tag). Plain text becomes unsynced lines. */
 export function parseLrc(source: string): ParsedLyrics {
+  const attribution = unisonAttribution(source)
   const offsetMatch = /\[offset:\s*(-?\d+)\s*\]/i.exec(source)
   const offset = offsetMatch ? Number(offsetMatch[1]) / 1000 : 0
   const synced: LyricLine[] = []
@@ -87,9 +110,9 @@ export function parseLrc(source: string): ParsedLyrics {
 
   if (synced.length > 0) {
     synced.sort((a, b) => (a.time ?? 0) - (b.time ?? 0))
-    return { synced: true, lines: synced }
+    return { synced: true, lines: synced, ...(attribution ? { attribution } : {}) }
   }
-  return { synced: false, lines: plain }
+  return { synced: false, lines: plain, ...(attribution ? { attribution } : {}) }
 }
 
 /** Index of the line being sung at `time`, or -1 before the first line. */
@@ -107,6 +130,31 @@ export function activeLineIndex(lines: LyricLine[], time: number): number {
     }
   }
   return found
+}
+
+export function emulateWordTimings(lyrics: ParsedLyrics, duration: number): ParsedLyrics {
+  if (!lyrics.synced) return lyrics
+  return {
+    ...lyrics,
+    lines: lyrics.lines.map((line, index) => {
+      if (line.time === null || line.words?.length || isInstrumentalCue(line.text)) return line
+      const start = line.time
+      const next = lyrics.lines.slice(index + 1).find((candidate) => candidate.time !== null && candidate.time > start)
+      const end = next?.time ?? duration
+      if (!Number.isFinite(end) || end <= start) return line
+      const tokens = line.text.match(/\S+\s*|\s+/gu) ?? []
+      const weights = tokens.map((token) => Array.from(token.trim()).length)
+      const total = weights.reduce((sum, weight) => sum + weight, 0)
+      if (total === 0) return line
+      let consumed = 0
+      const words = tokens.map((text, wordIndex) => {
+        const time = start + (consumed / total) * (end - start)
+        consumed += weights[wordIndex]
+        return { time, text }
+      })
+      return { ...line, words }
+    }),
+  }
 }
 
 /** Whether a timed word is upcoming, currently active, or already sung. */
