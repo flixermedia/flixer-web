@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
+import { Toggle } from '@ui-sdk/vue/toggle'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
@@ -487,7 +489,7 @@ onBeforeUnmount(() => {
                 <Icon icon="lucide:search"
                   class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted"
                   aria-hidden="true" />
-                <input v-model="query" type="search" :placeholder="t('epg.search')"
+                <Input v-model="query" type="search" :placeholder="t('epg.search')"
                   class="h-11 w-full rounded border border-white/10 bg-flixer-surface pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-flixer-muted focus:border-flixer-accent/70 focus:ring-2 focus:ring-flixer-accent/20" />
               </label>
               <label class="sr-only" for="epg-category">{{ t('epg.categoryLabel') }}</label>
@@ -496,14 +498,13 @@ onBeforeUnmount(() => {
                 <option value="">{{ t('epg.allCategories') }}</option>
                 <option v-for="option in categories" :key="option" :value="option">{{ option }}</option>
               </select>
-              <button type="button"
+              <Toggle v-model:pressed="favoritesOnly"
                 class="inline-flex h-11 items-center justify-center gap-2 rounded border px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
-                :class="favoritesOnly ? 'border-flixer-accent/60 bg-flixer-accent/15 text-white' : 'border-white/10 bg-white/[0.03] text-flixer-muted hover:text-white'"
-                :aria-pressed="favoritesOnly" @click="favoritesOnly = !favoritesOnly">
+                :class="favoritesOnly ? 'border-flixer-accent/60 bg-flixer-accent/15 text-white hover:bg-flixer-accent/15' : 'border-white/10 bg-white/[0.03] text-flixer-muted hover:bg-white/[0.03] hover:text-white'">
                 <Icon icon="lucide:star" class="size-4"
                   :class="favoritesOnly ? 'fill-flixer-accent text-flixer-accent' : ''" aria-hidden="true" />{{
                     t('epg.favorites') }}
-              </button>
+              </Toggle>
             </div>
           </div>
 

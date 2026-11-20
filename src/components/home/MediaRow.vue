@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isTvMode } from '../../platform/tvMode'
@@ -24,16 +25,16 @@ function scrollBy(direction: -1 | 1) {
         <slot name="actions" />
         <div
           class="hidden gap-2 opacity-0 transition group-hover/row:opacity-100 group-focus-within/row:opacity-100 md:flex">
-          <button type="button" :tabindex="isTvMode ? -1 : undefined"
-            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          <Button type="button" :tabindex="isTvMode ? -1 : undefined"
+            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface p-0 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
             :aria-label="t('home.scrollLeft', { title })" @click="scrollBy(-1)">
             <Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />
-          </button>
-          <button type="button" :tabindex="isTvMode ? -1 : undefined"
-            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          </Button>
+          <Button type="button" :tabindex="isTvMode ? -1 : undefined"
+            class="grid size-8 place-items-center rounded border border-flixer-border bg-flixer-surface p-0 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
             :aria-label="t('home.scrollRight', { title })" @click="scrollBy(1)">
             <Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

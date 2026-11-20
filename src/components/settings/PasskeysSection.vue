@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Switch, SwitchThumb } from '@ui-sdk/vue/switch'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -181,9 +182,9 @@ onMounted(() => {
           <p class="mt-1 text-sm text-flixer-muted">{{ t('settings.passkeys.requiredDescription') }}</p>
           <p v-if="!isLoading && passkeys.length === 0 && !passkeyRequired" class="mt-1 text-xs text-flixer-muted">{{ t('settings.passkeys.addBeforeRequired') }}</p>
         </div>
-        <button class="relative block shrink-0 cursor-pointer rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" :class="passkeyRequired ? 'border-flixer-primary bg-flixer-primary' : 'border-flixer-muted/50 bg-flixer-border'" style="width: 2.75rem; height: 1.5rem" type="button" role="switch" aria-labelledby="passkey-required-label" :aria-checked="passkeyRequired" :disabled="isTogglingRequired || !profile || (!passkeyRequired && passkeys.length === 0)" @click="handleToggleRequired">
-          <span class="absolute rounded-full bg-white shadow transition-all" :style="{ top: '0.1875rem', width: '1rem', height: '1rem', left: passkeyRequired ? '1.5rem' : '0.1875rem' }"></span>
-        </button>
+        <Switch data-agent-hidden class="relative m-0 block h-6 w-11 shrink-0 cursor-pointer rounded-full border border-flixer-muted/50 bg-flixer-border p-0 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent data-checked:border-flixer-primary data-checked:bg-flixer-primary data-disabled:cursor-not-allowed data-disabled:opacity-50" aria-labelledby="passkey-required-label" :checked="passkeyRequired" :disabled="isTogglingRequired || !profile || (!passkeyRequired && passkeys.length === 0)" @update:checked="handleToggleRequired">
+          <SwitchThumb class="absolute top-[0.1875rem] left-[0.1875rem] size-4 rounded-full bg-white shadow transition-all data-checked:ml-0 data-checked:left-6 data-checked:bg-white" />
+        </Switch>
       </div>
       <div>
         <p v-if="!supported" class="rounded border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-200" role="alert">{{ t('settings.passkeys.unsupported') }}</p>

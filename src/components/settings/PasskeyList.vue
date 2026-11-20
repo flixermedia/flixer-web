@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import type { Passkey } from '../../api'
 import { useI18n } from 'vue-i18n'
 
@@ -32,9 +33,9 @@ function formatDate(value: string | null): string {
         </p>
         <p class="mt-0.5 text-xs text-flixer-muted/80">{{ t('settings.passkeys.dateDetails', { added: formatDate(passkey.createdAt), lastUsed: formatDate(passkey.lastUsedAt) }) }}</p>
       </div>
-      <button type="button" class="rounded border border-flixer-border px-3 py-2 text-xs font-semibold text-rose-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-60" :disabled="deletingId === passkey.id" @click="emit('remove', passkey)">
+      <Button data-agent-hidden type="button" class="h-auto rounded border border-flixer-border bg-transparent px-3 py-2 text-xs font-semibold whitespace-normal text-rose-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-60" :disabled="deletingId === passkey.id" @click="emit('remove', passkey)">
         {{ deletingId === passkey.id ? t('settings.passkeys.removing') : t('settings.passkeys.remove') }}
-      </button>
+      </Button>
     </li>
   </ul>
   <p v-else class="rounded border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('settings.passkeys.empty') }}</p>

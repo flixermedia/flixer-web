@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPluginSettings, updatePluginSettings, type PluginSettingsSchema } from '../../api'
@@ -97,13 +101,19 @@ onMounted(load)
         <select v-if="property.enum" v-model="values[name]" :class="inputClass">
           <option v-for="option in property.enum" :key="String(option)" :value="option">{{ option }}</option>
         </select>
+        <Checkbox v-else-if="property.type === 'boolean' && !isSecret(property)" :checked="!!values[name]" class="size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent" @update:checked="values[name] = $event === true">
+          <CheckboxIndicator />
+        </Checkbox>
         <input v-else-if="property.type === 'boolean'" v-model="values[name]" type="checkbox" class="h-4 w-4 accent-flixer-accent" />
+        <Textarea v-else-if="property.type === 'array' && !isSecret(property)" v-model="arrayText[name]" :class="inputClass" class="min-h-0 resize-y text-flixer-text" rows="2" :placeholder="t('admin.plugins.listPlaceholder')" />
         <textarea v-else-if="property.type === 'array'" v-model="arrayText[name]" :class="inputClass" rows="2" :placeholder="t('admin.plugins.listPlaceholder')" />
-        <input v-else v-model="values[name]" :class="inputClass" :type="isSecret(property) ? 'password' : property.type === 'integer' || property.type === 'number' ? 'number' : property.format === 'uri' ? 'url' : 'text'" :autocomplete="isSecret(property) ? 'new-password' : 'off'" />
+        <Input v-else-if="property.type === 'string' && !isSecret(property)" v-model="values[name] as string" :class="inputClass" class="h-auto text-flixer-text" :type="property.format === 'uri' ? 'url' : 'text'" autocomplete="off" />
+        <Input v-else-if="!isSecret(property) && property.type !== 'integer' && property.type !== 'number'" v-model="values[name] as string" :class="inputClass" class="h-auto text-flixer-text" :type="property.format === 'uri' ? 'url' : 'text'" autocomplete="off" />
+        <input v-else v-model="values[name]" :class="inputClass" :type="isSecret(property) ? 'password' : 'number'" :autocomplete="isSecret(property) ? 'new-password' : 'off'" />
       </label>
       <div class="flex items-center gap-2 md:col-span-2">
         <button :class="buttonClass" type="submit" :disabled="saving">{{ saving ? t('admin.plugins.savingSettings') : t('admin.plugins.saveSettings') }}</button>
-        <button v-if="closable" :class="quietButtonClass" type="button" @click="emit('close')">{{ t('common.cancel') }}</button>
+        <Button v-if="closable" :class="quietButtonClass" class="h-auto bg-transparent text-flixer-text" type="button" @click="emit('close')">{{ t('common.cancel') }}</Button>
       </div>
     </form>
   </AdminSection>

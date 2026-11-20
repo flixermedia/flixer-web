@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getWebhookConfig, saveWebhookConfig, type WebhookConfig } from '../../api/userWebhooks'
@@ -49,11 +51,11 @@ async function save() {
       </label>
       <label class="block text-sm font-medium">
         {{ t('webhooks.allowedUrls') }}
-        <textarea v-model="urls" rows="5" spellcheck="false" class="mt-2 w-full rounded border border-flixer-border bg-flixer-background p-3 font-mono text-xs" />
+        <Textarea v-model="urls" rows="5" spellcheck="false" class="mt-2 min-h-0 w-full resize-y rounded border border-flixer-border bg-flixer-background p-3 font-mono text-xs text-flixer-text" />
       </label>
       <p class="text-sm text-flixer-muted">{{ t('webhooks.rulesHint') }}</p>
       <p class="text-sm text-flixer-muted">{{ t('webhooks.allowlistWarning') }}</p>
-      <button type="submit" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="saving">{{ t('webhooks.saveSettings') }}</button>
+      <Button type="submit" :data-agent-confirm="`${t('webhooks.saveSettings')} — ${t('webhooks.allowlistWarning')}`" class="h-auto rounded border-0 bg-flixer-primary px-4 py-2 text-sm font-semibold text-white hover:bg-flixer-primary disabled:opacity-50" :disabled="saving">{{ t('webhooks.saveSettings') }}</Button>
     </form>
   </AdminSection>
 </template>

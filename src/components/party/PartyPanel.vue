@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Toggle } from '@ui-sdk/vue/toggle'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useParty } from '../../composables/useParty'
@@ -43,20 +45,20 @@ async function leave() {
 
     <div v-if="party.partyLocked.value" class="mx-3 mb-2 rounded border border-amber-400/30 bg-amber-400/10 p-3" role="status">
       <p class="text-xs text-amber-200">{{ t('party.lockedNotice') }}</p>
-      <button type="button" class="mt-2 w-full rounded bg-white px-3 py-2 text-xs font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="party.unlockItem()">{{ t('payments.lock.unlock') }}</button>
+      <Button data-agent-hidden type="button" class="mt-2 h-auto w-full rounded border-0 bg-white px-3 py-2 text-xs font-bold whitespace-normal text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void party.unlockItem()">{{ t('payments.lock.unlock') }}</Button>
     </div>
 
     <div class="my-2 border-t border-flixer-border"></div>
 
-    <div v-if="voice.available.value" class="px-3 pb-2">
+    <div v-if="voice.available.value" data-agent-hidden class="px-3 pb-2">
       <p class="pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.voice.title') }}</p>
       <p v-if="voice.notice.value" class="pb-2 text-xs text-amber-200" role="status">{{ t(`chat.call.notice.${voice.notice.value}`) }}</p>
-      <button v-if="!voice.active.value" type="button" class="w-full rounded bg-white px-3 py-2 text-xs font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :disabled="voice.joining.value" @click="voice.join()">{{ t('party.voice.join') }}</button>
+      <Button v-if="!voice.active.value" type="button" class="h-auto w-full rounded border-0 bg-white px-3 py-2 text-xs font-bold whitespace-normal text-flixer-background transition hover:bg-white/85 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :disabled="voice.joining.value" @click="void voice.join()">{{ t('party.voice.join') }}</Button>
       <template v-else>
         <p class="pb-2 text-xs text-flixer-muted" role="status">{{ t('party.voice.connected', { count: voice.peerCount.value }) }} · {{ t('chat.call.e2ee') }}</p>
         <div class="flex gap-2">
-          <button type="button" class="flex-1 rounded border border-flixer-border px-3 py-2 text-xs text-flixer-text transition hover:bg-white/10" :aria-pressed="voice.micMuted.value" @click="voice.toggleMic()">{{ voice.micMuted.value ? t('chat.call.unmute') : t('chat.call.mute') }}</button>
-          <button type="button" class="flex-1 rounded border border-flixer-border px-3 py-2 text-xs text-flixer-text transition hover:bg-white/10" @click="voice.leave()">{{ t('party.voice.leave') }}</button>
+          <Toggle class="h-auto flex-1 rounded border border-flixer-border bg-transparent px-3 py-2 text-xs font-normal whitespace-normal text-flixer-text transition hover:bg-white/10 data-pressed:border-flixer-border data-pressed:bg-transparent data-pressed:hover:bg-white/10" :pressed="voice.micMuted.value" @update:pressed="voice.toggleMic()">{{ voice.micMuted.value ? t('chat.call.unmute') : t('chat.call.mute') }}</Toggle>
+          <Button type="button" class="h-auto flex-1 rounded border border-flixer-border bg-transparent px-3 py-2 text-xs font-normal whitespace-normal text-flixer-text transition hover:bg-white/10" @click="void voice.leave()">{{ t('party.voice.leave') }}</Button>
         </div>
       </template>
     </div>
@@ -76,8 +78,8 @@ async function leave() {
 
     <div class="my-2 border-t border-flixer-border"></div>
 
-    <button type="button" class="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10" @click="copyLink">{{ t('party.copyLink') }}</button>
-    <button type="button" class="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-flixer-text transition hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="leave">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</button>
+    <Button data-agent-hidden type="button" class="flex h-auto w-full items-center justify-between rounded border-0 bg-transparent px-3 py-2 text-left text-sm font-normal whitespace-normal text-flixer-text transition hover:bg-white/10" @click="void copyLink()">{{ t('party.copyLink') }}</Button>
+    <Button data-agent-hidden type="button" class="flex h-auto w-full items-center justify-between rounded border-0 bg-transparent px-3 py-2 text-left text-sm font-normal whitespace-normal text-flixer-text transition hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="void leave()">{{ party.isHost.value ? t('party.end') : t('party.leave') }}</Button>
     <p v-if="party.isGuest.value" class="px-3 pb-2 pt-2 text-xs text-flixer-muted">{{ t('party.guestHint') }}</p>
   </section>
 </template>

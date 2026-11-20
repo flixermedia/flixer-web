@@ -247,6 +247,10 @@ export const OwnerCredentialFailureAndSessionReset: Story = {
 export const RetentionAndCorrelation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
+    const chooseOption = async (label: string, option: string) => {
+      await userEvent.click(canvas.getByRole('combobox', { name: label }))
+      await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole('option', { name: option }))
+    }
     await expect(await canvas.findByText('scanner')).toBeVisible()
     await expect(await canvas.findByText('All applications (legacy)')).toBeVisible()
     await expect(canvas.getByText('flixer', { selector: 'span' })).toBeVisible()
@@ -282,7 +286,7 @@ export const RetentionAndCorrelation: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Delete filter' }))
     await expect(canvas.queryByRole('option', { name: 'API errors' })).not.toBeInTheDocument()
     await userEvent.selectOptions(canvas.getByLabelText('Analytics window'), '168')
-    await userEvent.selectOptions(canvas.getByLabelText('Time bucket'), 'day')
+    await chooseOption('Time bucket', 'Day')
     await userEvent.click(canvas.getByRole('button', { name: 'Apply analytics window' }))
     await waitFor(() => expect(LoggerClient.prototype.stats).toHaveBeenCalledTimes(2))
     const statsCall = mocked(LoggerClient.prototype.stats).mock.calls.at(-1)
@@ -291,13 +295,16 @@ export const RetentionAndCorrelation: Story = {
     await expect(Date.parse(statsCall[1]) % 60_000).toBe(0)
     await canvas.findByText('Showing 168 hours in Day buckets.')
     await userEvent.selectOptions(canvas.getByLabelText('Analytics window'), '1')
-    await userEvent.selectOptions(canvas.getByLabelText('Time bucket'), 'minute')
+    await chooseOption('Time bucket', 'Minute')
     let resolveOld: ((value: LoggerBucket[]) => void) | undefined
     mocked(LoggerClient.prototype.stats).mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
     await userEvent.click(canvas.getByRole('button', { name: 'Apply analytics window' }))
     await userEvent.selectOptions(canvas.getByLabelText('Analytics window'), '720')
-    await expect(canvas.getByLabelText('Time bucket')).toHaveValue('hour')
-    await expect(canvas.getByRole('option', { name: 'Minute' })).toBeDisabled()
+    const bucket = canvas.getByRole('combobox', { name: 'Time bucket' })
+    await expect(bucket).toHaveTextContent(/hour/i)
+    await userEvent.click(bucket)
+    await expect(await within(canvasElement.ownerDocument.body).findByRole('option', { name: 'Minute' })).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.keyboard('{Escape}')
     await userEvent.click(canvas.getByRole('button', { name: 'Apply analytics window' }))
     await canvas.findByText('Showing 720 hours in Hour buckets.')
     if (!resolveOld) throw new Error('Missing pending analytics query')
@@ -319,7 +326,8 @@ export const RetentionAndCorrelation: Story = {
     await waitFor(() => expect(canvas.getByText('Event 1')).toBeVisible())
     const timeline = canvas.getByText('Event 1').closest('ul')
     await expect(timeline?.textContent).toMatch(/Event 1.*Event 2.*Event 3/)
-    await userEvent.selectOptions(canvas.getByLabelText('Text match'), 'regex')
+    await userEvent.click(canvas.getByRole('combobox', { name: 'Text match' }))
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
     await expect(canvas.getByText(/Go RE2 syntax/)).toBeVisible()
     const textInput = canvas.getByLabelText('Message words')
     const searchForm = textInput.closest('form')
@@ -332,5 +340,21 @@ export const RetentionAndCorrelation: Story = {
     mocked(LoggerClient.prototype.search).mockRejectedValueOnce(new LoggerRequestError(400))
     await userEvent.click(within(searchForm).getByRole('button', { name: 'Search' }))
     await expect(await canvas.findByText(/Search was rejected. Check the regular expression/)).toBeVisible()
+  },
+}
+
+export const SearchTextKeepsWhitespace: Story = {
+  play: async ({ canvas }) => {
+    const textMode = await canvas.findByRole('combobox', { name: /text match/i })
+    await userEvent.click(textMode)
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
+    const text = await canvas.findByLabelText('Message words')
+    await userEvent.type(text, '  ^playback  ')
+    const form = text.closest('form')
+    if (!form) throw new Error('Missing log search form')
+    await userEvent.click(within(form).getByRole('button', { name: 'Search' }))
+    await waitFor(() => expect(LoggerClient.prototype.search).toHaveBeenCalledWith(
+      expect.objectContaining({ text_mode: 'regex', text: '  ^playback  ' }),
+    ))
   },
 }

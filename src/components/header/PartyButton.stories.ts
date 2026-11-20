@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
+import { expect, userEvent } from "storybook/test";
 import { useParty } from "../../composables/useParty";
 import { useProfile } from "../../composables/useProfile";
 import { partyFixture, userFixture } from "../../storybook/fixturesSession";
@@ -30,6 +31,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Watching: Story = { render: partyStory("live") };
+export const Watching: Story = {
+	render: partyStory("live"),
+	play: async ({ canvas }) => {
+		const trigger = canvas.getByRole("button", { name: /watching together/i });
+		trigger.focus();
+		await userEvent.keyboard("{Enter}");
+		await expect(trigger).toHaveAttribute("aria-expanded", "true");
+		await userEvent.keyboard("{Escape}");
+		await expect(trigger).toHaveAttribute("aria-expanded", "false");
+	},
+};
 export const Listening: Story = { render: partyStory("live", "music") };
 export const Reconnecting: Story = { render: partyStory("reconnecting") };

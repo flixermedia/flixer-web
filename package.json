@@ -52,6 +52,8 @@
     "@noble/hashes": "^2.3.0",
     "@sentry/vue": "^11.8.0",
     "@simplewebauthn/browser": "^14.0.0",
+    "@ui-sdk/core": "^0.1.0-beta.13",
+    "@ui-sdk/vue": "^0.1.0-beta.13",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "axios": "^1.12.2",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { useI18n } from 'vue-i18n'
 import type { IssueReport } from '../../api'
@@ -22,9 +23,9 @@ function submitted(report: IssueReport) {
           <ModalTitle class="text-lg font-semibold text-white">{{ t('issues.newReport') }}</ModalTitle>
           <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ t('issues.formDescription') }}</ModalDescription>
         </div>
-        <button type="button" class="grid size-9 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white" :aria-label="t('common.close')" @click="close()">
+        <Button type="button" class="grid size-9 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white" :aria-label="t('common.close')" @click="close()">
           <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <IssueReportForm class="mt-5" modal :media-item-id="props.mediaItemId" :media-title="props.mediaTitle" @submitted="submitted" />
     </ModalContent>

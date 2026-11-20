@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { useI18n } from 'vue-i18n'
 import QuickConnectApproval from './QuickConnectApproval.vue'
@@ -18,7 +19,7 @@ const { t } = useI18n()
       </header>
       <QuickConnectApproval />
       <div class="flixer-modal-actions mt-5 flex justify-end">
-        <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.close') }}</button>
+        <Button type="button" class="h-auto rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-semibold text-flixer-text transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.close') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

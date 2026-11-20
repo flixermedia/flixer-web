@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listSettings, updateSetting } from '../../api'
@@ -91,15 +93,15 @@ async function clearSecret() {
       <AdminToggle :model-value="enabled" :disabled="saving" :label="t('admin.communications.calls.enable')" :description="t('admin.communications.calls.enableDescription')" @update:model-value="saveToggle('calls_enabled', enabled, (value) => (enabled = value), $event)" />
       <label class="block text-sm font-medium">
         {{ t('admin.communications.calls.stunLabel') }}
-        <textarea v-model="stunUrls" rows="2" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 font-mono text-xs" spellcheck="false" />
+        <Textarea v-model="stunUrls" rows="2" class="mt-1 min-h-0 w-full resize-y rounded border border-white/10 bg-white/5 p-2 font-mono text-xs text-flixer-text" spellcheck="false" />
       </label>
       <label class="block text-sm font-medium">
         {{ t('admin.communications.calls.turnLabel') }}
-        <textarea v-model="turnUrls" rows="2" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 font-mono text-xs" spellcheck="false" />
+        <Textarea v-model="turnUrls" rows="2" class="mt-1 min-h-0 w-full resize-y rounded border border-white/10 bg-white/5 p-2 font-mono text-xs text-flixer-text" spellcheck="false" />
       </label>
       <label class="block text-sm font-medium">
         {{ t('admin.communications.calls.usernameLabel') }}
-        <input v-model="turnUsername" type="text" autocomplete="off" class="mt-1 w-full rounded border border-white/10 bg-white/5 p-2 text-xs" :placeholder="t('admin.communications.calls.usernameAuto')" />
+        <Input v-model="turnUsername" autocomplete="off" class="mt-1 h-auto w-full rounded border border-white/10 bg-white/5 p-2 text-xs text-flixer-text" :placeholder="t('admin.communications.calls.usernameAuto')" />
       </label>
       <label class="block text-sm font-medium">
         {{ t('admin.communications.calls.secretLabel') }}

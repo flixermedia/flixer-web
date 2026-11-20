@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import { createAgent } from '@ui-sdk/vue/agent'
 import { expect, mocked, userEvent, waitFor, within } from 'storybook/test'
 import { deleteUserWebhook, getUserWebhooks, saveUserWebhook } from '../../api/userWebhooks'
 import UserWebhooksSection from './UserWebhooksSection.vue'
@@ -19,7 +20,7 @@ type Story = StoryObj<typeof meta>
 export const Manage: Story = {
   play: async ({ canvas, canvasElement }) => {
     await canvas.findByText('Living room')
-    await userEvent.click(canvas.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Edit: Living room' }))
     const body = within(canvasElement.ownerDocument.body)
     const dialog = within(await body.findByRole('dialog', { name: 'Edit webhook' }))
     expect(dialog.getByLabelText('Name')).toHaveValue('Living room')
@@ -31,8 +32,12 @@ export const Manage: Story = {
     await waitFor(() => expect(saveUserWebhook).toHaveBeenCalledWith({ name: 'Cinema', url: hook.url, enabled: true }, 'one'))
     await canvas.findByText('Cinema')
     await waitFor(() => expect(body.queryByRole('dialog')).not.toBeInTheDocument())
-    await userEvent.click(canvas.getByRole('button', { name: 'Delete' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Confirm delete' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete: Cinema' }))
+    const agent = createAgent()
+    const denied = await agent.act({ steps: [{ ref: 'Confirm delete: Cinema', action: 'press' }] })
+    expect(denied.ok).toBe(false)
+    expect(deleteUserWebhook).not.toHaveBeenCalled()
+    await userEvent.click(canvas.getByRole('button', { name: 'Confirm delete: Cinema' }))
     await waitFor(() => expect(deleteUserWebhook).toHaveBeenCalledWith('one'))
   },
 }
@@ -41,7 +46,7 @@ export const CreateAndCancel: Story = {
   play: async ({ canvas, canvasElement }) => {
     await canvas.findByText('Living room')
     const body = within(canvasElement.ownerDocument.body)
-    await userEvent.click(canvas.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Edit: Living room' }))
     let dialog = within(await body.findByRole('dialog', { name: 'Edit webhook' }))
     await userEvent.clear(dialog.getByLabelText('Name'))
     await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
@@ -68,7 +73,7 @@ export const SavingAndError: Story = {
     let rejectSave!: (error: Error) => void
     mocked(saveUserWebhook).mockImplementationOnce(() => new Promise((_, reject) => { rejectSave = reject }))
     await canvas.findByText('Living room')
-    await userEvent.click(canvas.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Edit: Living room' }))
     const body = within(canvasElement.ownerDocument.body)
     const dialog = within(await body.findByRole('dialog', { name: 'Edit webhook' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
@@ -88,6 +93,6 @@ export const Disabled: Story = {
   play: async ({ canvas }) => {
     expect(await canvas.findByText('Personal webhooks are disabled or unavailable for your account. Contact an administrator.')).toBeVisible()
     expect(canvas.queryByRole('button', { name: 'Create webhook' })).not.toBeInTheDocument()
-    expect(canvas.getByRole('button', { name: 'Edit' })).toBeDisabled()
+    expect(canvas.getByRole('button', { name: 'Edit: Living room' })).toBeDisabled()
   },
 }

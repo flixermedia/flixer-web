@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMailbox } from '../../composables/useMailbox'
@@ -28,12 +29,12 @@ const date = (value: string) => new Date(value).toLocaleString()
     <template v-else>
       <header class="border-b border-white/10 bg-flixer-background/80 px-2.5 py-3 sm:px-4">
         <div class="flex items-start gap-2 sm:gap-3">
-          <button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 lg:hidden" :aria-label="t('chat.back')" @click="mail.close()"><Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" /></button>
+          <Button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg border-0 bg-transparent p-0 text-white/80 transition hover:bg-white/10 lg:hidden" :aria-label="t('chat.back')" @click="mail.close()"><Icon icon="lucide:chevron-left" class="size-5" aria-hidden="true" /></Button>
           <div class="min-w-0 flex-1">
             <h2 class="break-words text-base font-semibold text-white">{{ message.subject || t('inbox.noSubject') }}</h2>
             <p class="mt-0.5 truncate text-xs text-flixer-muted">{{ message.fromName ? `${message.fromName} <${message.from}>` : message.from }} · {{ date(message.createdAt) }}</p>
           </div>
-          <button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg text-flixer-muted transition hover:bg-red-500/10 hover:text-red-200 disabled:opacity-50" :aria-label="t('inbox.delete')" :disabled="mail.actionBusy.value" @click="mail.remove(message)"><Icon icon="lucide:trash-2" class="size-4" aria-hidden="true" /></button>
+          <Button data-agent-hidden type="button" class="grid size-9 shrink-0 place-items-center rounded-lg border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-red-500/10 hover:text-red-200 disabled:opacity-50" :aria-label="t('inbox.delete')" :disabled="mail.actionBusy.value" @click="void mail.remove(message)"><Icon icon="lucide:trash-2" class="size-4" aria-hidden="true" /></Button>
         </div>
         <details class="mt-2 text-xs text-flixer-muted sm:pl-12">
           <summary class="cursor-pointer select-none hover:text-white">{{ t('inbox.details') }}</summary>
@@ -45,7 +46,7 @@ const date = (value: string) => new Date(value).toLocaleString()
         </details>
       </header>
       <div v-if="message.attachments.length" class="flex flex-wrap gap-2 border-b border-white/10 p-3">
-        <button v-for="attachment in message.attachments" :key="attachment.id" type="button" class="flex items-center gap-2 rounded border border-white/10 px-3 py-2 text-xs text-flixer-text hover:bg-white/5" @click="mail.download(attachment)"><Icon icon="lucide:paperclip" class="size-3.5" aria-hidden="true" />{{ attachment.filename }}<span class="text-flixer-muted">{{ Math.max(1, Math.round(attachment.size / 1024)) }} KB</span></button>
+        <Button v-for="attachment in message.attachments" :key="attachment.id" data-agent-hidden type="button" class="flex h-auto items-center gap-2 rounded border border-white/10 bg-transparent px-3 py-2 text-xs font-normal whitespace-normal text-flixer-text hover:bg-white/5" @click="void mail.download(attachment)"><Icon icon="lucide:paperclip" class="size-3.5" aria-hidden="true" />{{ attachment.filename }}<span class="text-flixer-muted">{{ Math.max(1, Math.round(attachment.size / 1024)) }} KB</span></Button>
       </div>
       <iframe v-if="message.html" :srcdoc="source" sandbox="" class="min-h-0 w-full flex-1 bg-white" :title="t('inbox.messageBody')"></iframe>
       <pre v-else class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-5 text-sm leading-6 text-flixer-text">{{ message.text }}</pre>

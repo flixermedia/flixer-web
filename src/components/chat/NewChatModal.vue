@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
+import { Radio, RadioGroup } from '@ui-sdk/vue/radio'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addChatMembers, createChatGroup, getProfiles, startDirectChat, type ChatConversation, type PublicProfileSummary } from '../../api'
@@ -97,31 +100,31 @@ function submit() {
         <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ adding ? t('chat.addPeopleHint') : mode === 'direct' ? t('chat.directHint') : t('chat.groupHint') }}</ModalDescription>
       </header>
 
-      <div v-if="!adding" class="mt-4 grid grid-cols-2 gap-1 rounded bg-white/5 p-1 text-sm font-semibold" role="tablist">
-        <button v-for="option in ['direct', 'group'] as const" :key="option" type="button" role="tab" :aria-selected="mode === option" class="rounded px-3 py-1.5 transition motion-reduce:transition-none" :class="mode === option ? 'bg-white text-flixer-background' : 'text-flixer-muted hover:text-white'" @click="mode = option">{{ t(option === 'direct' ? 'chat.direct' : 'chat.group') }}</button>
-      </div>
+      <RadioGroup v-if="!adding" :value="mode" :aria-label="t('chat.newChat')" class="mt-4 grid grid-cols-2 gap-1 rounded bg-white/5 p-1" @update:value="(value) => { if (value === 'direct' || value === 'group') mode = value }">
+        <Radio v-for="option in ['direct', 'group'] as const" :key="option" :value="option" class="h-auto rounded border-0 bg-transparent px-3 py-1.5 text-center text-sm font-semibold text-flixer-muted transition motion-reduce:transition-none hover:bg-transparent hover:text-white data-checked:bg-white data-checked:text-flixer-background data-checked:hover:bg-white data-checked:hover:text-flixer-background">{{ t(option === 'direct' ? 'chat.direct' : 'chat.group') }}</Radio>
+      </RadioGroup>
 
-      <input v-if="!adding && mode === 'group'" v-model="name" maxlength="60" class="mt-4 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.groupName')" :aria-label="t('chat.groupName')" />
-      <input v-model="query" type="search" class="mt-3 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('chat.searchPeople')" :aria-label="t('chat.searchPeople')" />
+      <Input v-if="!adding && mode === 'group'" v-model="name" maxlength="60" class="mt-4 h-auto w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" :placeholder="t('chat.groupName')" :aria-label="t('chat.groupName')" />
+      <Input v-model="query" type="search" class="mt-3 h-auto w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" :placeholder="t('chat.searchPeople')" :aria-label="t('chat.searchPeople')" />
 
       <ul class="mt-3 min-h-40 flex-1 space-y-0.5 overflow-y-auto">
         <li v-if="loading" class="px-2 py-6 text-center text-sm text-flixer-muted">{{ t('common.loading') }}</li>
         <li v-else-if="!visible.length" class="px-2 py-6 text-center text-sm text-flixer-muted">{{ t('chat.noPeople') }}</li>
         <li v-for="person in loading ? [] : visible" :key="person.username">
-          <button type="button" class="flex w-full items-center gap-3 rounded px-2 py-2 text-left transition motion-reduce:transition-none hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-pressed="multi ? selected.includes(person.username) : undefined" :disabled="busy" @click="pick(person)">
+          <Button data-agent-hidden type="button" class="flex h-auto w-full items-center gap-3 rounded border-0 bg-transparent px-2 py-2 text-left whitespace-normal transition motion-reduce:transition-none hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-100" :aria-pressed="multi ? selected.includes(person.username) : undefined" :disabled="busy" @click="pick(person)">
             <span class="block size-9 shrink-0 overflow-hidden rounded"><UserAvatar :avatar-url="person.avatarUrl" :name="person.displayName" /></span>
             <span class="min-w-0 flex-1 truncate text-sm font-medium text-white">{{ person.displayName }}</span>
             <span v-if="multi" class="grid size-5 shrink-0 place-items-center rounded border" :class="selected.includes(person.username) ? 'border-flixer-accent bg-flixer-accent text-flixer-background' : 'border-white/30'" aria-hidden="true">
               <Icon v-if="selected.includes(person.username)" icon="lucide:check" class="size-3.5" aria-hidden="true" />
             </span>
-          </button>
+          </Button>
         </li>
       </ul>
 
       <p v-if="error" class="mt-2 text-sm text-red-400" role="alert">{{ error }}</p>
       <div class="flixer-modal-actions mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</button>
-        <button v-if="multi" type="button" class="h-11 rounded bg-white px-5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!canSubmit" @click="submit">{{ adding ? t('chat.add') : t('chat.createGroup') }}</button>
+        <Button type="button" class="h-11 rounded border border-flixer-border bg-transparent px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</Button>
+        <Button v-if="multi" data-agent-hidden type="button" class="h-11 rounded border-0 bg-white px-5 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!canSubmit" @click="submit">{{ adding ? t('chat.add') : t('chat.createGroup') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

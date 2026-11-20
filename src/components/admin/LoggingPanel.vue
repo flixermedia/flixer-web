@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -134,9 +137,31 @@ let ownerCredentialsGeneration = 0
 let scrollScheduled = false
 
 const input = 'w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm'
+const selectContent = 'max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl'
+const selectItem = 'cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10 data-disabled:opacity-40'
 const button = 'rounded bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20 disabled:opacity-40'
 const summary = computed(() => Object.entries(analytics.value?.totals ?? {}).sort(([a], [b]) => a.localeCompare(b)))
 const visibleLiveEvents = computed(() => livePaused.value ? pausedEvents.value : liveEvents.value)
+const filteredLevel = computed({
+  get: () => level.value || 'all',
+  set: (value: string | null) => { level.value = value === null || value === 'all' ? '' : value },
+})
+
+function changeAnalyticsBucket(value: string | null) {
+  if (value === 'minute' || value === 'hour' || value === 'day') analyticsBucket.value = value
+}
+
+function changeTextMode(value: string | null) {
+  if (value === 'all' || value === 'phrase' || value === 'substring' || value === 'regex') textMode.value = value
+}
+
+function changeTimeZone(value: string | null) {
+  if (value === 'local' || value === 'utc') timeZone.value = value
+}
+
+function changeCorrelationKind(value: string | null) {
+  if (value === 'trace' || value === 'task') correlationKind.value = value
+}
 
 function exportEvents(items: LoggerEvent[], name: string) {
   error.value = ''
@@ -1262,13 +1287,17 @@ onBeforeUnmount(() => {
           <label class="text-sm">{{ t('admin.logging.analyticsWindow') }}
             <select v-model.number="analyticsHours" :class="input" @change="changeAnalyticsWindow"><option :value="1">1h</option><option :value="24">24h</option><option :value="168">7d</option><option :value="720">30d</option></select>
           </label>
-          <label class="text-sm">{{ t('admin.logging.analyticsBucket') }}
-            <select v-model="analyticsBucket" :class="input">
-              <option value="minute" :disabled="analyticsHours > 24">{{ t('admin.logging.bucketMinute') }}</option>
-              <option value="hour">{{ t('admin.logging.bucketHour') }}</option>
-              <option value="day">{{ t('admin.logging.bucketDay') }}</option>
-            </select>
-          </label>
+          <Field class="text-sm">
+            <FieldLabel>{{ t('admin.logging.analyticsBucket') }}</FieldLabel>
+            <Select :value="analyticsBucket" @value-change="changeAnalyticsBucket">
+              <SelectTrigger :class="[input, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+              <SelectContent :class="selectContent">
+                <SelectItem value="minute" :disabled="analyticsHours > 24" :class="selectItem">{{ t('admin.logging.bucketMinute') }}</SelectItem>
+                <SelectItem value="hour" :class="selectItem">{{ t('admin.logging.bucketHour') }}</SelectItem>
+                <SelectItem value="day" :class="selectItem">{{ t('admin.logging.bucketDay') }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <button :class="button" type="submit">{{ t('admin.logging.applyAnalytics') }}</button>
         </form>
         <p v-if="appliedAnalytics" class="mb-2 text-sm text-flixer-muted">{{ t('admin.logging.analyticsApplied', { hours: appliedAnalytics.hours, bucket: t(analyticsBucketKeys[appliedAnalytics.bucket]) }) }}</p>
@@ -1329,7 +1358,7 @@ onBeforeUnmount(() => {
         <p class="mb-3 text-sm text-flixer-muted">{{ t('admin.logging.filterPrivacy') }}</p>
         <p v-if="presetError" role="alert" class="mb-3 text-sm text-amber-300">{{ presetError }}</p>
         <div class="mb-4 flex flex-wrap items-end gap-2">
-          <label class="text-sm">{{ t('admin.logging.filterName') }}<input v-model="filterName" :class="input" maxlength="80" /></label>
+          <label class="text-sm">{{ t('admin.logging.filterName') }}<Input v-model="filterName" :class="input" maxlength="80" /></label>
           <button :class="button" type="button" :disabled="!filterName.trim()" @click="saveFilter">{{ t('admin.logging.saveFilter') }}</button>
           <label class="text-sm">{{ t('admin.logging.savedFilters') }}
             <select v-model="selectedFilter" :class="input">
@@ -1342,34 +1371,49 @@ onBeforeUnmount(() => {
           <button :class="button" type="button" @click="copyFilterLink">{{ t('admin.logging.copyFilterLink') }}</button>
         </div>
         <form class="grid gap-3 md:grid-cols-4" @submit.prevent="search(false)">
-          <label class="text-sm">{{ t('admin.logging.text') }}<input v-model="text" :class="input" type="search" /></label>
-          <label class="text-sm">{{ t('admin.logging.textMode') }}
-            <select v-model="textMode" :class="input">
-              <option value="all">{{ t('admin.logging.matchWords') }}</option>
-              <option value="phrase">{{ t('admin.logging.matchPhrase') }}</option>
-              <option value="substring">{{ t('admin.logging.matchSubstring') }}</option>
-              <option value="regex">{{ t('admin.logging.matchRegex') }}</option>
-            </select>
-          </label>
-          <label class="text-sm">{{ t('admin.logging.app') }}<input v-model="app" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.source') }}<input v-model="source" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.instance') }}<input v-model="instance" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.eventCode') }}<input v-model="eventCode" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.trace') }}<input v-model="trace" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.requestId') }}<input v-model="requestId" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.task') }}<input v-model="task" :class="input" /></label>
-          <label class="text-sm">{{ t('admin.logging.level') }}
-            <select v-model="level" :class="input">
-              <option value="">{{ t('admin.logging.allLevels') }}</option>
-              <option v-for="name in ['trace', 'debug', 'info', 'warn', 'error', 'fatal']" :key="name" :value="name">{{ name }}</option>
-            </select>
-          </label>
+          <label class="text-sm">{{ t('admin.logging.text') }}<Input v-model="text" :class="input" type="search" /></label>
+          <Field class="text-sm">
+            <FieldLabel>{{ t('admin.logging.textMode') }}</FieldLabel>
+            <Select :value="textMode" @value-change="changeTextMode">
+              <SelectTrigger :class="[input, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+              <SelectContent :class="selectContent">
+                <SelectItem value="all" :class="selectItem">{{ t('admin.logging.matchWords') }}</SelectItem>
+                <SelectItem value="phrase" :class="selectItem">{{ t('admin.logging.matchPhrase') }}</SelectItem>
+                <SelectItem value="substring" :class="selectItem">{{ t('admin.logging.matchSubstring') }}</SelectItem>
+                <SelectItem value="regex" :class="selectItem">{{ t('admin.logging.matchRegex') }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <label class="text-sm">{{ t('admin.logging.app') }}<Input v-model="app" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.source') }}<Input v-model="source" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.instance') }}<Input v-model="instance" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.eventCode') }}<Input v-model="eventCode" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.trace') }}<Input v-model="trace" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.requestId') }}<Input v-model="requestId" :class="input" /></label>
+          <label class="text-sm">{{ t('admin.logging.task') }}<Input v-model="task" :class="input" /></label>
+          <Field class="text-sm">
+            <FieldLabel>{{ t('admin.logging.level') }}</FieldLabel>
+            <Select v-model:value="filteredLevel">
+              <SelectTrigger :class="[input, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+              <SelectContent :class="selectContent">
+                <SelectItem value="all" :class="selectItem">{{ t('admin.logging.allLevels') }}</SelectItem>
+                <SelectItem v-for="name in severityLevels" :key="name" :value="name" :class="selectItem">{{ name }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <label class="text-sm">{{ t('admin.logging.window') }}
             <select v-model.number="hours" :class="input"><option :value="1">1h</option><option :value="24">24h</option><option :value="168">7d</option><option :value="720">30d</option></select>
           </label>
-          <label class="text-sm">{{ t('admin.logging.timeZone') }}
-            <select v-model="timeZone" :class="input"><option value="local">{{ t('admin.logging.localTime') }}</option><option value="utc">UTC</option></select>
-          </label>
+          <Field class="text-sm">
+            <FieldLabel>{{ t('admin.logging.timeZone') }}</FieldLabel>
+            <Select :value="timeZone" @value-change="changeTimeZone">
+              <SelectTrigger :class="[input, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+              <SelectContent :class="selectContent">
+                <SelectItem value="local" :class="selectItem">{{ t('admin.logging.localTime') }}</SelectItem>
+                <SelectItem value="utc" :class="selectItem">UTC</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <div class="flex flex-wrap items-end gap-2 md:col-span-3">
             <button :class="button" type="submit" :disabled="searching">{{ t('admin.logging.search') }}</button>
             <button :class="button" type="button" :disabled="searching" @click="loadRecent">{{ t('admin.logging.recent') }}</button>
@@ -1415,10 +1459,16 @@ onBeforeUnmount(() => {
         <AdminSection :title="t('admin.logging.correlationTitle')" :description="t('admin.logging.correlationHelp', { limit: MAX_CORRELATION_EVENTS })">
           <form class="flex flex-wrap items-end gap-3" @submit.prevent="loadCorrelation()">
             <label class="text-sm">{{ t('admin.logging.correlationKind') }}
-              <select v-model="correlationKind" :class="input"><option value="trace">{{ t('admin.logging.trace') }}</option><option value="task">{{ t('admin.logging.task') }}</option></select>
+              <Select :value="correlationKind" @value-change="changeCorrelationKind">
+                <SelectTrigger :class="[input, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+                <SelectContent :class="selectContent">
+                  <SelectItem value="trace" :class="selectItem">{{ t('admin.logging.trace') }}</SelectItem>
+                  <SelectItem value="task" :class="selectItem">{{ t('admin.logging.task') }}</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label class="min-w-0 flex-1 text-sm">{{ t('admin.logging.correlationId') }}
-              <input v-model="correlationId" :class="input" type="text" maxlength="1024" required />
+              <Input v-model="correlationId" :class="input" type="text" maxlength="1024" required />
             </label>
             <button :class="button" type="submit" :disabled="correlationBusy">{{ t('admin.logging.search') }}</button>
           </form>

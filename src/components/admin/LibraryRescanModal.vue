@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from "@kolirt/vue-modal";
+import { Button } from "@ui-sdk/vue/button";
+import { Checkbox, CheckboxIndicator } from "@ui-sdk/vue/checkbox";
 import { useI18n } from "vue-i18n";
 import type { MediaLibrary } from "../../api";
 
@@ -58,7 +60,9 @@ function toggle(id: string, checked: boolean) {
 			<fieldset class="mt-5 grid gap-2 overflow-y-auto">
 				<legend class="sr-only">{{ t("admin.libraries.rescanOptionsTitle") }}</legend>
 				<label v-for="choice in choices" :key="choice.id" class="flex cursor-pointer items-start gap-3 rounded border border-flixer-border bg-flixer-background/50 p-3 transition hover:bg-white/5">
-					<input type="checkbox" :checked="selected.includes(choice.id)" class="mt-1 accent-flixer-primary" @change="toggle(choice.id, ($event.target as HTMLInputElement).checked)" />
+					<Checkbox :checked="selected.includes(choice.id)" class="mt-1 size-4 shrink-0 rounded-sm data-checked:border-flixer-primary data-checked:bg-flixer-primary" @update:checked="toggle(choice.id, $event === true)">
+						<CheckboxIndicator />
+					</Checkbox>
 					<span class="grid gap-0.5">
 						<span class="text-sm font-semibold">{{ t(`admin.libraries.${choice.label}`) }}</span>
 						<span class="text-xs leading-5 text-flixer-muted">{{ t(`admin.libraries.${choice.description}`) }}</span>
@@ -66,15 +70,15 @@ function toggle(id: string, checked: boolean) {
 				</label>
 			</fieldset>
 			<div class="flixer-modal-actions mt-5 flex flex-wrap justify-end gap-2">
-				<button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-semibold transition hover:bg-white/5" @click="close()">
+				<Button type="button" class="h-auto rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-semibold text-flixer-text transition hover:bg-white/5" @click="close()">
 					{{ t("admin.libraries.cancel") }}
-				</button>
-				<button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/15" @click="confirm(['full'])">
+				</Button>
+				<Button type="button" class="h-auto rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-flixer-text transition hover:bg-white/15" @click="confirm(['full'])">
 					{{ t("admin.libraries.fullRescanAll") }}
-				</button>
-				<button type="button" :disabled="selected.length === 0" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:cursor-not-allowed disabled:opacity-50" @click="confirm(selected)">
+				</Button>
+				<Button type="button" :disabled="selected.length === 0" class="h-auto rounded border-0 bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:cursor-not-allowed disabled:opacity-50" @click="confirm(selected)">
 					{{ t("admin.libraries.runSelected") }}
-				</button>
+				</Button>
 			</div>
 			<p class="mt-3 text-xs leading-5 text-flixer-muted">{{ t("admin.libraries.fullRescanWarning") }}</p>
 		</ModalContent>

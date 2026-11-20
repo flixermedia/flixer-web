@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Browser } from "@capacitor/browser";
@@ -80,11 +81,11 @@ onMounted(() => {
 });
 onBeforeUnmount(() => clearInterval(ticker));
 
-const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-border px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-50";
+const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-border bg-transparent px-3 text-xs font-semibold whitespace-normal text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-50";
 </script>
 
 <template>
-	<section aria-labelledby="billing-heading" class="max-w-3xl space-y-8">
+	<section data-agent-hidden aria-labelledby="billing-heading" class="max-w-3xl space-y-8">
 		<div>
 			<h2 id="billing-heading" class="text-lg font-semibold">{{ t("payments.billing.title") }}</h2>
 			<p class="mt-1 text-sm text-flixer-muted">{{ t("payments.billing.description") }}</p>
@@ -97,7 +98,7 @@ const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-b
 			<section aria-labelledby="billing-cards" class="space-y-3">
 				<div class="flex items-center justify-between gap-3">
 					<h3 id="billing-cards" class="text-sm font-semibold">{{ t("payments.billing.cards") }}</h3>
-					<button v-if="!adding && data.methods.length < 5" type="button" :class="buttonClass" @click="adding = true">{{ t("payments.card.add") }}</button>
+					<Button v-if="!adding && data.methods.length < 5" type="button" :class="buttonClass" @click="adding = true">{{ t("payments.card.add") }}</Button>
 				</div>
 				<p v-if="data.methods.length === 0 && !adding" class="text-sm text-flixer-muted">{{ t("payments.billing.noCards") }}</p>
 				<ul v-else class="space-y-2">
@@ -108,8 +109,8 @@ const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-b
 							<p class="text-xs text-flixer-muted">{{ t("payments.billing.expires", { date: `${String(card.expMonth).padStart(2, "0")}/${card.expYear}` }) }}</p>
 						</div>
 						<StatusPill v-if="card.isDefault" tone="accent">{{ t("payments.billing.default") }}</StatusPill>
-						<button v-else type="button" :class="buttonClass" :disabled="busyId === card.id" @click="makeDefault(card.id)">{{ t("payments.billing.makeDefault") }}</button>
-						<button type="button" :class="buttonClass" :disabled="busyId === card.id || !canRemove" :title="canRemove ? undefined : t('payments.billing.keepOne')" @click="remove(card.id)">{{ t("payments.card.remove") }}</button>
+						<Button v-else type="button" :class="buttonClass" :disabled="busyId === card.id" @click="void makeDefault(card.id)">{{ t("payments.billing.makeDefault") }}</Button>
+						<Button type="button" :class="buttonClass" :disabled="busyId === card.id || !canRemove" :title="canRemove ? undefined : t('payments.billing.keepOne')" @click="void remove(card.id)">{{ t("payments.card.remove") }}</Button>
 					</li>
 				</ul>
 				<div v-if="adding" class="rounded border border-flixer-border bg-flixer-background/40 p-4">
@@ -131,8 +132,8 @@ const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-b
 						</div>
 						<StatusPill :tone="subscriptionTone(subscription.status)">{{ t(`payments.status.${subscription.status}`) }}</StatusPill>
 						<template v-if="subscription.active">
-							<button v-if="subscription.cancelAtPeriodEnd" type="button" :class="buttonClass" :disabled="busyId === subscription.id" @click="resume(subscription.id)">{{ t("payments.billing.resume") }}</button>
-							<button v-else type="button" :class="buttonClass" :disabled="busyId === subscription.id" @click="cancel(subscription.id)">{{ t("payments.billing.cancel") }}</button>
+							<Button v-if="subscription.cancelAtPeriodEnd" type="button" :class="buttonClass" :disabled="busyId === subscription.id" @click="void resume(subscription.id)">{{ t("payments.billing.resume") }}</Button>
+							<Button v-else type="button" :class="buttonClass" :disabled="busyId === subscription.id" @click="void cancel(subscription.id)">{{ t("payments.billing.cancel") }}</Button>
 						</template>
 					</li>
 				</ul>
@@ -165,7 +166,7 @@ const buttonClass = "inline-flex h-9 items-center rounded border border-flixer-b
 						</div>
 						<span class="text-sm font-semibold">{{ money(order.totalMinor, order.currency) }}</span>
 						<StatusPill :tone="orderTone(order.status)">{{ t(`payments.orderStatus.${order.status}`) }}</StatusPill>
-						<button v-if="hasReceipt(order.status)" type="button" :class="buttonClass" :disabled="busyId === order.id" @click="openReceipt(order.id)">{{ t("payments.billing.receipt") }}</button>
+						<Button v-if="hasReceipt(order.status)" type="button" :class="buttonClass" :disabled="busyId === order.id" @click="void openReceipt(order.id)">{{ t("payments.billing.receipt") }}</Button>
 					</li>
 				</ul>
 			</section>

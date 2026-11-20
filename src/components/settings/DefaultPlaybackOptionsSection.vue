@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPreferences, updatePreferences } from '../../api'
@@ -97,7 +98,7 @@ onMounted(() => {
     </label>
 
     <label class="mt-6 flex items-start gap-3 rounded border border-flixer-border bg-flixer-surface p-4">
-      <input v-model="autoSkipIntroCredits" type="checkbox" class="mt-1 size-4 accent-flixer-primary" :disabled="isLoading || isSaving" @change="save" />
+      <Checkbox :checked="autoSkipIntroCredits" class="mt-1 size-4 shrink-0 rounded-sm data-checked:border-flixer-primary data-checked:bg-flixer-primary" :disabled="isLoading || isSaving" @update:checked="autoSkipIntroCredits = $event === true; save()"><CheckboxIndicator /></Checkbox>
       <span>
         <span class="block text-sm font-medium">{{ t('settings.playback.autoSkipIntroCredits') }}</span>
         <span class="mt-1 block text-sm text-flixer-muted">{{ t('settings.playback.autoSkipIntroCreditsDescription') }}</span>
@@ -105,7 +106,7 @@ onMounted(() => {
     </label>
 
     <label class="mt-6 flex items-start gap-3 rounded border border-flixer-border bg-flixer-surface p-4">
-      <input v-model="emulateLyricWordTiming" type="checkbox" class="mt-1 size-4 accent-flixer-primary" :disabled="isLoading || isSaving" @change="saveLyricWordTiming" />
+      <Checkbox :checked="emulateLyricWordTiming" class="mt-1 size-4 shrink-0 rounded-sm data-checked:border-flixer-primary data-checked:bg-flixer-primary" :disabled="isLoading || isSaving" @update:checked="emulateLyricWordTiming = $event === true; saveLyricWordTiming()"><CheckboxIndicator /></Checkbox>
       <span>
         <span class="block text-sm font-medium">{{ t('settings.playback.emulateLyricWordTiming') }}</span>
         <span class="mt-1 block text-sm text-flixer-muted">{{ t('settings.playback.emulateLyricWordTimingDescription') }}</span>

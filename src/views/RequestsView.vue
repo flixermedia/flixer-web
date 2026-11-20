@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectLabel, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -98,13 +100,37 @@ watch([scope, status, type], () => {
             ><span v-if="entry" class="rounded-full px-1.5 py-0.5 text-[10px]" :class="status === entry ? 'bg-black/10' : 'bg-white/10'">{{ counts[entry] }}</span>
           </button>
         </div>
-        <label class="sr-only" for="request-type-filter">{{ t('requests.allTypes') }}</label
-        ><select id="request-type-filter" v-model="type" class="w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2.5 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:w-44">
-          <option value="">{{ t('requests.allTypes') }}</option>
-          <option value="movie">{{ t('home.itemType.movie') }}</option>
-          <option value="tv">{{ t('home.itemType.series') }}</option>
-          <option value="music">{{ t('home.itemType.album') }}</option>
-        </select>
+        <Select v-model:value="type" virtual-focus class="w-full sm:w-44">
+          <SelectLabel class="sr-only">{{ t('requests.allTypes') }}</SelectLabel>
+          <SelectTrigger
+            class="inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2.5 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+            <SelectValue />
+            <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+          </SelectTrigger>
+          <SelectContent
+            class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+            <SelectItem value=""
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('requests.allTypes') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="movie"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('home.itemType.movie') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="tv"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('home.itemType.series') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="music"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('home.itemType.album') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div v-if="busy && !rows.length" class="mt-6 space-y-3" role="status" :aria-label="t('common.loading')">
@@ -139,9 +165,9 @@ watch([scope, status, type], () => {
             </div>
             <div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end" role="group" :aria-label="row.title">
               <template v-if="isAdmin && scope === 'all'"
-                ><button v-if="row.status === 'pending'" type="button" class="rounded bg-flixer-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="action(row, 'approve')">{{ t('requests.actions.approve') }}</button><button v-if="row.status === 'pending'" type="button" class="rounded border border-white/15 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="action(row, 'decline')">{{ t('requests.actions.decline') }}</button
-                ><button v-if="row.status === 'failed'" type="button" class="rounded border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="action(row, 'retry')">{{ t('requests.actions.retry') }}</button></template
-              ><button v-if="row.status === 'pending' || isAdmin" type="button" class="rounded border border-white/10 px-3 py-2 text-xs font-medium text-flixer-muted transition hover:border-red-300/30 hover:text-red-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="action(row, 'delete')">{{ t('requests.actions.delete') }}</button>
+                ><Button v-if="row.status === 'pending'" type="button" class="h-auto rounded border-0 bg-flixer-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void action(row, 'approve')">{{ t('requests.actions.approve') }}</Button><Button v-if="row.status === 'pending'" type="button" class="h-auto rounded border border-white/15 bg-transparent px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void action(row, 'decline')">{{ t('requests.actions.decline') }}</Button
+                ><Button v-if="row.status === 'failed'" type="button" class="h-auto rounded border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void action(row, 'retry')">{{ t('requests.actions.retry') }}</Button></template
+              ><Button v-if="row.status === 'pending' || isAdmin" type="button" class="h-auto rounded border border-white/10 bg-transparent px-3 py-2 text-xs font-medium text-flixer-muted transition hover:border-red-300/30 hover:text-red-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void action(row, 'delete')">{{ t('requests.actions.delete') }}</Button>
             </div>
           </div>
         </li>
@@ -153,7 +179,7 @@ watch([scope, status, type], () => {
         <p class="mt-4 text-sm font-medium text-white">{{ t('requests.empty') }}</p>
       </div>
       <div v-if="rows.length < total" class="mt-6 flex justify-center">
-        <button type="button" class="rounded border border-flixer-border bg-flixer-surface px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-50" :disabled="busy" @click="load(true)">{{ busy ? t('common.loading') : t('requests.loadMore') }}</button>
+        <Button type="button" class="h-auto rounded border border-flixer-border bg-flixer-surface px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:opacity-50" :disabled="busy" @click="void load(true)">{{ busy ? t('common.loading') : t('requests.loadMore') }}</Button>
       </div>
     </main>
     <MobileTabBar :tabs="tabs" />

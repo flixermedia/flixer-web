@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Radio, RadioGroup } from '@ui-sdk/vue/radio'
 import { inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SetupNotice from '../SetupNotice.vue'
@@ -39,15 +40,15 @@ defineExpose({ submit })
 
 <template>
   <StepFrame :title="t('setup.welcome.title')" :description="t('setup.welcome.description')">
-    <div class="grid gap-3" role="radiogroup" :aria-label="t('setup.welcome.choose')">
-      <button v-for="option in options" :key="option.flow" type="button" role="radio" :aria-checked="selected === option.flow" :disabled="!option.available" class="rounded border p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-50" :class="selected === option.flow ? 'border-flixer-accent bg-flixer-primary/10 ring-4 ring-flixer-primary/20' : 'border-flixer-border bg-flixer-surface/60 hover:border-flixer-accent/50'" @click="selected = option.flow">
+    <RadioGroup data-agent-hidden :value="selected" class="grid gap-3" :aria-label="t('setup.welcome.choose')" @update:value="(value) => { if (value === 'quick' || value === 'advanced') selected = value }">
+      <Radio v-for="option in options" :key="option.flow" :value="option.flow" :disabled="!option.available" class="block h-auto w-full rounded border border-flixer-border bg-flixer-surface/60 p-5 text-left font-normal text-flixer-text transition hover:border-flixer-accent/50 data-checked:border-flixer-accent data-checked:bg-flixer-primary/10 data-checked:ring-4 data-checked:ring-flixer-primary/20 disabled:cursor-not-allowed disabled:opacity-50">
         <span class="flex items-center justify-between gap-3">
           <span class="text-base font-semibold">{{ t(`setup.welcome.${option.flow}.title`) }}</span>
           <span v-if="!option.available" class="rounded-full border border-flixer-border px-2 py-0.5 text-[10px] font-semibold text-flixer-muted">{{ t('setup.welcome.soon') }}</span>
         </span>
         <span class="mt-1 block text-sm leading-6 text-flixer-muted">{{ t(`setup.welcome.${option.flow}.description`) }}</span>
-      </button>
-    </div>
+      </Radio>
+    </RadioGroup>
     <SetupNotice v-if="message" kind="error">{{ message }}</SetupNotice>
   </StepFrame>
 </template>

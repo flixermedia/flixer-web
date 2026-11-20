@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
+import { Toggle } from '@ui-sdk/vue/toggle'
 import { useI18n } from 'vue-i18n'
 import Skeleton from '../ui/Skeleton.vue'
 import { useMailbox } from '../../composables/useMailbox'
@@ -18,11 +21,11 @@ function shortDate(value: string) {
     <div class="flex items-center gap-2 border-b border-white/10 px-3 py-2.5">
       <label class="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-flixer-text focus-within:ring-1 focus-within:ring-flixer-accent">
         <Icon icon="lucide:search" class="size-4 shrink-0 text-flixer-muted" aria-hidden="true" />
-        <input :value="mail.search.value" type="search" class="min-w-0 flex-1 bg-transparent outline-none placeholder:text-flixer-muted" :placeholder="t('inbox.search')" @input="mail.setSearch(($event.target as HTMLInputElement).value)" />
+        <Input :value="mail.search.value" type="search" class="h-auto min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-sm text-flixer-text outline-none placeholder:text-flixer-muted" :aria-label="t('inbox.search')" :placeholder="t('inbox.search')" @update:model-value="mail.setSearch" />
       </label>
-      <button type="button" class="grid size-9 shrink-0 place-items-center rounded-lg transition hover:bg-white/10" :class="mail.unreadOnly.value ? 'bg-white/10 text-flixer-accent' : 'text-flixer-muted'" :aria-pressed="mail.unreadOnly.value" :aria-label="t('inbox.unreadOnly')" :title="t('inbox.unreadOnly')" @click="mail.setUnreadOnly(!mail.unreadOnly.value)">
+      <Toggle type="button" class="grid size-9 shrink-0 place-items-center rounded-lg border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 data-pressed:bg-white/10 data-pressed:text-flixer-accent" :pressed="mail.unreadOnly.value" :aria-label="t('inbox.unreadOnly')" :title="t('inbox.unreadOnly')" @pressed-change="mail.setUnreadOnly">
         <Icon icon="lucide:mail-warning" class="size-4" aria-hidden="true" />
-      </button>
+      </Toggle>
     </div>
     <p v-if="mail.error.value" class="p-4 text-sm text-red-300" role="alert">{{ mail.error.value }}</p>
     <ul v-if="mail.loading.value && !mail.messages.value.length" class="space-y-1 p-2">
@@ -31,7 +34,7 @@ function shortDate(value: string) {
     <p v-else-if="!mail.messages.value.length" class="p-8 text-center text-sm text-flixer-muted">{{ t('inbox.empty') }}</p>
     <ul v-else class="min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
       <li v-for="message in mail.messages.value" :key="message.id">
-        <button type="button" class="flex w-full items-center gap-3 rounded border border-transparent px-2.5 py-3 text-left transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="mail.selectedId.value === message.id ? 'border-white/10 bg-white/5' : ''" @click="mail.select(message.id)">
+        <Button data-agent-hidden type="button" class="flex h-auto w-full items-center justify-start gap-3 rounded border px-2.5 py-3 text-left font-normal whitespace-normal text-flixer-text transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="mail.selectedId.value === message.id ? 'border-white/10 bg-white/5' : 'border-transparent bg-transparent'" @click="void mail.select(message.id)">
           <span class="grid size-11 shrink-0 place-items-center rounded-lg bg-white/10 text-flixer-muted" aria-hidden="true"><Icon icon="lucide:mail" class="size-5" /></span>
           <span class="min-w-0 flex-1">
             <span class="flex items-baseline justify-between gap-2">
@@ -43,13 +46,13 @@ function shortDate(value: string) {
               <span v-if="!message.read" class="size-2 shrink-0 rounded-full bg-flixer-accent" aria-hidden="true"></span>
             </span>
           </span>
-        </button>
+        </Button>
       </li>
     </ul>
     <div v-if="mail.totalPages.value > 1" class="flex items-center justify-between border-t border-white/10 px-3 py-2 text-xs">
-      <button type="button" class="rounded px-2 py-1 hover:bg-white/10 disabled:opacity-40" :disabled="mail.page.value <= 1" @click="mail.setPage(mail.page.value - 1)">{{ t('inbox.previous') }}</button>
+      <Button type="button" class="h-auto rounded border-0 bg-transparent px-2 py-1 text-xs font-normal text-flixer-text hover:bg-white/10 disabled:opacity-40" :disabled="mail.page.value <= 1" @click="mail.setPage(mail.page.value - 1)">{{ t('inbox.previous') }}</Button>
       <span class="text-flixer-muted">{{ t('inbox.pageOf', { page: mail.page.value, pages: mail.totalPages.value }) }}</span>
-      <button type="button" class="rounded px-2 py-1 hover:bg-white/10 disabled:opacity-40" :disabled="mail.page.value >= mail.totalPages.value" @click="mail.setPage(mail.page.value + 1)">{{ t('inbox.next') }}</button>
+      <Button type="button" class="h-auto rounded border-0 bg-transparent px-2 py-1 text-xs font-normal text-flixer-text hover:bg-white/10 disabled:opacity-40" :disabled="mail.page.value >= mail.totalPages.value" @click="mail.setPage(mail.page.value + 1)">{{ t('inbox.next') }}</Button>
     </div>
   </div>
 </template>

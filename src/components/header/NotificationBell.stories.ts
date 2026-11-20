@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
+import { createAgent } from "@ui-sdk/vue/agent";
+import { expect, mocked, userEvent } from "storybook/test";
+import { getAccessToken, markNotificationsRead } from "../../api";
 import { useNotifications } from "../../composables/useNotifications";
 import { notificationsFixture } from "../../storybook/fixturesSession";
 import NotificationBell from "./NotificationBell.vue";
@@ -23,11 +26,26 @@ const meta = {
 	component: NotificationBell,
 	tags: ["autodocs"],
 	args: { buttonClass },
+	beforeEach: () => { mocked(getAccessToken).mockReturnValue(null); },
 } satisfies Meta<typeof NotificationBell>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Unread: Story = { render: bellStory(notificationsFixture) };
+export const Unread: Story = {
+	render: bellStory(notificationsFixture),
+	beforeEach: () => { mocked(markNotificationsRead).mockResolvedValue(undefined); },
+	play: async ({ canvas }) => {
+		await userEvent.click(canvas.getByRole("button", { name: "Notifications" }));
+		const markRead = await canvas.findByRole("button", { name: "Mark all read" });
+		const result = await createAgent().act({ steps: [{ ref: "Mark all read", action: "press" }] });
+		await expect(result.ok).toBe(false);
+		await expect(markNotificationsRead).not.toHaveBeenCalled();
+		markRead.focus();
+		await userEvent.keyboard("{Enter}");
+		await expect(markNotificationsRead).toHaveBeenCalledTimes(1);
+		await expect(canvas.queryByRole("button", { name: "Mark all read" })).not.toBeInTheDocument();
+	},
+};
 export const Standalone: Story = { args: { standalone: true }, render: bellStory(notificationsFixture) };
 export const Empty: Story = { args: { standalone: true }, render: bellStory([]) };

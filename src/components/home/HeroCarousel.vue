@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
@@ -158,11 +159,11 @@ onBeforeUnmount(stopAutoplay)
       </div>
 
       <div class="absolute inset-x-0 bottom-5 flex justify-center gap-3">
-        <button v-for="(item, index) in items" :key="item.id" type="button" :tabindex="tv ? -1 : undefined"
-          class="h-2.5 rounded-full transition-all"
-          :class="index === activeSlide ? 'w-6 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/70'"
+        <Button v-for="(item, index) in items" :key="item.id" type="button" :tabindex="tv ? -1 : undefined"
+          class="h-2.5 rounded-full border-0 p-0 transition-all"
+          :class="index === activeSlide ? 'w-6 bg-white hover:bg-white' : 'w-2.5 bg-white/40 hover:bg-white/70'"
           :aria-label="t('home.showSlide', { name: item.title })" :aria-current="index === activeSlide"
-          @click="selectSlide(index)"></button>
+          @click="selectSlide(index)"></Button>
       </div>
     </template>
   </section>

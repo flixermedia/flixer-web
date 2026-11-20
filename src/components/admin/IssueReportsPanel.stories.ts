@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
+import { expect, mocked, userEvent, within } from "storybook/test";
 import { addAdminIssueReportUpdate, deleteAdminIssueReport, getAdminIssueReport, listAdminIssueReports, setAdminIssueReportChat, setAdminIssueReportStatus } from "../../api";
 import { issueReports } from "../../storybook/fixturesLeft00";
 import IssueReportsPanel from "./IssueReportsPanel.vue";
@@ -24,6 +24,18 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const FilterAndOpenReport: Story = {
+	play: async ({ canvasElement }) => {
+		const page = within(canvasElement.ownerDocument.body);
+		await page.findByText("Stuttering playback");
+		const filter = page.getByRole("combobox", { name: /status/i });
+		await userEvent.click(filter);
+		await userEvent.click(await page.findByRole("option", { name: /closed/i }));
+		await expect(page.queryByText("Stuttering playback")).not.toBeInTheDocument();
+		await userEvent.click(await page.findByRole("button", { name: /duplicate episode/i }));
+		await expect(mocked(getAdminIssueReport)).toHaveBeenCalledWith("issue-4");
+	},
+};
 export const Empty: Story = {
 	beforeEach: () => {
 		mocked(listAdminIssueReports).mockResolvedValue([]);

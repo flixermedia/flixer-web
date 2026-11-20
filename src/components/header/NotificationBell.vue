@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
 import { App as CapacitorApp } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { onBeforeUnmount, onMounted, ref } from "vue";
@@ -171,19 +172,19 @@ function toggleNativeNotifications() {
 
 <template>
 	<div v-if="enabled" ref="root" :class="standalone ? 'w-full' : 'relative'">
-		<button v-if="!standalone" type="button" :class="buttonClass" :aria-label="t('notifications.title')" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
+		<Button v-if="!standalone" type="button" :class="buttonClass" class="border-0 bg-transparent p-0" :aria-label="t('notifications.title')" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
 			<Icon icon="lucide:bell" class="size-5" aria-hidden="true" />
 			<Transition name="bell-badge">
 				<span v-if="hasUnread" class="absolute right-1 top-1 grid min-w-4 place-items-center rounded bg-flixer-accent px-1 text-[10px] font-bold leading-4 text-flixer-background">{{ unread > 9 ? "9+" : unread }}</span>
 			</Transition>
-		</button>
+		</Button>
 
 		<Teleport to="body" :disabled="standalone || !nativeNavigationEnabled">
 			<Transition name="bell-panel">
 				<div v-if="open" ref="panel" class="theme-dark overflow-hidden rounded border border-white/10 bg-flixer-surface shadow-2xl shadow-black/60" :class="[standalone ? 'w-full' : 'w-[22rem] max-w-[calc(100vw-2rem)] origin-top-right', standalone ? '' : nativeNavigationEnabled ? 'fixed right-4 z-[70]' : 'absolute right-0 top-12 z-50']" :style="nativeNavigationEnabled && !standalone ? { top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' } : undefined" :role="standalone ? 'region' : 'dialog'" :aria-label="t('notifications.title')">
 					<div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
 						<h2 class="text-sm font-semibold text-white">{{ t("notifications.title") }}</h2>
-						<button v-if="hasUnread" type="button" class="text-xs text-flixer-muted transition hover:text-white" @click="markAllRead">{{ t("notifications.markAllRead") }}</button>
+						<Button v-if="hasUnread" type="button" class="h-auto border-0 bg-transparent p-0 text-xs font-normal text-flixer-muted transition hover:bg-transparent hover:text-white" data-agent-hidden @click="void markAllRead()">{{ t("notifications.markAllRead") }}</Button>
 					</div>
 
 					<ul v-if="items.length > 0" class="overflow-y-auto" :class="standalone ? 'max-h-none' : 'max-h-96'">
@@ -200,9 +201,9 @@ function toggleNativeNotifications() {
 									{{ acceptingFriendRequest === item.id ? t("notifications.acceptingFriendRequest") : t("notifications.acceptFriendRequest") }}
 								</button>
 							</div>
-							<button type="button" class="grid size-6 shrink-0 place-items-center rounded text-flixer-muted opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100" :aria-label="t('notifications.dismiss')" @click="dismiss(item.id)">
+							<Button type="button" class="grid size-6 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100" :aria-label="t('notifications.dismiss')" data-agent-hidden @click="void dismiss(item.id)">
 								<Icon icon="lucide:x" class="size-3.5" aria-hidden="true" />
-							</button>
+							</Button>
 						</li>
 					</ul>
 					<p v-else class="px-4 py-8 text-center text-sm text-flixer-muted">{{ isLoading ? t("notifications.loading") : t("notifications.empty") }}</p>

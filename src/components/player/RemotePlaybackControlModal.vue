@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
 import { useI18n } from 'vue-i18n'
 import { onRemotePreview, requestRemotePreview, useRemotePlayback } from '../../composables/useRemotePlayback'
 
@@ -119,9 +120,9 @@ onBeforeUnmount(() => {
           <ModalTitle class="mt-1 truncate text-xl font-bold text-white">{{ player?.title ?? t('remotePlayback.controlTitle') }}</ModalTitle>
           <ModalDescription class="mt-1 truncate text-sm text-flixer-muted">{{ player?.subtitle || (player?.playing ? t('remotePlayback.nowPlaying') : t('remotePlayback.paused')) }}</ModalDescription>
         </div>
-        <button type="button" class="absolute right-5 top-5 grid size-9 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('common.close')" :title="t('common.close')" @click="close()">
+        <Button type="button" class="absolute right-5 top-5 grid size-9 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('common.close')" :title="t('common.close')" @click="close()">
           <Icon icon="lucide:x" class="size-5" aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <div v-if="!device || !player" class="mt-6 border-t border-flixer-border pt-5 text-sm text-flixer-muted" role="status">{{ t('remotePlayback.deviceOffline') }}</div>
       <template v-else>
@@ -132,40 +133,41 @@ onBeforeUnmount(() => {
               <span class="max-w-48 truncate rounded border border-flixer-border bg-flixer-surface px-2 py-1 text-xs font-medium text-white shadow-lg shadow-black/40">{{ activeChapter || format(scrubPosition ?? currentPosition) }}</span>
             </div>
             <div class="relative flex h-5 items-center">
+              <!-- Keep native input/change semantics: previews update while dragging, but seek only commits on change. -->
               <input type="range" min="0" :max="player.duration" step="0.25" :value="scrubPosition ?? currentPosition" :aria-label="t('remotePlayback.seek', { device: device.deviceName })" class="relative z-0 w-full accent-flixer-accent" @input="onScrub" @change="commitSeek" />
-              <button v-for="(chapter, index) in chapters" :key="`${chapter.start}-${index}`" type="button" class="absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-flixer-surface bg-white shadow-sm" :style="{ left: `${Math.min(100, chapter.start / player.duration * 100)}%` }" :title="chapter.title" :aria-label="t('remotePlayback.seekChapter', { chapter: chapter.title })" @click="seekChapter(chapter.start)" />
+              <Button v-for="(chapter, index) in chapters" :key="`${chapter.start}-${index}`" type="button" class="absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-flixer-surface bg-white p-0 shadow-sm hover:bg-white" :style="{ left: `${Math.min(100, chapter.start / player.duration * 100)}%` }" :title="chapter.title" :aria-label="t('remotePlayback.seekChapter', { chapter: chapter.title })" data-agent-hidden @click="seekChapter(chapter.start)" />
             </div>
           </div>
         </section>
 
         <div class="mt-4 flex min-w-0 items-center gap-1 border-t border-flixer-border/70 pt-3 sm:gap-2">
-          <button type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/90 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t(player.playing ? 'remotePlayback.pause' : 'remotePlayback.play', { device: device.deviceName })" :title="t(player.playing ? 'remotePlayback.pause' : 'remotePlayback.play', { device: device.deviceName })" @click="send({ action: player.playing ? 'pause' : 'play' })">
+          <Button type="button" class="grid size-9 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-white/90 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t(player.playing ? 'remotePlayback.pause' : 'remotePlayback.play', { device: device.deviceName })" :title="t(player.playing ? 'remotePlayback.pause' : 'remotePlayback.play', { device: device.deviceName })" data-agent-hidden @click="send({ action: player.playing ? 'pause' : 'play' })">
             <Icon :icon="player.playing ? 'lucide:pause' : 'lucide:play'" class="size-5" aria-hidden="true" />
-          </button>
-          <button v-if="player.duration > 0" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.rewind', { seconds: 10 })" :title="t('remotePlayback.rewind', { seconds: 10 })" @click="nudge(-10)">
+          </Button>
+          <Button v-if="player.duration > 0" type="button" class="grid size-9 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.rewind', { seconds: 10 })" :title="t('remotePlayback.rewind', { seconds: 10 })" data-agent-hidden @click="nudge(-10)">
             <Icon icon="lucide:rewind" class="size-5" aria-hidden="true" />
-          </button>
-          <button v-if="player.duration > 0" type="button" class="grid size-9 shrink-0 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.forward', { seconds: 10 })" :title="t('remotePlayback.forward', { seconds: 10 })" @click="nudge(10)">
+          </Button>
+          <Button v-if="player.duration > 0" type="button" class="grid size-9 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.forward', { seconds: 10 })" :title="t('remotePlayback.forward', { seconds: 10 })" data-agent-hidden @click="nudge(10)">
             <Icon icon="lucide:fast-forward" class="size-5" aria-hidden="true" />
-          </button>
-          <button v-if="currentSegment" type="button" class="grid size-9 shrink-0 place-items-center rounded text-flixer-accent transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.skipSegment', { segment: t(`player.skip.${currentSegment.type}`) })" :title="t('remotePlayback.skipSegment', { segment: t(`player.skip.${currentSegment.type}`) })" @click="seekChapter(currentSegment.end)">
+          </Button>
+          <Button v-if="currentSegment" type="button" class="grid size-9 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-flixer-accent transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('remotePlayback.skipSegment', { segment: t(`player.skip.${currentSegment.type}`) })" :title="t('remotePlayback.skipSegment', { segment: t(`player.skip.${currentSegment.type}`) })" data-agent-hidden @click="seekChapter(currentSegment.end)">
             <Icon icon="lucide:skip-forward" class="size-5" aria-hidden="true" />
-          </button>
+          </Button>
           <span v-if="player.duration > 0" class="ml-1 shrink-0 text-xs tabular-nums text-flixer-muted">{{ format(scrubPosition ?? currentPosition) }} / {{ format(player.duration) }}</span>
           <span class="min-w-1 flex-1"></span>
           <div v-if="player.volume !== undefined" class="relative">
-            <button type="button" class="grid size-9 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': volumeMenuOpen }" :aria-label="t('remotePlayback.volume')" :title="t('remotePlayback.volume')" :aria-expanded="volumeMenuOpen" @click="volumeMenuOpen = !volumeMenuOpen; settingsMenuOpen = false">
+            <Button type="button" class="grid size-9 place-items-center rounded border-0 bg-transparent p-0 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="volumeMenuOpen ? 'text-flixer-accent' : 'text-white/80'" :aria-label="t('remotePlayback.volume')" :title="t('remotePlayback.volume')" :aria-expanded="volumeMenuOpen" @click="volumeMenuOpen = !volumeMenuOpen; settingsMenuOpen = false">
               <Icon :icon="player.muted || player.volume === 0 ? 'lucide:volume-x' : 'lucide:volume-2'" class="size-5" aria-hidden="true" />
-            </button>
+            </Button>
             <div v-if="volumeMenuOpen" class="absolute bottom-full right-0 z-30 mb-2 flex w-56 items-center gap-3 rounded border border-flixer-border bg-flixer-surface p-3 shadow-xl shadow-black/40">
               <Icon :icon="player.muted || player.volume === 0 ? 'lucide:volume-x' : 'lucide:volume-2'" class="size-4 shrink-0 text-flixer-muted" aria-hidden="true" />
               <input type="range" min="0" max="1" step="0.01" :value="player.muted ? 0 : player.volume" :aria-label="t('remotePlayback.volume')" class="min-w-0 flex-1 accent-flixer-accent" @input="onVolume" />
             </div>
           </div>
           <div v-if="player.kind === 'video' && (player.audioTracks?.length || player.subtitles?.length)" class="relative">
-            <button type="button" class="grid size-9 place-items-center rounded text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="{ 'text-flixer-accent': settingsMenuOpen }" :aria-label="t('player.playbackSettings')" :title="t('player.playbackSettings')" :aria-expanded="settingsMenuOpen" @click="settingsMenuOpen = !settingsMenuOpen; volumeMenuOpen = false">
+            <Button type="button" class="grid size-9 place-items-center rounded border-0 bg-transparent p-0 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="settingsMenuOpen ? 'text-flixer-accent' : 'text-white/80'" :aria-label="t('player.playbackSettings')" :title="t('player.playbackSettings')" :aria-expanded="settingsMenuOpen" @click="settingsMenuOpen = !settingsMenuOpen; volumeMenuOpen = false">
               <Icon icon="lucide:settings-2" class="size-5" aria-hidden="true" />
-            </button>
+            </Button>
             <div v-if="settingsMenuOpen" class="absolute bottom-full right-0 z-30 mb-2 w-64 space-y-3 rounded border border-flixer-border bg-flixer-surface p-3 shadow-xl shadow-black/40">
               <label v-if="player.audioTracks?.length" class="block text-xs font-semibold uppercase text-flixer-muted">{{ t('remotePlayback.audioTrack') }}
                 <select :value="trackIndex" :aria-label="t('remotePlayback.audioTrack')" class="mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm font-normal text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent" @change="selectAudioTrack">

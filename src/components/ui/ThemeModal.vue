@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
 import { useI18n } from 'vue-i18n'
 import { useAppearance } from '../../composables/useAppearance'
 import { THEME_OPTIONS, useTheme, type ThemePreference } from '../../composables/useTheme'
@@ -63,11 +64,11 @@ function select(value: ThemePreference) {
             </button>
           </li>
         </ul>
-        <button v-if="userThemeId" type="button" class="mt-2 text-xs text-flixer-muted underline hover:text-white" @click="selectTheme(null)">{{ t('themeModal.styleReset') }}</button>
+        <Button v-if="userThemeId" type="button" class="mt-2 h-auto rounded-none border-0 bg-transparent p-0 text-xs font-normal text-flixer-muted underline hover:bg-transparent hover:text-white" @click="void selectTheme(null)">{{ t('themeModal.styleReset') }}</Button>
       </section>
 
       <div class="flixer-modal-actions mt-5 flex shrink-0 justify-end">
-        <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('themeModal.close') }}</button>
+        <Button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('themeModal.close') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

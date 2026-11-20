@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -164,9 +165,9 @@ onMounted(async () => {
           <ModalTitle class="text-xl font-semibold">{{ t(props.library ? 'admin.libraries.scanFoldersTitle' : 'admin.libraries.browseFolders') }}</ModalTitle>
           <ModalDescription class="mt-1 text-sm text-flixer-muted">{{ props.library ? t('admin.libraries.scanFoldersDescription', { library: props.library.name }) : t('admin.libraries.pickerDescription') }}</ModalDescription>
         </div>
-        <button type="button" class="grid size-8 shrink-0 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('admin.libraries.cancel')" @click="close()">
+        <Button type="button" class="grid size-8 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('common.close')" @click="close()">
           <Icon icon="lucide:x" class="size-5" aria-hidden="true" />
-        </button>
+        </Button>
       </header>
 
       <p v-if="error" role="alert" class="mt-3 shrink-0 text-sm text-red-300">{{ error }}</p>
@@ -176,12 +177,12 @@ onMounted(async () => {
         <p v-if="roots.length === 0 && !error" class="mt-3 text-sm text-flixer-muted">{{ t(props.library ? 'admin.libraries.noLibraryRoots' : 'admin.libraries.noRoots') }}</p>
         <ul class="mt-3 grid gap-2">
           <li v-for="root in roots" :key="root.id">
-            <button type="button" class="w-full rounded border border-flixer-border bg-flixer-background/70 px-4 py-3 text-left transition hover:border-flixer-accent/50 hover:bg-white/5" @click="openRoot(root.id)">
+            <Button type="button" class="block h-auto w-full rounded border border-flixer-border bg-flixer-background/70 px-4 py-3 text-left text-flixer-text transition hover:border-flixer-accent/50 hover:bg-white/5" @click="openRoot(root.id)">
               <span class="block font-medium">{{ root.name }}</span>
               <span class="mt-1 block truncate font-mono text-sm text-flixer-muted">{{ root.path }}</span>
               <span v-if="membership(root.path).inside" class="mt-1 block text-xs text-flixer-accent">{{ t('admin.libraries.inLibraries', { libraries: membership(root.path).inside }) }}</span>
               <span v-if="membership(root.path).containing" class="mt-1 block text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(root.path).containing }) }}</span>
-            </button>
+            </Button>
           </li>
         </ul>
       </div>
@@ -189,7 +190,7 @@ onMounted(async () => {
       <template v-else>
         <form class="mt-5 flex shrink-0 gap-2" @submit.prevent="browseToInput">
           <input v-model="pathInput" type="text" :aria-label="t('admin.libraries.folderPath')" class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-flixer-text outline-none transition focus:border-flixer-accent" @keydown.enter.prevent="browseToInput" />
-          <button type="submit" class="shrink-0 rounded border border-flixer-border px-4 py-2 text-sm font-medium transition hover:bg-white/10 disabled:opacity-50" :disabled="loading">{{ t('admin.libraries.browse') }}</button>
+          <Button type="submit" class="h-auto shrink-0 rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-medium text-flixer-text transition hover:bg-white/10 disabled:opacity-50" :disabled="loading">{{ t('admin.libraries.browse') }}</Button>
         </form>
 
         <section class="mt-3 flex min-h-64 flex-1 flex-col overflow-hidden rounded border border-flixer-border">
@@ -201,14 +202,14 @@ onMounted(async () => {
               <p v-if="membership(fullPath(path)).containing" class="mt-1 text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(fullPath(path)).containing }) }}</p>
             </div>
             <div class="flex shrink-0 items-center gap-1">
-              <button v-if="roots.length > 1" type="button" class="rounded px-2 py-1.5 text-sm text-flixer-muted transition hover:bg-white/10 hover:text-white" @click="backToRoots">{{ t('admin.libraries.roots') }}</button>
-              <button type="button" class="inline-flex items-center gap-1 rounded px-2 py-1.5 text-sm text-flixer-muted transition hover:bg-white/10 hover:text-white disabled:opacity-40" :aria-label="t('admin.libraries.goUp')" :title="t('admin.libraries.goUp')" :disabled="!path || loading" @click="goUp">
+              <Button v-if="roots.length > 1" type="button" class="h-auto rounded border-0 bg-transparent px-2 py-1.5 text-sm text-flixer-muted transition hover:bg-white/10 hover:text-white" @click="backToRoots">{{ t('admin.libraries.roots') }}</Button>
+              <Button type="button" class="inline-flex h-auto items-center gap-1 rounded border-0 bg-transparent px-2 py-1.5 text-sm text-flixer-muted transition hover:bg-white/10 hover:text-white disabled:opacity-40" :aria-label="t('admin.libraries.goUp')" :title="t('admin.libraries.goUp')" :disabled="!path || loading" @click="goUp">
                 <Icon icon="lucide:arrow-up" class="size-4" aria-hidden="true" />
                 <span>{{ t('admin.libraries.goUp') }}</span>
-              </button>
-              <button type="button" class="grid size-9 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white disabled:opacity-40" :aria-label="t('admin.libraries.refresh')" :title="t('admin.libraries.refresh')" :disabled="loading" @click="load">
+              </Button>
+              <Button type="button" class="grid size-9 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white disabled:opacity-40" :aria-label="t('admin.libraries.refresh')" :title="t('admin.libraries.refresh')" :disabled="loading" @click="load">
                 <Icon icon="lucide:refresh-cw" class="size-4" :class="loading ? 'animate-spin' : ''" aria-hidden="true" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -217,7 +218,7 @@ onMounted(async () => {
             <li v-for="name in directories" :key="name" class="flex items-center gap-2 rounded px-2 py-1 transition hover:bg-white/5">
               <input type="checkbox" class="size-4 shrink-0 accent-flixer-accent" :checked="selectedPaths.includes(path ? `${path}/${name}` : name)" :disabled="!allowed(path ? `${path}/${name}` : name) || loading" :aria-label="t('admin.libraries.selectFolderName', { folder: name })" @click.stop @change="toggleFolder(name)" />
               <Icon icon="lucide:folder" class="size-5 shrink-0 text-flixer-muted" aria-hidden="true" />
-              <button type="button" class="min-w-0 flex-1 truncate py-1 text-left text-sm transition hover:text-flixer-accent disabled:opacity-50" :disabled="loading" @click="open(name)">{{ name }}</button>
+              <Button type="button" class="block h-auto min-w-0 flex-1 truncate rounded-none border-0 bg-transparent px-0 py-1 text-left text-sm text-flixer-text transition hover:bg-transparent hover:text-flixer-accent disabled:opacity-50" :disabled="loading" @click="open(name)">{{ name }}</Button>
               <span v-if="membership(fullPath(path ? `${path}/${name}` : name)).inside" class="text-xs text-flixer-accent">{{ t('admin.libraries.inLibraries', { libraries: membership(fullPath(path ? `${path}/${name}` : name)).inside }) }}</span>
               <span v-if="membership(fullPath(path ? `${path}/${name}` : name)).containing" class="text-xs text-flixer-muted">{{ t('admin.libraries.containsLibraries', { libraries: membership(fullPath(path ? `${path}/${name}` : name)).containing }) }}</span>
             </li>
@@ -228,8 +229,8 @@ onMounted(async () => {
         <footer class="flixer-modal-actions mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <p class="text-sm text-flixer-muted">{{ t('admin.libraries.selectFoldersHint') }}</p>
           <div class="flex justify-end gap-2">
-            <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-medium transition hover:bg-white/10" @click="close()">{{ t('admin.libraries.cancel') }}</button>
-            <button type="button" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" :disabled="loading || !!error || (!selectedPaths.length && !allowed(path))" @click="choose">{{ t(props.library ? (selectedPaths.length ? 'admin.libraries.scanSelectedFolders' : 'admin.libraries.scanCurrentFolder') : (selectedPaths.length ? 'admin.libraries.useSelectedFolders' : 'admin.libraries.useCurrentFolder')) }}</button>
+            <Button type="button" class="h-auto rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-medium text-flixer-text transition hover:bg-white/10" @click="close()">{{ t('admin.libraries.cancel') }}</Button>
+            <Button type="button" class="h-auto rounded border-0 bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50" :data-agent-confirm="props.library ? t('admin.libraries.scanFoldersTitle') : undefined" :disabled="loading || !!error || (!selectedPaths.length && !allowed(path))" @click="choose">{{ t(props.library ? (selectedPaths.length ? 'admin.libraries.scanSelectedFolders' : 'admin.libraries.scanCurrentFolder') : (selectedPaths.length ? 'admin.libraries.useSelectedFolders' : 'admin.libraries.useCurrentFolder')) }}</Button>
           </div>
         </footer>
       </template>

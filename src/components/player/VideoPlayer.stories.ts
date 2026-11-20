@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { expect, fn, mocked, spyOn, userEvent, waitFor } from "storybook/test";
+import { expect, fireEvent, fn, mocked, spyOn, userEvent, waitFor } from "storybook/test";
 import { Capacitor } from "@capacitor/core";
 import { getStreamInfo, getSubtitleText, getSubtitleTracks, getTrickplay, type StreamInfo } from "../../api";
 import { reportWebhookPlayback } from "../../api/userWebhooks";
 import { getAccessToken } from "../../api/client";
 import { mockPlayerHelpers, playbackInfoFixture, sampleClipUrl, streamInfoFixture, trickplayFixture } from "../../storybook/fixturesPlayer";
 import { isTvMode } from "../../platform/tvMode";
+import { initializeTvNavigation } from "../../platform/tvNavigation";
+import { createAgent } from "@ui-sdk/vue/agent";
 import VideoPlayer from "./VideoPlayer.vue";
 
 const meta = {
@@ -43,6 +45,86 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const DesktopVolume: Story = {
+	beforeEach: () => {
+		const previous = localStorage.getItem("flixer.player.volume");
+		localStorage.setItem("flixer.player.volume", JSON.stringify({ volume: 0.5, muted: false }));
+		return () => {
+			if (previous === null) localStorage.removeItem("flixer.player.volume");
+			else localStorage.setItem("flixer.player.volume", previous);
+		};
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const video = canvasElement.querySelector("video")!;
+		const slider = canvas.getByRole("slider", { name: "Volume" }) as HTMLInputElement;
+		expect(slider.closest('[data-slot="slider"]')).not.toBeNull();
+		await waitFor(() => expect(video.volume).toBe(0.5));
+		canvas.getByRole("button", { name: "Mute" }).focus();
+		await userEvent.tab();
+		expect(document.activeElement).toBe(slider);
+		await userEvent.keyboard("{ArrowRight}");
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.51));
+		expect(document.activeElement).toBe(slider);
+		await userEvent.keyboard("{Home}");
+		await waitFor(() => expect(video.muted).toBe(true));
+		await userEvent.keyboard("{ArrowRight}");
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.01));
+		expect(video.muted).toBe(false);
+		await fireEvent.input(slider, { target: { value: "0.35" } });
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.35));
+		await userEvent.click(canvas.getByRole("button", { name: "Mute" }));
+		await waitFor(() => expect(video.muted).toBe(true));
+		await userEvent.click(canvas.getByRole("button", { name: "Unmute" }));
+		await waitFor(() => expect(video.muted).toBe(false));
+		const agent = createAgent();
+		expect(agent.snapshot()).toEqual(expect.arrayContaining([expect.objectContaining({ component: "slider", label: "Volume" })]));
+		await agent.act({ steps: [{ ref: "Volume", action: "setValue", args: [0.4] }] });
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.4));
+		slider.focus();
+		const control = slider.closest('[data-slot="slider"]')!.querySelector('[data-slot="slider-control"]')!;
+		await waitFor(() => expect(control.getBoundingClientRect().width).toBeGreaterThan(79));
+		const rect = control.getBoundingClientRect();
+		await userEvent.pointer([
+			{ keys: "[MouseLeft>]", target: control, coords: { clientX: rect.left + rect.width * 0.25, clientY: rect.top + rect.height / 2 } },
+			{ target: control, coords: { clientX: rect.left + rect.width * 0.75, clientY: rect.top + rect.height / 2 } },
+			{ keys: "[/MouseLeft]" },
+		]);
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.75, 1));
+		expect(document.activeElement).toBe(slider);
+		await userEvent.tab();
+		expect(document.activeElement).not.toBe(slider);
+	},
+};
+export const TvVolume: Story = {
+	beforeEach: () => {
+		const previous = isTvMode.value;
+		isTvMode.value = true;
+		const cleanupNavigation = initializeTvNavigation();
+		return () => {
+			cleanupNavigation();
+			isTvMode.value = previous;
+		};
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const slider = canvas.getByRole("slider", { name: "Volume" }) as HTMLInputElement;
+		expect(slider.tagName).toBe("INPUT");
+		expect(slider.closest('[data-slot="slider"]')).toBeNull();
+		const video = canvasElement.querySelector("video")!;
+		video.volume = 0.5;
+		await waitFor(() => expect(Number(slider.value)).toBe(0.5));
+		slider.focus();
+		await userEvent.keyboard("{Enter}");
+		await expect(slider).toHaveAttribute("data-tv-adjusting", "true");
+		await userEvent.keyboard("{ArrowRight>3/}");
+		await waitFor(() => expect(video.volume).toBeCloseTo(0.65));
+		expect(document.activeElement).toBe(slider);
+		await userEvent.keyboard("{Escape}");
+		await expect(slider).not.toHaveAttribute("data-tv-adjusting");
+		await expect(slider).toHaveFocus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(video.volume).toBeCloseTo(0.65);
+	},
+};
 export const WithNextEpisode: Story = { args: { nextLabel: "S1:E2 The Next Chapter" } };
 export const PartyGuest: Story = { args: { locked: true } };
 export const Mini: Story = { args: { mini: true }, decorators: [() => ({ template: '<div class="theme-dark aspect-video w-96 overflow-hidden bg-black"><story /></div>' })] };

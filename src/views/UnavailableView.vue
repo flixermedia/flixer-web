@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -46,6 +47,6 @@ onBeforeUnmount(() => clearTimeout(timer))
       <h1 class="text-2xl font-semibold tracking-tight">{{ starting ? t('setup.unavailable.startingTitle') : t('setup.unavailable.title') }}</h1>
       <p class="mt-2 text-sm leading-6 text-flixer-muted" role="status">{{ starting ? t('setup.unavailable.startingDescription') : t('setup.unavailable.description') }}</p>
     </div>
-    <button type="button" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="checking" @click="retry">{{ t('setup.retry') }}</button>
+    <Button type="button" class="h-11 whitespace-normal rounded border-0 bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110 disabled:opacity-60" :disabled="checking" @click="retry">{{ t('setup.retry') }}</Button>
   </main>
 </template>

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
+import { closeAllModals } from "@kolirt/vue-modal";
 import { expect, mocked, userEvent, waitFor, within } from "storybook/test";
 import { addMediaItemImage, browseMediaFolders, deleteItemSubtitle, downloadItemSubtitle, getMediaItem, getMediaMatchConflicts, listItemSubtitles, listMediaLibraries, listMediaRoots, refreshMediaItem, removeMediaItemImage, scanLibraryFolders, searchItemSubtitles, updateMediaItem } from "../../api";
 import { mediaFolders, mediaItemDetail, mediaLibraries, mediaRoots } from "../../storybook/fixturesMediaAdmin";
@@ -12,7 +13,8 @@ const meta = {
 	parameters: { layout: "fullscreen" },
 	args: { itemId: "item-1" },
 	render: (args) => modalStory(MediaItemModal, args)(),
-	beforeEach: () => {
+	beforeEach: async () => {
+		await closeAllModals({ ignoreGuard: true, instantExit: true });
 		mocked(getMediaItem).mockResolvedValue(mediaItemDetail);
 		mocked(getMediaMatchConflicts).mockResolvedValue([]);
 		mocked(listMediaLibraries).mockResolvedValue(mediaLibraries);
@@ -27,6 +29,7 @@ const meta = {
 		mocked(searchItemSubtitles).mockResolvedValue([]);
 		mocked(downloadItemSubtitle).mockResolvedValue(undefined as never);
 		mocked(deleteItemSubtitle).mockResolvedValue(undefined as never);
+		return async () => { await closeAllModals({ ignoreGuard: true, instantExit: true }); };
 	},
 } satisfies Meta<typeof MediaItemModal>;
 
@@ -34,6 +37,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Movie: Story = {};
+export const EditTitleWithKeyboard: Story = {
+	play: async () => {
+		const page = within(document.body);
+		const dialogs = await page.findAllByRole("dialog");
+		const dialog = dialogs.at(-1);
+		if (!dialog) throw new Error("Missing media item dialog");
+		await waitFor(() => expect(dialog).toHaveAttribute("data-state", "open"));
+		const title = within(dialog).getByLabelText("Title");
+		await userEvent.clear(title);
+		await userEvent.type(title, "  Arrival (Restored)  ");
+		await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+		await waitFor(() => expect(mocked(updateMediaItem)).toHaveBeenCalledWith("item-1", {
+			title: "Arrival (Restored)",
+		}));
+	},
+};
 export const Series: Story = {
 	beforeEach: () => {
 		mocked(getMediaItem).mockResolvedValue({ ...mediaItemDetail, id: "item-3", type: "series", title: "Severance", year: 2022, childCount: 2, externalKey: "series:severance", path: "/media/TV Shows/Severance" });
@@ -45,8 +64,14 @@ export const MatchConflict: Story = {
 	},
 	play: async () => {
 		const page = within(document.body);
-		await expect((await page.findAllByText("Other sources share this match"))[0]).toBeVisible();
-		await expect(page.getAllByText(/\/media\/TV Shows\/Other/)[0]).toBeVisible();
+		const dialogs = await page.findAllByRole("dialog");
+		const dialog = dialogs.at(-1);
+		if (!dialog) throw new Error("Missing media item dialog");
+		await waitFor(() => expect(dialog).toHaveAttribute("data-state", "open"));
+		const modal = within(dialog);
+		const conflictHeading = await modal.findByText("Other sources share this match");
+		await waitFor(() => expect(conflictHeading).toBeVisible());
+		await waitFor(() => expect(modal.getByText(/\/media\/TV Shows\/Other/)).toBeVisible());
 	},
 };
 export const RecoverSource: Story = {

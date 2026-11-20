@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextInput from '../components/ui/TextInput.vue'
@@ -23,11 +24,11 @@ async function send(): Promise<void> {
 </script>
 
 <template>
-  <form class="flex w-full max-w-md flex-col gap-4" @submit.prevent="send">
+  <form data-agent-hidden class="flex w-full max-w-md flex-col gap-4" @submit.prevent="send">
     <h1 class="text-2xl font-semibold">{{ title ?? t('setup.recovery.title') }}</h1>
     <p class="text-sm text-flixer-muted">{{ description ?? t('setup.recovery.description') }}</p>
     <TextInput v-model.trim="code" :label="t('setup.recovery.code')" :hint="hint ?? t('setup.recovery.hint')" placeholder="ABCD-EFGH-JKMN-PQRS" autocomplete="off" spellcheck="false" autocapitalize="characters" />
     <SetupNotice v-if="message" kind="error">{{ message }}</SetupNotice>
-    <button type="submit" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="!code.trim() || busy">{{ t('setup.continue') }}</button>
+    <Button type="submit" class="h-11 rounded border-0 bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110 disabled:opacity-60" :disabled="!code.trim() || busy">{{ t('setup.continue') }}</Button>
   </form>
 </template>

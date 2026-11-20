@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { expect, mocked, userEvent, waitFor } from 'storybook/test'
+import { expect, mocked, userEvent, waitFor, within } from 'storybook/test'
 import { getMusicAnalytics, getOrderAnalytics } from '../../api/analytics'
 import PeriodAnalyticsPanel from './PeriodAnalyticsPanel.vue'
 
@@ -25,12 +25,15 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Music: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     expect(await canvas.findByText('Song')).toBeVisible()
     const chart = canvas.getByRole('group', { name: 'Daily song starts' })
     expect(chart.querySelector('svg')).toBeInTheDocument()
     expect(chart.querySelectorAll('circle').length).toBeGreaterThan(0)
-    await userEvent.selectOptions(canvas.getByLabelText('Reporting period'), '90')
+    const page = within(canvasElement.ownerDocument.body)
+    const period = page.getByRole('combobox', { name: 'Reporting period' })
+    await userEvent.click(period)
+    await userEvent.click(await page.findByRole('option', { name: 'Last 90 days' }))
     await waitFor(() => expect(getMusicAnalytics).toHaveBeenCalledWith(90))
     await waitFor(() => expect(canvas.getByRole('group', { name: 'Daily song starts' }).querySelector('tbody')?.textContent).toContain('2026-01-02'))
   },

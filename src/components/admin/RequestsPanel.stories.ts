@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
+import { expect, mocked, userEvent, waitFor } from "storybook/test";
 import { getRequestWebhookCredentials, getRequestsConfig, listMediaLibraries, listRequestServices, listRequestUsers, listSettings, rotateRequestWebhookCredentials, updateRequestUser, updateSetting } from "../../api";
 import { mediaLibraries } from "../../storybook/fixturesAdminAB";
 import { requestServices, requestSettings, requestUsers, requestsConfig } from "../../storybook/fixturesRequestsOps";
@@ -27,6 +27,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const SaveQuotaWithKeyboard: Story = {
+	play: async ({ canvas }) => {
+		const quota = canvas.getByRole("spinbutton", { name: /Request quota limit/ });
+		await userEvent.clear(quota);
+		await userEvent.type(quota, "25");
+		await userEvent.tab();
+		await waitFor(() => expect(mocked(updateSetting)).toHaveBeenCalledWith("requests_quota_limit", 25));
+	},
+};
 export const NoServices: Story = {
 	beforeEach: () => {
 		mocked(listRequestServices).mockResolvedValue([]);

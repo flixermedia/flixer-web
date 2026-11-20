@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { Input } from '@ui-sdk/vue/input'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addPlaylistItem, createPlaylist, getPlaylists, getPlaylistsContaining, removePlaylistItem, type PlaylistSummary } from '../api'
@@ -108,24 +111,24 @@ onMounted(() => void load())
         <p v-if="error" class="mb-2 text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         <p v-if="!playlists.length" class="px-2 py-3 text-sm text-flixer-muted">{{ t('social.noPlaylists') }}</p>
         <template v-if="album">
-          <button v-for="playlist in playlists" :key="playlist.id" type="button" class="flex w-full items-center gap-3 rounded px-3 py-3 text-left text-sm text-white transition motion-reduce:transition-none hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="addAlbum(playlist)">
+          <Button v-for="playlist in playlists" :key="playlist.id" type="button" class="flex h-auto w-full items-center justify-start gap-3 rounded border-0 bg-transparent px-3 py-3 text-left text-sm font-normal text-white transition motion-reduce:transition-none hover:bg-white/10 disabled:opacity-60" :disabled="busy" @click="void addAlbum(playlist)">
             <span class="min-w-0 flex-1 truncate">{{ playlist.name }}</span>
             <span v-if="added.has(playlist.id)" class="text-xs font-semibold text-emerald-300">{{ t('social.albumAdded', { count: added.get(playlist.id) ?? 0 }) }}</span>
             <span v-else class="text-xs text-flixer-muted">{{ playlist.trackCount }}</span>
-          </button>
+          </Button>
         </template>
         <label v-for="playlist in album ? [] : playlists" :key="playlist.id" class="flex cursor-pointer items-center gap-3 rounded px-3 py-3 text-sm text-white transition motion-reduce:transition-none hover:bg-white/10">
-          <input type="checkbox" class="size-4 accent-flixer-accent" :checked="selected.has(playlist.id)" :disabled="busy" @change="toggle(playlist)" />
+          <Checkbox class="size-4 shrink-0 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent" :checked="selected.has(playlist.id)" :disabled="busy" @update:checked="toggle(playlist)"><CheckboxIndicator /></Checkbox>
           <span class="min-w-0 flex-1 truncate">{{ playlist.name }}</span
           ><span class="text-xs text-flixer-muted">{{ playlist.trackCount }}</span>
         </label>
       </div>
       <form class="mt-4 flex gap-2" @submit.prevent="create">
-        <input v-model="name" maxlength="100" class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('social.playlistName')" :aria-label="t('social.playlistName')" />
-        <button type="submit" class="rounded bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50" :disabled="!name.trim() || busy">{{ t('social.create') }}</button>
+        <Input v-model="name" maxlength="100" class="h-auto min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" :placeholder="t('social.playlistName')" :aria-label="t('social.playlistName')" />
+        <Button type="submit" class="h-auto rounded border-0 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50" :disabled="!name.trim() || busy">{{ t('social.create') }}</Button>
       </form>
       <div class="flixer-modal-actions mt-5 flex justify-end">
-        <button type="button" class="h-11 rounded border border-flixer-border px-4 text-sm font-semibold text-flixer-text hover:bg-white/5" @click="close()">{{ t('common.close') }}</button>
+        <Button type="button" class="h-11 rounded border border-flixer-border bg-transparent px-4 text-sm font-semibold text-flixer-text hover:bg-white/5" @click="close()">{{ t('common.close') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

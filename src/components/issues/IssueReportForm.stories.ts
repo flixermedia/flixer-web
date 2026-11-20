@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { fn, mocked } from "storybook/test";
+import { createAgent } from "@ui-sdk/vue/agent";
+import { expect, fn, mocked, userEvent, waitFor } from "storybook/test";
 import { createIssueReport, getIssueReportConfiguration, type IssueReport } from "../../api";
 import { useIssueReportsConfig } from "../../composables/useIssueReportsConfig";
 import IssueReportForm from "./IssueReportForm.vue";
@@ -40,3 +41,34 @@ type Story = StoryObj<typeof meta>;
 export const ForMedia: Story = {};
 export const General: Story = { args: { mediaItemId: undefined, mediaTitle: undefined } };
 export const SubmitFails: Story = { beforeEach: () => void mocked(createIssueReport).mockRejectedValue(new Error("Could not create the report")) };
+
+export const FormInteraction: Story = {
+	args: { mediaItemId: undefined, mediaTitle: undefined },
+	play: async ({ canvas, args }) => {
+		const subject = await canvas.findByRole("textbox", { name: "Subject" });
+		const description = canvas.getByRole("textbox", { name: "Description" });
+		const submit = canvas.getByRole("button", { name: "Submit report" });
+		await expect(subject).toBeRequired();
+		await expect(description).toBeRequired();
+		await expect(submit).toBeDisabled();
+		const agent = createAgent();
+		const entries = agent.snapshot().filter((entry) => !entry.offPage);
+		for (const label of ["Subject", "Description", "Submit report"]) {
+			await expect(entries.some((entry) => entry.label === label), label).toBe(true);
+		}
+		const result = await agent.act({ steps: [
+			{ ref: "Subject", action: "setValue", args: ["  Video issue  "] },
+			{ ref: "Description", action: "setValue", args: ["  Stutters  "] },
+		] });
+		await expect(result.ok, result.error?.message).toBe(true);
+		await userEvent.selectOptions(canvas.getByRole("combobox", { name: "Category" }), "Subtitles");
+		const denied = await agent.act({ steps: [{ ref: "Submit report", action: "press" }] });
+		await expect(denied.ok).toBe(false);
+		await expect(denied.error?.message).toContain("Needs a person");
+		await userEvent.click(submit);
+		await waitFor(() => expect(mocked(createIssueReport)).toHaveBeenCalledWith({
+			title: "Video issue", category: "Subtitles", description: "Stutters", mediaItemId: undefined,
+		}));
+		await waitFor(() => expect(args.onSubmitted).toHaveBeenCalledWith(report));
+	},
+};

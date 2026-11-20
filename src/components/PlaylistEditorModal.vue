@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPlaylist, updatePlaylist, type PlaylistSummary } from '../api'
@@ -40,19 +45,24 @@ async function save() {
       </header>
       <form class="flixer-modal-form mt-4" @submit.prevent="save">
         <div class="flixer-modal-form-body gap-4">
-          <label class="block space-y-1 text-sm font-medium text-white"
-          ><span>{{ t('social.playlistName') }}</span
-          ><input v-model="name" required maxlength="100" class="w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent"
-        /></label>
-          <label class="block space-y-1 text-sm font-medium text-white"
-            ><span>{{ t('social.description') }}</span
-            ><textarea v-model="description" maxlength="500" rows="3" class="w-full resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent"></textarea>
+          <Field class="gap-1">
+            <FieldLabel class="text-sm font-medium text-white">{{ t('social.playlistName') }}</FieldLabel>
+            <Input v-model="name" required maxlength="100" class="h-auto w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm font-medium leading-5 text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" />
+          </Field>
+          <Field class="gap-1">
+            <FieldLabel class="text-sm font-medium text-white">{{ t('social.description') }}</FieldLabel>
+            <Textarea v-model="description" maxlength="500" rows="3" class="min-h-0 w-full resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm font-medium leading-5 text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" />
+          </Field>
+          <label class="flex items-center gap-3 text-sm text-white">
+            <Checkbox :checked="isPublic" class="mt-0 size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent" @update:checked="isPublic = $event === true">
+              <CheckboxIndicator />
+            </Checkbox>
+            {{ t('social.publicPlaylist') }}
           </label>
-          <label class="flex items-center gap-3 text-sm text-white"><input v-model="isPublic" type="checkbox" class="size-4 accent-flixer-accent" />{{ t('social.publicPlaylist') }}</label>
           <p v-if="error" class="text-sm text-red-400" role="alert">{{ t('social.saveError') }}</p>
         </div>
         <div class="flixer-modal-actions flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-          <button type="button" class="h-11 rounded border border-flixer-border px-5 text-sm font-semibold hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</button><button type="submit" class="h-11 rounded bg-white px-5 text-sm font-bold text-flixer-background disabled:opacity-50" :disabled="busy || !name.trim()">{{ busy ? t('social.saving') : t('common.save') }}</button>
+          <Button type="button" class="h-11 rounded border border-flixer-border bg-transparent px-5 text-sm font-semibold text-flixer-text hover:bg-white/5" @click="close()">{{ t('common.cancel') }}</Button><Button type="submit" class="h-11 rounded border-0 bg-white px-5 text-sm font-bold text-flixer-background hover:bg-white disabled:opacity-50" :disabled="busy || !name.trim()">{{ busy ? t('social.saving') : t('common.save') }}</Button>
         </div>
       </form>
     </ModalContent>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
 import { useI18n } from 'vue-i18n'
 
 defineOptions({ modalGroup: 'default' })
@@ -17,13 +18,13 @@ const options = ['public', 'friends', 'private'] as const
         <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">{{ t('party.visibilityDescription') }}</ModalDescription>
       </header>
       <div class="mt-5 flex flex-col gap-2">
-        <button v-for="visibility in options" :key="visibility" type="button" class="rounded border border-flixer-border p-3 text-left transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="confirm(visibility)">
+        <Button v-for="visibility in options" :key="visibility" type="button" :data-agent-confirm="`${t('party.visibilityTitle')} ${t(`party.visibility.${visibility}`)}`" class="h-auto flex-col items-start gap-0 rounded border border-flixer-border bg-transparent p-3 text-left whitespace-normal transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="confirm(visibility)">
           <span class="block text-sm font-semibold text-white">{{ t(`party.visibility.${visibility}`) }}</span>
           <span class="mt-1 block text-xs text-flixer-muted">{{ t(`party.visibilityDescriptionOptions.${visibility}`) }}</span>
-        </button>
+        </Button>
       </div>
       <div class="flixer-modal-actions mt-5 flex justify-end">
-        <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.cancel') }}</button>
+        <Button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.cancel') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

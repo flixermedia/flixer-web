@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
 import { onMounted, ref } from "vue";
 import { listMediaLibraries, scanMediaLibrary, type MediaLibrary } from "../../api";
 import { listDuplicateSuggestions, type DuplicateSuggestionsPage } from "../../api/duplicateSuggestions";
@@ -25,6 +26,18 @@ async function load(page = 1) {
 	}
 	result.value = data;
 	error.value = "";
+}
+
+function refresh() {
+	void load(result.value.page);
+}
+
+function previousPage() {
+	void load(result.value.page - 1);
+}
+
+function nextPage() {
+	void load(result.value.page + 1);
 }
 
 function typeLabel(type: string): string {
@@ -73,9 +86,9 @@ onMounted(() => {
 				<button type="button" class="rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text hover:bg-white/5 disabled:opacity-50" :disabled="!hashLibraryId || hashScanBusy" @click="scanFiles">
 					{{ hashScanBusy ? "Queueing…" : "Calculate file hashes" }}
 				</button>
-				<button type="button" class="rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text hover:bg-white/5 disabled:opacity-50" :disabled="loading" @click="load(result.page)">
+				<Button type="button" class="rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text hover:bg-white/5 disabled:opacity-50" :disabled="loading" @click="refresh">
 					{{ loading ? "Checking…" : "Refresh" }}
-				</button>
+				</Button>
 			</div>
 		</template>
 
@@ -107,8 +120,8 @@ onMounted(() => {
 			<div class="flex flex-wrap items-center justify-between gap-3 border-t border-flixer-border pt-3 text-sm text-flixer-muted">
 				<span>{{ result.total }} suggestion groups · page {{ result.page }} of {{ pageCount(result.total, result.size) }}</span>
 				<div class="flex gap-2">
-					<button type="button" class="rounded border border-flixer-border px-3 py-1.5 hover:bg-white/5 disabled:opacity-40" :disabled="loading || result.page <= 1" @click="load(result.page - 1)">Previous</button>
-					<button type="button" class="rounded border border-flixer-border px-3 py-1.5 hover:bg-white/5 disabled:opacity-40" :disabled="loading || result.page >= pageCount(result.total, result.size)" @click="load(result.page + 1)">Next</button>
+					<Button type="button" class="rounded border border-flixer-border px-3 py-1.5 hover:bg-white/5 disabled:opacity-40" :disabled="loading || result.page <= 1" @click="previousPage">Previous</Button>
+					<Button type="button" class="rounded border border-flixer-border px-3 py-1.5 hover:bg-white/5 disabled:opacity-40" :disabled="loading || result.page >= pageCount(result.total, result.size)" @click="nextPage">Next</Button>
 				</div>
 			</div>
 		</div>

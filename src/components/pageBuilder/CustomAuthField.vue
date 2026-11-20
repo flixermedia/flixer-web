@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { Icon } from '@iconify/vue'
+import { Button } from '@ui-sdk/vue/button'
 import type { AuthField } from './pageBuilder'
 
 const props = defineProps<{ field: AuthField; registration: boolean; registrationEnabled: boolean | null; quickConnectEnabled: boolean; submitting: boolean; needsVerification: boolean; resending: boolean; modelValue: { username: string; password: string; email: string; displayName: string } }>()
@@ -33,21 +34,30 @@ const button = 'flex min-h-12 w-full items-center justify-center gap-2 rounded b
         t('auth.displayName') }}<input form="custom-auth-form" :value="modelValue.displayName" type="text"
             autocomplete="nickname" maxlength="64" :disabled="registrationEnabled !== true" :class="input"
             @input="update('displayName', $event)" /></label>
-    <button v-else-if="field === 'submit'" form="custom-auth-form" type="submit"
+    <Button v-else-if="field === 'submit'" form="custom-auth-form" type="submit" data-agent-hidden
         :disabled="submitting || (registration && registrationEnabled !== true)" :class="button"
         class="border-transparent bg-flixer-primary text-white">{{ submitting ? t(registration ? 'auth.creatingAccount'
-            : 'auth.signingIn') : t(registration ? 'auth.createAccount' : 'auth.signInToFlixer') }}</button>
-    <button v-else-if="field === 'switch' && (registration || registrationEnabled === true)" type="button"
+            : 'auth.signingIn') : t(registration ? 'auth.createAccount' : 'auth.signInToFlixer') }}</Button>
+    <Button v-else-if="field === 'switch' && (registration || registrationEnabled === true)" type="button" data-agent-hidden
         :class="button" @click="emit('switch')">{{ t(registration ? 'auth.backToSignIn' : 'auth.createYourAccount')
-        }}</button>
-    <button v-else-if="field === 'passkey' && !registration && passkeysSupported" type="button" :disabled="submitting"
+        }}</Button>
+    <Button v-else-if="field === 'passkey' && !registration && passkeysSupported" type="button" :disabled="submitting" data-agent-hidden
         :class="button" @click="emit('passkey')">
         <Icon icon="lucide:key-round" class="size-4" />{{ t('auth.signInWithPasskey') }}
-    </button>
-    <button v-else-if="field === 'quickConnect' && !registration && quickConnectEnabled" type="button"
+    </Button>
+    <Button v-else-if="field === 'quickConnect' && !registration && quickConnectEnabled" type="button" data-agent-hidden
         :disabled="submitting" :class="button" @click="emit('quickConnect')">
         <Icon icon="lucide:monitor-smartphone" class="size-4" />{{ t('auth.quickConnectSignIn') }}
-    </button>
-    <button v-else-if="field === 'resend' && !registration && needsVerification" type="button" :disabled="resending"
-        :class="button" @click="emit('resend')">{{ t(resending ? 'auth.sending' : 'auth.resendVerification') }}</button>
+    </Button>
+    <Button v-else-if="field === 'resend' && !registration && needsVerification" type="button" :disabled="resending"
+        data-agent-hidden :class="button" @click="emit('resend')">{{ t(resending ? 'auth.sending' : 'auth.resendVerification') }}</Button>
 </template>
+
+<style scoped>
+@layer components.ui-sdk {
+    [data-slot="button"],
+    [data-slot="button"]:hover {
+        all: revert-layer;
+    }
+}
+</style>

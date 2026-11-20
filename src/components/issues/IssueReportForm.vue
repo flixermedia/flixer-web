@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createIssueReport, type IssueReport } from '../../api'
@@ -52,26 +56,26 @@ onMounted(async () => {
       <p v-if="error" class="rounded border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">{{ error }}</p>
       <p v-if="loading" class="text-sm text-flixer-muted" role="status">{{ t('issues.loading') }}</p>
       <template v-else>
-        <label class="flex flex-col gap-1 text-sm">
-          {{ t('issues.subject') }}
-          <input v-model="title" maxlength="200" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
-        </label>
+        <Field class="gap-1 text-sm">
+          <FieldLabel>{{ t('issues.subject') }}</FieldLabel>
+          <Input v-model="title" maxlength="200" required class="h-auto rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent focus-visible:border-flixer-accent" />
+        </Field>
         <label class="flex flex-col gap-1 text-sm">
           {{ t('issues.category') }}
           <select v-model="category" required class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent">
             <option v-for="name in config?.categories ?? []" :key="name" :value="name">{{ name }}</option>
           </select>
         </label>
-        <label class="flex flex-col gap-1 text-sm">
-          {{ t('issues.description') }}
-          <textarea v-model="description" rows="5" maxlength="5000" required class="resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent" />
-        </label>
+        <Field class="gap-1 text-sm">
+          <FieldLabel>{{ t('issues.description') }}</FieldLabel>
+          <Textarea v-model="description" rows="5" maxlength="5000" required class="min-h-0 resize-y rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white outline-none focus:border-flixer-accent focus-visible:border-flixer-accent" />
+        </Field>
       </template>
     </div>
     <div v-if="!loading" :class="modal ? 'flixer-modal-actions flex justify-end' : ''">
-      <button type="submit" :disabled="!canSubmit || loading" class="rounded text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50" :class="modal ? 'h-11 bg-flixer-primary px-6 text-white hover:brightness-110' : 'w-full bg-white px-4 py-2 text-flixer-background hover:bg-white/85'">
+      <Button type="submit" :disabled="!canSubmit || loading" :data-agent-confirm="t('issues.submit')" class="rounded border-0 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50" :class="modal ? 'h-11 bg-flixer-primary px-6 text-white hover:brightness-110' : 'h-auto w-full bg-white px-4 py-2 text-flixer-background hover:bg-white/85'">
         {{ submitting ? t('issues.submitting') : t('issues.submit') }}
-      </button>
+      </Button>
     </div>
   </form>
 </template>

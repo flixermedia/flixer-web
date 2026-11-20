@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { ModalClosedError, ModalContent, ModalDescription, ModalRoot, ModalTitle, openModal, useModalContext } from '@kolirt/vue-modal'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -281,11 +283,11 @@ void load()
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="flex flex-col gap-1 text-xs text-flixer-muted sm:col-span-2">
             {{ t('admin.media.fieldTitle') }}
-            <input v-model="title" type="text" maxlength="1000" required :class="inputClass" />
+            <Input v-model="title" type="text" maxlength="1000" required :class="inputClass" />
           </label>
           <label class="flex flex-col gap-1 text-xs text-flixer-muted">
             {{ t('admin.media.fieldSortTitle') }}
-            <input v-model="sortTitle" type="text" maxlength="1000" :class="inputClass" />
+            <Input v-model="sortTitle" type="text" maxlength="1000" :class="inputClass" />
           </label>
           <label class="flex flex-col gap-1 text-xs text-flixer-muted">
             {{ t('admin.media.fieldYear') }}
@@ -307,7 +309,7 @@ void load()
           </template>
           <label class="flex flex-col gap-1 text-xs text-flixer-muted sm:col-span-2">
             {{ t('admin.media.fieldOverview') }}
-            <textarea v-model="overview" rows="4" maxlength="20000" :class="inputClass"></textarea>
+            <Textarea v-model="overview" rows="4" maxlength="20000" :class="inputClass" />
           </label>
         </div>
 
@@ -322,7 +324,7 @@ void load()
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <label v-for="provider in providerFields" :key="provider" class="flex flex-col gap-1 text-xs text-flixer-muted">
               {{ provider }}
-              <input v-model="providerIds[provider]" type="text" maxlength="256" :aria-label="`${t('admin.media.providerIds')} ${provider}`" :class="inputClass" />
+              <Input v-model="providerIds[provider]" type="text" maxlength="256" :aria-label="`${t('admin.media.providerIds')} ${provider}`" :class="inputClass" />
             </label>
           </div>
         </section>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useParty } from '../../composables/useParty'
@@ -36,10 +37,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="current" ref="root" class="relative">
-    <button type="button" :class="buttonClass" :aria-label="label" :title="label" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
+    <Button type="button" :class="buttonClass" class="border-0 bg-transparent p-0" :aria-label="label" :title="label" aria-haspopup="dialog" :aria-expanded="open" @click="open = !open">
       <Icon icon="lucide:users-round" class="size-5" aria-hidden="true" />
       <span class="absolute right-1 top-1 grid min-w-4 place-items-center rounded px-1 text-[10px] font-bold leading-4 text-flixer-background" :class="reconnecting ? 'bg-amber-400' : 'bg-flixer-accent'">{{ current.members.length }}</span>
-    </button>
+    </Button>
     <Transition name="party-panel">
       <div v-if="open" class="theme-dark absolute right-0 top-12 z-50 w-64 max-w-[calc(100vw-2rem)] origin-top-right rounded border border-flixer-border bg-flixer-surface p-2 text-flixer-text shadow-2xl shadow-black/60">
         <PartyPanel @left="open = false" />

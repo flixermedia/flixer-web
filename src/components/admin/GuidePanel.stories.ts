@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
-import { getAdminGuide, type AdminGuideData } from "../../api/guide";
+import { expect, mocked, userEvent, waitFor, within } from "storybook/test";
+import { createGuideSource, getAdminGuide, type AdminGuideData } from "../../api/guide";
 import GuidePanel from "./GuidePanel.vue";
 
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -33,6 +33,27 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = { beforeEach: () => void mocked(getAdminGuide).mockResolvedValue(guide) };
+export const AddIptvSource: Story = {
+	beforeEach: () => {
+		mocked(getAdminGuide).mockResolvedValue(guide);
+		mocked(createGuideSource).mockResolvedValue(guide.sources[1]!);
+	},
+	play: async ({ canvasElement }) => {
+		const page = within(canvasElement.ownerDocument.body);
+		const kind = await page.findByRole("combobox", { name: /source type/i });
+		await userEvent.click(kind);
+		await userEvent.click(await page.findByRole("option", { name: "IPTV" }));
+		const form = kind.closest("form");
+		if (!form) throw new Error("Missing guide source form");
+		const inputs = within(form).getAllByRole("textbox");
+		await userEvent.type(inputs[0]!, "Regional IPTV");
+		await userEvent.type(inputs[1]!, "https://example.com/regional.m3u");
+		await userEvent.click(within(form).getByRole("button", { name: "Add source" }));
+		await waitFor(() => expect(mocked(createGuideSource)).toHaveBeenCalledWith({
+			kind: "iptv", name: "Regional IPTV", url: "https://example.com/regional.m3u",
+		}));
+	},
+};
 export const NoSources: Story = { beforeEach: () => void mocked(getAdminGuide).mockResolvedValue({ ...guide, sources: [], channels: [], iptvChannels: [] }) };
 export const Loading: Story = { beforeEach: () => void mocked(getAdminGuide).mockReturnValue(new Promise(() => undefined)) };
 export const LoadError: Story = { beforeEach: () => void mocked(getAdminGuide).mockRejectedValue(new Error("Network error")) };

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listConnectedApps, revokeConnectedApp, type OidcConnectedApp } from '../../api/oidc'
@@ -57,7 +58,7 @@ onMounted(load)
     <p v-if="loading" role="status" class="mt-4 text-sm text-flixer-muted">{{ t('common.loading') }}</p>
     <div v-else-if="loadFailed" role="alert" class="mt-4 space-y-2 text-sm">
       <p>{{ t('oidc.connected.loadError') }}</p>
-      <button type="button" class="text-flixer-accent underline" @click="load">{{ t('oidc.retry') }}</button>
+      <Button type="button" class="h-auto rounded-none border-0 bg-transparent p-0 text-sm font-normal text-flixer-accent underline hover:bg-transparent" @click="void load()">{{ t('oidc.retry') }}</Button>
     </div>
     <p v-else-if="!apps.length" class="mt-5 rounded border border-flixer-border p-4 text-sm text-flixer-muted">{{ t('oidc.connected.empty') }}</p>
     <ul v-else class="mt-5 divide-y divide-flixer-border rounded border border-flixer-border">
@@ -69,7 +70,7 @@ onMounted(load)
             <li v-for="scope in app.scopes" :key="scope">{{ scopeLabel(scope) }}</li>
           </ul>
         </div>
-        <button type="button" class="rounded bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50" :disabled="busy" @click="revoke(app)">{{ t('oidc.connected.revoke') }}</button>
+        <Button data-agent-hidden type="button" class="h-auto rounded border-0 bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-50" :disabled="busy" @click="void revoke(app)">{{ t('oidc.connected.revoke') }}</Button>
       </li>
     </ul>
   </section>

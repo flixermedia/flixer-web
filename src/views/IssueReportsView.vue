@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
+import { Button } from '@ui-sdk/vue/button'
 import { getIssueReport, listIssueReports, type IssueReport } from '../api'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import IssueReportForm from '../components/issues/IssueReportForm.vue'
@@ -73,9 +74,9 @@ watch(() => props.id, () => void load())
           <p class="mt-1 text-sm text-flixer-muted">{{ active ? t('issues.ticketNumber', { id: active.id.slice(0, 8) }) : t('issues.pageDescription') }}</p>
         </div>
         <RouterLink v-if="active" :to="{ name: 'issues' }" class="rounded border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">{{ t('issues.backToReports') }}</RouterLink>
-        <button v-else-if="!isTvMode && config?.enabled" type="button" class="rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = !createOpen">
+        <Button v-else-if="!isTvMode && config?.enabled" type="button" class="rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = !createOpen">
           {{ createOpen ? t('common.cancel') : t('issues.newReport') }}
-        </button>
+        </Button>
       </header>
 
       <p v-if="error" class="mb-4 rounded border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200" role="alert">{{ error }}</p>
@@ -138,7 +139,7 @@ watch(() => props.id, () => void load())
         </ul>
         <div v-else class="rounded border border-flixer-border bg-flixer-surface/50 p-8 text-center">
           <p class="text-sm text-flixer-muted">{{ t('issues.empty') }}</p>
-          <button v-if="!isTvMode && config?.enabled" type="button" class="mt-4 rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = true">{{ t('issues.newReport') }}</button>
+          <Button v-if="!isTvMode && config?.enabled" type="button" class="mt-4 rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85" @click="createOpen = true">{{ t('issues.newReport') }}</Button>
         </div>
       </template>
     </main>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { openModal } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextModal from './TextModal.vue'
@@ -37,7 +38,7 @@ function open() {
 <template>
   <div>
     <p ref="element" class="line-clamp-4 whitespace-pre-line text-base leading-relaxed text-flixer-text/90" :class="{ 'clip-preview': clip }">{{ preview }}</p>
-    <button v-if="overflowing" type="button" class="mt-2 text-sm font-semibold text-flixer-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="open">{{ t('common.readMore') }}</button>
+    <Button v-if="overflowing" type="button" class="mt-2 h-auto rounded-none border-0 bg-transparent p-0 text-sm font-semibold text-flixer-accent hover:bg-transparent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="open">{{ t('common.readMore') }}</Button>
   </div>
 </template>
 

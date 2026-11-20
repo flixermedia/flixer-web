@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -466,7 +467,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <label class="sr-only" :for="`chapter-title-${index}`">{{ t('mediaItem.chapterEditor.chapterTitle') }}</label>
-              <input
+              <Input
                 :id="`chapter-title-${index}`"
                 v-model="chapter.title"
                 type="text"

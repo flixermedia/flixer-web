@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextInput from '../../components/ui/TextInput.vue'
@@ -32,7 +33,7 @@ defineExpose({ submit, canContinue })
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="redisUrl" :label="t('setup.redis.url')" :hint="fieldErrors.redisUrl || t('setup.redis.hint')" placeholder="redis://redis:6379" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !redisUrl" @click="test({ redisUrl })">{{ t('setup.testConnection') }}</button>
+        <Button data-agent-hidden type="button" class="h-10 rounded border border-flixer-border bg-transparent px-4 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/60 hover:bg-transparent disabled:opacity-60" :disabled="busy || !redisUrl" @click="void test({ redisUrl })">{{ t('setup.testConnection') }}</Button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

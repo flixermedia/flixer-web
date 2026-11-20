@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminToggle from './AdminToggle.vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoggerClient, type LoggerEvent } from '../../api/logger'
@@ -83,7 +84,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="mt-3 flex shrink-0 items-center justify-between gap-3 text-xs text-flixer-muted">
     <span>{{ t('admin.indexer.taskLoggerWindow') }}</span>
-    <label class="flex items-center gap-2"><input v-model="follow" type="checkbox" />{{ t('admin.indexer.taskLogsAutoscroll') }}</label>
+    <AdminToggle v-model="follow" :label="t('admin.indexer.taskLogsAutoscroll')" compact />
   </div>
   <p v-if="error" role="alert" class="mt-2 shrink-0 text-sm text-red-300">
     {{ error }} <button type="button" class="underline" :disabled="pending" @click="retry">{{ t('admin.indexer.taskLoggerRetry') }}</button>

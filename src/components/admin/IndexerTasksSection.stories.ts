@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
-import { mocked } from "storybook/test";
+import { expect, mocked, userEvent, within } from "storybook/test";
 import { listIndexerTasks, type IndexerTask } from "../../api";
 import IndexerTasksSection from "./IndexerTasksSection.vue";
 
@@ -19,5 +19,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const FailedTasks: Story = { beforeEach: () => void mocked(listIndexerTasks).mockResolvedValue(failedTasks) };
+export const FilterTasksByState: Story = {
+	beforeEach: () => void mocked(listIndexerTasks).mockResolvedValue(failedTasks),
+	play: async ({ canvasElement }) => {
+		const page = within(canvasElement.ownerDocument.body);
+		const state = page.getByRole("combobox", { name: /state/i });
+		await userEvent.click(state);
+		await userEvent.click(await page.findByRole("option", { name: /pending/i }));
+		await expect(mocked(listIndexerTasks)).toHaveBeenLastCalledWith("identify", "pending", 1, 20);
+	},
+};
 export const Empty: Story = { beforeEach: () => void mocked(listIndexerTasks).mockResolvedValue([]) };
 export const LoadError: Story = { beforeEach: () => void mocked(listIndexerTasks).mockRejectedValue(new Error("Network error")) };

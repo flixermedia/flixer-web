@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
+import { Input } from "@ui-sdk/vue/input";
 import axios from "axios";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -98,7 +100,7 @@ async function pay() {
 		</h1>
 		<p class="mt-2 text-sm text-flixer-muted">{{ t("payments.signup.stepDescription") }}</p>
 
-		<form class="mt-7 flex flex-col gap-3" @submit.prevent="pay">
+		<form data-agent-hidden class="mt-7 flex flex-col gap-3" @submit.prevent="pay">
 			<p class="text-sm text-flixer-muted">
 				<template v-if="fee">{{ t("payments.signup.fee", { price: fee }) }}</template>
 				<template v-else>{{ t("payments.signup.cardOnly") }}</template>
@@ -107,15 +109,15 @@ async function pay() {
 			<CardElement ref="card" :setup="setup" :name="name" :email="email" />
 			<label v-if="registration?.feeEnabled" class="block text-sm font-medium">
 				{{ t("payments.coupon.label") }}
-				<input v-model="coupon" type="text" autocomplete="off" autocapitalize="characters" maxlength="64" :placeholder="t('payments.coupon.placeholder')" class="mt-2 h-11 w-full rounded border border-flixer-border bg-flixer-surface/50 px-4 text-base uppercase text-flixer-text outline-none placeholder:normal-case placeholder:text-flixer-muted/70 focus:border-flixer-accent/60 sm:text-sm" />
+				<Input v-model="coupon" type="text" autocomplete="off" autocapitalize="characters" maxlength="64" :placeholder="t('payments.coupon.placeholder')" class="mt-2 h-11 w-full rounded border border-flixer-border bg-flixer-surface/50 px-4 text-base uppercase text-flixer-text outline-none placeholder:normal-case placeholder:text-flixer-muted/70 focus:border-flixer-accent/60 sm:text-sm" />
 			</label>
 			<p class="text-xs text-flixer-muted">{{ t("payments.signup.secure") }}</p>
-			<button class="mt-2 flex h-12 items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="busy || !setup" :aria-busy="busy">
+			<Button class="mt-2 flex h-12 items-center justify-center gap-2 rounded border-0 bg-transparent bg-gradient-to-r from-flixer-primary to-flixer-secondary p-0 text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:bg-transparent hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:cursor-wait disabled:opacity-60" type="submit" :disabled="busy || !setup" :aria-busy="busy">
 				<span>{{ busy ? t("payments.signup.paying") : t("payments.signup.pay") }}</span>
 				<span v-if="busy" class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
 				<Icon v-else icon="lucide:lock" class="size-[17px]" aria-hidden="true" />
-			</button>
-			<button type="button" class="text-xs font-semibold text-flixer-accent underline-offset-2 hover:underline" :disabled="busy" @click="emit('back')">{{ t("payments.signup.backToSignIn") }}</button>
+			</Button>
+			<Button type="button" class="h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-flixer-accent underline-offset-2 hover:bg-transparent hover:underline disabled:opacity-100" :disabled="busy" @click="emit('back')">{{ t("payments.signup.backToSignIn") }}</Button>
 		</form>
 	</div>
 </template>

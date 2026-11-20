@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { expect, mocked, userEvent, waitFor } from 'storybook/test'
+import { expect, mocked, userEvent, waitFor, within } from 'storybook/test'
 import { getViewingAnalytics } from '../../api/analytics'
 import ViewingAnalyticsPanel from './ViewingAnalyticsPanel.vue'
 
@@ -21,10 +21,13 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const History: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     expect(await canvas.findByText('News')).toBeVisible()
     expect(canvas.getByRole('cell', { name: 'Viewer' })).toBeVisible()
-    await userEvent.selectOptions(canvas.getByLabelText('Reporting period'), '7')
+    const page = within(canvasElement.ownerDocument.body)
+    const period = page.getByRole('combobox', { name: 'Reporting period' })
+    await userEvent.click(period)
+    await userEvent.click(await page.findByRole('option', { name: 'Last 7 days' }))
     await waitFor(() => expect(getViewingAnalytics).toHaveBeenCalledWith(7))
   },
 }

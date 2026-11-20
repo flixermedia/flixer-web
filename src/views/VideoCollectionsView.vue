@@ -5,6 +5,10 @@ import { Share } from '@capacitor/share'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { SocialItem } from 'flixer-api-client'
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectLabel, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { createVideoCollection, deleteVideoCollection, getAutomaticCollection, getAutomaticCollections, getVideoCollection, getVideoCollections, removeVideoCollectionItem, reorderVideoCollection, updateVideoCollection, type AutomaticCollection, type CollectionCover, type VideoCollection } from '../api/userMedia'
 import MediaCard from '../components/home/MediaCard.vue'
 import HeroCarousel from '../components/home/HeroCarousel.vue'
@@ -179,47 +183,47 @@ watch([id, automaticDetail], () => void load(), { immediate: true })
             t('collectionsPage.automaticLabel') : t(collection.isPublic ? 'userMedia.public' : 'userMedia.private') }} ·
             {{ t('collectionsPage.itemCount', { count: collection.itemCount }, collection.itemCount) }}</p>
         </div>
-        <button v-if="!id" type="button"
-          class="inline-flex items-center gap-2 rounded bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85"
+        <Button v-if="!id" type="button"
+          class="inline-flex h-auto items-center gap-2 rounded border-0 bg-white px-4 py-2 text-sm font-semibold text-flixer-background hover:bg-white/85"
           :aria-expanded="createOpen" aria-controls="create-video-collection" @click="createOpen = !createOpen">
           <Icon :icon="createOpen ? 'lucide:x' : 'lucide:plus'" class="size-4" aria-hidden="true" />{{ t(createOpen ?
             'common.cancel' : 'userMedia.create') }}
-        </button>
+        </Button>
         <div v-if="collection" class="flex flex-wrap gap-2">
-          <button v-if="collection.isOwner" type="button"
-            class="grid size-10 place-items-center rounded border border-flixer-border hover:bg-white/10"
+          <Button v-if="collection.isOwner" type="button"
+            class="grid size-10 place-items-center rounded border border-flixer-border bg-transparent p-0 text-flixer-text hover:bg-white/10"
             :title="t('userMediaOrder.edit')" :aria-label="t('userMediaOrder.edit')" @click="beginEdit">
             <Icon icon="lucide:pencil" class="size-4" aria-hidden="true" />
-          </button>
+          </Button>
           <label v-if="collection.isOwner"
             class="inline-flex items-center gap-2 rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text"><input
               type="checkbox" class="size-4 accent-flixer-accent" :checked="collection.isPublic" :disabled="busy"
               @change="togglePublic" />{{ t('userMedia.public') }}</label>
-          <button v-if="automaticDetail || collection.isPublic" type="button"
-            class="grid size-10 place-items-center rounded border border-flixer-border hover:bg-white/10"
-            :title="t('userMedia.share')" :aria-label="t('userMedia.share')" @click="share">
+          <Button v-if="automaticDetail || collection.isPublic" type="button"
+            class="grid size-10 h-auto place-items-center rounded border border-flixer-border bg-transparent p-0 text-flixer-text hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
+            :title="t('userMedia.share')" :aria-label="t('userMedia.share')" @click="void share()">
             <Icon icon="lucide:share-2" class="size-4" aria-hidden="true" />
-          </button>
-          <button v-if="collection.isOwner" type="button"
-            class="grid size-10 place-items-center rounded border border-flixer-border hover:bg-white/10"
-            :title="t('userMedia.delete')" :aria-label="t('userMedia.delete')" @click="removeCollection">
+          </Button>
+          <Button v-if="collection.isOwner" type="button"
+            class="grid size-10 h-auto place-items-center rounded border border-flixer-border bg-transparent p-0 text-flixer-text hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
+            :title="t('userMedia.delete')" :aria-label="t('userMedia.delete')" @click="void removeCollection()">
             <Icon icon="lucide:trash-2" class="size-4" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       </header>
       <div v-if="failed" class="mt-5 flex items-center gap-3 text-sm text-red-400" role="alert"><span>{{
-        t('userMedia.error') }}</span><button type="button"
-          class="rounded bg-white/10 px-3 py-1 text-flixer-text hover:bg-white/20" @click="load">{{ t('home.retry')
-          }}</button></div>
+        t('userMedia.error') }}</span><Button type="button"
+          class="h-auto whitespace-normal rounded border-0 bg-white/10 px-3 py-1 text-sm font-normal text-flixer-text hover:bg-white/20" @click="load">{{ t('home.retry')
+          }}</Button></div>
       <CardGridSkeleton v-if="loading && !id" class="mt-6" />
       <p v-else-if="loading" class="mt-5 text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
       <template v-else-if="!id">
         <form v-if="createOpen" id="create-video-collection" class="mt-5 flex max-w-lg flex-wrap gap-2"
-          @submit.prevent="create"><input v-model="name" maxlength="100"
+          @submit.prevent="create"><Input v-model="name" maxlength="100"
             class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white"
-            :placeholder="t('userMedia.name')" :aria-label="t('userMedia.name')" /><button type="submit"
-            class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50"
-            :disabled="busy || !name.trim()">{{ t('userMedia.create') }}</button></form>
+            :placeholder="t('userMedia.name')" :aria-label="t('userMedia.name')" /><Button type="submit"
+            class="h-auto whitespace-normal rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50"
+            :disabled="busy || !name.trim()">{{ t('userMedia.create') }}</Button></form>
         <div class="mt-5 flex flex-wrap items-center gap-3">
           <div class="flex rounded border border-flixer-border bg-flixer-surface p-0.5" role="group"
             :aria-label="t('collectionsPage.title')"><button v-for="entry in (['all', 'automatic', 'custom'] as const)"
@@ -230,15 +234,31 @@ watch([id, automaticDetail], () => void load(), { immediate: true })
           <label class="relative min-w-0 flex-1 sm:max-w-xs">
             <Icon icon="lucide:search"
               class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted"
-              aria-hidden="true" /><input v-model="search" type="search"
+              aria-hidden="true" /><Input v-model="search" type="search"
               class="w-full rounded border border-flixer-border bg-flixer-surface py-2 pl-9 pr-3 text-sm text-white"
               :placeholder="t('collectionsPage.search')" :aria-label="t('collectionsPage.search')" />
           </label>
-          <label class="flex items-center gap-2 text-sm text-flixer-muted">{{ t('browse.sortBy') }}<select
-              v-model="sort" class="rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
-              <option value="name">{{ t('collectionsPage.sortName') }}</option>
-              <option value="count">{{ t('collectionsPage.sortCount') }}</option>
-            </select></label>
+          <Select v-model:value="sort" virtual-focus class="inline-flex items-center gap-2">
+            <SelectLabel class="whitespace-nowrap text-sm text-flixer-muted">{{ t('browse.sortBy') }}</SelectLabel>
+            <SelectTrigger
+              class="inline-flex h-auto min-w-32 items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+              <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+            </SelectTrigger>
+            <SelectContent
+              class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+              <SelectItem value="name"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('collectionsPage.sortName') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+              <SelectItem value="count"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('collectionsPage.sortCount') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <p v-if="!visibleCollections.length && !failed" class="mt-6 text-sm text-flixer-muted">{{
           t('collectionsPage.empty') }}</p>
@@ -252,16 +272,16 @@ watch([id, automaticDetail], () => void load(), { immediate: true })
       </template>
       <template v-else-if="collection">
         <form v-if="editing && collection.isOwner" class="mt-5 grid max-w-lg gap-3" @submit.prevent="saveEdit"><label
-            class="text-sm text-flixer-muted">{{ t('userMedia.name') }}<input v-model="editName" maxlength="100"
+            class="text-sm text-flixer-muted">{{ t('userMedia.name') }}<Input v-model="editName" maxlength="100"
               class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label><label
-            class="text-sm text-flixer-muted">{{ t('userMediaOrder.description') }}<textarea v-model="editDescription"
+            class="text-sm text-flixer-muted">{{ t('userMediaOrder.description') }}<Textarea v-model:value="editDescription"
               maxlength="500" rows="3"
               class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
-          <div class="flex gap-2"><button type="submit"
-              class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50"
-              :disabled="busy || !editName.trim()">{{ t('common.save') }}</button><button type="button"
-              class="rounded border border-flixer-border px-4 py-2 text-sm hover:bg-white/10"
-              @click="editing = false">{{ t('common.cancel') }}</button></div>
+          <div class="flex gap-2"><Button type="submit"
+              class="h-auto whitespace-normal rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50"
+              :disabled="busy || !editName.trim()">{{ t('common.save') }}</Button><Button type="button"
+              class="h-auto whitespace-normal rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-normal text-inherit hover:bg-white/10"
+              @click="editing = false">{{ t('common.cancel') }}</Button></div>
         </form>
         <p v-if="collection.description" class="mt-4 text-sm text-flixer-muted">{{ collection.description }}</p>
         <p v-if="!collection.items.length" class="mt-5 text-sm text-flixer-muted">{{ t('userMedia.empty') }}</p>
@@ -273,24 +293,24 @@ watch([id, automaticDetail], () => void load(), { immediate: true })
             <template #actions>
               <div v-if="collection?.isOwner"
                 class="theme-dark absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover/card:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-                <button type="button"
-                  class="grid size-8 place-items-center rounded bg-black/70 text-white hover:bg-black/90 disabled:opacity-40"
+                <Button type="button"
+                  class="grid size-8 h-auto place-items-center rounded border-0 bg-black/70 p-0 text-white hover:bg-black/90 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
                   :disabled="busy || index === 0 || collection.itemCount !== collection.items.length"
-                  :title="t('userMediaOrder.up')" :aria-label="t('userMediaOrder.up')" @click="move(index, -1)">
+                  :title="t('userMediaOrder.up')" :aria-label="t('userMediaOrder.up')" @click="void move(index, -1)">
                   <Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />
-                </button>
-                <button type="button"
-                  class="grid size-8 place-items-center rounded bg-black/70 text-white hover:bg-black/90 disabled:opacity-40"
+                </Button>
+                <Button type="button"
+                  class="grid size-8 h-auto place-items-center rounded border-0 bg-black/70 p-0 text-white hover:bg-black/90 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
                   :disabled="busy || index === collection.items.length - 1 || collection.itemCount !== collection.items.length"
-                  :title="t('userMediaOrder.down')" :aria-label="t('userMediaOrder.down')" @click="move(index, 1)">
+                  :title="t('userMediaOrder.down')" :aria-label="t('userMediaOrder.down')" @click="void move(index, 1)">
                   <Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" />
-                </button>
-                <button type="button"
-                  class="grid size-8 place-items-center rounded bg-black/70 text-white hover:bg-black/90 disabled:opacity-40"
+                </Button>
+                <Button type="button"
+                  class="grid size-8 h-auto place-items-center rounded border-0 bg-black/70 p-0 text-white hover:bg-black/90 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
                   :disabled="busy" :title="t('userMedia.remove')" :aria-label="t('userMedia.remove')"
-                  @click="removeItem(item)">
+                  @click="void removeItem(item)">
                   <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
-                </button>
+                </Button>
               </div>
             </template>
           </MediaCard>

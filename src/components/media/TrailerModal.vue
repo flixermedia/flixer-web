@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ref } from 'vue'
 import { ModalContent, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { useI18n } from 'vue-i18n'
@@ -23,7 +24,7 @@ const info: StreamInfo = {
     <ModalContent class="flixer-modal-card w-full max-w-4xl overflow-y-auto rounded border border-flixer-border bg-flixer-surface p-6 text-flixer-text shadow-2xl shadow-black/60">
       <header class="flixer-modal-header flex items-center justify-between gap-4">
         <ModalTitle class="text-lg font-semibold">{{ trailer.name }}</ModalTitle>
-        <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-semibold hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.close') }}</button>
+        <Button type="button" class="h-auto rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-semibold text-inherit hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.close') }}</Button>
       </header>
       <div class="pt-6">
         <div v-if="trailer.streamUrl" class="aspect-video w-full bg-black" :style="cropAspect ? { aspectRatio: String(cropAspect) } : undefined">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { openModal } from '@kolirt/vue-modal'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -110,8 +112,26 @@ function canViewLogs(task: IndexerTask) {
   return task.state === 'active' || task.state === 'retry' || task.state === 'archived'
 }
 
+function setQueue(value: string | null) {
+  if (value !== null) queue.value = value as IndexerTaskQueueName
+}
+
+function setState(value: string | null) {
+  if (value !== null) state.value = value as IndexerTaskState
+}
+
 function viewLogs(task: IndexerTask) {
   void openModal(TaskLogsModal, { props: { queue: task.queue, id: task.id, title: describeTask(task) } }).catch(() => undefined)
+}
+
+function previousPage() {
+  page.value--
+  void load()
+}
+
+function nextPage() {
+  page.value++
+  void load()
 }
 
 function describeTask(task: IndexerTask) {
@@ -134,15 +154,21 @@ watch(
     <div class="mb-3 flex flex-wrap gap-3">
       <label class="flex flex-col gap-1 text-xs text-flixer-muted">
         {{ t('admin.indexer.queue') }}
-        <select v-model="queue" :class="inputClass">
-          <option v-for="name in INDEXER_TASK_QUEUES" :key="name" :value="name">{{ t(`admin.indexer.queueNames.${name}`) }}</option>
-        </select>
+        <Select :value="queue" @value-change="setQueue">
+          <SelectTrigger :aria-label="t('admin.indexer.queue')" :class="inputClass"><SelectValue /></SelectTrigger>
+          <SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+            <SelectItem v-for="name in INDEXER_TASK_QUEUES" :key="name" :value="name" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t(`admin.indexer.queueNames.${name}`) }}</SelectItem>
+          </SelectContent>
+        </Select>
       </label>
       <label class="flex flex-col gap-1 text-xs text-flixer-muted">
         {{ t('admin.indexer.state') }}
-        <select v-model="state" :class="inputClass">
-          <option v-for="name in INDEXER_TASK_STATES" :key="name" :value="name">{{ t(`admin.indexer.states.${name}`) }}</option>
-        </select>
+        <Select :value="state" @value-change="setState">
+          <SelectTrigger :aria-label="t('admin.indexer.state')" :class="inputClass"><SelectValue /></SelectTrigger>
+          <SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+            <SelectItem v-for="name in INDEXER_TASK_STATES" :key="name" :value="name" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t(`admin.indexer.states.${name}`) }}</SelectItem>
+          </SelectContent>
+        </Select>
       </label>
       <button v-if="state === 'archived'" type="button" :disabled="clearing || loading || tasks.length === 0" class="self-end rounded bg-red-500/20 px-3 py-1.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearFailed">{{ t('admin.indexer.clearFailed') }}</button>
       <button v-if="state === 'archived'" type="button" :disabled="clearing || loading" class="self-end rounded bg-red-500/20 px-3 py-1.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="clearAllFailed">{{ t('admin.indexer.clearAllFailed') }}</button>
@@ -160,7 +186,7 @@ watch(
             <p v-if="task.lastError" class="mt-1 break-words text-xs text-red-300">{{ task.lastError }}</p>
           </div>
           <div class="flex gap-2">
-            <button v-if="canViewLogs(task)" type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="viewLogs(task)">{{ t('admin.indexer.viewLogs') }}</button>
+            <Button v-if="canViewLogs(task)" type="button" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15" @click="() => viewLogs(task)">{{ t('admin.indexer.viewLogs') }}</Button>
             <button v-if="canRetry(task)" type="button" :disabled="busyId === task.id" class="rounded bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="act(task, 'retry')">{{ t('admin.indexer.retryTask') }}</button>
             <button v-if="canCancel(task)" type="button" :disabled="busyId === task.id" class="rounded bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-50" @click="act(task, 'cancel')">{{ t('admin.indexer.cancelTask') }}</button>
           </div>
@@ -170,8 +196,8 @@ watch(
     </ul>
 
     <div v-if="page > 1 || tasks.length === PAGE_SIZE" class="mt-3 flex items-center gap-3 text-xs">
-      <button type="button" :disabled="page === 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="(page--, load())">{{ t('admin.media.previous') }}</button>
-      <button type="button" :disabled="tasks.length < PAGE_SIZE || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="(page++, load())">{{ t('admin.media.next') }}</button>
+      <Button type="button" :disabled="page === 1 || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="previousPage">{{ t('admin.media.previous') }}</Button>
+      <Button type="button" :disabled="tasks.length < PAGE_SIZE || loading" class="rounded bg-white/10 px-3 py-1 font-semibold transition hover:bg-white/15 disabled:opacity-50" @click="nextPage">{{ t('admin.media.next') }}</Button>
     </div>
   </AdminSection>
 </template>

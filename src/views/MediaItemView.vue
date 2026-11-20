@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { artworkAccentEnabled, brandName, setArtworkAccent, setLibraryAccent } from '../composables/useAppearance'
 import { accentFromBlob } from '../composables/artworkAccent'
 import { openModal } from '@kolirt/vue-modal'
@@ -803,17 +804,17 @@ watch(
                 <div v-if="canFavorite || (!isTvMode && playTarget)" class="ml-auto flex items-center gap-1">
                   <FavoriteToggle v-if="canFavorite" :item-id="item.id" compact
                     class="!bg-transparent hover:!bg-white/10" />
-                  <button v-if="!isTvMode && playTarget && !paywalled" type="button"
-                    class="grid size-10 shrink-0 place-items-center rounded text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
-                    :aria-label="t('userMedia.addQueue')" :title="t('userMedia.addQueue')" @click="queueVideo">
+                  <Button v-if="!isTvMode && playTarget && !paywalled" type="button"
+                    class="grid size-10 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+                    :aria-label="t('userMedia.addQueue')" :title="t('userMedia.addQueue')" @click="void queueVideo()">
                     <Icon icon="lucide:list-plus" class="size-5" aria-hidden="true" />
-                  </button>
-                  <button v-if="!isTvMode && playTarget" type="button"
-                    class="grid size-10 shrink-0 place-items-center rounded text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+                  </Button>
+                  <Button v-if="!isTvMode && playTarget" type="button"
+                    class="grid size-10 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
                     :aria-label="t('userMedia.addCollection')" :title="t('userMedia.addCollection')"
                     @click="addToVideoCollection">
                     <Icon icon="lucide:library" class="size-5" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
                 <Teleport to="body">
                   <div v-if="actionMenuOpen && hasMoreActions" id="media-item-more-actions" ref="actionMenuPanel"

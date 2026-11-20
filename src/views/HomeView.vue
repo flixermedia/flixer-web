@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import HeroCarousel from '../components/home/HeroCarousel.vue'
 import MediaCard from '../components/home/MediaCard.vue'
 import MediaRow from '../components/home/MediaRow.vue'
@@ -196,9 +197,9 @@ onMounted(() => {
 
       <div v-else-if="loadFailed" class="page-gutter py-10">
         <p class="text-sm text-flixer-muted">{{ t('home.loadError') }}</p>
-        <button type="button"
-          class="mt-3 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-          @click="load">{{ t('home.retry') }}</button>
+        <Button type="button"
+          class="mt-3 h-auto rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+          @click="void load()">{{ t('home.retry') }}</Button>
       </div>
 
       <div v-else-if="isEmpty" class="page-gutter py-10">
@@ -223,32 +224,32 @@ onMounted(() => {
           <li v-if="watchLaterLoading" class="py-3 text-sm text-flixer-muted" role="status">{{ t('common.loading') }}
           </li>
           <li v-else-if="watchLaterFailed" class="flex items-center gap-3 py-3 text-sm text-red-400" role="alert">{{
-            t('userMedia.error') }}<button type="button"
-              class="rounded bg-white/10 px-3 py-1 text-flixer-text hover:bg-white/20" @click="loadWatchLater">{{
-                t('home.retry') }}</button></li>
+            t('userMedia.error') }}<Button type="button"
+              class="h-auto rounded border-0 bg-white/10 px-3 py-1 text-sm font-normal text-flixer-text hover:bg-white/20" @click="void loadWatchLater()">{{
+                t('home.retry') }}</Button></li>
           <MediaCard v-for="item in watchLater" :key="item.id" :title="item.title"
             :subtitle="item.subtitle ?? undefined" :item-id="item.imageItemId" :image-index="item.imageIndex"
             :version="item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: item.id } }" dismissible
             :dismiss-label="t('userMedia.remove')" @dismiss="removeWatchLater(item.id)" />
         </MediaRow>
         <MediaRow key="up-next" v-if="!isTvMode && videoQueue.items.value.length > 0" :title="t('userMedia.queue')">
-          <template #actions><button type="button"
-              class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white"
+          <template #actions><Button type="button"
+              class="grid size-8 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white"
               :title="t('userMedia.queue')" :aria-label="t('userMedia.queue')" @click="reviewQueue">
               <Icon icon="lucide:list-video" class="size-4" aria-hidden="true" />
-            </button></template>
+            </Button></template>
           <MediaCard v-for="item in videoQueue.items.value" :key="item.id" :title="item.title"
             :subtitle="item.subtitle ?? undefined" :item-id="item.imageItemId" :image-index="item.imageIndex"
             :version="item.imageUpdatedAt" :to="{ name: 'media-item', params: { id: item.id } }" dismissible
             :dismiss-label="t('userMedia.remove')" @dismiss="removeQueued(item.id)" />
         </MediaRow>
         <MediaRow key="recommendations" v-if="recommendations.length > 0" :title="t('home.recommendedForYou')">
-          <template #actions><button v-if="hasDismissedRecommendations" type="button"
-              class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white"
+          <template #actions><Button v-if="hasDismissedRecommendations" type="button"
+              class="grid size-8 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white"
               :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')"
-              @click="reviewRecommendations">
+              @click="void reviewRecommendations()">
               <Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" />
-            </button></template>
+            </Button></template>
           <MediaCard v-for="item in recommendations" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
             :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
@@ -265,24 +266,24 @@ onMounted(() => {
         </MediaRow>
         <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0"
           :title="t('home.musicRecommendations')">
-          <template #actions><button v-if="hasDismissedRecommendations && !recommendations.length" type="button"
-              class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white"
+          <template #actions><Button v-if="hasDismissedRecommendations && !recommendations.length" type="button"
+              class="grid size-8 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white"
               :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')"
-              @click="reviewRecommendations">
+              @click="void reviewRecommendations()">
               <Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" />
-            </button></template>
+            </Button></template>
           <MediaCard v-for="item in musicRecommendations" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
             :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
         </MediaRow>
         <section v-if="hasDismissedRecommendations && !recommendations.length && !musicRecommendations.length"
           key="recommendation-review" class="page-gutter flex items-center gap-3">
-          <h2 class="text-xl font-semibold text-white">{{ t('home.recommendedForYou') }}</h2><button type="button"
-            class="grid size-8 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white"
+          <h2 class="text-xl font-semibold text-white">{{ t('home.recommendedForYou') }}</h2><Button type="button"
+            class="grid size-8 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white"
             :title="t('recommendationReview.title')" :aria-label="t('recommendationReview.title')"
-            @click="reviewRecommendations">
+            @click="void reviewRecommendations()">
             <Icon icon="lucide:eye-off" class="size-4" aria-hidden="true" />
-          </button>
+          </Button>
         </section>
         <MediaRow key="music" v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
           <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title"

@@ -7,6 +7,9 @@ import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
+import { Field, FieldDescription, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 
 const { t } = useI18n()
 const form = reactive({ name: '', banner: '' })
@@ -70,15 +73,15 @@ onMounted(load)
     </template>
     <AdminSkeleton v-if="isLoading" variant="fields" :rows="2" />
     <div v-else class="grid gap-4">
-      <label class="text-xs text-flixer-muted">
-        {{ t('admin.general.serverName') }}
-        <input v-model="form.name" maxlength="100" autocomplete="off" :class="inputClass" />
-      </label>
-      <label class="text-xs text-flixer-muted">
-        {{ t('admin.general.loginBanner') }}
-        <textarea v-model="form.banner" rows="3" maxlength="500" :class="inputClass" :placeholder="t('admin.general.loginBannerPlaceholder')"></textarea>
-        <span class="mt-1 block">{{ t('admin.general.loginBannerHint') }}</span>
-      </label>
+      <Field class="text-xs text-flixer-muted">
+        <FieldLabel>{{ t('admin.general.serverName') }}</FieldLabel>
+        <Input v-model="form.name" maxlength="100" autocomplete="off" :class="inputClass" />
+      </Field>
+      <Field class="text-xs text-flixer-muted">
+        <FieldLabel>{{ t('admin.general.loginBanner') }}</FieldLabel>
+        <Textarea v-model="form.banner" rows="3" maxlength="500" :class="inputClass" :placeholder="t('admin.general.loginBannerPlaceholder')" />
+        <FieldDescription class="mt-1 block">{{ t('admin.general.loginBannerHint') }}</FieldDescription>
+      </Field>
     </div>
   </AdminSection>
 </template>

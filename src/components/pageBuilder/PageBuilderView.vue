@@ -3,6 +3,9 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import { cancelBuilderSchedule, createBuilderPage, createPageTemplate, defaultPagePosition, deleteBuilderPage, deletePageTemplate, getPageSiteSettings, listBuilderPages, listPageTemplates, publishBuilderPage, restoreBuilderVersion, saveBuilderPage, savePageSiteSettings, scheduleBuilderPage, unpublishBuilderPage, type BuilderPage, type PageBlock, type PageBlockType, type PagePosition, type AuthField, type PageSiteSettings, type ReusablePageBlock } from './pageBuilder'
 import { saveAppearanceSettings } from '../../api/appearance'
 import { refreshAppearance } from '../../composables/useAppearance'
@@ -314,44 +317,45 @@ async function readImage(event: Event) {
 <template>
     <main class="min-h-screen bg-flixer-background text-flixer-text">
         <header class="flex flex-wrap items-center gap-3 border-b border-flixer-border px-4 py-3 sm:px-6">
-            <button type="button" :class="tool" :aria-label="t('pageBuilder.back')" :title="t('pageBuilder.back')"
+            <Button type="button" :class="tool" :aria-label="t('pageBuilder.back')" :title="t('pageBuilder.back')"
+                data-agent-hidden
                 @click="router.push({ name: 'admin', query: { tab: 'settings', page: 'appearance' } })">
                 <Icon icon="lucide:arrow-left" class="size-5" />
-            </button>
+            </Button>
             <div class="min-w-0 flex-1">
                 <h1 class="text-lg font-semibold">{{ t('pageBuilder.title') }}</h1>
                 <p v-if="page" class="truncate text-xs text-flixer-muted">{{ page.title }}<span v-if="dirty"> · {{
                     t('pageBuilder.unsaved') }}</span></p>
             </div>
-            <button type="button" :disabled="busy || !page"
+            <Button type="button" :disabled="busy || !page" data-agent-hidden
                 class="rounded border border-flixer-border px-3 py-2 text-sm font-semibold hover:bg-white/5 disabled:opacity-40"
-                @click="save">{{ t('pageBuilder.save') }}</button>
-            <button type="button" :disabled="busy || !page"
+                @click="save">{{ t('pageBuilder.save') }}</Button>
+            <Button type="button" :disabled="busy || !page" data-agent-hidden
                 class="rounded bg-flixer-primary px-3 py-2 text-sm font-semibold text-white hover:bg-flixer-secondary disabled:opacity-40"
                 @click="publish">{{ page?.kind === 'login' ? t('pageBuilder.publishLogin') : t('pageBuilder.publish')
-                }}</button>
+                }}</Button>
         </header>
         <p v-if="loading" role="status" class="p-6 text-flixer-muted">{{ t('pageBuilder.loading') }}</p>
         <div v-else-if="page" class="builder-workspace">
-            <aside class="builder-sidebar border-flixer-border p-4" :inert="busy" :aria-busy="busy">
+            <aside class="builder-sidebar border-flixer-border p-4" :inert="busy" :aria-busy="busy" data-agent-hidden>
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold">{{ t('pageBuilder.pages') }}</h2><button type="button"
+                    <h2 class="text-sm font-semibold">{{ t('pageBuilder.pages') }}</h2><Button type="button"
                         :class="tool" :disabled="busy" :title="t('pageBuilder.addPage')"
                         :aria-label="t('pageBuilder.addPage')" @click="createPage">
                         <Icon icon="lucide:plus" class="size-4" />
-                    </button>
+                    </Button>
                 </div>
-                <div class="mt-2 grid gap-1"><button v-for="entry in pages" :key="entry.id" type="button"
+                <div class="mt-2 grid gap-1"><Button v-for="entry in pages" :key="entry.id" type="button"
                         class="truncate rounded px-3 py-2 text-left text-sm hover:bg-white/5"
                         :class="entry.id === page.id ? 'bg-flixer-primary/20 text-flixer-text' : 'text-flixer-muted'"
-                        @click="selectPage(entry)">{{ entry.title }}</button></div>
+                        @click="selectPage(entry)">{{ entry.title }}</Button></div>
                 <div class="my-5 border-t border-flixer-border"></div>
-                <label class="block text-xs font-medium text-flixer-muted">{{ t('pageBuilder.pageTitle') }}<input
-                        v-model="page.title" :maxlength="80" :class="field" /></label>
+                <label class="block text-xs font-medium text-flixer-muted">{{ t('pageBuilder.pageTitle') }}<Input
+                        v-model:value="page.title" :maxlength="80" :class="field" /></label>
                 <label v-if="page.kind === 'page'" class="mt-3 block text-xs font-medium text-flixer-muted">{{
                     t('pageBuilder.address') }}<span
-                        class="mt-1 flex items-center rounded border border-flixer-border bg-flixer-background pl-2 text-sm"><span>/pages/</span><input
-                            v-model="page.slug" :maxlength="80"
+                        class="mt-1 flex items-center rounded border border-flixer-border bg-flixer-background pl-2 text-sm"><span>/pages/</span><Input
+                            v-model:value="page.slug" :maxlength="80"
                             class="min-w-0 flex-1 px-2 py-2 text-flixer-text outline-none" /></span></label>
                 <label v-if="page.kind === 'page'" class="mt-3 block text-xs font-medium text-flixer-muted">{{
                     t('pageBuilder.access') }}<select v-model="page.access" :class="field">
@@ -364,11 +368,11 @@ async function readImage(event: Event) {
                         t('pageBuilder.viewPage') }}
                     <Icon icon="lucide:external-link" class="size-3" />
                 </a>
-                <div class="mt-3 flex flex-wrap gap-3 text-xs"><button v-if="page.published" type="button"
+                <div class="mt-3 flex flex-wrap gap-3 text-xs"><Button v-if="page.published" type="button"
                         class="text-flixer-muted underline hover:text-flixer-text" :disabled="busy"
-                        @click="unpublish">{{ t('pageBuilder.unpublish') }}</button><button v-if="page.kind === 'page'"
+                        @click="unpublish">{{ t('pageBuilder.unpublish') }}</Button><Button v-if="page.kind === 'page'"
                         type="button" class="text-red-400 underline" :disabled="busy" @click="removePage">{{
-                            t('pageBuilder.delete') }}</button></div>
+                            t('pageBuilder.delete') }}</Button></div>
                 <div v-if="page.kind === 'page' && page.published" class="mt-4 grid gap-2 text-sm"><label
                         class="flex items-center gap-2"><input type="checkbox"
                             :checked="site.navigationIds.includes(page.id)" :disabled="busy"
@@ -380,13 +384,13 @@ async function readImage(event: Event) {
                 <div v-if="page.kind === 'page'" class="mt-4 border-t border-flixer-border pt-4"><label
                         class="block text-xs text-flixer-muted">{{
                             t('pageBuilder.publishAt') }}<input v-model="publishAt" type="datetime-local"
-                            :class="field" /></label><button type="button"
+                            :class="field" /></label><Button type="button"
                         class="mt-2 rounded border border-flixer-border px-3 py-2 text-xs disabled:opacity-40"
-                        :disabled="busy || !publishAt" @click="schedule">{{ t('pageBuilder.schedule') }}</button>
+                        :disabled="busy || !publishAt" @click="schedule">{{ t('pageBuilder.schedule') }}</Button>
                     <div v-if="page.scheduled" class="mt-2 text-xs text-flixer-muted">{{ t('pageBuilder.scheduledFor', {
                         date: new Date(page.scheduled.at).toLocaleString()
-                    }) }} <button type="button" class="underline" :disabled="busy" @click="cancelSchedule">{{
-                            t('pageBuilder.cancelSchedule') }}</button>
+                    }) }} <Button type="button" class="underline" :disabled="busy" @click="cancelSchedule">{{
+                            t('pageBuilder.cancelSchedule') }}</Button>
                     </div>
                 </div>
                 <details v-if="page.history?.length" class="mt-4 text-sm">
@@ -394,9 +398,9 @@ async function readImage(event: Event) {
                     <ul class="mt-2 grid gap-2">
                         <li v-for="version in page.history" :key="version.id"
                             class="flex items-center justify-between gap-2 text-xs text-flixer-muted"><span>{{ new
-                                Date(version.createdAt).toLocaleString() }}</span><button type="button"
+                                Date(version.createdAt).toLocaleString() }}</span><Button type="button"
                                 class="text-flixer-accent underline" :disabled="busy" @click="restore(version.id)">{{
-                                    t('pageBuilder.restore') }}</button></li>
+                                    t('pageBuilder.restore') }}</Button></li>
                     </ul>
                 </details>
                 <div class="my-5 border-t border-flixer-border"></div>
@@ -413,82 +417,82 @@ async function readImage(event: Event) {
                     </select></label>
                 <BlockTree class="mt-2" :blocks="page.draft.blocks" :selected-id="selectedBlock"
                     @select="selectedBlock = $event" @remove="removeBlock" @duplicate="duplicateBlock" />
-                <div class="mt-3 flex flex-wrap gap-2"><button
+                <div class="mt-3 flex flex-wrap gap-2"><Button
                         v-for="type in ['heading', 'text', 'image', 'button', 'video', 'card', 'columns'] as const"
                         :key="type" type="button" :disabled="page.draft.blocks.length >= 20"
                         class="rounded border border-flixer-border px-2 py-1.5 text-xs hover:bg-white/5 disabled:opacity-40"
-                        @click="addBlock(type)">+ {{ t(`pageBuilder.block.${type}`) }}</button></div>
-                <button v-if="page.kind === 'login' && page.draft.blocks.some((block) => block.type === 'auth')"
+                        @click="addBlock(type)">+ {{ t(`pageBuilder.block.${type}`) }}</Button></div>
+                <Button v-if="page.kind === 'login' && page.draft.blocks.some((block) => block.type === 'auth')"
                     type="button"
                     class="mt-3 rounded border border-flixer-border px-3 py-2 text-xs hover:bg-white/5 disabled:opacity-40"
                     :disabled="page.draft.blocks.length + 9 > 20" @click="createCustomForm">{{
-                        t('pageBuilder.createCustomForm') }}</button>
+                        t('pageBuilder.createCustomForm') }}</Button>
                 <div v-if="page.kind === 'login' && page.draft.blocks.some((block) => block.type === 'auth-field')"
-                    class="mt-3 flex flex-wrap gap-2"><button v-for="type in ['auth-custom', 'auth-action'] as const"
+                    class="mt-3 flex flex-wrap gap-2"><Button v-for="type in ['auth-custom', 'auth-action'] as const"
                         :key="type" type="button" :disabled="page.draft.blocks.length >= 20"
                         class="rounded border border-flixer-border px-2 py-1.5 text-xs hover:bg-white/5 disabled:opacity-40"
-                        @click="addBlock(type)">+ {{ t(`pageBuilder.block.${type}`) }}</button><button
+                        @click="addBlock(type)">+ {{ t(`pageBuilder.block.${type}`) }}</Button><Button
                         v-for="authField in missingAuthFields" :key="authField" type="button"
                         :disabled="page.draft.blocks.length >= 20"
                         class="rounded border border-flixer-border px-2 py-1.5 text-xs hover:bg-white/5 disabled:opacity-40"
-                        @click="addAuthField(authField)">+ {{ t(`pageBuilder.authField.${authField}`) }}</button></div>
+                        @click="addAuthField(authField)">+ {{ t(`pageBuilder.authField.${authField}`) }}</Button></div>
                 <details class="mt-4 border-t border-flixer-border pt-4">
                     <summary class="cursor-pointer text-sm font-semibold">{{ t('pageBuilder.reusableBlocks') }}
                     </summary>
                     <div class="mt-3 grid gap-2"><label class="text-xs text-flixer-muted">{{
-                        t('pageBuilder.templateName') }}<input v-model="templateName" maxlength="80"
-                                :class="field" /></label><button type="button"
+                        t('pageBuilder.templateName') }}<Input v-model:value="templateName" maxlength="80"
+                                :class="field" /></label><Button type="button"
                             class="rounded border border-flixer-border px-2 py-2 text-xs disabled:opacity-40"
                             :disabled="busy || !templateName.trim() || !activeBlock || ['auth', 'auth-field', 'auth-custom', 'auth-action'].includes(activeBlock.type)"
-                            @click="saveTemplate">{{ t('pageBuilder.saveTemplate') }}</button><select
+                            @click="saveTemplate">{{ t('pageBuilder.saveTemplate') }}</Button><select
                             v-model="selectedTemplate" :aria-label="t('pageBuilder.reusableBlocks')" :class="field">
                             <option value="">{{ t('pageBuilder.chooseTemplate') }}</option>
                             <option v-for="entry in templates" :key="entry.id" :value="entry.id">{{ entry.name }}
                             </option>
                         </select>
-                        <div class="flex gap-2"><button type="button"
+                        <div class="flex gap-2"><Button type="button"
                                 class="rounded border border-flixer-border px-2 py-2 text-xs disabled:opacity-40"
                                 :disabled="!selectedTemplate || page.draft.blocks.length >= 20"
-                                @click="insertTemplate">{{ t('pageBuilder.insertTemplate') }}</button><button
+                                @click="insertTemplate">{{ t('pageBuilder.insertTemplate') }}</Button><Button
                                 type="button" :class="tool" :disabled="busy || !selectedTemplate"
                                 :aria-label="t('pageBuilder.deleteTemplate')" :title="t('pageBuilder.deleteTemplate')"
                                 @click="removeTemplate">
                                 <Icon icon="lucide:trash-2" class="size-4" />
-                            </button></div>
+                            </Button></div>
                     </div>
                 </details>
                 <div v-if="activeBlock && activeBlock.type !== 'auth'" class="mt-5 border-t border-flixer-border pt-4">
                     <label v-if="activeBlock.type === 'heading'" class="block text-xs text-flixer-muted">{{
-                        t('pageBuilder.heading') }}<input v-model="activeBlock.text" maxlength="160"
+                        t('pageBuilder.heading') }}<Input v-model:value="activeBlock.text" maxlength="160"
                             :class="field" /></label>
                     <div v-else-if="activeBlock.type === 'text'"><label class="block text-xs text-flixer-muted">{{
                         t('pageBuilder.text') }}<textarea ref="textEditor" v-model="activeBlock.text"
                                 maxlength="4000" rows="6" :class="field"></textarea></label>
-                        <div class="mt-1 flex gap-1"><button type="button" :class="tool"
+                        <div class="mt-1 flex gap-1"><Button type="button" :class="tool"
                                 :aria-label="t('pageBuilder.bold')" :title="t('pageBuilder.bold')" @mousedown.prevent
                                 @click="formatText('**', '**')">
                                 <Icon icon="lucide:bold" class="size-4" />
-                            </button><button type="button" :class="tool" :aria-label="t('pageBuilder.italic')"
+                            </Button><Button type="button" :class="tool" :aria-label="t('pageBuilder.italic')"
                                 :title="t('pageBuilder.italic')" @mousedown.prevent @click="formatText('*', '*')">
                                 <Icon icon="lucide:italic" class="size-4" />
-                            </button><button type="button" :class="tool" :aria-label="t('pageBuilder.link')"
+                            </Button><Button type="button" :class="tool" :aria-label="t('pageBuilder.link')"
                                 :title="t('pageBuilder.link')" @mousedown.prevent
                                 @click="formatText('[', '](https://)')">
                                 <Icon icon="lucide:link" class="size-4" />
-                            </button><button type="button" :class="tool" :aria-label="t('pageBuilder.list')"
+                            </Button><Button type="button" :class="tool" :aria-label="t('pageBuilder.list')"
                                 :title="t('pageBuilder.list')" @mousedown.prevent @click="formatText('- ')">
                                 <Icon icon="lucide:list" class="size-4" />
-                            </button></div>
+                            </Button></div>
                     </div>
                     <label v-if="['button', 'card', 'auth-custom', 'auth-action'].includes(activeBlock.type)"
-                        class="block text-xs text-flixer-muted">{{ t('pageBuilder.heading') }}<input
-                            v-model="activeBlock.text" maxlength="160" :class="field" /></label>
+                        class="block text-xs text-flixer-muted">{{ t('pageBuilder.heading') }}<Input
+                            v-model:value="activeBlock.text" maxlength="160" :class="field" /></label>
                     <label v-if="activeBlock.type === 'card'" class="mt-3 block text-xs text-flixer-muted">{{
-                        t('pageBuilder.text') }}<textarea v-model="activeBlock.description" maxlength="2000" rows="4"
-                            :class="field"></textarea></label>
+                        t('pageBuilder.text') }}<Textarea v-model:value="activeBlock.description" maxlength="2000" rows="4"
+                            :class="field" /></label>
                     <label v-if="['button', 'video', 'card', 'auth-action'].includes(activeBlock.type)"
-                        class="mt-3 block text-xs text-flixer-muted">{{ t('pageBuilder.url') }}<input
-                            v-model="activeBlock.href" type="url" maxlength="2048" :class="field" /></label>
+                        class="mt-3 block text-xs text-flixer-muted">{{ t('pageBuilder.url') }}<Input
+                            v-model:value="activeBlock.href" type="url" maxlength="2048" :class="field" /></label>
                     <fieldset v-if="activeBlock.type === 'auth-action'" class="mt-3 grid gap-2">
                         <legend class="text-xs text-flixer-muted">{{ t('pageBuilder.allowedFields') }}</legend><label
                             v-for="fieldBlock in page.draft.blocks.filter((block) => block.type === 'auth-custom')"
@@ -500,11 +504,11 @@ async function readImage(event: Event) {
                             class="mt-3 block text-xs text-flixer-muted">{{ t('pageBuilder.image') }}<input type="file"
                                 accept="image/png,image/jpeg,image/webp" class="mt-2 block w-full text-xs"
                                 @change="readImage" /></label><label class="mt-3 block text-xs text-flixer-muted">{{
-                                    t(activeBlock.type === 'card' ? 'pageBuilder.heading' : 'pageBuilder.altText') }}<input
-                                v-model="activeBlock.text" maxlength="160" :class="field" /></label><button
+                                    t(activeBlock.type === 'card' ? 'pageBuilder.heading' : 'pageBuilder.altText') }}<Input
+                                v-model:value="activeBlock.text" maxlength="160" :class="field" /></label><Button
                             v-if="activeBlock.image" type="button" class="mt-2 text-xs text-flixer-muted underline"
                             @click="activeBlock.image = null">{{
-                                t('pageBuilder.removeImage') }}</button></template>
+                                t('pageBuilder.removeImage') }}</Button></template>
                 </div>
                 <div v-if="activeBlock" class="mt-4 grid grid-cols-2 gap-3">
                     <label v-if="page.draft.layout === 'free' && activeBlock.position"
@@ -548,12 +552,12 @@ async function readImage(event: Event) {
             <section class="builder-preview min-w-0 p-4 sm:p-6" :aria-label="t('pageBuilder.preview')">
                 <div class="mx-auto mb-4 flex max-w-5xl items-center justify-between">
                     <h2 class="text-sm font-semibold">{{ t('pageBuilder.preview') }}</h2>
-                    <div class="flex rounded border border-flixer-border"><button
+                    <div class="flex rounded border border-flixer-border"><Button
                             v-for="mode in ['desktop', 'mobile'] as const" :key="mode" type="button" :class="tool"
                             :aria-pressed="preview === mode" :title="t(`pageBuilder.${mode}`)"
                             :aria-label="t(`pageBuilder.${mode}`)" @click="preview = mode">
                             <Icon :icon="mode === 'desktop' ? 'lucide:monitor' : 'lucide:smartphone'" class="size-4" />
-                        </button></div>
+                        </Button></div>
                 </div>
                 <div class="mx-auto min-h-[32rem] overflow-hidden border border-flixer-border bg-flixer-background"
                     :class="preview === 'mobile' ? 'max-w-[390px]' : 'max-w-5xl'">
@@ -567,6 +571,13 @@ async function readImage(event: Event) {
 </template>
 
 <style scoped>
+@layer components.ui-sdk {
+    :is([data-slot="button"], [data-slot="input"], [data-slot="textarea"]),
+    [data-slot="button"]:hover {
+        all: revert-layer;
+    }
+}
+
 .builder-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

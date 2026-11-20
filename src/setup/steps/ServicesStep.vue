@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextInput from '../../components/ui/TextInput.vue'
@@ -42,7 +43,7 @@ defineExpose({ submit, canContinue })
       <TextInput v-model.trim="aiUrl" :label="t('setup.services.aiUrl')" :hint="fieldErrors.aiUrl || t('setup.services.aiHint')" placeholder="http://ai:8094" autocomplete="off" spellcheck="false" :disabled="busy" />
       <TextInput v-model.trim="streamerPublicUrl" :label="t('setup.services.streamerPublicUrl')" :hint="fieldErrors.streamerPublicUrl || t('setup.services.streamerPublicHint')" placeholder="Leave empty to use this site's address" autocomplete="off" spellcheck="false" :disabled="busy" />
       <div>
-        <button type="button" class="h-10 rounded border border-flixer-border px-4 text-sm font-semibold transition hover:border-flixer-accent/60 disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl || !meilisearchUrl || !aiUrl" @click="test(values())">{{ t('setup.testConnection') }}</button>
+        <Button data-agent-hidden type="button" class="h-10 rounded border border-flixer-border bg-transparent px-4 text-sm font-semibold text-flixer-text transition hover:border-flixer-accent/60 hover:bg-transparent disabled:opacity-60" :disabled="busy || !indexerUrl || !streamerInternalUrl || !meilisearchUrl || !aiUrl" @click="void test(values())">{{ t('setup.testConnection') }}</Button>
       </div>
     </form>
     <SetupNotice v-if="testResult" :kind="testResult.ok ? 'success' : 'error'">{{ testResult.ok ? t('setup.connectionOk') : testResult.message || t('setup.connectionFailed') }}</SetupNotice>

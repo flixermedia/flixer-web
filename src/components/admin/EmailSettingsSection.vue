@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -139,10 +141,19 @@ onMounted(load)
       <h3 class="text-sm font-semibold text-white">{{ t('admin.general.emailRelayTitle') }} <span class="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-flixer-muted">{{ t('admin.general.optional') }}</span></h3>
       <p class="mb-3 mt-1 text-xs text-flixer-muted">{{ t('admin.general.emailRelayHint') }}</p>
       <div class="grid gap-4 md:grid-cols-3">
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpHost') }}<input v-model="form.host" placeholder="smtp.yourdomain.com" autocomplete="off" :class="inputClass" /></label>
+        <Field class="block text-xs text-flixer-muted">
+          <FieldLabel class="inline text-xs font-normal text-flixer-muted">{{ t('admin.general.smtpHost') }}</FieldLabel>
+          <Input v-model="form.host" placeholder="smtp.yourdomain.com" autocomplete="off" :class="inputClass" class="h-auto" />
+        </Field>
         <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpPort') }}<input v-model.number="form.port" type="number" min="1" max="65535" :class="inputClass" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.fromAddress') }}<input v-model="form.from" placeholder="Flixer &lt;no-reply@yourdomain.com&gt;" autocomplete="off" :class="inputClass" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('admin.general.smtpUser') }}<input v-model="form.user" autocomplete="off" :class="inputClass" /></label>
+        <Field class="block text-xs text-flixer-muted">
+          <FieldLabel class="inline text-xs font-normal text-flixer-muted">{{ t('admin.general.fromAddress') }}</FieldLabel>
+          <Input v-model="form.from" placeholder="Flixer &lt;no-reply@yourdomain.com&gt;" autocomplete="off" :class="inputClass" class="h-auto" />
+        </Field>
+        <Field class="block text-xs text-flixer-muted">
+          <FieldLabel class="inline text-xs font-normal text-flixer-muted">{{ t('admin.general.smtpUser') }}</FieldLabel>
+          <Input v-model="form.user" autocomplete="off" :class="inputClass" class="h-auto" />
+        </Field>
         <label class="text-xs text-flixer-muted">
           {{ t('admin.general.smtpPassword') }}
           <input v-model="form.password" type="password" autocomplete="new-password" :placeholder="passwordSet ? t('admin.general.smtpPasswordSet') : ''" :class="inputClass" />

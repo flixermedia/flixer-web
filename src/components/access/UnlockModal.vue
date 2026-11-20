@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,7 +42,7 @@ async function submit() {
         <ModalTitle class="mt-4 text-lg font-semibold">{{ t('access.unlockTitle') }}</ModalTitle>
         <ModalDescription class="mt-1 text-sm leading-6 text-flixer-muted">{{ t('access.unlockDescription') }}</ModalDescription>
       </header>
-      <form class="flixer-modal-form mt-5" @submit.prevent="submit">
+      <form data-agent-hidden class="flixer-modal-form mt-5" @submit.prevent="submit">
         <div class="flixer-modal-form-body gap-4">
           <label class="sr-only" for="access-pin">{{ t('access.pin') }}</label>
           <div class="relative flex justify-center gap-2">
@@ -54,8 +55,8 @@ async function submit() {
           <p v-if="error" class="mt-2 text-sm text-red-400" role="alert">{{ error }}</p>
         </div>
         <div class="flixer-modal-actions mt-5 flex justify-end gap-2">
-          <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm font-semibold transition hover:bg-white/10" @click="close()">{{ t('common.cancel') }}</button>
-          <button type="submit" :disabled="busy || pin.length < PIN_LENGTH" class="rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50">{{ t('access.unlock') }}</button>
+          <Button type="button" class="h-auto rounded border border-flixer-border bg-transparent px-4 py-2 text-sm font-semibold text-flixer-text transition hover:bg-white/10" @click="close()">{{ t('common.cancel') }}</Button>
+          <Button type="submit" :disabled="busy || pin.length < PIN_LENGTH" class="h-auto rounded border-0 bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110 disabled:opacity-50">{{ t('access.unlock') }}</Button>
         </div>
       </form>
     </ModalContent>

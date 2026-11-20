@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { createInputController, Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectLabel, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { getSearchGenres, searchMedia, searchPluginSections, searchRequests, type ExternalMediaCard, type HomeCard, type RequestMediaType, type SearchFilters } from '../api'
@@ -23,7 +27,7 @@ const pluginSections = ref<PluginSearchSection[]>([])
 const pluginItemCount = computed(() => pluginSections.value.reduce((sum, section) => sum + section.items.length, 0))
 const mobileTabs = computed(getMobileTabs)
 
-const input = ref<HTMLInputElement>()
+const input = createInputController()
 const searchBarRoot = ref<HTMLElement>()
 const mobileFiltersOpen = ref(false)
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -151,7 +155,7 @@ watch([query, type, genre, yearFrom, yearTo, sort, unwatched, includeChildren], 
 })
 
 onMounted(() => {
-  input.value?.focus()
+  void nextTick(() => input.focus())
   document.addEventListener('pointerdown', onSearchControlsPointerDown)
   document.addEventListener('keydown', onSearchControlsKeydown)
   void getSearchGenres()
@@ -216,20 +220,20 @@ function subtitleOf(item: SearchCard) {
             <Icon icon="lucide:search"
               class="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-flixer-muted transition-colors group-focus-within:text-white"
               aria-hidden="true" />
-            <input ref="input" v-model="query" type="search" maxlength="100" autocomplete="off"
+            <Input v-model="query" :controller="input" type="search" maxlength="100" autocomplete="off"
               :placeholder="t('search.placeholder')" :aria-label="t('search.label')"
-              class="w-full rounded border border-white/10 bg-white/[0.06] py-4 pl-14 pr-24 text-lg text-white shadow-lg shadow-black/30 backdrop-blur transition duration-300 placeholder:text-flixer-muted focus:border-white/40 focus:bg-white/10 focus:shadow-2xl focus:shadow-black/50 focus:outline-none sm:pr-14" />
+              class="h-auto w-full rounded border border-white/10 bg-white/[0.06] py-4 pl-14 pr-24 text-lg text-white shadow-lg shadow-black/30 backdrop-blur transition duration-300 placeholder:text-flixer-muted focus:border-white/40 focus:bg-white/10 focus:shadow-2xl focus:shadow-black/50 focus:outline-none sm:pr-14" />
             <span v-if="isLoading"
               class="absolute right-16 top-1/2 size-5 -translate-y-1/2 animate-spin rounded-full border-2 border-white/20 border-t-white sm:right-5"
               role="status" :aria-label="t('search.searching')"></span>
-            <button type="button"
-              class="absolute right-2 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:hidden"
+            <Button type="button"
+              class="absolute right-2 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:hidden"
               :aria-label="t('search.filters')" :aria-expanded="mobileFiltersOpen" aria-controls="mobile-search-filters"
               @click="mobileFiltersOpen = !mobileFiltersOpen">
               <Icon icon="lucide:sliders-horizontal" class="size-5" aria-hidden="true" />
               <span v-if="type || activeCount"
                 class="absolute right-1.5 top-1.5 size-2 rounded-full bg-flixer-accent"></span>
-            </button>
+            </Button>
           </form>
           <div v-if="mobileFiltersOpen" id="mobile-search-filters"
             class="absolute inset-x-0 top-full z-30 mt-2 rounded border border-white/10 bg-flixer-surface/95 p-3 text-left shadow-2xl shadow-black/60 backdrop-blur-xl sm:hidden">
@@ -260,15 +264,15 @@ function subtitleOf(item: SearchCard) {
             @click="selectType(entry)">
             {{ entry ? t(`home.itemType.${entry}`) : t('search.anyType') }}
           </button>
-          <button type="button"
-            class="ml-1 inline-flex items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          <Button type="button"
+            class="ml-1 inline-flex h-auto items-center gap-1.5 rounded border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
             :aria-expanded="showFilters" @click="showFilters = !showFilters">
             <Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-300"
               :class="showFilters ? 'rotate-180' : ''" aria-hidden="true" />
             {{ t('search.filters') }}<span v-if="activeCount > 0"
               class="grid min-w-5 place-items-center rounded bg-white px-1 text-xs font-bold text-flixer-background">{{
               activeCount }}</span>
-          </button>
+          </Button>
         </div>
 
         <div class="grid w-full transition-[grid-template-rows,opacity] duration-300 ease-out"
@@ -276,21 +280,43 @@ function subtitleOf(item: SearchCard) {
           <div class="overflow-hidden">
             <div
               class="mt-4 grid gap-4 rounded border border-white/10 bg-white/[0.04] p-5 text-left backdrop-blur sm:grid-cols-2">
-              <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
-                {{ t('search.genre') }}
-                <select v-model="genre"
-                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
-                  <option value="">{{ t('search.anyGenre') }}</option>
-                  <option v-for="entry in genres" :key="entry" :value="entry">{{ entry }}</option>
-                </select>
-              </label>
-              <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
-                {{ t('search.sort') }}
-                <select v-model="sort"
-                  class="mt-1.5 w-full rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white transition focus:border-white/40 focus:outline-none">
-                  <option v-for="entry in SORTS" :key="entry" :value="entry">{{ t(`search.sorts.${entry}`) }}</option>
-                </select>
-              </label>
+              <Select v-model:value="genre" virtual-focus class="w-full">
+                <SelectLabel class="block text-xs font-medium uppercase tracking-wide text-flixer-muted">{{ t('search.genre') }}</SelectLabel>
+                <SelectTrigger
+                  class="mt-1.5 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white shadow-none transition focus-visible:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+                  <SelectValue />
+                  <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+                </SelectTrigger>
+                <SelectContent
+                  class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-white/10 bg-flixer-background p-1 text-white shadow-xl">
+                  <SelectItem value=""
+                    class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm normal-case tracking-normal outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                    {{ t('search.anyGenre') }}
+                    <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+                  </SelectItem>
+                  <SelectItem v-for="entry in genres" :key="entry" :value="entry"
+                    class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm normal-case tracking-normal outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                    {{ entry }}
+                    <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Select v-model:value="sort" virtual-focus class="w-full">
+                <SelectLabel class="block text-xs font-medium uppercase tracking-wide text-flixer-muted">{{ t('search.sort') }}</SelectLabel>
+                <SelectTrigger
+                  class="mt-1.5 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-white/10 bg-flixer-background px-3 py-2.5 text-sm normal-case tracking-normal text-white shadow-none transition focus-visible:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+                  <SelectValue />
+                  <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+                </SelectTrigger>
+                <SelectContent
+                  class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-white/10 bg-flixer-background p-1 text-white shadow-xl">
+                  <SelectItem v-for="entry in SORTS" :key="entry" :value="entry"
+                    class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm normal-case tracking-normal outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                    {{ t(`search.sorts.${entry}`) }}
+                    <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <label class="text-xs font-medium uppercase tracking-wide text-flixer-muted">
                 {{ t('search.yearFrom') }}
                 <input v-model="yearFrom" type="number" inputmode="numeric" min="1800" max="2200"
@@ -303,16 +329,18 @@ function subtitleOf(item: SearchCard) {
               </label>
               <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
                 <label class="flex cursor-pointer items-center gap-2.5 text-sm text-white">
-                  <input v-model="unwatched" type="checkbox" class="size-4 accent-flixer-accent" />
+                  <Checkbox :checked="unwatched" class="mt-0 size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent"
+                    @update:checked="unwatched = $event === true"><CheckboxIndicator /></Checkbox>
                   {{ t('search.unwatched') }}
                 </label>
                 <label class="flex cursor-pointer items-center gap-2.5 text-sm text-white">
-                  <input v-model="includeChildren" type="checkbox" class="size-4 accent-flixer-accent" />
+                  <Checkbox :checked="includeChildren" class="mt-0 size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent"
+                    @update:checked="includeChildren = $event === true"><CheckboxIndicator /></Checkbox>
                   {{ t('search.includeChildren') }}
                 </label>
-                <button v-if="hasFilters || includeChildren || sort !== 'relevance'" type="button"
-                  class="text-sm text-flixer-muted underline-offset-2 transition hover:text-white hover:underline"
-                  @click="clearFilters">{{ t('search.clear') }}</button>
+                <Button v-if="hasFilters || includeChildren || sort !== 'relevance'" type="button"
+                  class="inline h-auto border-0 bg-transparent p-0 text-sm font-normal text-flixer-muted underline-offset-2 transition hover:bg-transparent hover:text-white hover:underline"
+                  @click="clearFilters">{{ t('search.clear') }}</Button>
               </div>
             </div>
           </div>

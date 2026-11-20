@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getAnalyticsSnapshot, type AnalyticsSnapshot } from '../../api/analytics'
@@ -31,6 +34,11 @@ async function load() {
   else { data.value = result; error.value = '' }
   loading.value = false
 }
+function changeAdDays(value: string | null) {
+  if (value === null) return
+  adDays.value = Number(value) as 7 | 30 | 90
+  void load()
+}
 onMounted(load)
 watch(() => props.screen, load)
 onBeforeUnmount(() => { generation++ })
@@ -41,7 +49,7 @@ onBeforeUnmount(() => { generation++ })
   <div class="space-y-5">
     <AdminSection :title="t(`analytics.${screen}.title`)" :description="t(`analytics.${screen}.description`)">
       <template #actions>
-        <button type="button" class="rounded border border-flixer-border px-4 py-2 text-sm hover:bg-white/5" :disabled="loading" @click="load">{{ t('analytics.refresh') }}</button>
+        <Button class="rounded border border-flixer-border px-4 py-2 text-sm hover:bg-white/5" :disabled="loading" @click="load">{{ t('analytics.refresh') }}</Button>
       </template>
       <p v-if="loading" role="status" class="text-sm text-flixer-muted">{{ t('common.loading') }}</p>
       <div v-else-if="error" role="alert" class="text-sm text-red-200">{{ error }}</div>
@@ -77,14 +85,19 @@ onBeforeUnmount(() => { generation++ })
           <p class="text-2xl font-semibold">{{ data.advertisements.enabled }} / {{ data.advertisements.total }}</p>
           <p class="text-sm text-flixer-muted">{{ t('analytics.enabledAds') }}</p>
           <p class="rounded border border-flixer-border bg-flixer-background/50 p-4 text-sm text-flixer-muted">{{ t('analytics.advertising.note') }}</p>
-          <label class="flex items-center gap-3 text-sm">
-            {{ t('analytics.advertising.range') }}
-            <select v-model.number="adDays" class="rounded border border-flixer-border bg-flixer-background px-3 py-2" @change="load">
-              <option :value="7">{{ t('analytics.advertising.days', { count: 7 }) }}</option>
-              <option :value="30">{{ t('analytics.advertising.days', { count: 30 }) }}</option>
-              <option :value="90">{{ t('analytics.advertising.days', { count: 90 }) }}</option>
-            </select>
-          </label>
+          <Field class="flex items-center gap-3 text-sm">
+            <FieldLabel class="font-normal text-inherit">{{ t('analytics.advertising.range') }}</FieldLabel>
+            <Select :value="String(adDays)" @value-change="changeAdDays">
+              <SelectTrigger class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-left text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent class="rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+                <SelectItem v-for="days in [7, 30, 90]" :key="days" :value="String(days)" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                  {{ t('analytics.advertising.days', { count: days }) }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <p class="text-xs text-flixer-muted">{{ t('analytics.advertising.rangeNote') }}</p>
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div v-for="metric in [

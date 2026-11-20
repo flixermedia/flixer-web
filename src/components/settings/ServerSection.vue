@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Switch, SwitchThumb } from '@ui-sdk/vue/switch'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
@@ -82,9 +83,9 @@ onMounted(load)
             <p class="text-sm font-semibold">{{ t(field.labelKey) }}</p>
             <p class="mt-0.5 text-xs text-flixer-muted">{{ t(field.descriptionKey) }}</p>
           </div>
-          <button type="button" role="switch" :aria-checked="values[field.key] === true" :aria-label="t(field.labelKey)" class="relative h-6 w-11 shrink-0 rounded-full transition disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="values[field.key] === true ? 'bg-flixer-primary' : 'bg-white/20'" :disabled="savingKey === field.key" @click="save(field, values[field.key] !== true)">
-            <span class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform" :class="{ 'translate-x-5': values[field.key] === true }"></span>
-          </button>
+          <Switch data-agent-hidden :checked="values[field.key] === true" :aria-label="t(field.labelKey)" class="relative mt-0 h-6 w-11 shrink-0 rounded-full border-0 bg-white/20 p-0 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent data-checked:bg-flixer-primary data-disabled:cursor-wait data-disabled:opacity-60" :disabled="savingKey === field.key" @update:checked="save(field, $event)">
+            <SwitchThumb class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform data-checked:ml-0 data-checked:translate-x-5 data-checked:bg-white" />
+          </Switch>
         </div>
         <label v-else class="flex flex-col gap-2">
           <span class="text-sm font-semibold">{{ t(field.labelKey) }}</span>

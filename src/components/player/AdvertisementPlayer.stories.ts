@@ -75,7 +75,9 @@ export const RefreshFailureAndRetry: Story = {
 	play: async ({ canvas, canvasElement }) => {
 		await waitFor(() => expect(canvas.getByRole("alert")).toBeVisible());
 		expect(canvas.getByRole("button", { name: "Skip ad" })).toBeDisabled();
-		await userEvent.click(canvas.getByRole("button", { name: "Try Again" }));
+		const retry = canvas.getByRole("button", { name: "Try Again" });
+		retry.focus();
+		await userEvent.keyboard("{Enter}");
 		await waitFor(() => expect(canvas.queryByRole("alert")).toBeNull());
 		await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBe(sampleClipUrl));
 		expect(getItemPlaybackInfo).toHaveBeenCalledTimes(2);

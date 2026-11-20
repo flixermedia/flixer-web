@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
@@ -131,17 +132,17 @@ const statusClass = computed(
         <p v-if="subtitle" class="truncate text-xs text-flixer-muted">{{ subtitle }}</p>
       </div>
     </component>
-    <button v-if="markable && !isTvMode" type="button"
-      class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded bg-black/70 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
+    <Button v-if="markable && !isTvMode" type="button"
+      class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded border-0 bg-black/70 p-0 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
       :aria-label="t('mediaItem.markWatched')" :title="t('mediaItem.markWatched')" @click.stop="emit('watched')">
       <Icon icon="lucide:check" class="size-4" aria-hidden="true" />
-    </button>
-    <button v-if="dismissible && !isTvMode" type="button"
-      class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded bg-black/70 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
+    </Button>
+    <Button v-if="dismissible && !isTvMode" type="button"
+      class="theme-dark absolute right-2 top-2 grid size-8 place-items-center rounded border-0 bg-black/70 p-0 text-white opacity-0 transition hover:bg-black/90 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
       :aria-label="dismissLabel ?? t('recommendationFeedback.dismiss')"
       :title="dismissLabel ?? t('recommendationFeedback.dismiss')" @click.stop="emit('dismiss')">
       <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
-    </button>
+    </Button>
     <slot name="actions" />
   </li>
 </template>

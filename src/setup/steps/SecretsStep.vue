@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SetupNotice from '../SetupNotice.vue'
@@ -38,7 +39,7 @@ defineExpose({ submit })
           <p class="text-xs text-flixer-muted">{{ config[name]?.locked ? t('setup.secrets.fromEnvironment') : config[name]?.set ? t('setup.secrets.generated') : t('setup.secrets.pending') }}</p>
         </div>
         <label v-if="!config[name]?.locked" class="flex shrink-0 items-center gap-2 text-xs text-flixer-muted">
-          <input v-model="regenerate[name]" type="checkbox" :disabled="busy" />
+          <Checkbox data-agent-hidden :checked="regenerate[name]" :disabled="busy" class="size-4 shrink-0 rounded-sm data-checked:border-flixer-primary data-checked:bg-flixer-primary" @update:checked="regenerate[name] = $event === true"><CheckboxIndicator /></Checkbox>
           {{ t('setup.secrets.regenerate') }}
         </label>
       </li>

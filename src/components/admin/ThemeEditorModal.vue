@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Input } from '@ui-sdk/vue/input'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { APP_NAME_MAX, BUTTON_STYLES, CARD_STYLES, CONTENT_WIDTHS, CUSTOM_CSS_MAX, DEFAULT_MODES, DENSITIES, HEADER_HEIGHTS, HEADER_STYLES, BACKGROUND_MAX_BYTES, IMAGE_MAX_BYTES, NAV_ALIGNMENTS, PALETTE_KEYS, RADIUS_MAX, THEME_DESCRIPTION_MAX, THEME_FONTS, THEME_NAME_MAX, createTheme, updateTheme, type AppTheme, type PaletteKey, type ThemeConfig, type ThemeDraft } from '../../api'
@@ -117,8 +118,8 @@ const isEditing = computed(() => !!props.theme && !props.theme.builtIn)
       <div class="grid min-h-0 flex-1 lg:grid-cols-[1fr_22rem]">
         <div class="flex min-h-0 flex-col">
           <div class="grid gap-3 border-b border-flixer-border p-4 sm:grid-cols-2">
-            <label :class="label">{{ t('admin.appearance.editor.name') }}<input v-model="form.name" :maxlength="THEME_NAME_MAX" :class="field" /></label>
-            <label :class="label">{{ t('admin.appearance.editor.descriptionLabel') }}<input v-model="form.description" :maxlength="THEME_DESCRIPTION_MAX" :class="field" /></label>
+            <label :class="label">{{ t('admin.appearance.editor.name') }}<Input v-model="form.name" :maxlength="THEME_NAME_MAX" :class="field" /></label>
+            <label :class="label">{{ t('admin.appearance.editor.descriptionLabel') }}<Input v-model="form.description" :maxlength="THEME_DESCRIPTION_MAX" :class="field" /></label>
           </div>
           <nav class="flex gap-1 overflow-x-auto border-b border-flixer-border px-4 py-2" role="tablist">
             <button v-for="id in visibleSections" :key="id" type="button" role="tab" :aria-selected="section === id" class="flex items-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm font-semibold transition" :class="section === id ? 'bg-flixer-primary text-white' : 'text-flixer-muted hover:bg-white/5'" @click="section = id">
@@ -141,7 +142,7 @@ const isEditing = computed(() => !!props.theme && !props.theme.builtIn)
                     <p class="text-sm font-medium">{{ t(`admin.appearance.colors.${key}`) }}</p>
                     <p class="truncate text-[11px] text-flixer-muted">{{ t(`admin.appearance.colors.${key}Hint`) }}</p>
                   </div>
-                  <input :value="palette[key]" maxlength="7" spellcheck="false" class="w-24 rounded border bg-flixer-background/60 px-2 py-1 font-mono text-xs" :class="HEX.test(palette[key]) ? 'border-flixer-border' : 'border-red-500'" @input="setColor(key, ($event.target as HTMLInputElement).value)" />
+                  <Input :value="palette[key]" maxlength="7" spellcheck="false" class="w-24 rounded border bg-flixer-background/60 px-2 py-1 font-mono text-xs" :class="HEX.test(palette[key]) ? 'border-flixer-border' : 'border-red-500'" @input="setColor(key, ($event.target as HTMLInputElement).value)" />
                 </div>
               </div>
               <ul class="grid gap-1 text-xs">
@@ -183,7 +184,7 @@ const isEditing = computed(() => !!props.theme && !props.theme.builtIn)
 
             <div v-else-if="section === 'branding'" class="grid gap-5">
               <label :class="label">{{ t('admin.appearance.editor.appName') }}
-                <input :value="config.branding.appName ?? ''" :maxlength="APP_NAME_MAX" placeholder="Flixer" :class="field" @input="config.branding.appName = ($event.target as HTMLInputElement).value || null" />
+                <Input :value="config.branding.appName ?? ''" :maxlength="APP_NAME_MAX" placeholder="Flixer" :class="field" @input="config.branding.appName = ($event.target as HTMLInputElement).value || null" />
                 <span class="mt-1 block">{{ t('admin.appearance.editor.appNameHint') }}</span>
               </label>
               <div v-for="target in imageTargets" :key="target" class="flex items-center gap-4 rounded border border-flixer-border bg-flixer-background/40 p-3">

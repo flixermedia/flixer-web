@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/vue/slider'
+import { onMounted, reactive, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listSettings, updateSetting, type ServerSetting, type SettingRequestValue } from '../../api'
 import { notify } from '../../composables/notify'
@@ -26,6 +27,7 @@ const PRESETS = [
 ] as const
 
 const { t } = useI18n()
+const crfHintId = useId()
 const form = reactive({ hwAccel: 'none', preset: 'veryfast', crf: 23, threads: 0, maxBitrateMbps: 0, maxConcurrent: '' as number | '' })
 const saved = ref<Record<string, unknown>>({})
 const isLoading = ref(true)
@@ -138,11 +140,22 @@ onMounted(load)
           <input v-model.number="form.threads" type="number" min="0" max="64" :class="inputClass" />
           <span class="mt-1 block">{{ t('admin.transcoding.threadsHint') }}</span>
         </label>
-        <label class="text-xs text-flixer-muted">
+        <div class="text-xs text-flixer-muted">
           {{ t('admin.transcoding.constantRateFactor') }}: {{ form.crf }}
-          <input v-model.number="form.crf" type="range" min="16" max="32" class="mt-2 w-full accent-flixer-primary" />
-          <span class="mt-1 block">{{ t('admin.transcoding.crfHint') }}</span>
-        </label>
+          <Slider v-model:value="form.crf" :min="16" :max="32" class="mt-2 min-w-0" data-agent-hidden>
+            <SliderControl class="h-4 cursor-pointer">
+              <SliderTrack class="h-1 rounded-full bg-flixer-border">
+                <SliderIndicator class="bg-flixer-primary" />
+                <SliderThumb
+                  :aria-label="t('admin.transcoding.constantRateFactor')"
+                  :aria-describedby="crfHintId"
+                  class="border-0 bg-flixer-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-flixer-primary"
+                />
+              </SliderTrack>
+            </SliderControl>
+          </Slider>
+          <span :id="crfHintId" class="mt-1 block">{{ t('admin.transcoding.crfHint') }}</span>
+        </div>
         <label class="text-xs text-flixer-muted">
           {{ t('admin.transcoding.maximumStreamingBitrate') }}
           <input v-model.number="form.maxBitrateMbps" type="number" min="0" step="0.5" :class="inputClass" />

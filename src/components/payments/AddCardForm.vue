@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { addPaymentMethod, beginMethodSetup, type CardSetup, type SavedCard } from "../../api";
@@ -48,12 +49,12 @@ async function save() {
 </script>
 
 <template>
-	<form class="flex flex-col gap-3" @submit.prevent="save">
+	<form data-agent-hidden class="flex flex-col gap-3" @submit.prevent="save">
 		<CardElement ref="card" :setup="setup" />
 		<p v-if="failure" class="text-sm text-red-300" role="alert">{{ failure }}</p>
 		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-			<button v-if="cancellable" type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-5 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="busy" @click="emit('cancel')">{{ t("common.cancel") }}</button>
-			<button type="submit" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-5 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="busy || !setup">{{ busy ? t("payments.card.saving") : t("payments.card.save") }}</button>
+			<Button v-if="cancellable" type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-5 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-100" :disabled="busy" @click="emit('cancel')">{{ t("common.cancel") }}</Button>
+			<Button type="submit" class="flex h-11 items-center justify-center rounded border-0 bg-flixer-primary px-5 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="busy || !setup">{{ busy ? t("payments.card.saving") : t("payments.card.save") }}</Button>
 		</div>
 	</form>
 </template>

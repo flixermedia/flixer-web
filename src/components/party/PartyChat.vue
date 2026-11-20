@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { Button } from '@ui-sdk/vue/button'
+import { createInputController, Input } from '@ui-sdk/vue/input'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useParty } from '../../composables/useParty'
 import { useProfile } from '../../composables/useProfile'
@@ -11,7 +13,7 @@ const party = useParty()
 const { profile } = useProfile()
 const draft = ref('')
 const list = ref<HTMLElement | null>(null)
-const input = ref<HTMLInputElement | null>(null)
+const input = createInputController()
 
 function scrollToEnd() {
   void nextTick(() => {
@@ -29,16 +31,16 @@ function time(at: number) {
 }
 
 watch(() => party.messages.value.length, scrollToEnd, { immediate: true })
-watch(input, (el) => el?.focus(), { once: true })
+onMounted(() => input.focus())
 </script>
 
 <template>
   <section class="flex size-full flex-col" :aria-label="t('party.chat')">
     <header class="flex items-center justify-between px-3 pb-1 pt-2">
       <h2 class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('party.chat') }}</h2>
-      <button type="button" class="grid size-7 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('party.chatClose')" @click="emit('close')">
+      <Button type="button" class="grid size-7 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white" :aria-label="t('party.chatClose')" @click="emit('close')">
         <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
-      </button>
+      </Button>
     </header>
 
     <ol ref="list" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2" aria-live="polite">
@@ -55,9 +57,9 @@ watch(input, (el) => el?.focus(), { once: true })
       </li>
     </ol>
 
-    <form class="flex gap-2 border-t border-flixer-border p-2" @submit.prevent="submit">
-      <input ref="input" v-model="draft" type="text" maxlength="500" autocomplete="off" class="min-w-0 flex-1 rounded bg-white/10 px-3 py-2 text-sm text-flixer-text placeholder:text-flixer-muted focus:outline-2 focus:outline-flixer-accent" :placeholder="t('party.chatPlaceholder')" :aria-label="t('party.chatPlaceholder')" />
-      <button type="submit" class="rounded bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/85 disabled:opacity-40" :disabled="!draft.trim()">{{ t('party.chatSend') }}</button>
+    <form data-agent-hidden class="flex gap-2 border-t border-flixer-border p-2" @submit.prevent="submit">
+      <Input v-model="draft" :controller="input" type="text" maxlength="500" autocomplete="off" class="h-auto w-auto min-w-0 flex-1 rounded border-0 bg-white/10 px-3 py-2 text-sm text-flixer-text placeholder:text-flixer-muted focus:outline-2 focus:outline-flixer-accent" :placeholder="t('party.chatPlaceholder')" :aria-label="t('party.chatPlaceholder')" />
+      <Button type="submit" class="h-auto rounded border-0 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/85 disabled:opacity-40" :disabled="!draft.trim()">{{ t('party.chatSend') }}</Button>
     </form>
   </section>
 </template>

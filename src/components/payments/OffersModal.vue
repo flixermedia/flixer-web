@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from "@kolirt/vue-modal";
+import { Button } from "@ui-sdk/vue/button";
+import { Input } from "@ui-sdk/vue/input";
+import { Radio, RadioGroup } from "@ui-sdk/vue/radio";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { checkoutPayment, confirmPaymentOrder, getMyPayments, getOffers, pickPrice, quotePayment, type CheckoutRequest, type CheckoutResult, type Offers, type Quote, type SavedCard } from "../../api";
@@ -178,7 +181,7 @@ const tax = computed(() => payments.activeStatus.value?.tax);
 
 <template>
 	<ModalRoot class="flex items-center justify-center p-4">
-		<ModalContent class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col rounded border border-flixer-border bg-flixer-surface text-flixer-text shadow-2xl shadow-black/60">
+		<ModalContent data-agent-hidden class="flixer-modal-card flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col rounded border border-flixer-border bg-flixer-surface text-flixer-text shadow-2xl shadow-black/60">
 			<header class="flex shrink-0 items-center gap-4 border-b border-flixer-border px-6 py-5">
 				<span class="grid size-11 shrink-0 place-items-center rounded bg-flixer-primary/15 text-flixer-accent"><Icon icon="lucide:lock" class="size-5" aria-hidden="true" /></span>
 				<div class="min-w-0 flex-1">
@@ -193,21 +196,21 @@ const tax = computed(() => payments.activeStatus.value?.tax);
 				<p v-else-if="options.length === 0" class="text-sm text-flixer-muted">{{ t("payments.offers.none") }}</p>
 
 				<template v-else>
-					<div class="grid gap-2" role="radiogroup" :aria-label="t('payments.offers.choose')">
-						<button v-for="option in options" :key="option.key" type="button" role="radio" :aria-checked="option.key === selectedKey" class="flex items-center gap-3 rounded border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="option.key === selectedKey ? 'border-flixer-primary bg-flixer-primary/10' : 'border-flixer-border hover:bg-white/5'" @click="select(option.key)">
+					<RadioGroup :value="selectedKey" class="grid gap-2" :aria-label="t('payments.offers.choose')" @value-change="(key) => { if (key !== null) select(key); }">
+						<Radio v-for="option in options" :key="option.key" :value="option.key" class="flex h-auto w-full items-center gap-3 rounded border border-flixer-border bg-transparent p-3 text-left text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent data-checked:border-flixer-primary data-checked:bg-flixer-primary/10 data-checked:hover:bg-flixer-primary/10">
 							<span class="grid size-9 shrink-0 place-items-center rounded bg-white/5 text-flixer-accent"><Icon :icon="kindIcon[option.kind]" class="size-4" aria-hidden="true" /></span>
 							<span class="min-w-0 flex-1">
 								<span class="block truncate text-sm font-semibold">{{ option.name }}</span>
 								<span class="block text-xs text-flixer-muted">{{ t(`payments.offers.kinds.${option.kind}`) }} · {{ option.detail }}</span>
 							</span>
 							<span class="shrink-0 text-sm font-semibold">{{ option.priceLabel }}</span>
-						</button>
-					</div>
+						</Radio>
+					</RadioGroup>
 
 					<form class="flex gap-2" @submit.prevent="refreshQuote">
 						<label class="sr-only" for="offer-coupon">{{ t("payments.coupon.label") }}</label>
-						<input id="offer-coupon" v-model="coupon" type="text" autocomplete="off" autocapitalize="characters" maxlength="64" :placeholder="t('payments.coupon.placeholder')" class="h-11 min-w-0 flex-1 rounded border border-flixer-border bg-flixer-surface/50 px-4 text-base uppercase text-flixer-text outline-none placeholder:normal-case placeholder:text-flixer-muted/70 focus:border-flixer-accent/60 sm:text-sm" />
-						<button type="submit" class="h-11 shrink-0 rounded bg-white/10 px-4 text-sm font-semibold transition hover:bg-white/15 disabled:opacity-60" :disabled="!coupon.trim() || quoting">{{ t("payments.coupon.apply") }}</button>
+						<Input id="offer-coupon" v-model="coupon" type="text" autocomplete="off" autocapitalize="characters" maxlength="64" :placeholder="t('payments.coupon.placeholder')" class="h-11 w-auto min-w-0 flex-1 rounded border border-flixer-border bg-flixer-surface/50 px-4 text-base uppercase text-flixer-text outline-none placeholder:normal-case placeholder:text-flixer-muted/70 focus:border-flixer-accent/60 sm:text-sm" />
+						<Button type="submit" class="h-11 shrink-0 rounded border-0 bg-white/10 px-4 text-sm font-semibold text-flixer-text transition hover:bg-white/15 disabled:opacity-60" :disabled="!coupon.trim() || quoting">{{ t("payments.coupon.apply") }}</Button>
 					</form>
 					<p v-if="couponError" class="-mt-3 text-sm text-red-300" role="alert">{{ couponError }}</p>
 
@@ -240,13 +243,15 @@ const tax = computed(() => payments.activeStatus.value?.tax);
 
 					<section v-if="needsCard" class="space-y-3 border-t border-flixer-border pt-5">
 						<h3 class="text-sm font-semibold">{{ t("payments.offers.payWith") }}</h3>
-						<div v-if="cards.length > 0 && !addingCard" class="grid gap-2" role="radiogroup" :aria-label="t('payments.offers.payWith')">
-							<button v-for="card in cards" :key="card.id" type="button" role="radio" :aria-checked="card.id === methodId" class="flex items-center gap-3 rounded border p-3 text-left text-sm transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="card.id === methodId ? 'border-flixer-primary bg-flixer-primary/10' : 'border-flixer-border hover:bg-white/5'" @click="methodId = card.id">
-								<Icon icon="lucide:credit-card" class="size-4 text-flixer-accent" aria-hidden="true" />
-								<span class="flex-1 capitalize">{{ card.brand }} •••• {{ card.last4 }}</span>
-								<span class="text-xs text-flixer-muted">{{ String(card.expMonth).padStart(2, "0") }}/{{ String(card.expYear).slice(-2) }}</span>
-							</button>
-							<button type="button" class="self-start text-sm font-medium text-flixer-accent hover:underline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addingCard = true">{{ t("payments.card.addAnother") }}</button>
+						<div v-if="cards.length > 0 && !addingCard" class="grid gap-2">
+							<RadioGroup :value="methodId" class="grid gap-2" :aria-label="t('payments.offers.payWith')" @update:value="methodId = $event ?? ''">
+								<Radio v-for="card in cards" :key="card.id" :value="card.id" class="flex h-auto w-full items-center gap-3 rounded border border-flixer-border bg-transparent p-3 text-left text-sm text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent data-checked:border-flixer-primary data-checked:bg-flixer-primary/10 data-checked:hover:bg-flixer-primary/10">
+									<Icon icon="lucide:credit-card" class="size-4 text-flixer-accent" aria-hidden="true" />
+									<span class="flex-1 capitalize">{{ card.brand }} •••• {{ card.last4 }}</span>
+									<span class="text-xs text-flixer-muted">{{ String(card.expMonth).padStart(2, "0") }}/{{ String(card.expYear).slice(-2) }}</span>
+								</Radio>
+							</RadioGroup>
+							<Button type="button" class="h-auto self-start rounded-none border-0 bg-transparent p-0 text-sm font-medium whitespace-normal text-flixer-accent hover:bg-transparent hover:underline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="addingCard = true">{{ t("payments.card.addAnother") }}</Button>
 						</div>
 						<AddCardForm v-if="showCardForm" :cancellable="cards.length > 0" @added="cardAdded" @cancel="addingCard = false" />
 					</section>
@@ -256,11 +261,11 @@ const tax = computed(() => payments.activeStatus.value?.tax);
 			</div>
 
 			<footer class="flex shrink-0 flex-col-reverse gap-3 border-t border-flixer-border px-6 py-4 sm:flex-row sm:justify-end">
-				<button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="paying" @click="close()">{{ t("common.close") }}</button>
-				<button v-if="options.length > 0" type="button" class="flex h-11 items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="!canPay" :aria-busy="paying" @click="pay">
+				<Button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold whitespace-normal text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-100" :disabled="paying" @click="close()">{{ t("common.close") }}</Button>
+				<Button v-if="options.length > 0" type="button" class="flex h-11 items-center justify-center gap-2 rounded border-0 bg-transparent bg-gradient-to-r from-flixer-primary to-flixer-secondary px-6 text-sm font-semibold whitespace-normal text-white transition hover:bg-transparent hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="!canPay" :aria-busy="paying" @click="void pay()">
 					<Icon v-if="paying" icon="lucide:loader-circle" class="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
 					{{ paying ? t("payments.offers.paying") : payLabel }}
-				</button>
+				</Button>
 			</footer>
 		</ModalContent>
 	</ModalRoot>

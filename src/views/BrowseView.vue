@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectLabel, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { browseArtists, browseMedia, getPreferences, getSearchGenres, updatePreferences, type BrowseArtist, type BrowseKind, type BrowseSort, type HomeCard, type SearchFilters } from '../api'
@@ -120,9 +124,9 @@ async function loadPreferences() {
   }
 }
 
-function saveBrowseColumns() {
+function saveBrowseColumns(value: number | null = browseColumns.value) {
+  const requestedColumns = value ?? 0
   preferencesChanged = true
-  const requestedColumns = browseColumns.value
   preferenceSaveQueue = preferenceSaveQueue.then(async () => {
     const [error] = await catchError(updatePreferences({ browseColumns: requestedColumns || null }))
     if (error) {
@@ -194,49 +198,86 @@ onBeforeUnmount(() => { controller?.abort(); clearTimeout(filterTimer) })
               :class="musicView === view ? 'bg-white/15 text-white' : 'text-flixer-muted hover:text-white'"
               :aria-pressed="musicView === view" @click="musicView = view">{{ t(`browse.${view}`) }}</button>
           </div>
-          <button v-if="kind !== 'music'" type="button"
-            class="inline-flex items-center gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white hover:bg-white/10"
+          <Button v-if="kind !== 'music'" type="button"
+            class="inline-flex h-auto items-center gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm font-normal text-white hover:bg-white/10"
             :aria-expanded="filtersOpen" aria-controls="browse-filters" @click="filtersOpen = !filtersOpen">
             <Icon icon="lucide:list-filter" class="size-4" aria-hidden="true" />{{ t('search.filters') }}<span
               v-if="filterCount" class="text-flixer-muted">{{ filterCount }}</span>
-          </button>
-          <label class="flex items-center gap-2 text-sm text-flixer-muted">
-            {{ t('browse.sortBy') }}
-            <select v-model="sort"
-              class="rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
-              <option v-for="option in SORTS" :key="option" :value="option">{{ t(`browse.sort.${option}`) }}</option>
-            </select>
-          </label>
-          <label class="flex items-center gap-2 text-sm text-flixer-muted">
-            {{ t('browse.columns') }}
-            <select v-model.number="browseColumns"
-              class="rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white"
-              @change="saveBrowseColumns">
-              <option :value="0">{{ t('browse.columnsAuto') }}</option>
-              <option v-for="columns in BROWSE_COLUMN_OPTIONS" :key="columns" :value="columns">{{
-                t('browse.columnOption', { count: columns }) }}</option>
-            </select>
-          </label>
+          </Button>
+          <Select v-model:value="sort" virtual-focus class="inline-flex items-center gap-2">
+            <SelectLabel class="whitespace-nowrap text-sm text-flixer-muted">{{ t('browse.sortBy') }}</SelectLabel>
+            <SelectTrigger
+              class="inline-flex h-auto min-w-32 items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+              <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+            </SelectTrigger>
+            <SelectContent
+              class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+              <SelectItem v-for="option in SORTS" :key="option" :value="option"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t(`browse.sort.${option}`) }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select v-model:value="browseColumns" virtual-focus class="inline-flex items-center gap-2"
+            @value-change="saveBrowseColumns">
+            <SelectLabel class="whitespace-nowrap text-sm text-flixer-muted">{{ t('browse.columns') }}</SelectLabel>
+            <SelectTrigger
+              class="inline-flex h-auto min-w-32 items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+              <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+            </SelectTrigger>
+            <SelectContent
+              class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+              <SelectItem :value="0"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('browse.columnsAuto') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+              <SelectItem v-for="columns in BROWSE_COLUMN_OPTIONS" :key="columns" :value="columns"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('browse.columnOption', { count: columns }) }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <div v-if="filtersOpen && kind !== 'music'" id="browse-filters"
         class="mt-5 grid gap-3 border-b border-flixer-border pb-5 sm:grid-cols-2 lg:grid-cols-4">
-        <label class="text-xs text-flixer-muted">{{ t('search.genre') }}<select v-model="genre"
-            class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
-            <option value="">{{ t('search.anyGenre') }}</option>
-            <option v-for="entry in genres" :key="entry" :value="entry">{{ entry }}</option>
-          </select></label>
+        <Select v-model:value="genre" virtual-focus class="w-full">
+          <SelectLabel class="block text-xs text-flixer-muted">{{ t('search.genre') }}</SelectLabel>
+          <SelectTrigger
+            class="mt-1 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+            <SelectValue />
+            <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+          </SelectTrigger>
+          <SelectContent
+            class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+            <SelectItem value=""
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('search.anyGenre') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem v-for="entry in genres" :key="entry" :value="entry"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ entry }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <label class="text-xs text-flixer-muted">{{ t('search.yearFrom') }}<input v-model="yearFrom" type="number"
             min="1800" max="2200"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
         <label class="text-xs text-flixer-muted">{{ t('search.yearTo') }}<input v-model="yearTo" type="number"
             min="1800" max="2200"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('browseFilters.cast') }}<input v-model="cast" type="search"
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.cast') }}<Input v-model="cast" type="search"
             maxlength="100"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('browseFilters.studio') }}<input v-model="studio" type="search"
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.studio') }}<Input v-model="studio" type="search"
             maxlength="100"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
         <label class="text-xs text-flixer-muted">{{ t('browseFilters.runtimeFrom') }}<input v-model="runtimeFrom"
@@ -245,26 +286,81 @@ onBeforeUnmount(() => { controller?.abort(); clearTimeout(filterTimer) })
         <label class="text-xs text-flixer-muted">{{ t('browseFilters.runtimeTo') }}<input v-model="runtimeTo"
             type="number" min="0"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
-        <label class="text-xs text-flixer-muted">{{ t('browseFilters.hdr') }}<select v-model="hdr"
-            class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
-            <option value="">{{ t('browseFilters.any') }}</option>
-            <option value="hdr10">HDR10</option>
-            <option value="hdr10plus">HDR10+</option>
-            <option value="dolbyvision">Dolby Vision</option>
-            <option value="hlg">HLG</option>
-          </select></label>
-        <label class="text-xs text-flixer-muted">{{ t('browseFilters.resolution') }}<select v-model="resolution"
-            class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white">
-            <option value="">{{ t('browseFilters.any') }}</option>
-            <option value="720">720p+</option>
-            <option value="1080">1080p+</option>
-            <option value="2160">2160p+</option>
-          </select></label>
-        <label class="text-xs text-flixer-muted">{{ t('browseFilters.audioLanguage') }}<input v-model="audioLanguage"
+        <Select v-model:value="hdr" virtual-focus class="w-full">
+          <SelectLabel class="block text-xs text-flixer-muted">{{ t('browseFilters.hdr') }}</SelectLabel>
+          <SelectTrigger
+            class="mt-1 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+            <SelectValue />
+            <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+          </SelectTrigger>
+          <SelectContent
+            class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+            <SelectItem value=""
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('browseFilters.any') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="hdr10"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              HDR10
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="hdr10plus"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              HDR10+
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="dolbyvision"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              Dolby Vision
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="hlg"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              HLG
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select v-model:value="resolution" virtual-focus class="w-full">
+          <SelectLabel class="block text-xs text-flixer-muted">{{ t('browseFilters.resolution') }}</SelectLabel>
+          <SelectTrigger
+            class="mt-1 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+            <SelectValue />
+            <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+          </SelectTrigger>
+          <SelectContent
+            class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+            <SelectItem value=""
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('browseFilters.any') }}
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="720"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              720p+
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="1080"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              1080p+
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+            <SelectItem value="2160"
+              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              2160p+
+              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <label class="text-xs text-flixer-muted">{{ t('browseFilters.audioLanguage') }}<Input v-model="audioLanguage"
             maxlength="30"
             class="mt-1 w-full rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-sm text-white" /></label>
-        <label class="flex items-center gap-2 self-end py-2 text-sm text-white"><input v-model="unwatched"
-            type="checkbox" class="size-4 accent-flixer-accent" />{{ t('search.unwatched') }}</label>
+        <label class="flex items-center gap-2 self-end py-2 text-sm text-white">
+          <Checkbox :checked="unwatched" class="mt-0 size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent"
+            @update:checked="unwatched = $event === true"><CheckboxIndicator /></Checkbox>
+          {{ t('search.unwatched') }}
+        </label>
       </div>
 
       <div class="mt-6" aria-live="polite">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getItemPlaybackInfo } from '../../api/playback'
@@ -147,7 +148,7 @@ function retry() {
     <div v-if="failed" class="absolute inset-0 grid place-items-center bg-black/90" role="alert">
       <div class="text-center">
         <p>{{ t('advertisements.playbackError') }}</p>
-        <button type="button" :class="playerActionButton" class="mt-4" @click="retry">{{ t('player.tryAgain') }}</button>
+        <Button type="button" :class="playerActionButton" class="mt-4 h-auto whitespace-normal" @click="retry">{{ t('player.tryAgain') }}</Button>
         <button type="button" :class="playerActionButton" class="ml-3 mt-4" @click="emit('close')">{{ t('player.closePlayer') }}</button>
       </div>
     </div>

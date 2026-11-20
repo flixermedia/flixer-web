@@ -46,6 +46,22 @@ export const LoggerEvents: Story = {
 	},
 };
 
+export const ToggleAutoscrollWithSpace: Story = {
+	beforeEach: () => {
+		const search = spyOn(LoggerClient.prototype, "search").mockResolvedValue({ events: [], next_cursor: "" });
+		return () => search.mockRestore();
+	},
+	play: async () => {
+		const page = within(document.body);
+		const toggle = await page.findByRole("switch");
+		await expect(toggle).toHaveAccessibleName();
+		await expect(toggle).toHaveAttribute("aria-checked", "true");
+		toggle.focus();
+		await userEvent.keyboard(" ");
+		await expect(toggle).toHaveAttribute("aria-checked", "false");
+	},
+};
+
 export const LoggerError: Story = {
 	beforeEach: () => {
 		const search = spyOn(LoggerClient.prototype, "search").mockRejectedValueOnce(new Error("unavailable"))
@@ -54,8 +70,12 @@ export const LoggerError: Story = {
 	},
 	play: async () => {
 		const page = within(document.body);
-		await expect(await page.findByRole("alert")).toHaveTextContent("Could not load logger events");
-		await userEvent.click(page.getByRole("button", { name: "Retry" }));
-		await waitFor(() => expect(page.getByText("No matching logger events in this time window.")).toBeVisible());
+		const dialogs = await page.findAllByRole("dialog");
+		const dialog = dialogs.at(-1);
+		if (!dialog) throw new Error("Missing task logs dialog");
+		const modal = within(dialog);
+		await expect(await modal.findByRole("alert")).toHaveTextContent("Could not load logger events");
+		await userEvent.click(modal.getByRole("button", { name: "Retry" }));
+		await waitFor(() => expect(modal.getByText("No matching logger events in this time window.")).toBeVisible());
 	},
 };

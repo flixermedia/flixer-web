@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,6 +21,11 @@ const { close, confirm } = useModalContext<boolean>()
 const { t } = useI18n()
 
 const kindTypes = { radarr: ['movies', 'mixed'], sonarr: ['tvshows', 'mixed'], lidarr: ['music', 'mixed'] } as const
+const serviceKindOptions = [
+  { value: 'sonarr', label: 'Sonarr' },
+  { value: 'radarr', label: 'Radarr' },
+  { value: 'lidarr', label: 'Lidarr' },
+] satisfies Array<{ value: RequestServiceInput['kind']; label: string }>
 function compatibleFor(kind: RequestServiceInput['kind']) {
   return props.libraries.filter((library) => (kindTypes[kind] as readonly string[]).includes(library.type))
 }
@@ -39,7 +48,8 @@ const saving = ref(false)
 const compatibleLibraries = computed(() => compatibleFor(draft.kind))
 const canSave = computed(() => Boolean(draft.name && draft.url && draft.libraryId && compatibleLibraries.value.some((library) => library.id === draft.libraryId)))
 
-function changeKind(kind: RequestServiceInput['kind']) {
+function changeKind(kind: RequestServiceInput['kind'] | null) {
+  if (!kind) return
   draft.kind = kind
   const compatible = compatibleFor(kind)
   draft.libraryId = compatible.length === 1 ? compatible[0].id : ''
@@ -90,14 +100,17 @@ async function save() {
       <form class="flixer-modal-form mt-5" @submit.prevent="save">
         <div class="flixer-modal-form-body gap-4">
           <div class="grid gap-4 sm:grid-cols-2">
-          <label :class="labelClass"
-            >{{ t('admin.requests.serviceKind') }}
-            <select :value="draft.kind" :class="selectClass" @change="changeKind(($event.target as HTMLSelectElement).value as RequestServiceInput['kind'])">
-              <option value="sonarr">Sonarr</option>
-              <option value="radarr">Radarr</option>
-              <option value="lidarr">Lidarr</option>
-            </select>
-          </label>
+          <Field :class="labelClass">
+            <FieldLabel>{{ t('admin.requests.serviceKind') }}</FieldLabel>
+            <Select :value="draft.kind" :items="serviceKindOptions" @value-change="changeKind">
+              <SelectTrigger :class="[selectClass, 'h-auto text-left']"><SelectValue /></SelectTrigger>
+              <SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+                <SelectItem v-for="option in serviceKindOptions" :key="option.value" :value="option.value" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <TextInput v-model="draft.name" :label="t('admin.requests.name')" name="serviceName" required maxlength="100" autocomplete="off" />
           <TextInput v-model="draft.url" :label="t('admin.requests.url')" type="url" name="serviceUrl" required autocomplete="off" />
           <TextInput v-model="draft.apiKey" :label="t('admin.requests.apiKey')" type="password" name="serviceApiKey" :placeholder="editingId ? '••••••••' : ''" autocomplete="new-password" />
@@ -131,7 +144,7 @@ async function save() {
               <select v-if="testResult?.rootFolders.length" v-model="draft.rootFolder" :class="selectClass">
                 <option v-for="entry in testResult.rootFolders" :key="entry.path" :value="entry.path">{{ entry.path }}</option>
               </select>
-              <input v-else v-model="draft.rootFolder" :class="selectClass" />
+              <Input v-else v-model="draft.rootFolder" :class="selectClass" class="h-auto" />
             </label>
             <label v-if="draft.kind === 'lidarr'" :class="labelClass"
               >{{ t('admin.requests.metadataProfile') }}
@@ -165,7 +178,7 @@ async function save() {
 
         </div>
         <div class="flixer-modal-actions flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="saving" @click="close()">{{ t('common.cancel') }}</button>
+          <Button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :disabled="saving" @click="close()">{{ t('common.cancel') }}</Button>
           <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="testing || !draft.url" @click="test">{{ testing ? t('common.loading') : t('admin.requests.testConnection') }}</button>
           <button type="submit" class="flex h-11 items-center justify-center rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent disabled:opacity-60" :disabled="saving || !canSave">{{ t('common.save') }}</button>
         </div>

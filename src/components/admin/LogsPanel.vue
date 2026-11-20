@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@ui-sdk/vue/select";
+import { Input } from "@ui-sdk/vue/input";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLiveLogs } from "../../composables/useLiveLogs";
@@ -12,6 +14,10 @@ const { entries, status, paused, pause, resume, clear } = useLiveLogs();
 const level = ref("");
 const search = ref("");
 const levels = ["debug", "info", "warn", "error"] as const;
+const selectedLevel = computed({
+	get: () => level.value || "all",
+	set: (value: string | null) => { level.value = value === null || value === "all" ? "" : value; },
+});
 
 const visibleEntries = computed(() => {
 	const query = search.value.trim().toLocaleLowerCase(locale.value);
@@ -49,12 +55,17 @@ function connectionLabel() {
 
 		<div class="flex flex-wrap items-center gap-2">
 			<label class="sr-only" for="dashboard-log-search">{{ t("admin.logs.search") }}</label>
-			<input id="dashboard-log-search" v-model="search" type="search" :placeholder="t('admin.logs.search')" class="min-w-32 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-flixer-accent" />
-			<label class="sr-only" for="dashboard-log-level">{{ t("admin.logs.logLevel") }}</label>
-			<select id="dashboard-log-level" v-model="level" class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-flixer-accent">
-				<option value="">{{ t("admin.logs.all") }}</option>
-				<option v-for="item in levels" :key="item" :value="item">{{ t(`admin.logs.${item}`) }}</option>
-			</select>
+			<Input id="dashboard-log-search" v-model="search" type="search" :placeholder="t('admin.logs.search')" class="min-w-32 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-flixer-accent" />
+			<Select v-model:value="selectedLevel">
+				<SelectLabel class="sr-only">{{ t("admin.logs.logLevel") }}</SelectLabel>
+				<SelectTrigger class="h-auto rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-left text-xs focus-visible:outline-2 focus-visible:outline-flixer-accent">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-xs text-flixer-text shadow-xl">
+					<SelectItem value="all" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t("admin.logs.all") }}</SelectItem>
+					<SelectItem v-for="item in levels" :key="item" :value="item" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t(`admin.logs.${item}`) }}</SelectItem>
+				</SelectContent>
+			</Select>
 			<button type="button" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="paused ? resume() : pause()">
 				{{ paused ? t("admin.logs.resume") : t("admin.logs.pause") }}
 			</button>

@@ -20,6 +20,7 @@ import { useBlackBarCrop } from './useBlackBarCrop'
 import type { RemotePlaybackCommand } from '../../composables/useRemotePlayback'
 import { isTvMode } from '../../platform/tvMode'
 import { isTvAdjustmentMode } from '../../platform/tvNavigation'
+import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/vue/slider'
 
 const props = withDefaults(
   defineProps<{
@@ -1502,10 +1503,19 @@ onBeforeUnmount(() => {
             <Icon :icon="muted || volume === 0 ? 'lucide:volume-x' : 'lucide:volume-2'" class="size-6"
               aria-hidden="true" />
           </button>
-          <input type="range" min="0" max="1" step="0.01" :aria-label="t('player.volume')"
-            class="h-1 cursor-pointer accent-flixer-accent"
-            :class="isTvMode ? 'w-20 opacity-100' : 'w-0 opacity-0 transition-all duration-200 group-focus-within/vol:w-20 group-focus-within/vol:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100'"
+          <input v-if="isTvMode" type="range" min="0" max="1" step="0.01" :aria-label="t('player.volume')"
+            class="h-1 w-20 cursor-pointer accent-flixer-accent opacity-100"
             :value="muted ? 0 : volume" @input="onVolumeInput" />
+          <Slider v-else :min="0" :max="1" :step="0.01" :value="muted ? 0 : volume"
+            class="min-w-0 w-0 opacity-0 transition-all duration-200 group-focus-within/vol:w-20 group-focus-within/vol:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100"
+            @value-change="value => typeof value === 'number' && setVolume(value)">
+            <SliderControl class="h-1 cursor-pointer">
+              <SliderTrack class="h-1 rounded-full bg-[#efefef]">
+                <SliderIndicator class="bg-flixer-accent" />
+                <SliderThumb :aria-label="t('player.volume')" class="size-4 rounded-full border-0 bg-flixer-accent" />
+              </SliderTrack>
+            </SliderControl>
+          </Slider>
         </div>
 
         <span v-if="!live" class="ml-2 text-sm tabular-nums text-white/90">{{ format(position) }} / {{ format(duration)

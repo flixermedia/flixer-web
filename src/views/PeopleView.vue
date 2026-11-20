@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import { Input } from '@ui-sdk/vue/input'
+import { Toggle } from '@ui-sdk/vue/toggle'
 import { getProfiles, type PublicProfileSummary } from '../api'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import UserAvatar from '../components/ui/UserAvatar.vue'
@@ -69,9 +71,9 @@ onBeforeUnmount(() => {
         <div class="flex w-full items-center gap-2 sm:max-w-md">
           <div class="relative min-w-0 flex-1">
             <Icon icon="lucide:search" class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted" aria-hidden="true" />
-            <input v-model="query" type="search" class="w-full rounded border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('social.searchPeople')" :aria-label="t('social.searchPeople')" />
+            <Input v-model="query" type="search" class="w-full rounded border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent" :placeholder="t('social.searchPeople')" :aria-label="t('social.searchPeople')" />
           </div>
-          <button type="button" class="flex shrink-0 items-center gap-2 rounded px-3 py-2.5 text-sm font-semibold transition" :class="activeOnly ? 'bg-white text-flixer-background' : 'bg-white/10 text-white hover:bg-white/20'" :aria-pressed="activeOnly" @click="activeOnly = !activeOnly"><span class="size-2 rounded-full bg-emerald-400" aria-hidden="true" />{{ t('social.activeNow', { count: activeCount }) }}</button>
+          <Toggle v-model:pressed="activeOnly" type="button" class="flex shrink-0 items-center gap-2 rounded px-3 py-2.5 text-sm font-semibold transition" :class="activeOnly ? 'bg-white text-flixer-background' : 'bg-white/10 text-white hover:bg-white/20'"><span class="size-2 rounded-full bg-emerald-400" aria-hidden="true" />{{ t('social.activeNow', { count: activeCount }) }}</Toggle>
         </div>
       </div>
       <p v-if="failed" class="mt-6 text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>

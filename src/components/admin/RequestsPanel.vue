@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
 import { openModal } from '@kolirt/vue-modal'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,6 +15,8 @@ import RequestServiceModal from './RequestServiceModal.vue'
 const { t } = useI18n()
 const config = ref<Awaited<ReturnType<typeof getRequestsConfig>> | null>(null)
 const settings = ref<Record<string, unknown>>({})
+const quotaLimit = ref('0')
+const quotaDays = ref('7')
 const services = ref<RequestServiceView[]>([])
 const libraries = ref<MediaLibrary[]>([])
 const users = ref<RequestUserView[]>([])
@@ -31,6 +34,8 @@ async function load() {
   const errors = await Promise.all([
     section(listSettings(), (list) => {
       settings.value = Object.fromEntries(list.map(({ key, value }) => [key, value]))
+      quotaLimit.value = String(settings.value.requests_quota_limit ?? 0)
+      quotaDays.value = String(settings.value.requests_quota_days ?? 7)
     }),
     section(listRequestServices(), (list) => {
       services.value = list
@@ -136,8 +141,8 @@ onMounted(load)
         <div class="border-t border-flixer-border pt-4">
           <h3 class="text-sm font-medium">{{ t('admin.requests.quotaTitle') }}</h3>
           <div class="mt-2 grid max-w-md gap-3 sm:grid-cols-2">
-            <label class="text-xs font-medium text-flixer-muted">{{ t('admin.requests.quotaLimit') }}<input :value="settings.requests_quota_limit ?? 0" type="number" min="0" :class="inputClass" @change="saveGlobal('requests_quota_limit', Number(($event.target as HTMLInputElement).value))" /></label>
-            <label class="text-xs font-medium text-flixer-muted">{{ t('admin.requests.quotaDays') }}<input :value="settings.requests_quota_days ?? 7" type="number" min="1" max="365" :class="inputClass" @change="saveGlobal('requests_quota_days', Number(($event.target as HTMLInputElement).value))" /></label>
+            <label class="text-xs font-medium text-flixer-muted">{{ t('admin.requests.quotaLimit') }}<Input v-model="quotaLimit" type="number" min="0" :class="inputClass" @change="saveGlobal('requests_quota_limit', Number(quotaLimit))" /></label>
+            <label class="text-xs font-medium text-flixer-muted">{{ t('admin.requests.quotaDays') }}<Input v-model="quotaDays" type="number" min="1" max="365" :class="inputClass" @change="saveGlobal('requests_quota_days', Number(quotaDays))" /></label>
           </div>
           <p class="mt-2 text-xs text-flixer-muted">{{ t('admin.requests.quotaHint') }}</p>
         </div>

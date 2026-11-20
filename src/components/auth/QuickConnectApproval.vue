@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QrScanner from '../ui/QrScanner.vue'
@@ -48,7 +49,7 @@ function stopScanner() {
     @scanned="handleScan"
   />
   <p v-if="scanError" class="mt-4 text-sm text-red-200" role="alert">{{ scanError }}</p>
-  <form v-if="isEnabled === true" class="mt-6" @focusin="stopScanner" @pointerdown="stopScanner" @submit.prevent="decide('approve')">
+  <form v-if="isEnabled === true" data-agent-hidden class="mt-6" @focusin="stopScanner" @pointerdown="stopScanner" @submit.prevent="decide('approve')">
     <label for="quick-connect-code" class="mb-2 block text-sm font-medium">{{ t('auth.quickConnectCodeLabel') }}</label>
     <input
       id="quick-connect-code"
@@ -64,21 +65,21 @@ function stopScanner() {
     />
     <p class="mt-3 text-xs leading-5 text-flixer-muted">{{ t('auth.quickConnectSafetyNote') }}</p>
     <div class="mt-6 flex gap-3">
-      <button
+      <Button
         type="submit"
-        class="flex-1 rounded bg-flixer-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:cursor-wait disabled:opacity-60"
+        class="h-auto flex-1 rounded border-0 bg-flixer-primary px-4 py-3 text-sm font-semibold whitespace-normal text-white transition hover:bg-flixer-primary/80 disabled:cursor-wait disabled:opacity-60"
         :disabled="isSubmitting || decisionComplete || !userCode.trim()"
       >
         {{ isSubmitting ? t('auth.quickConnectWorking') : t('auth.quickConnectApprove') }}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        class="rounded border border-flixer-border px-4 py-3 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
+        class="h-auto rounded border border-flixer-border bg-transparent px-4 py-3 text-sm font-semibold whitespace-normal text-flixer-text transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
         :disabled="isSubmitting || decisionComplete || !userCode.trim()"
-        @click="decide('deny')"
+        @click="void decide('deny')"
       >
         {{ t('auth.quickConnectDeny') }}
-      </button>
+      </Button>
     </div>
   </form>
 

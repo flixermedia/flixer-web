@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getGuide, type EpgChannel, type EpgData, type EpgProgramme } from '../../api/guide'
@@ -20,12 +22,14 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref('')
 const query = ref('')
+// The SDK model includes IME drafts; keep filtering on the last committed query during composition.
+const queryBeforeComposition = ref<string | null>(null)
 const failedImages = ref(new Set<string>())
 let controller: AbortController | undefined
 let clockTimer: ReturnType<typeof setInterval> | undefined
 
 const channels = computed(() => {
-  const search = query.value.trim().toLocaleLowerCase(locale.value)
+  const search = (queryBeforeComposition.value ?? query.value).trim().toLocaleLowerCase(locale.value)
   return (data.value?.channels ?? []).filter((channel) => !search || `${channel.name} ${channel.alternateNames.join(' ')}`.toLocaleLowerCase(locale.value).includes(search))
 })
 const hasMore = computed(() => Boolean(data.value && data.value.channels.length < data.value.totalChannels))
@@ -155,9 +159,9 @@ onBeforeUnmount(() => {
         <h2 class="truncate text-sm font-semibold text-white">{{ t('player.liveGuide') }}</h2>
         <p class="truncate text-xs text-flixer-muted">{{ t('player.liveGuideChannels', { count: data?.totalChannels ?? 0 }) }}</p>
       </div>
-      <button type="button" class="grid size-9 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.closeLiveGuide')" @click="emit('close')">
+      <Button type="button" class="grid size-9 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('player.closeLiveGuide')" @click="emit('close')">
         <Icon icon="lucide:x" class="size-5" aria-hidden="true" />
-      </button>
+      </Button>
     </header>
 
     <div v-if="currentChannel" class="shrink-0 border-b border-white/10 bg-white/[0.03] p-4">
@@ -198,7 +202,10 @@ onBeforeUnmount(() => {
       <label class="relative block">
         <span class="sr-only">{{ t('player.liveGuideSearch') }}</span>
         <Icon icon="lucide:search" class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-flixer-muted" aria-hidden="true" />
-        <input v-model="query" type="search" :placeholder="t('player.liveGuideSearch')" class="h-10 w-full rounded border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-white outline-none placeholder:text-flixer-muted focus:border-flixer-accent/70 focus:ring-2 focus:ring-flixer-accent/20" />
+        <Input v-model="query" type="search" :placeholder="t('player.liveGuideSearch')" class="h-10 w-full rounded border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-white outline-none placeholder:text-flixer-muted focus:border-flixer-accent/70 focus:ring-2 focus:ring-flixer-accent/20"
+          @compositionstart="queryBeforeComposition = query"
+          @compositionend="queryBeforeComposition = null"
+          @change="queryBeforeComposition = null" />
       </label>
     </div>
 
@@ -212,12 +219,12 @@ onBeforeUnmount(() => {
       <div v-else-if="error && !data" class="grid min-h-40 place-items-center p-4 text-center">
         <div>
           <p role="alert" class="text-xs text-red-200">{{ error }}</p>
-          <button type="button" class="mt-3 rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15" @click="retry">{{ t('epg.retry') }}</button>
+          <Button type="button" class="mt-3 h-auto rounded border-0 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15" @click="retry">{{ t('epg.retry') }}</Button>
         </div>
       </div>
       <div v-else-if="channels.length === 0" class="p-6 text-center text-xs text-flixer-muted">{{ t('epg.noResults') }}</div>
       <div v-else class="space-y-1">
-        <button v-for="channel in channels" :key="channel.id" type="button" :disabled="!channel.watchable || Boolean(switchingChannelId)" class="flex w-full items-center gap-3 rounded px-2.5 py-2 text-left transition hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" :class="channel.id === currentChannelId ? 'bg-flixer-accent/10 ring-1 ring-flixer-accent/30' : ''" :aria-current="channel.id === currentChannelId ? 'true' : undefined" @click="emit('select-channel', channel)">
+        <Button v-for="channel in channels" :key="channel.id" type="button" :disabled="!channel.watchable || Boolean(switchingChannelId)" class="flex h-auto w-full items-center gap-3 whitespace-normal rounded border-0 px-2.5 py-2 text-left font-normal text-inherit transition hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" :class="channel.id === currentChannelId ? 'bg-flixer-accent/10 ring-1 ring-flixer-accent/30' : 'bg-transparent'" :aria-current="channel.id === currentChannelId ? 'true' : undefined" @click="emit('select-channel', channel)">
           <div class="grid size-10 shrink-0 place-items-center overflow-hidden rounded border border-white/10 bg-white/5">
             <img v-if="channel.icon && !failedImages.has(channel.id)" :src="channel.icon" :alt="t('epg.channelLogo', { channel: channel.name })" class="size-full object-contain p-1" loading="lazy" @error="imageFailed(channel.id)" />
             <span v-else class="text-[10px] font-bold text-white/70">{{ channel.name.slice(0, 2).toUpperCase() }}</span>
@@ -233,14 +240,14 @@ onBeforeUnmount(() => {
             </span>
           </span>
           <span class="shrink-0 text-[10px] text-flixer-muted">{{ programmeNow(channel.id) ? t('epg.live') : '' }}</span>
-        </button>
+        </Button>
 
         <p v-if="switchError" role="alert" class="mx-2 rounded bg-red-500/10 p-2 text-xs text-red-200">{{ switchError }}</p>
         <p v-if="error && data" role="alert" class="mx-2 rounded bg-red-500/10 p-2 text-xs text-red-200">{{ error }}</p>
-        <button v-if="hasMore" type="button" :disabled="loadingMore" class="flex min-h-10 w-full items-center justify-center gap-2 rounded text-xs font-semibold text-flixer-accent transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50" @click="loadNextPage()">
+        <Button v-if="hasMore" type="button" :disabled="loadingMore" class="flex h-auto min-h-10 w-full items-center justify-center gap-2 rounded border-0 bg-transparent p-0 text-xs font-semibold text-flixer-accent transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50" @click="void loadNextPage()">
           <Icon v-if="loadingMore" icon="lucide:loader-circle" class="size-3.5 animate-spin" aria-hidden="true" />
           {{ loadingMore ? t('epg.loading') : t('player.liveGuideLoadMore') }}
-        </button>
+        </Button>
       </div>
     </div>
   </aside>

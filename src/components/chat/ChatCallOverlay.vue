@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { dismissCallNotice, listenForChatCalls, useChatCall } from '../../composables/useChatCall'
@@ -26,9 +27,9 @@ watch([call.localStream, localVideo], ([stream]) => {
 <template>
   <div v-if="call.notice.value && call.phase.value === 'idle'" class="fixed bottom-4 left-1/2 z-[80] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/10 bg-flixer-surface px-4 py-3 text-sm text-white shadow-xl" role="status">
     <span>{{ t(`chat.call.notice.${call.notice.value}`) }}</span>
-    <button type="button" class="grid size-7 place-items-center rounded-lg text-white/70 hover:bg-white/10" :aria-label="t('chat.call.dismiss')" @click="dismissCallNotice">
+    <Button type="button" class="grid size-7 place-items-center rounded-lg border-0 bg-transparent p-0 text-white/70 hover:bg-white/10" :aria-label="t('chat.call.dismiss')" @click="dismissCallNotice">
       <Icon icon="lucide:x" class="size-4" aria-hidden="true" />
-    </button>
+    </Button>
   </div>
 
   <div v-if="call.phase.value !== 'idle'" class="fixed inset-0 z-[80] flex flex-col bg-black/90 text-white" role="dialog" aria-modal="true" :aria-label="call.peerLabel.value">
@@ -53,25 +54,25 @@ watch([call.localStream, localVideo], ([stream]) => {
       </span>
     </div>
 
-    <div class="flex items-center justify-center gap-3 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+    <div data-agent-hidden class="flex items-center justify-center gap-3 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
       <template v-if="call.phase.value === 'ringing'">
-        <button type="button" class="grid size-14 place-items-center rounded-full bg-red-600 hover:bg-red-500" :aria-label="t('chat.call.decline')" @click="call.decline">
+        <Button type="button" class="grid size-14 place-items-center rounded-full border-0 bg-red-600 p-0 text-white hover:bg-red-500" :aria-label="t('chat.call.decline')" @click="call.decline">
           <Icon icon="lucide:phone-off" class="size-6" aria-hidden="true" />
-        </button>
-        <button type="button" class="grid size-14 place-items-center rounded-full bg-emerald-600 hover:bg-emerald-500" :aria-label="t('chat.call.accept')" @click="call.accept">
+        </Button>
+        <Button type="button" class="grid size-14 place-items-center rounded-full border-0 bg-emerald-600 p-0 text-white hover:bg-emerald-500" :aria-label="t('chat.call.accept')" @click="void call.accept()">
           <Icon :icon="call.video.value ? 'lucide:video' : 'lucide:phone'" class="size-6" aria-hidden="true" />
-        </button>
+        </Button>
       </template>
       <template v-else>
-        <button type="button" class="grid size-12 place-items-center rounded-full bg-white/10 hover:bg-white/20" :aria-label="t(call.micMuted.value ? 'chat.call.unmute' : 'chat.call.mute')" @click="call.toggleMic">
+        <Button type="button" class="grid size-12 place-items-center rounded-full border-0 bg-white/10 p-0 text-white hover:bg-white/20" :aria-label="t(call.micMuted.value ? 'chat.call.unmute' : 'chat.call.mute')" @click="call.toggleMic">
           <Icon :icon="call.micMuted.value ? 'lucide:mic-off' : 'lucide:mic'" class="size-5" aria-hidden="true" />
-        </button>
-        <button v-if="call.video.value" type="button" class="grid size-12 place-items-center rounded-full bg-white/10 hover:bg-white/20" :aria-label="t(call.cameraOff.value ? 'chat.call.cameraOn' : 'chat.call.cameraOff')" @click="call.toggleCamera">
+        </Button>
+        <Button v-if="call.video.value" type="button" class="grid size-12 place-items-center rounded-full border-0 bg-white/10 p-0 text-white hover:bg-white/20" :aria-label="t(call.cameraOff.value ? 'chat.call.cameraOn' : 'chat.call.cameraOff')" @click="call.toggleCamera">
           <Icon :icon="call.cameraOff.value ? 'lucide:video-off' : 'lucide:video'" class="size-5" aria-hidden="true" />
-        </button>
-        <button type="button" class="grid size-14 place-items-center rounded-full bg-red-600 hover:bg-red-500" :aria-label="t('chat.call.hangUp')" @click="call.hangUp">
+        </Button>
+        <Button type="button" class="grid size-14 place-items-center rounded-full border-0 bg-red-600 p-0 text-white hover:bg-red-500" :aria-label="t('chat.call.hangUp')" @click="call.hangUp">
           <Icon icon="lucide:phone-off" class="size-6" aria-hidden="true" />
-        </button>
+        </Button>
       </template>
     </div>
   </div>

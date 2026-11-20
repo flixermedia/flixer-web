@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, ref } from 'vue'
 import { usePluginContext } from '../../composables/usePluginActions'
 import type { ButtonNode } from '../../plugins/viewTypes'
@@ -20,5 +21,5 @@ async function click() {
 </script>
 
 <template>
-  <button type="button" :class="buttonClasses[node.variant ?? 'quiet']" :disabled="disabled" :aria-busy="running" @click="click">{{ node.label }}</button>
+  <Button type="button" :class="[buttonClasses[node.variant ?? 'quiet'], node.variant === 'primary' ? 'border-0' : node.variant === 'danger' ? '' : 'bg-transparent text-flixer-text']" class="h-auto whitespace-normal" :disabled="disabled" :aria-busy="running" data-agent-hidden @click="void click()">{{ node.label }}</Button>
 </template>

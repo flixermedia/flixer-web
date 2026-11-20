@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
 import { openModal } from '@kolirt/vue-modal'
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Keyboard } from '@capacitor/keyboard'
@@ -850,8 +852,8 @@ onBeforeUnmount(() => {
 
               <div v-if="infoOpen && active?.kind === 'group'" class="max-h-64 shrink-0 space-y-3 overflow-y-auto border-b border-white/10 bg-white/[0.03] p-4">
                 <form class="flex gap-2" @submit.prevent="rename">
-                  <input v-model="renameDraft" maxlength="60" class="min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :aria-label="t('chat.groupName')" />
-                  <button type="submit" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="!renameDraft.trim() || renameDraft.trim() === active.name">{{ t('chat.rename') }}</button>
+                  <Input v-model="renameDraft" maxlength="60" class="h-auto min-w-0 flex-1 rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-flixer-accent" :aria-label="t('chat.groupName')" />
+                  <Button type="submit" class="h-auto rounded border-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="!renameDraft.trim() || renameDraft.trim() === active.name">{{ t('chat.rename') }}</Button>
                 </form>
                 <div class="flex items-center justify-between">
                   <h3 class="text-xs font-semibold uppercase tracking-wide text-flixer-muted">{{ t('chat.members') }}</h3>

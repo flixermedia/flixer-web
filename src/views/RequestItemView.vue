@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/vue/checkbox'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectLabel, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
@@ -50,6 +54,11 @@ async function load() {
 }
 function toggleAll(checked: boolean) {
   selectedSeasons.value = checked ? (detail.value?.seasons ?? []).filter((season) => season.status === 'none').map((season) => season.number) : []
+}
+function toggleSeason(number: number, checked: boolean) {
+  const selected = selectedSeasons.value
+  if (checked === selected.includes(number)) return
+  selectedSeasons.value = checked ? [...selected, number] : selected.filter((entry) => entry !== number)
 }
 async function submit() {
   if (!detail.value || !requestAllowed.value || submitting.value) return
@@ -154,14 +163,14 @@ watch(
                 <Icon icon="lucide:play" class="size-5" aria-hidden="true" />
                 {{ t('requests.play') }}
               </RouterLink>
-              <button v-else-if="activeStatus === 'none' || activeStatus === 'declined'" type="button" :disabled="!requestAllowed || submitting || (tv && selectedSeasons.length === 0)" class="inline-flex items-center gap-2 rounded bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" @click="submit">
+              <Button v-else-if="activeStatus === 'none' || activeStatus === 'declined'" type="button" :disabled="!requestAllowed || submitting || (tv && selectedSeasons.length === 0)" class="inline-flex h-auto items-center gap-2 rounded border-0 bg-white px-6 py-3 text-sm font-bold text-flixer-background transition hover:bg-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent disabled:cursor-not-allowed disabled:opacity-50" @click="void submit()">
                 <Icon icon="lucide:plus" class="size-5" aria-hidden="true" />
                 {{ submitting ? t('common.loading') : t('requests.request') }}
-              </button>
+              </Button>
               <button v-else type="button" disabled aria-disabled="true" class="inline-flex cursor-default items-center gap-2 rounded border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white/80">
                 {{ t(`requests.status.${activeStatus}`) }}
               </button>
-              <button v-if="ownRequest?.status === 'pending'" type="button" class="inline-flex items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="cancelRequest">{{ t('requests.cancelRequest') }}</button>
+              <Button v-if="ownRequest?.status === 'pending'" type="button" class="inline-flex h-auto items-center gap-2 rounded border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="void cancelRequest()">{{ t('requests.cancelRequest') }}</Button>
             </div>
           </div>
         </div>
@@ -171,11 +180,18 @@ watch(
         <section v-if="tv && detail.seasons?.length" :aria-label="t('requests.seasons')" class="page-gutter">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-xl font-semibold text-white">{{ t('requests.seasons') }}</h2>
-            <label class="inline-flex cursor-pointer items-center gap-2 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"><input type="checkbox" class="size-4 rounded accent-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :checked="selectedAll" :aria-label="t('requests.selectAllSeasons')" @change="toggleAll(($event.target as HTMLInputElement).checked)" />{{ t('requests.selectAllSeasons') }}</label>
+            <label class="inline-flex cursor-pointer items-center gap-2 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
+              <Checkbox :checked="selectedAll" :aria-label="t('requests.selectAllSeasons')"
+                class="mt-0 size-4 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
+                @update:checked="toggleAll($event === true)"><CheckboxIndicator /></Checkbox>
+              {{ t('requests.selectAllSeasons') }}
+            </label>
           </div>
           <ul class="divide-y divide-flixer-border overflow-hidden rounded border border-flixer-border bg-flixer-surface/40">
             <li v-for="season in detail.seasons" :key="season.number" class="flex items-center gap-3 p-3" :class="season.status !== 'none' ? 'opacity-60' : ''">
-              <input v-model="selectedSeasons" type="checkbox" :value="season.number" :disabled="season.status !== 'none'" :aria-label="season.name" class="size-4 shrink-0 rounded accent-flixer-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" />
+              <Checkbox :checked="selectedSeasons.includes(season.number)" :disabled="season.status !== 'none'" :aria-label="season.name"
+                class="size-4 shrink-0 rounded-sm data-checked:border-flixer-accent data-checked:bg-flixer-accent data-disabled:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
+                @update:checked="toggleSeason(season.number, $event === true)"><CheckboxIndicator /></Checkbox>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-semibold text-white">{{ season.name }}</span>
                 <span class="block text-xs text-flixer-muted">{{ season.episodeCount }} {{ t('requests.episodes') }}</span>
@@ -198,14 +214,28 @@ watch(
         <section v-if="config.config.value?.isAdmin && services.length" :aria-label="t('requests.advanced')" class="page-gutter">
           <h2 class="mb-3 text-xl font-semibold text-white">{{ t('requests.advanced') }}</h2>
           <div class="grid gap-4 rounded border border-flixer-border bg-flixer-surface/40 p-4 sm:grid-cols-2">
-            <label class="text-xs font-medium text-flixer-muted"
-              >{{ t('requests.server') }}
-              <select v-model="serviceId" class="mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
-                <option value="">{{ t('requests.defaultServer') }}</option>
-                <option v-for="service in services" :key="service.id" :value="service.id">{{ service.name }}</option>
-              </select>
-            </label>
-            <label class="text-xs font-medium text-flixer-muted">{{ t('requests.rootFolder') }}<input v-model="rootFolder" class="mt-1.5 w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent" /></label>
+            <Select v-model:value="serviceId" virtual-focus class="w-full">
+              <SelectLabel class="block text-xs font-medium text-flixer-muted">{{ t('requests.server') }}</SelectLabel>
+              <SelectTrigger
+                class="mt-1.5 inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+                <SelectValue />
+                <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+              </SelectTrigger>
+              <SelectContent
+                class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-background p-1 text-flixer-text shadow-xl">
+                <SelectItem value=""
+                  class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                  {{ t('requests.defaultServer') }}
+                  <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+                </SelectItem>
+                <SelectItem v-for="service in services" :key="service.id" :value="service.id"
+                  class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                  {{ service.name }}
+                  <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <label class="text-xs font-medium text-flixer-muted">{{ t('requests.rootFolder') }}<Input v-model="rootFolder" class="mt-1.5 h-auto w-full rounded border border-flixer-border bg-flixer-background px-4 py-3 text-sm text-flixer-text focus-visible:border-flixer-border focus-visible:outline-2 focus-visible:outline-flixer-accent" /></label>
           </div>
         </section>
       </div>

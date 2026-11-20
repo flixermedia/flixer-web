@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@ui-sdk/vue/button";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink, useRoute } from "vue-router";
@@ -158,11 +159,11 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 				<NotificationBell :key="route.path" :button-class="`relative ${iconButton}`" />
 
 				<div ref="menuRoot" class="relative">
-					<button type="button" class="grid size-10 place-items-center rounded transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+					<Button type="button" class="grid size-10 place-items-center rounded border-0 bg-transparent p-0 transition hover:bg-transparent hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :aria-label="t('header.accountMenu')" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
 						<span class="block size-10 overflow-hidden rounded text-sm">
 							<UserAvatar :avatar-url="profile?.avatarUrl" :name="profile?.displayName" />
 						</span>
-					</button>
+					</Button>
 
 					<Teleport to="body" :disabled="!nativeNavigationEnabled">
 						<Transition enter-active-class="transition duration-150 ease-out" enter-from-class="translate-y-1 opacity-0" leave-active-class="transition duration-100 ease-in" leave-to-class="translate-y-1 opacity-0">

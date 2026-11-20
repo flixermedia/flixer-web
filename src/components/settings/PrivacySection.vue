@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@ui-sdk/vue/button'
 import { acceptFriend, getFriends, getMySocialProfile, removeFriend, updateMySocialProfile, type FriendLists, type Profile } from '../../api'
 import { notify } from '../../composables/notify'
 import { catchError } from '../../utils/catchError'
@@ -85,8 +86,8 @@ async function updateFriend(username: string, accept: boolean) {
               >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
             <span class="flex shrink-0 gap-2">
-              <button type="button" class="rounded bg-white px-3 py-1.5 text-xs font-semibold text-flixer-background disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, true)">{{ t('social.acceptFriend') }}</button>
-              <button type="button" class="rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.declineFriend') }}</button>
+              <Button type="button" :aria-label="`${t('social.acceptFriend')}: ${person.username}`" :data-agent-confirm="`${t('social.acceptFriend')}: ${person.username}`" class="h-auto rounded border-0 bg-white px-3 py-1.5 text-xs font-semibold text-flixer-background hover:bg-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, true)">{{ t('social.acceptFriend') }}</Button>
+              <Button type="button" :aria-label="`${t('social.declineFriend')}: ${person.username}`" :data-agent-confirm="`${t('social.declineFriend')}: ${person.username}`" class="h-auto rounded border-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.declineFriend') }}</Button>
             </span>
           </li>
         </ul>
@@ -99,7 +100,7 @@ async function updateFriend(username: string, accept: boolean) {
             <span class="min-w-0 truncate text-sm text-white"
               >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
-            <button type="button" class="shrink-0 rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.cancelFriendRequest') }}</button>
+            <Button type="button" :aria-label="`${t('social.cancelFriendRequest')}: ${person.username}`" :data-agent-confirm="`${t('social.cancelFriendRequest')}: ${person.username}`" class="h-auto shrink-0 rounded border-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.cancelFriendRequest') }}</Button>
           </li>
         </ul>
       </section>
@@ -111,7 +112,7 @@ async function updateFriend(username: string, accept: boolean) {
             <span class="min-w-0 truncate text-sm text-white"
               >{{ person.displayName }} <span class="text-flixer-muted">{{ person.username }}</span></span
             >
-            <button type="button" class="shrink-0 rounded bg-white/10 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.removeFriend') }}</button>
+            <Button type="button" :aria-label="`${t('social.removeFriend')}: ${person.username}`" :data-agent-confirm="`${t('social.removeFriend')}: ${person.username}`" class="h-auto shrink-0 rounded border-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-60" :disabled="busyUsername === person.username" @click="updateFriend(person.username, false)">{{ t('social.removeFriend') }}</Button>
           </li>
         </ul>
       </section>

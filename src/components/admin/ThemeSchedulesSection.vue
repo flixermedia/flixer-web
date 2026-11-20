@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Input } from '@ui-sdk/vue/input'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
@@ -60,7 +61,7 @@ const field = 'w-full rounded border border-flixer-border bg-flixer-background/6
     <p v-if="!rows.length" class="rounded border border-dashed border-flixer-border p-6 text-center text-sm text-flixer-muted">{{ t('admin.appearance.schedules.empty') }}</p>
     <ul v-else class="grid gap-3">
       <li v-for="(row, index) in rows" :key="row.id ?? index" class="grid gap-3 rounded border border-flixer-border bg-flixer-background/30 p-3 lg:grid-cols-[1.2fr_1.2fr_auto_auto_auto_auto] lg:items-end">
-        <label class="text-xs font-medium text-flixer-muted">{{ t('admin.appearance.schedules.name') }}<input v-model="row.name" maxlength="60" :placeholder="t('admin.appearance.schedules.namePlaceholder')" :class="[field, 'mt-1']" /></label>
+        <label class="text-xs font-medium text-flixer-muted">{{ t('admin.appearance.schedules.name') }}<Input v-model="row.name" maxlength="60" :placeholder="t('admin.appearance.schedules.namePlaceholder')" :class="[field, 'mt-1']" /></label>
         <label class="text-xs font-medium text-flixer-muted">{{ t('admin.appearance.schedules.theme') }}<select v-model="row.themeId" :class="[field, 'mt-1']"><option v-for="theme in state.themes" :key="theme.id" :value="theme.id">{{ theme.name }}</option></select></label>
         <label class="text-xs font-medium text-flixer-muted">{{ t('admin.appearance.schedules.from') }}<input type="date" min="2024-01-01" max="2024-12-31" :value="toInput(row.start)" :class="[field, 'mt-1']" @input="row.start = fromInput(($event.target as HTMLInputElement).value)" /></label>
         <label class="text-xs font-medium text-flixer-muted">{{ t('admin.appearance.schedules.to') }}<input type="date" min="2024-01-01" max="2024-12-31" :value="toInput(row.end)" :class="[field, 'mt-1']" @input="row.end = fromInput(($event.target as HTMLInputElement).value)" /></label>

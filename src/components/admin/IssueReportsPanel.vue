@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -31,6 +33,10 @@ const filter = ref<'all' | IssueReportStatus>('all')
 const statuses: IssueReportStatus[] = ['open', 'in_progress', 'resolved', 'closed']
 const filteredReports = () => filter.value === 'all' ? reports.value : reports.value.filter((report) => report.status === filter.value)
 const formatDate = (date: string) => new Date(date).toLocaleString()
+
+function setFilter(value: string | null) {
+  if (value !== null) filter.value = value as 'all' | IssueReportStatus
+}
 
 async function load() {
   loading.value = true
@@ -120,17 +126,21 @@ onMounted(() => void load())
     <div class="grid gap-5 xl:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.5fr)]">
       <section class="min-w-0 overflow-hidden rounded border border-flixer-border">
         <div class="border-b border-flixer-border p-3">
-          <label class="sr-only" for="issue-status-filter">{{ t('issues.filterStatus') }}</label>
-          <select id="issue-status-filter" v-model="filter" class="w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white">
-            <option value="all">{{ t('issues.allStatuses') }}</option>
-            <option v-for="status in statuses" :key="status" :value="status">{{ t(`issues.status.${status}`) }}</option>
-          </select>
+          <Select :value="filter" @value-change="setFilter">
+            <SelectTrigger :aria-label="t('issues.filterStatus')" class="w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+              <SelectItem value="all" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t('issues.allStatuses') }}</SelectItem>
+              <SelectItem v-for="status in statuses" :key="status" :value="status" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">{{ t(`issues.status.${status}`) }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <p v-if="loading" class="p-4 text-sm text-flixer-muted" role="status">{{ t('issues.loading') }}</p>
         <p v-else-if="!filteredReports().length" class="p-4 text-sm text-flixer-muted">{{ t('issues.noAdminReports') }}</p>
         <ul v-else class="max-h-[70vh] divide-y divide-flixer-border overflow-y-auto">
           <li v-for="report in filteredReports()" :key="report.id">
-            <button type="button" class="w-full p-3 text-left transition hover:bg-white/5" :class="selected?.id === report.id ? 'bg-white/5' : ''" @click="selectReport(report.id)">
+            <Button type="button" class="w-full p-3 text-left transition hover:bg-white/5" :class="selected?.id === report.id ? 'bg-white/5' : ''" @click="() => { void selectReport(report.id) }">
               <span class="flex items-start justify-between gap-2">
                 <span class="min-w-0">
                   <span class="block truncate text-sm font-semibold text-white">{{ report.title }}</span>
@@ -139,7 +149,7 @@ onMounted(() => void load())
                 <span class="shrink-0 rounded bg-white/10 px-2 py-1 text-[10px] text-flixer-text">{{ t(`issues.status.${report.status}`) }}</span>
               </span>
               <span class="mt-2 block text-[11px] text-flixer-muted">{{ formatDate(report.updatedAt) }}</span>
-            </button>
+            </Button>
           </li>
         </ul>
       </section>

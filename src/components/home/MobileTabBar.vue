@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
@@ -73,10 +74,10 @@ watch(
         <Icon :icon="homeTab.icon" class="size-5 transition group-active:scale-90" :class="isActivePath(route.path, homeTab.to) ? 'text-flixer-accent' : ''" aria-hidden="true" />
         <span class="max-w-full truncate">{{ homeTab.label }}</span>
       </RouterLink>
-      <button id="mobile-tab-more" type="button" class="group flex h-12 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded text-[10px] font-medium transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="menuIsActive || menuOpen ? 'bg-flixer-primary/20 text-white' : 'text-flixer-muted hover:text-white'" :aria-expanded="menuOpen" aria-haspopup="true" aria-controls="mobile-tab-menu" :aria-label="t('home.nav.more')" @click="menuOpen = !menuOpen">
+      <Button id="mobile-tab-more" type="button" class="group flex h-12 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded border-0 p-0 text-[10px] font-medium transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="menuIsActive || menuOpen ? 'bg-flixer-primary/20 text-white hover:bg-flixer-primary/20' : 'bg-transparent text-flixer-muted hover:bg-transparent hover:text-white'" :aria-expanded="menuOpen" aria-haspopup="true" aria-controls="mobile-tab-menu" :aria-label="t('home.nav.more')" @click="menuOpen = !menuOpen">
         <Icon icon="lucide:menu" class="size-5 transition group-active:scale-90" :class="menuIsActive || menuOpen ? 'text-flixer-accent' : ''" aria-hidden="true" />
         <span>{{ t('home.nav.more') }}</span>
-      </button>
+      </Button>
       <RouterLink v-if="discoverTab" :to="discoverTab.to" class="group flex h-12 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded text-[10px] font-medium transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, discoverTab.to) ? 'bg-flixer-primary/20 text-white' : 'text-flixer-muted hover:text-white'" :aria-current="isActivePath(route.path, discoverTab.to) ? 'page' : undefined">
         <Icon :icon="discoverTab.icon" class="size-5 transition group-active:scale-90" :class="isActivePath(route.path, discoverTab.to) ? 'text-flixer-accent' : ''" aria-hidden="true" />
         <span class="max-w-full truncate">{{ discoverTab.label }}</span>

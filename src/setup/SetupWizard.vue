@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { openModal } from '@kolirt/vue-modal'
 import { computed, defineAsyncComponent, onMounted, provide, ref, shallowReactive, watch, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -167,14 +168,14 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="fixed inset-0 flex items-center justify-center overflow-hidden bg-flixer-background text-flixer-text md:p-8" :aria-label="t('setup.title')">
+  <main data-agent-hidden class="fixed inset-0 flex items-center justify-center overflow-hidden bg-flixer-background text-flixer-text md:p-8" :aria-label="t('setup.title')">
     <div class="flex h-full w-full flex-col overflow-hidden bg-flixer-background md:rounded md:border md:border-flixer-border md:bg-flixer-surface md:shadow-2xl md:shadow-black/60" :class="compact ? 'md:h-auto md:max-w-md' : 'md:h-[min(46rem,100%)] md:max-w-3xl'">
       <header class="relative flex shrink-0 flex-col gap-4 px-6 pt-6 sm:px-10">
-        <button v-if="index === 0 && progress" type="button" class="absolute top-5 right-6 flex h-9 items-center gap-2 rounded border border-flixer-border px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-10" :aria-label="t('languageModal.title')" @click="openLanguage">
+        <Button v-if="index === 0 && progress" type="button" class="absolute top-5 right-6 flex h-9 items-center gap-2 rounded border border-flixer-border bg-transparent px-3 text-xs font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-flixer-accent sm:right-10" :aria-label="t('languageModal.title')" @click="openLanguage">
           <span v-if="localeCountry(locale)" class="fi rounded" :class="`fi-${localeCountry(locale)}`" aria-hidden="true"></span>
           <Icon v-else icon="lucide:globe" class="size-4" aria-hidden="true" />
           {{ localeName(locale) }}
-        </button>
+        </Button>
         <img :src="logo" alt="Flixer" class="h-7 w-auto self-start md:h-10 md:self-center" />
         <ol v-if="progress && steps.length > 1" class="flex gap-2" :aria-label="t('setup.progress')">
           <li v-for="(step, i) in steps" :key="step.id" class="flex-1" :aria-current="i === index ? 'step' : undefined">
@@ -194,9 +195,9 @@ onMounted(load)
           <p class="text-sm leading-6 text-flixer-muted">{{ loadError === 'locked' ? t('setup.locked') : t('setup.loadFailed') }}</p>
         </div>
         <div class="flex gap-3">
-          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110" @click="router.push({ name: 'login' })">{{ t('setup.signIn') }}</button>
-          <button v-if="loadError === 'locked'" type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="useRecoveryKey">{{ t('setup.key.use') }}</button>
-          <button type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5" @click="load">{{ t('setup.retry') }}</button>
+          <Button v-if="loadError === 'locked'" type="button" class="h-11 rounded border-0 bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110" @click="void router.push({ name: 'login' })">{{ t('setup.signIn') }}</Button>
+          <Button v-if="loadError === 'locked'" type="button" class="h-11 rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5" @click="useRecoveryKey">{{ t('setup.key.use') }}</Button>
+          <Button type="button" class="h-11 rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5" @click="void load()">{{ t('setup.retry') }}</Button>
         </div>
       </div>
 
@@ -226,10 +227,10 @@ onMounted(load)
         </div>
 
         <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-flixer-border/60 px-6 py-4 sm:px-10">
-          <button type="button" class="h-11 rounded px-5 text-sm font-semibold text-flixer-muted transition hover:text-flixer-text disabled:invisible" :disabled="index === 0 || submitting" @click="back">{{ t('setup.back') }}</button>
-          <button type="button" class="h-11 min-w-32 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60" :disabled="submitting || !canContinue" @click="advance">
+          <Button type="button" class="h-11 rounded border-0 bg-transparent px-5 text-sm font-semibold text-flixer-muted transition hover:bg-transparent hover:text-flixer-text disabled:invisible" :disabled="index === 0 || submitting" @click="back">{{ t('setup.back') }}</Button>
+          <Button type="button" class="h-11 min-w-32 rounded border-0 bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary hover:brightness-110 disabled:opacity-60" :disabled="submitting || !canContinue" @click="void advance()">
             {{ submitting ? t('setup.working') : isLast ? t('setup.finish') : t('setup.continue') }}
-          </button>
+          </Button>
         </footer>
       </template>
     </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getViewingAnalytics, type ViewingAnalytics } from '../../api/analytics'
@@ -28,6 +30,11 @@ async function load() {
   else { data.value = result; error.value = '' }
   loading.value = false
 }
+function changeDays(value: string | null) {
+  if (value === null) return
+  days.value = Number(value) as 7 | 30 | 90
+  void load()
+}
 onMounted(load)
 onBeforeUnmount(() => { generation++ })
 </script>
@@ -35,14 +42,19 @@ onBeforeUnmount(() => { generation++ })
 <template>
   <AdminSection :title="t(`analytics.viewing.${screen}`)" :description="t('analytics.viewing.note')">
     <div class="space-y-4">
-      <label class="flex items-center gap-3 text-sm">
-        {{ t('analytics.advertising.range') }}
-        <select v-model.number="days" class="rounded border border-flixer-border bg-flixer-background px-3 py-2" @change="load">
-          <option :value="7">{{ t('analytics.advertising.days', { count: 7 }) }}</option>
-          <option :value="30">{{ t('analytics.advertising.days', { count: 30 }) }}</option>
-          <option :value="90">{{ t('analytics.advertising.days', { count: 90 }) }}</option>
-        </select>
-      </label>
+      <Field class="flex items-center gap-3 text-sm">
+        <FieldLabel class="font-normal text-inherit">{{ t('analytics.advertising.range') }}</FieldLabel>
+        <Select :value="String(days)" @value-change="changeDays">
+          <SelectTrigger class="rounded border border-flixer-border bg-flixer-background px-3 py-2 text-left text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent class="rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+            <SelectItem v-for="period in [7, 30, 90]" :key="period" :value="String(period)" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+              {{ t('analytics.advertising.days', { count: period }) }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
       <p class="text-xs text-flixer-muted">{{ t('analytics.viewing.rangeNote') }}</p>
       <p v-if="loading" role="status" class="text-sm text-flixer-muted">{{ t('common.loading') }}</p>
       <p v-else-if="error" role="alert" class="text-sm text-red-200">{{ error }}</p>

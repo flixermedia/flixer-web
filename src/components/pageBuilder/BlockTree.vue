@@ -2,6 +2,7 @@
 import Draggable from 'vuedraggable'
 import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@ui-sdk/vue/button'
 import type { PageBlock } from './pageBuilder'
 
 const props = defineProps<{ blocks: PageBlock[]; selectedId: string; depth?: number }>()
@@ -26,7 +27,7 @@ function move(index: number, direction: number) {
 
 <template>
     <Draggable :list="blocks" item-key="id" group="page-blocks" handle=".block-drag" :move="allowMove"
-        :data-depth="depth ?? 0" class="block-list" ghost-class="block-ghost">
+        :data-depth="depth ?? 0" class="block-list" ghost-class="block-ghost" data-agent-hidden>
         <template #item="{ element: block, index }">
             <div class="block-entry">
                 <div class="flex items-center rounded border border-flixer-border"
@@ -35,29 +36,29 @@ function move(index: number, direction: number) {
                         aria-hidden="true">
                         <Icon icon="lucide:grip-vertical" class="size-4" />
                     </span>
-                    <button type="button" class="min-w-0 flex-1 truncate py-2 text-left text-sm"
+                    <Button type="button" class="min-w-0 flex-1 truncate py-2 text-left text-sm"
                         @click="emit('select', block.id)">{{ block.type === 'auth-field' ?
-                            t(`pageBuilder.authField.${block.field}`) : t(`pageBuilder.block.${block.type}`) }}</button>
-                    <button type="button" :class="tool" :disabled="index === 0" :title="t('pageBuilder.moveUp')"
+                            t(`pageBuilder.authField.${block.field}`) : t(`pageBuilder.block.${block.type}`) }}</Button>
+                    <Button type="button" :class="tool" :disabled="index === 0" :title="t('pageBuilder.moveUp')"
                         :aria-label="t('pageBuilder.moveUp')" @click="move(index, -1)">
                         <Icon icon="lucide:chevron-up" class="size-4" />
-                    </button>
-                    <button type="button" :class="tool" :disabled="index === blocks.length - 1"
+                    </Button>
+                    <Button type="button" :class="tool" :disabled="index === blocks.length - 1"
                         :title="t('pageBuilder.moveDown')" :aria-label="t('pageBuilder.moveDown')"
                         @click="move(index, 1)">
                         <Icon icon="lucide:chevron-down" class="size-4" />
-                    </button>
-                    <button v-if="block.type !== 'auth' && block.type !== 'auth-field'" type="button" :class="tool"
+                    </Button>
+                    <Button v-if="block.type !== 'auth' && block.type !== 'auth-field'" type="button" :class="tool"
                         :title="t('pageBuilder.duplicateBlock')" :aria-label="t('pageBuilder.duplicateBlock')"
                         @click="emit('duplicate', block.id)">
                         <Icon icon="lucide:copy" class="size-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         v-if="block.type !== 'auth' && !(block.type === 'auth-field' && ['username', 'password', 'email', 'submit', 'switch'].includes(block.field ?? ''))"
                         type="button" :class="tool" :title="t('pageBuilder.removeBlock')"
                         :aria-label="t('pageBuilder.removeBlock')" @click="emit('remove', block.id)">
                         <Icon icon="lucide:trash-2" class="size-4" />
-                    </button>
+                    </Button>
                 </div>
                 <div v-if="block.columns" class="ml-4 grid gap-2 border-l border-flixer-border pl-2">
                     <div v-for="(column, columnIndex) in block.columns" :key="columnIndex"><span
@@ -76,6 +77,13 @@ function move(index: number, direction: number) {
 </template>
 
 <style scoped>
+@layer components.ui-sdk {
+    [data-slot="button"],
+    [data-slot="button"]:hover {
+        all: revert-layer;
+    }
+}
+
 .block-list {
     display: grid;
     gap: .25rem;

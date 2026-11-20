@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -76,9 +77,9 @@ onMounted(() => void load(0))
     <component :is="embedded ? 'div' : 'main'" :class="embedded ? '' : 'page-gutter pt-28 sm:pt-32'">
       <header class="flex flex-wrap items-center justify-between gap-4 border-b border-flixer-border pb-5">
         <component :is="embedded ? 'h3' : 'h1'" :class="embedded ? 'text-lg font-semibold text-white' : 'text-3xl font-bold text-white'">{{ t('playbackHistory.title') }}</component>
-        <button v-if="entries.length" type="button" class="inline-flex items-center gap-2 rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text hover:bg-white/10 disabled:opacity-50" :disabled="busy" @click="clear">
+        <Button v-if="entries.length" type="button" class="inline-flex h-auto items-center gap-2 rounded border border-flixer-border bg-transparent px-3 py-2 text-sm font-normal text-flixer-text hover:bg-white/10 disabled:opacity-50" :disabled="busy" @click="void clear()">
           <Icon icon="lucide:trash-2" class="size-4" aria-hidden="true" />{{ t('playbackHistory.clear') }}
-        </button>
+        </Button>
       </header>
       <p v-if="failed" class="mt-5 text-sm text-red-400" role="alert">{{ t('playbackHistory.error') }}</p>
       <p v-if="loading && !entries.length" class="mt-5 text-sm text-flixer-muted" role="status">{{ t('common.loading') }}</p>
@@ -95,15 +96,15 @@ onMounted(() => void load(0))
             <p v-if="entry.item?.subtitle" class="truncate text-sm text-flixer-muted">{{ entry.item.subtitle }}</p>
             <time class="block text-xs text-flixer-muted" :datetime="entry.startedAt">{{ date(entry.startedAt) }}</time>
           </div>
-          <button type="button" class="grid size-10 shrink-0 place-items-center rounded text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-50" :disabled="busy" :title="t('playbackHistory.remove')" :aria-label="t('playbackHistory.remove')" @click="remove(entry.id)"><Icon icon="lucide:x" class="size-5" aria-hidden="true" /></button>
+          <Button type="button" class="grid size-10 shrink-0 place-items-center rounded border-0 bg-transparent p-0 text-flixer-muted hover:bg-white/10 hover:text-white disabled:opacity-50" :disabled="busy" :title="t('playbackHistory.remove')" :aria-label="t('playbackHistory.remove')" @click="void remove(entry.id)"><Icon icon="lucide:x" class="size-5" aria-hidden="true" /></Button>
         </li>
       </ol>
       <nav v-if="pageIndex > 0 || hasMore" class="mt-5 flex items-center justify-between gap-3" :aria-label="t('playbackHistory.pagination')">
-        <button type="button" class="inline-flex items-center gap-1 rounded border border-flixer-border px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-40" :disabled="loading || busy || pageIndex === 0" @click="load(pageIndex - 1)"><Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />{{ t('playbackHistory.previous') }}</button>
+        <Button type="button" class="inline-flex h-auto items-center gap-1 rounded border border-flixer-border bg-transparent px-3 py-2 text-sm font-normal text-inherit hover:bg-white/10 disabled:opacity-40" :disabled="loading || busy || pageIndex === 0" @click="void load(pageIndex - 1)"><Icon icon="lucide:chevron-left" class="size-4" aria-hidden="true" />{{ t('playbackHistory.previous') }}</Button>
         <span class="text-sm tabular-nums text-flixer-muted">{{ t('playbackHistory.page', { page: pageIndex + 1 }) }}</span>
-        <button type="button" class="inline-flex items-center gap-1 rounded border border-flixer-border px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-40" :disabled="loading || busy || !hasMore" @click="load(pageIndex + 1)">{{ t('playbackHistory.next') }}<Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" /></button>
+        <Button type="button" class="inline-flex h-auto items-center gap-1 rounded border border-flixer-border bg-transparent px-3 py-2 text-sm font-normal text-inherit hover:bg-white/10 disabled:opacity-40" :disabled="loading || busy || !hasMore" @click="void load(pageIndex + 1)">{{ t('playbackHistory.next') }}<Icon icon="lucide:chevron-right" class="size-4" aria-hidden="true" /></Button>
       </nav>
-      <button v-if="failed && !entries.length" type="button" class="mt-4 rounded bg-white/10 px-4 py-2 text-sm hover:bg-white/20" @click="load()">{{ t('home.retry') }}</button>
+      <Button v-if="failed && !entries.length" type="button" class="mt-4 h-auto rounded border-0 bg-white/10 px-4 py-2 text-sm font-normal text-inherit hover:bg-white/20" @click="void load()">{{ t('home.retry') }}</Button>
     </component>
     <MobileTabBar v-if="!embedded" :tabs="mobileTabs" />
   </div>

@@ -1,4 +1,25 @@
+@layer ui-sdk;
 @import "tailwindcss";
+@import "@ui-sdk/core/web.css" layer(components);
+
+@layer components.ui-sdk {
+	:where(:root) {
+		color-scheme: revert-layer;
+	}
+
+	a, hr, code, kbd {
+		all: revert-layer;
+	}
+
+	a:hover {
+		text-decoration-color: revert-layer;
+	}
+
+	:is(a, summary):focus-visible {
+		outline: revert-layer;
+		outline-offset: revert-layer;
+	}
+}
 
 /* Matches the header's outer edge: its px-3/sm:px-6 padding and the theme's content width (110rem by default). */
 @utility page-gutter {

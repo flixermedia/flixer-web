@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { Textarea } from '@ui-sdk/vue/textarea'
 import type { PageBlock } from './pageBuilder'
 
 const props = defineProps<{ block: PageBlock; editable?: boolean; selectedId?: string }>()
@@ -24,8 +25,8 @@ const safeHref = computed(() => {
         :class="[`spacing-${block.style?.spacing ?? 'normal'}`, { selected: editable && selectedId === block.id }]"
         :style="style" @click.stop="editable && emit('select', block.id)">
         <template v-if="editable && selectedId === block.id && (block.type === 'heading' || block.type === 'text')">
-            <textarea :value="block.text" :aria-label="block.type" rows="3" class="inline-editor"
-                @input="emit('text', block.id, ($event.target as HTMLTextAreaElement).value)"></textarea>
+            <Textarea :value="block.text" :aria-label="block.type" rows="3" class="inline-editor" data-agent-hidden
+                @value-change="emit('text', block.id, $event)" />
         </template>
         <h2 v-else-if="block.type === 'heading'" class="page-heading">{{ block.text }}</h2>
         <div v-else-if="block.type === 'text'" class="page-text" v-html="markdown"></div>
@@ -58,6 +59,12 @@ const safeHref = computed(() => {
 </template>
 
 <style scoped>
+@layer components.ui-sdk {
+    [data-slot="textarea"] {
+        all: revert-layer;
+    }
+}
+
 .page-block {
     min-width: 0;
     overflow-wrap: anywhere;

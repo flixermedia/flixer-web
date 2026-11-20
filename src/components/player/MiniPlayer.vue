@@ -11,6 +11,8 @@ import { openModal } from "@kolirt/vue-modal";
 import AddToPlaylistModal from "../AddToPlaylistModal.vue";
 import { formatTime } from "./formatTime";
 import { catchError } from "../../utils/catchError";
+import { isTvMode } from "../../platform/tvMode";
+import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from "@ui-sdk/vue/slider";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -154,9 +156,19 @@ function onVolume(event: Event) {
 						<Icon icon="lucide:list-music" class="size-5 md:hidden" aria-hidden="true" />
 						<span class="hidden md:inline">{{ t("music.lyrics") }}</span>
 					</button>
-					<input type="range" min="0" max="1" step="0.01"
+					<input v-if="isTvMode" type="range" min="0" max="1" step="0.01"
 						class="hidden h-1 w-24 cursor-pointer accent-flixer-accent lg:block"
 						:aria-label="t('music.volume')" :value="volume" @input="onVolume" />
+					<Slider v-else :min="0" :max="1" :step="0.01" :value="volume"
+						class="hidden w-24 min-w-0 lg:flex"
+						@value-change="value => typeof value === 'number' && player.setVolume(value)">
+						<SliderControl class="h-1 cursor-pointer">
+							<SliderTrack class="h-1 rounded-full bg-[#efefef]">
+								<SliderIndicator class="bg-flixer-accent" />
+								<SliderThumb :aria-label="t('music.volume')" class="size-4 rounded-full border-0 bg-flixer-accent" />
+							</SliderTrack>
+						</SliderControl>
+					</Slider>
 					<button type="button"
 						class="grid size-7 place-items-center rounded text-flixer-muted transition hover:bg-white/10 hover:text-white sm:size-8 md:size-9"
 						:aria-label="t('music.close')" @click="player.stop()">

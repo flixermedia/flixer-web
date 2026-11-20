@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ModalContent, ModalDescription, ModalRoot, ModalTitle, useModalContext } from '@kolirt/vue-modal'
+import { Button } from '@ui-sdk/vue/button'
 import { useI18n } from 'vue-i18n'
 
 defineOptions({ modalGroup: 'default' })
@@ -18,8 +19,8 @@ const { t } = useI18n()
       </header>
       <ModalDescription class="mt-5 min-h-0 overflow-y-auto text-sm leading-6 text-flixer-muted">{{ message }}</ModalDescription>
       <div class="flixer-modal-actions mt-6 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.cancel') }}</button>
-        <button type="button" class="flex h-11 items-center justify-center rounded px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :class="danger ? 'bg-red-600' : 'bg-flixer-primary'" @click="confirm(true)">{{ confirmLabel ?? t('common.confirm') }}</button>
+        <Button type="button" class="flex h-11 items-center justify-center rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" @click="close()">{{ t('common.cancel') }}</Button>
+        <Button type="button" :data-agent-confirm="message" class="flex h-11 items-center justify-center rounded border-0 px-6 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :class="danger ? 'bg-red-600 hover:bg-red-600' : 'bg-flixer-primary hover:bg-flixer-primary'" @click="confirm(true)">{{ confirmLabel ?? t('common.confirm') }}</Button>
       </div>
     </ModalContent>
   </ModalRoot>

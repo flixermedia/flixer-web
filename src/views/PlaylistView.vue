@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { brandName } from '../composables/useAppearance'
 import { openModal } from '@kolirt/vue-modal'
 import axios from 'axios'
@@ -153,7 +154,7 @@ watch(
       </section>
       <section v-else-if="failed && !playlist" class="mx-auto max-w-2xl rounded border border-flixer-border bg-flixer-surface p-6 text-center">
         <p class="text-sm text-red-400" role="alert">{{ t('social.loadError') }}</p>
-        <button type="button" class="mt-4 rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="load">{{ t('home.retry') }}</button>
+        <Button type="button" class="mt-4 h-auto rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15" @click="void load()">{{ t('home.retry') }}</Button>
       </section>
       <section v-else-if="playlist" class="space-y-6">
         <header class="relative overflow-hidden rounded border border-white/10 bg-flixer-surface/60">
@@ -177,8 +178,8 @@ watch(
               <div class="mt-4 flex flex-wrap gap-2">
                 <button type="button" class="rounded bg-white px-4 py-2 text-sm font-bold text-flixer-background transition hover:bg-white/85 disabled:opacity-50" :disabled="!tracks.length" @click="playFrom()">{{ t('social.playAll') }}</button>
                 <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50" :disabled="tracks.length < 2" @click="shuffle">{{ t('social.shuffle') }}</button>
-                <button v-if="owner" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="edit">{{ t('social.editPlaylist') }}</button>
-                <button v-if="owner" type="button" class="rounded bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/25" @click="removePlaylist">{{ t('social.deletePlaylist') }}</button>
+                <Button v-if="owner" type="button" class="h-auto rounded border-0 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" @click="void edit()">{{ t('social.editPlaylist') }}</Button>
+                <Button v-if="owner" type="button" class="h-auto rounded border-0 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/25" @click="void removePlaylist()">{{ t('social.deletePlaylist') }}</Button>
               </div>
             </div>
           </div>

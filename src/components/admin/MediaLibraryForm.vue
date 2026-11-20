@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { openModal } from '@kolirt/vue-modal'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,6 +20,8 @@ const { t } = useI18n()
 
 const TYPES: MediaLibraryType[] = ['movies', 'tvshows', 'music', 'homevideos', 'mixed']
 const IMAGE_STORAGES: MediaImageStorage[] = ['cache', 'alongside']
+const typeOptions = computed(() => TYPES.map((value) => ({ value, label: t(`admin.libraries.types.${value}`) })))
+const imageStorageOptions = computed(() => IMAGE_STORAGES.map((value) => ({ value, label: t(`admin.libraries.imageStorages.${value}`) })))
 
 const name = ref(props.library?.name ?? '')
 const type = ref<MediaLibraryType>(props.library?.type ?? 'movies')
@@ -58,27 +64,37 @@ async function save() {
   <form class="flixer-modal-form" @submit.prevent="save">
     <div class="flixer-modal-form-body gap-4">
       <div class="grid gap-3 sm:grid-cols-2">
-        <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-          {{ t('admin.libraries.name') }}
-          <input v-model="name" type="text" maxlength="100" required :placeholder="t('admin.libraries.namePlaceholder')"
-            class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
-        </label>
-        <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-          {{ t('admin.libraries.contentType') }}
-          <select v-model="type"
-            class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text">
-            <option v-for="option in TYPES" :key="option" :value="option">{{ t(`admin.libraries.types.${option}`) }}
-            </option>
-          </select>
-        </label>
-        <label class="flex flex-col gap-1 text-xs text-flixer-muted">
-          {{ t('admin.libraries.imageStorage') }}
-          <select v-model="imageStorage"
-            class="rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text">
-            <option v-for="option in IMAGE_STORAGES" :key="option" :value="option">{{
-              t(`admin.libraries.imageStorages.${option}`) }}</option>
-          </select>
-        </label>
+        <Field class="flex flex-col gap-1 text-xs text-flixer-muted">
+          <FieldLabel class="text-xs font-normal text-flixer-muted">{{ t('admin.libraries.name') }}</FieldLabel>
+          <Input v-model="name" maxlength="100" required :placeholder="t('admin.libraries.namePlaceholder')"
+            class="h-auto rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-sm text-flixer-text" />
+        </Field>
+        <Field class="flex flex-col gap-1 text-xs text-flixer-muted">
+          <FieldLabel class="text-xs font-normal text-flixer-muted">{{ t('admin.libraries.contentType') }}</FieldLabel>
+          <Select v-model:value="type" :items="typeOptions">
+            <SelectTrigger class="h-auto min-h-9 w-full rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-left text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent class="max-h-64 rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+              <SelectItem v-for="option in typeOptions" :key="option.value" :value="option.value" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field class="flex flex-col gap-1 text-xs text-flixer-muted">
+          <FieldLabel class="text-xs font-normal text-flixer-muted">{{ t('admin.libraries.imageStorage') }}</FieldLabel>
+          <Select v-model:value="imageStorage" :items="imageStorageOptions">
+            <SelectTrigger class="h-auto min-h-9 w-full rounded border border-flixer-border bg-flixer-background px-3 py-1.5 text-left text-sm text-flixer-text focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent class="rounded border border-flixer-border bg-flixer-surface p-1 text-sm text-flixer-text shadow-xl">
+              <SelectItem v-for="option in imageStorageOptions" :key="option.value" :value="option.value" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
       </div>
 
       <div>
@@ -100,11 +116,11 @@ async function save() {
 
     </div>
     <div class="flixer-modal-actions flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-      <button type="button" class="h-11 rounded border border-flixer-border px-6 text-sm font-semibold transition hover:bg-white/5"
-        @click="emit('cancel')">{{ t('admin.libraries.cancel') }}</button>
-      <button type="submit" :disabled="!canSave"
-        class="h-11 rounded bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50">{{
-          t('admin.libraries.save') }}</button>
+      <Button type="button" class="h-11 rounded border border-flixer-border bg-transparent px-6 text-sm font-semibold text-flixer-text transition hover:bg-white/5"
+        @click="emit('cancel')">{{ t('admin.libraries.cancel') }}</Button>
+      <Button type="submit" :disabled="!canSave" data-agent-confirm="Creates or updates a media library and associates its selected folders"
+        class="h-11 rounded border-0 bg-flixer-primary px-6 text-sm font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-50">{{
+          t('admin.libraries.save') }}</Button>
     </div>
   </form>
 </template>

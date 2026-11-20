@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@ui-sdk/vue/button'
+import { Input } from '@ui-sdk/vue/input'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/vue/tabs'
 import { RouterLink } from 'vue-router'
 import { usePluginContext } from '../../composables/usePluginActions'
 import { activeTab, pagerState, resolveNav } from '../../plugins/pageLogic'
@@ -35,6 +38,11 @@ const stackClass = computed(() => {
 const selectedTab = computed(() => (props.node.type === 'tabs' ? activeTab(props.node.tabs, context.query.value, props.node.param) : undefined))
 const pager = computed(() => (props.node.type === 'pager' ? pagerState(props.node.page, props.node.pageSize, props.node.total) : null))
 const activeChip = computed(() => (props.node.type === 'chips' ? (context.query.value[props.node.param] ?? props.node.value ?? '') : ''))
+
+function selectTab(value: string | null) {
+  const node = props.node
+  if (node.type === 'tabs' && value !== null) context.patchQuery({ [node.param]: value }, node.reset)
+}
 </script>
 
 <template>
@@ -60,27 +68,23 @@ const activeChip = computed(() => (props.node.type === 'chips' ? (context.query.
 
   <PluginCard v-else-if="node.type === 'card'" :node="node" />
 
-  <div v-else-if="node.type === 'tabs'" class="space-y-4">
-    <div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
-      <button
+  <Tabs v-else-if="node.type === 'tabs'" :value="selectedTab ?? null" activation="manual" class="space-y-4" @value-change="selectTab">
+    <TabsList class="flex gap-2 overflow-x-auto border-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" :aria-label="t('home.tabs')">
+      <TabsTab
         v-for="tab in node.tabs"
         :key="tab.id"
         type="button"
-        role="tab"
-        :aria-selected="selectedTab === tab.id"
-        class="shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+        :value="tab.id"
+        class="mb-0 h-auto shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
         :class="selectedTab === tab.id ? 'border-white bg-white text-flixer-background' : 'border-flixer-border bg-flixer-surface/50 text-flixer-muted hover:border-white/30 hover:text-white'"
-        @click="context.patchQuery({ [node.param]: tab.id }, node.reset)"
       >
         {{ tab.label }}
-      </button>
-    </div>
-    <template v-for="tab in node.tabs" :key="tab.id">
-      <div v-if="tab.id === selectedTab" class="space-y-4" role="tabpanel">
-        <PluginNode v-for="(child, index) in tab.children" :key="index" :node="child" />
-      </div>
-    </template>
-  </div>
+      </TabsTab>
+    </TabsList>
+    <TabsPanel v-for="tab in node.tabs" :key="tab.id" :value="tab.id" class="space-y-4 p-0">
+      <PluginNode v-for="(child, index) in tab.children" :key="index" :node="child" />
+    </TabsPanel>
+  </Tabs>
 
   <PluginTable v-else-if="node.type === 'table'" :node="node" />
 
@@ -97,27 +101,27 @@ const activeChip = computed(() => (props.node.type === 'chips' ? (context.query.
   <div v-else-if="node.type === 'alert'" class="rounded border px-4 py-3 text-sm" :class="alertToneClasses[node.tone ?? 'info']" :role="node.tone === 'danger' || node.tone === 'warning' ? 'alert' : 'status'">{{ node.text }}</div>
 
   <nav v-else-if="node.type === 'pager' && pager && pager.pages > 1" class="flex items-center justify-between gap-3" :aria-label="t('plugins.view.pagination')">
-    <button type="button" :class="quietButtonClass" :disabled="!pager.hasPrev" @click="context.patchQuery({ [node.param]: String(pager.current - 1) })">{{ t('plugins.view.previous') }}</button>
+    <Button type="button" :class="quietButtonClass" class="h-auto bg-transparent text-flixer-text" :disabled="!pager.hasPrev" @click="context.patchQuery({ [node.param]: String(pager.current - 1) })">{{ t('plugins.view.previous') }}</Button>
     <span class="text-xs text-flixer-muted">{{ t('plugins.view.range', { first: pager.first, last: pager.last, total: node.total }) }}</span>
-    <button type="button" :class="quietButtonClass" :disabled="!pager.hasNext" @click="context.patchQuery({ [node.param]: String(pager.current + 1) })">{{ t('plugins.view.next') }}</button>
+    <Button type="button" :class="quietButtonClass" class="h-auto bg-transparent text-flixer-text" :disabled="!pager.hasNext" @click="context.patchQuery({ [node.param]: String(pager.current + 1) })">{{ t('plugins.view.next') }}</Button>
   </nav>
 
   <form v-else-if="node.type === 'searchbox'" class="flex gap-2" role="search" @submit.prevent="context.patchQuery({ [node.param]: searchValue.trim() }, node.reset)">
-    <input v-model="searchValue" type="search" :class="inputClass" :placeholder="node.placeholder" :aria-label="node.placeholder || t('plugins.view.search')" maxlength="200" />
-    <button type="submit" :class="quietButtonClass">{{ t('plugins.view.search') }}</button>
+    <Input v-model="searchValue" type="search" :class="inputClass" :placeholder="node.placeholder" :aria-label="node.placeholder || t('plugins.view.search')" maxlength="200" />
+    <Button type="submit" :class="quietButtonClass" class="h-auto bg-transparent text-flixer-text">{{ t('plugins.view.search') }}</Button>
   </form>
 
   <div v-else-if="node.type === 'chips'" class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
-    <button
+    <Button
       v-for="option in node.options"
       :key="option.value"
       type="button"
-      class="inline-flex shrink-0 items-center rounded-full border px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
-      :class="activeChip === option.value ? 'border-white bg-white text-flixer-background' : 'border-flixer-border bg-flixer-surface/50 text-flixer-muted hover:border-white/30 hover:text-white'"
+      class="inline-flex h-auto shrink-0 items-center rounded-full border px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
+      :class="activeChip === option.value ? 'border-white bg-white text-flixer-background hover:bg-white' : 'border-flixer-border bg-flixer-surface/50 text-flixer-muted hover:border-white/30 hover:bg-flixer-surface/50 hover:text-white'"
       :aria-pressed="activeChip === option.value"
       @click="context.patchQuery({ [node.param]: option.value }, node.reset)"
     >
       {{ option.label }}
-    </button>
+    </Button>
   </div>
 </template>

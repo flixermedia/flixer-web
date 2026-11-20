@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Field, FieldLabel } from '@ui-sdk/vue/field'
+import { Input } from '@ui-sdk/vue/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui-sdk/vue/select'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createGuideSource, deleteGuideSource, getAdminGuide, refreshGuideSource, updateGuideChannels, updateGuideSettings, updateGuideSource, type AdminGuideData, type GuideSource } from '../../api/guide'
@@ -20,6 +23,10 @@ interface ChannelDraft {
 }
 
 const { t } = useI18n()
+const sourceKindOptions = computed(() => [
+  { value: 'epg', label: t('admin.guide.epg') },
+  { value: 'iptv', label: t('admin.guide.iptv') },
+])
 const data = ref<AdminGuideData | null>(null)
 const isLoading = ref(true)
 const loadError = ref('')
@@ -173,16 +180,22 @@ onMounted(() => void load())
         </div>
 
         <form class="grid gap-3 rounded border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[9rem_minmax(10rem,1fr)_minmax(14rem,2fr)_auto]" @submit.prevent="addSource">
-          <label class="space-y-1 text-xs text-flixer-muted">
-            <span>{{ t('admin.guide.sourceKind') }}</span>
-            <select v-model="sourceKind" class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-sm text-white">
-              <option value="epg">{{ t('admin.guide.epg') }}</option>
-              <option value="iptv">{{ t('admin.guide.iptv') }}</option>
-            </select>
-          </label>
+          <Field class="space-y-1 text-xs text-flixer-muted">
+            <FieldLabel>{{ t('admin.guide.sourceKind') }}</FieldLabel>
+            <Select v-model:value="sourceKind" :items="sourceKindOptions">
+              <SelectTrigger class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-left text-sm text-white focus-visible:outline-2 focus-visible:outline-flixer-accent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent class="max-h-64 rounded border border-white/10 bg-flixer-surface p-1 text-sm text-white shadow-xl">
+                <SelectItem v-for="option in sourceKindOptions" :key="option.value" :value="option.value" class="cursor-pointer rounded px-3 py-2 outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <label class="space-y-1 text-xs text-flixer-muted">
             <span>{{ t('admin.guide.sourceName') }}</span>
-            <input v-model="sourceName" required maxlength="120" class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-sm text-white" :placeholder="t('admin.guide.namePlaceholder')" />
+            <Input v-model="sourceName" required maxlength="120" class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-sm text-white" :placeholder="t('admin.guide.namePlaceholder')" />
           </label>
           <label class="space-y-1 text-xs text-flixer-muted">
             <span>{{ t('admin.guide.sourceUrl') }}</span>
@@ -208,7 +221,7 @@ onMounted(() => void load())
           <div class="grid gap-3 md:grid-cols-[minmax(10rem,1fr)_minmax(14rem,2fr)_6rem]">
             <label class="space-y-1 text-xs text-flixer-muted">
               <span>{{ t('admin.guide.sourceName') }}</span>
-              <input v-model="sourceDrafts[source.id].name" maxlength="120" class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-sm text-white" />
+              <Input v-model="sourceDrafts[source.id].name" maxlength="120" class="h-10 w-full rounded border border-white/10 bg-flixer-surface px-3 text-sm text-white" />
             </label>
             <label class="space-y-1 text-xs text-flixer-muted">
               <span>{{ t('admin.guide.sourceUrl') }}</span>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@ui-sdk/vue/button'
 import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -109,7 +110,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-else-if="errorMessage" class="admin-card p-6 text-sm" role="alert">
         <p class="text-red-300">{{ errorMessage }}</p>
-        <button type="button" class="mt-4 rounded border border-flixer-border px-3 py-2 text-sm font-semibold transition hover:bg-white/5" @click="load">{{ t('plugins.view.retry') }}</button>
+        <Button type="button" class="mt-4 h-auto rounded border border-flixer-border bg-transparent px-3 py-2 text-sm font-semibold text-inherit transition hover:bg-white/5" @click="void load()">{{ t('plugins.view.retry') }}</Button>
       </div>
       <p v-else class="py-10 text-sm text-flixer-muted" role="status">{{ t('plugins.view.loading') }}</p>
     </main>

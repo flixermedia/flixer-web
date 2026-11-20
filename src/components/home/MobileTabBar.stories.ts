@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/vue3-vite";
+import { createAgent } from "@ui-sdk/vue/agent";
+import { expect, userEvent } from "storybook/test";
 import type { NavTab } from "../../types/media";
 import MobileTabBar from "./MobileTabBar.vue";
 
@@ -29,3 +31,22 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 export const WithoutDiscover: Story = { args: { tabs: tabs.filter((tab) => tab.to !== "/discover") } };
+export const MoreInteraction: Story = {
+	play: async ({ canvas }) => {
+		const more = canvas.getByRole("button", { name: "More" });
+		await expect(more).toHaveAttribute("aria-expanded", "false");
+		more.focus();
+		await userEvent.keyboard("{Enter}");
+		await expect(more).toHaveAttribute("aria-expanded", "true");
+		await expect(canvas.getByRole("link", { name: "Movies" })).toHaveAttribute("href", "/movies");
+		await userEvent.keyboard("{Escape}");
+		await expect(more).toHaveAttribute("aria-expanded", "false");
+		const agent = createAgent();
+		await expect(agent.snapshot()).toEqual(expect.arrayContaining([
+			expect.objectContaining({ component: "button", label: "More" }),
+		]));
+		const result = await agent.act({ steps: [{ ref: "More", action: "press" }] });
+		await expect(result.ok, result.error?.message).toBe(true);
+		await expect(more).toHaveAttribute("aria-expanded", "true");
+	},
+};
