@@ -14,7 +14,7 @@ import StatusPill from './StatusPill.vue'
 
 defineOptions({ modalGroup: 'default' })
 
-const props = defineProps<{ user: AdminUser }>()
+const props = withDefaults(defineProps<{ user: AdminUser; standalone?: boolean }>(), { standalone: false })
 
 // Resolves true when the user list needs a refresh.
 const { close, confirm } = useModalContext<boolean>()
@@ -194,7 +194,7 @@ async function remove() {
           </div>
         </div>
 
-        <div>
+        <div v-if="!props.standalone">
           <label class="text-xs font-semibold text-flixer-muted" for="original-access">{{ t('admin.users.originalAccess') }}</label>
           <p class="mt-1 text-xs text-flixer-muted">{{ t('admin.users.originalAccessUserDescription') }}</p>
           <select id="original-access" v-model="form.originalAccess" class="mt-2 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm">

@@ -100,12 +100,12 @@ function handleSignOut() {
 			</div>
 
 			<div v-else-if="currentTab === 'users'">
-				<UsersPanel />
+				<UsersPanel :standalone="true" />
 			</div>
 
 			<div v-else-if="currentTab === 'email'" class="flex flex-col gap-8">
 				<EmailSettingsSection />
-				<MailAdminPanel screen="overview" />
+				<MailAdminPanel screen="templates" />
 			</div>
 
 			<div v-else-if="currentTab === 'payments'" class="flex flex-col gap-8">

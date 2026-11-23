@@ -21,6 +21,8 @@ import LoginSecuritySection from './LoginSecuritySection.vue'
 import { usePayments } from '../../composables/usePayments'
 import { runUserBatch } from './userBatch'
 
+const props = withDefaults(defineProps<{ standalone?: boolean }>(), { standalone: false })
+
 const { t, locale } = useI18n()
 const payments = usePayments()
 
@@ -63,16 +65,18 @@ const selectedUsers = computed(() => users.value.filter((user) => !user.current 
 const allVisibleSelected = computed(() => selectableVisible.value.length > 0 && selectableVisible.value.every((user) => selectedIds.value.includes(user.id)))
 const someVisibleSelected = computed(() => selectableVisible.value.some((user) => selectedIds.value.includes(user.id)))
 
-const bulkChanges: Record<string, AdminUserChanges> = {
+const bulkChanges = computed<Record<string, AdminUserChanges>>(() => ({
   makeAdmin: { role: 'admin' },
   makeUser: { role: 'user' },
   enable: { disabled: false },
   disable: { disabled: true },
-  originalInherit: { originalAccess: 'inherit' },
-  originalAllow: { originalAccess: 'allow' },
-  originalDeny: { originalAccess: 'deny' },
-}
-const bulkActions = [...Object.keys(bulkChanges), 'revokeSessions', 'delete']
+  ...(props.standalone ? {} : {
+    originalInherit: { originalAccess: 'inherit' },
+    originalAllow: { originalAccess: 'allow' },
+    originalDeny: { originalAccess: 'deny' },
+  }),
+}))
+const bulkActions = computed(() => [...Object.keys(bulkChanges.value), 'revokeSessions', 'delete'])
 
 function selectVisible(event: Event) {
   selectionAnchor = null
@@ -108,7 +112,7 @@ function clearSelection() {
 async function applyBulkAction() {
   const targets = [...selectedUsers.value]
   const action = bulkAction.value
-  if (bulkBusy.value || !targets.length || !bulkActions.includes(action)) return
+  if (bulkBusy.value || !targets.length || !bulkActions.value.includes(action)) return
   bulkBusy.value = true
   try {
     const confirmed = await confirmAction(t('admin.users.bulk.confirm', {
@@ -121,7 +125,7 @@ async function applyBulkAction() {
     const result = await runUserBatch(targets, (user) => {
       if (action === 'delete') return deleteAdminUser(user.id)
       if (action === 'revokeSessions') return revokeAdminUserSessions(user.id)
-      return updateAdminUser(user.id, bulkChanges[action])
+      return updateAdminUser(user.id, bulkChanges.value[action])
     })
     selectedIds.value = result.failed.map(({ user }) => user.id)
     bulkErrors.value = result.failed.map(({ user, error }) => ({
@@ -186,7 +190,7 @@ async function load() {
 }
 
 async function openEdit(user: AdminUser) {
-  const refresh = await openModal<boolean>(EditUserModal, { props: { user } }).catch(() => false)
+  const refresh = await openModal<boolean>(EditUserModal, { props: { user, standalone: props.standalone } }).catch(() => false)
   if (refresh) await load()
 }
 
@@ -336,7 +340,7 @@ onMounted(() => {
               <td class="text-flixer-muted">{{ relativeTime(user.lastActiveAt) }}</td>
               <td class="text-right">
                 <div class="flex justify-end gap-2">
-                  <button type="button" :class="secondaryButton" :disabled="bulkBusy" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
+                  <button v-if="!props.standalone" type="button" :class="secondaryButton" :disabled="bulkBusy" class="inline-flex items-center gap-1.5" :aria-label="t('admin.access.manage', { name: user.displayName })" @click="openAccess(user)"><Icon icon="lucide:shield-check" class="size-3.5" aria-hidden="true" />{{ t('admin.access.manageShort') }}</button>
                   <button v-if="payments.active.value" type="button" :class="secondaryButton" :disabled="bulkBusy" class="inline-flex items-center gap-1.5" :aria-label="t('payments.admin.userPayments.manage', { name: user.displayName || user.username })" @click="openPayments(user)"><Icon icon="lucide:credit-card" class="size-3.5" aria-hidden="true" />{{ t('payments.admin.userPayments.button') }}</button>
                   <button type="button" :class="secondaryButton" :disabled="bulkBusy" @click="openEdit(user)">{{ t('admin.users.edit') }}</button>
                 </div>
@@ -352,18 +356,18 @@ onMounted(() => {
 
     <LoginSecuritySection :settings="settingsValues" :loading="isLoading" />
 
-    <AdminSection :title="t('admin.users.signUpPolicy')" :description="t('admin.users.signUpPolicyDescription')">
+    <AdminSection v-if="!props.standalone" :title="t('admin.users.signUpPolicy')" :description="t('admin.users.signUpPolicyDescription')">
       <AdminToggle :model-value="registrationEnabled" :label="t('admin.users.allowPublicRegistration')" :description="t('admin.users.publicRegistrationDescription')" @update:model-value="setRegistration" />
       <div :class="{ 'pointer-events-none opacity-60': !smtpConfigured }">
         <AdminToggle :model-value="verificationEnabled" :label="t('admin.users.requireEmailVerification')" :description="smtpConfigured ? t('admin.users.requireEmailVerificationDescription') : t('admin.users.emailVerificationOff')" @update:model-value="setVerification" />
       </div>
     </AdminSection>
 
-    <AdminSection :title="t('admin.users.quickConnectTitle')" :description="t('admin.users.quickConnectDescription')">
+    <AdminSection v-if="!props.standalone" :title="t('admin.users.quickConnectTitle')" :description="t('admin.users.quickConnectDescription')">
       <AdminToggle :model-value="quickConnectEnabled" :label="t('admin.users.quickConnectEnable')" :description="t('admin.users.quickConnectEnableDescription')" :disabled="isLoading || isSavingQuickConnect" @update:model-value="setQuickConnect" />
     </AdminSection>
 
-    <AdminSection :title="t('admin.access.displayTitle')" :description="t('admin.access.displayDescription')">
+    <AdminSection v-if="!props.standalone" :title="t('admin.access.displayTitle')" :description="t('admin.access.displayDescription')">
       <div class="grid gap-2 sm:grid-cols-2">
         <button v-for="mode in ['hidden', 'locked'] as const" :key="mode" type="button" class="flex items-start gap-3 rounded border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="restrictedDisplay === mode ? 'border-flixer-primary bg-flixer-primary/10' : 'border-flixer-border hover:bg-white/5'" :aria-pressed="restrictedDisplay === mode" @click="setRestrictedDisplay(mode)">
           <Icon :icon="mode === 'hidden' ? 'lucide:eye-off' : 'lucide:lock'" class="mt-0.5 size-5 shrink-0" :class="restrictedDisplay === mode ? 'text-flixer-accent' : 'text-flixer-muted'" aria-hidden="true" />
@@ -372,7 +376,7 @@ onMounted(() => {
       </div>
     </AdminSection>
 
-    <AdminSection :title="t('admin.users.originalAccess')" :description="t('admin.users.originalAccessDescription')">
+    <AdminSection v-if="!props.standalone" :title="t('admin.users.originalAccess')" :description="t('admin.users.originalAccessDescription')">
       <select :value="originalAccess" class="w-full max-w-xs rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm" @change="setOriginalAccess(($event.target as HTMLSelectElement).value)">
         <option value="admins">{{ t('admin.users.originalAccessAdmins') }}</option>
         <option value="everyone">{{ t('admin.users.originalAccessEveryone') }}</option>
