@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { activeLineIndex, instrumentalDotCount, isInstrumentalCue, type LyricLine, type ParsedLyrics } from "../../composables/lrc";
-import { createLineSpringFrames } from "../../../vendor/am-lyrics/src/LyricMotion";
+import { createLineSpringFrames } from "../../composables/lyricMotion";
 
 const props = defineProps<{
 	lyrics: ParsedLyrics;
