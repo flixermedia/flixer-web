@@ -17,6 +17,15 @@ const appUrl = ref(config.appUrl?.value ?? '')
 const passkeyRpId = ref(config.passkeyRpId?.value ?? '')
 const passkeyOrigins = ref(config.passkeyOrigins?.value ?? '')
 
+const isHttpWarning = computed(() => {
+  try {
+    const url = new URL(publicUrl.value)
+    return url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  } catch {
+    return false
+  }
+})
+
 async function submit(): Promise<boolean> {
   if (environmentLocked.value) return true
   const values: Record<string, string> = { publicUrl: publicUrl.value.trim() }
@@ -32,6 +41,9 @@ defineExpose({ submit })
     <SetupNotice v-if="environmentLocked" kind="info">{{ t('setup.lockedByEnvironment') }}</SetupNotice>
     <form v-else class="flex flex-col gap-4" @submit.prevent="wizard.advance()">
       <TextInput v-model.trim="publicUrl" :label="t('setup.urls.publicUrl')" :hint="fieldErrors.publicUrl || fieldErrors.passkeyOrigins || fieldErrors.passkeyRpId || t('setup.urls.hint')" placeholder="https://flixer.example.com" autocomplete="url" spellcheck="false" :disabled="busy" />
+      <SetupNotice v-if="isHttpWarning" kind="warning">
+        {{ t('setup.urls.insecureWarning') }}
+      </SetupNotice>
       <template v-if="advanced">
         <TextInput v-model.trim="appUrl" :label="t('setup.urls.appUrl')" :hint="fieldErrors.appUrl || t('setup.urls.appUrlHint')" autocomplete="off" spellcheck="false" :disabled="busy" />
         <TextInput v-model.trim="passkeyRpId" :label="t('setup.urls.passkeyRpId')" :hint="t('setup.urls.passkeyRpIdHint')" autocomplete="off" spellcheck="false" :disabled="busy" />

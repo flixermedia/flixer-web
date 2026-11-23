@@ -4643,6 +4643,7 @@
 			"description": "The address people use in their browser. It is also used for passkeys.",
 			"publicUrl": "Public Address",
 			"hint": "Use the address you type in the browser. Passkeys need https unless it is localhost.",
+			"insecureWarning": "Using an unencrypted HTTP address is not recommended for production. WebAuthn passkeys will not be available over plain HTTP.",
 			"appUrl": "Web app address",
 			"appUrlHint": "Leave empty to use the address above.",
 			"passkeyRpId": "Passkey Domain",
