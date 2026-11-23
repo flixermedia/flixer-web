@@ -28,8 +28,14 @@ async function handleLogin() {
 			return;
 		}
 
-		if ("token" in result && typeof result.token === "string") {
-			saveAccessToken(result.token);
+		const token = "accessToken" in result && typeof result.accessToken === "string"
+			? result.accessToken
+			: "token" in result && typeof result.token === "string"
+			? result.token
+			: null;
+
+		if (token) {
+			saveAccessToken(token);
 			await loadProfile(true);
 
 			if (profile.value?.role !== "admin") {
@@ -39,6 +45,10 @@ async function handleLogin() {
 
 			const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/admin/invites";
 			await router.replace(redirect);
+		} else if ("passkeyRequired" in result) {
+			notify.error("Passkey second-factor is required on this account.");
+		} else if ("paymentRequired" in result) {
+			notify.error("Subscription or payment is required on this account.");
 		} else {
 			notify.error("Login could not be completed. Please check your credentials.");
 		}
