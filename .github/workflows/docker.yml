@@ -67,6 +67,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build and publish Invites Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/flixermedia/flixer-web:invites
+            ghcr.io/flixermedia/flixer-web:invites-${{ steps.version.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_MODE=invites
+            APP_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Create tag and GitHub Release
         if: steps.version.outputs.new_release == 'true'
         uses: softprops/action-gh-release@v2

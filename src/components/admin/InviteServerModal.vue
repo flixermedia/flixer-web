@@ -11,7 +11,7 @@ import AdminToggle from "./AdminToggle.vue";
 
 defineOptions({ modalGroup: "default" });
 
-const SERVER_TYPES: InviteServerType[] = ["jellyfin", "emby", "plex", "other"];
+const SERVER_TYPES: InviteServerType[] = ["flixer", "jellyfin", "emby", "plex", "other"];
 
 const props = defineProps<{ server?: InviteServer }>();
 

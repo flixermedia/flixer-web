@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:invites": "APP_MODE=invites vite",
     "build": "vue-tsc -b --verbose && vite build",
+    "build:invites": "APP_MODE=invites vue-tsc -b --verbose && APP_MODE=invites vite build",
     "preview": "vite preview",
     "test": "vitest run --project=unit",
     "screenshots": "node --experimental-strip-types scripts/screenshots.mjs",

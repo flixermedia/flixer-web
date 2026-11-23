@@ -4,8 +4,8 @@ import { api } from "./client";
 import type { AuthResult, VerificationPending } from "flixer-api-client";
 import type { PaymentPending } from "./auth";
 
-export type InviteServerType = "jellyfin" | "emby" | "plex" | "other";
-export type InviteDestinationType = InviteServerType | "flixer";
+export type InviteServerType = "flixer" | "jellyfin" | "emby" | "plex" | "other";
+export type InviteDestinationType = InviteServerType;
 
 export interface InviteServer {
 	id: string;

@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import vue from "@vitejs/plugin-vue";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync } from "node:fs";
 import { createLogger, defineConfig, loadEnv, type ProxyOptions } from "vite";
 import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
 import type { GenerateSWOptions } from "workbox-build";
@@ -54,21 +54,39 @@ const proxyOptions: Record<string, string | ProxyOptions> = {
 	},
 };
 
-const manifestOptions: Partial<ManifestOptions> | false = {
-	name: "Flixer",
-	short_name: "Flixer",
-	description: "Your personal streaming experience.",
-	start_url: "/",
-	scope: "/",
-	display: "standalone",
-	background_color: "#080811",
-	theme_color: "#080811",
-	icons: [
-		{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
-		{ src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
-		{ src: "pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-	],
-};
+const isInvitesMode = process.env.APP_MODE === "invites" || process.env.VITE_APP_MODE === "invites";
+
+const manifestOptions: Partial<ManifestOptions> | false = isInvitesMode
+	? {
+			name: "Flixer Invites",
+			short_name: "Invites",
+			description: "Flixer Invites System",
+			start_url: "/",
+			scope: "/",
+			display: "standalone",
+			background_color: "#080811",
+			theme_color: "#080811",
+			icons: [
+				{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+				{ src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+				{ src: "pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+			],
+		}
+	: {
+			name: "Flixer",
+			short_name: "Flixer",
+			description: "Your personal streaming experience.",
+			start_url: "/",
+			scope: "/",
+			display: "standalone",
+			background_color: "#080811",
+			theme_color: "#080811",
+			icons: [
+				{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+				{ src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+				{ src: "pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+			],
+		};
 
 const workboxOptions: Partial<GenerateSWOptions> = {
 	globPatterns: ["**/*.{js,css,html,png,woff2,mp3}", "favicon.svg", "icons.svg"],
@@ -78,7 +96,7 @@ const workboxOptions: Partial<GenerateSWOptions> = {
 	navigateFallback: "/index.html",
 	navigateFallbackDenylist: [/^\/api\//],
 	cleanupOutdatedCaches: true,
-	importScripts: ["push-sw.js"],
+	importScripts: isInvitesMode ? [] : ["push-sw.js"],
 	runtimeCaching: [
 		{
 			// Country flags (hashed filenames) are cached on first view instead of bloating the install.
@@ -114,10 +132,14 @@ export default defineConfig({
 	optimizeDeps: { include: ["vccs", "motion-v", "vccs > eventemitter3"] },
 	build: {
 		rollupOptions: {
-			input: {
-				app: "index.html",
-				"push-sw": "src/push-sw.ts",
-			},
+			input: isInvitesMode
+				? {
+						app: "index.invites.html",
+					}
+				: {
+						app: "index.html",
+						"push-sw": "src/push-sw.ts",
+					},
 			output: {
 				entryFileNames: (chunk) => (chunk.name === "push-sw" ? "push-sw.js" : "assets/[name]-[hash].js"),
 			},
@@ -137,6 +159,33 @@ export default defineConfig({
 			manifest: manifestOptions,
 			workbox: workboxOptions,
 		}),
+		...(isInvitesMode
+			? [
+					{
+						name: "invites-dist-rename",
+						closeBundle() {
+							if (existsSync("dist/index.invites.html")) {
+								renameSync("dist/index.invites.html", "dist/index.html");
+							}
+						},
+						configureServer(server: import("vite").ViteDevServer) {
+							server.middlewares.use((req, _res, next) => {
+								if (
+									req.url === "/" ||
+									req.url === "/index.html" ||
+									req.url?.startsWith("/admin") ||
+									req.url?.startsWith("/invite") ||
+									req.url?.startsWith("/verify") ||
+									req.url?.startsWith("/login")
+								) {
+									req.url = "/index.invites.html";
+								}
+								next();
+							});
+						},
+					},
+				]
+			: []),
 	],
 	// Preview serves on the dev port too; host, https and the proxy are inherited from `server`.
 	preview: {

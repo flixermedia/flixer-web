@@ -12,12 +12,13 @@ COPY package.json package-lock.json ./
 COPY patches ./patches
 RUN npm ci
 
-COPY index.html vite.config.ts tsconfig*.json ./
+COPY index*.html vite.config.ts tsconfig*.json ./
 COPY public ./public
 COPY resources ./resources
 COPY src ./src
 
-RUN npm run build
+ARG APP_MODE=web
+RUN if [ "$APP_MODE" = "invites" ]; then npm run build:invites; else npm run build; fi
 
 FROM nginx:alpine AS runtime
 ARG APP_VERSION=dev
