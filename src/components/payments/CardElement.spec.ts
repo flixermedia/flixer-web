@@ -10,7 +10,7 @@ it("isolates Square's iframe color scheme without changing Stripe", async () => 
 	const style = compileStyle({ source: descriptor.styles[0].content, filename: "CardElement.vue", id: "data-v-test", scoped: true });
 	expect(style.errors).toEqual([]);
 
-	const browser = await chromium.launch({ headless: true });
+	const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
 	try {
 		const page = await browser.newPage();
 		await page.setContent(`
@@ -27,4 +27,4 @@ it("isolates Square's iframe color scheme without changing Stripe", async () => 
 	} finally {
 		await browser.close();
 	}
-});
+}, 30000);

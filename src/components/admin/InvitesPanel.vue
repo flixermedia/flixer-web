@@ -11,6 +11,7 @@ import { confirmAction } from "../../composables/confirm";
 import { notify } from "../../composables/notify";
 import { describeRequestError } from "../../composables/useProfile";
 import { catchError } from "../../utils/catchError";
+import { copyToClipboard } from "../../utils/clipboard";
 
 const { t, locale } = useI18n();
 
@@ -54,14 +55,37 @@ async function openEditInvitation(invitation: Invitation) {
 	notify.success(t("admin.invites.saved"));
 }
 
+const copiedLinkId = ref<string | null>(null);
+const copiedCodeId = ref<string | null>(null);
+
 function inviteLink(invitation: Invitation): string {
 	return `${window.location.origin}/invite/${invitation.code}`;
 }
 
 async function copyLink(invitation: Invitation) {
-	const [error] = await catchError(navigator.clipboard.writeText(inviteLink(invitation)));
-	if (error) notify.error(t("admin.invites.copyFailed"));
-	else notify.success(t("admin.invites.copied"));
+	const ok = await copyToClipboard(inviteLink(invitation));
+	if (ok) {
+		copiedLinkId.value = invitation.id;
+		setTimeout(() => {
+			if (copiedLinkId.value === invitation.id) copiedLinkId.value = null;
+		}, 2000);
+		notify.success(t("admin.invites.copied"));
+	} else {
+		notify.error(t("admin.invites.copyFailed"));
+	}
+}
+
+async function copyCode(invitation: Invitation) {
+	const ok = await copyToClipboard(invitation.code);
+	if (ok) {
+		copiedCodeId.value = invitation.id;
+		setTimeout(() => {
+			if (copiedCodeId.value === invitation.id) copiedCodeId.value = null;
+		}, 2000);
+		notify.success(t("admin.invites.codeCopied"));
+	} else {
+		notify.error(t("admin.invites.copyFailed"));
+	}
 }
 
 function inviteState(invitation: Invitation): "disabled" | "expired" | "exhausted" | "active" {
@@ -179,14 +203,35 @@ async function removeServer(server: InviteServer) {
 						<template v-for="invitation in invitations" :key="invitation.id">
 							<tr class="border-b border-flixer-border/60 align-top">
 								<td class="py-2 pr-3">
-									<div class="flex items-center gap-1.5">
-										<code class="font-mono text-flixer-text">{{ invitation.code }}</code>
-										<button type="button" class="text-flixer-muted hover:text-flixer-accent" :title="t('admin.invites.copyLink')" @click="copyLink(invitation)">
-											<Icon icon="lucide:copy" class="size-3.5" aria-hidden="true" />
-											<span class="sr-only">{{ t("admin.invites.copyLink") }}</span>
-										</button>
+									<div class="flex flex-col gap-1">
+										<div class="flex items-center gap-1.5">
+											<code class="font-mono text-xs font-semibold text-flixer-text">{{ invitation.code }}</code>
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs text-flixer-muted hover:bg-flixer-surface hover:text-flixer-text"
+												:title="t('admin.invites.copyCode')"
+												@click="copyCode(invitation)"
+											>
+												<Icon :icon="copiedCodeId === invitation.id ? 'lucide:check' : 'lucide:copy'" class="size-3" :class="{ 'text-emerald-400': copiedCodeId === invitation.id }" aria-hidden="true" />
+												<span class="sr-only">{{ t("admin.invites.copyCode") }}</span>
+											</button>
+										</div>
+										<div class="flex items-center gap-1.5 text-xs text-flixer-muted">
+											<a :href="inviteLink(invitation)" target="_blank" rel="noopener noreferrer" class="max-w-[220px] truncate text-flixer-text/80 hover:text-flixer-accent hover:underline">
+												{{ inviteLink(invitation) }}
+											</a>
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-flixer-primary hover:bg-flixer-primary/10"
+												:title="t('admin.invites.copyLink')"
+												@click="copyLink(invitation)"
+											>
+												<Icon :icon="copiedLinkId === invitation.id ? 'lucide:check' : 'lucide:link'" class="size-3" :class="{ 'text-emerald-400': copiedLinkId === invitation.id }" aria-hidden="true" />
+												<span>{{ copiedLinkId === invitation.id ? t("admin.invites.copied") : t("admin.invites.copyLink") }}</span>
+											</button>
+										</div>
 									</div>
-									<p v-if="invitation.label" class="text-xs text-flixer-muted">{{ invitation.label }}</p>
+									<p v-if="invitation.label" class="mt-1 text-xs text-flixer-muted">{{ invitation.label }}</p>
 									<p v-if="invitation.skipPayment" class="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">{{ t("admin.invites.freeBadge") }}</p>
 									<p v-if="invitation.skipEmailVerification" class="text-[10px] font-semibold uppercase tracking-wide text-sky-400">{{ t("admin.invites.skipVerificationBadge") }}</p>
 								</td>
@@ -200,6 +245,10 @@ async function removeServer(server: InviteServer) {
 								</td>
 								<td class="py-2">
 									<div class="flex flex-wrap gap-1.5" :class="{ 'pointer-events-none opacity-60': busyId === invitation.id }">
+										<button type="button" class="inline-flex items-center gap-1 rounded border border-flixer-border px-2 py-1 text-xs text-flixer-text hover:bg-flixer-border/40" @click="copyLink(invitation)">
+											<Icon :icon="copiedLinkId === invitation.id ? 'lucide:check' : 'lucide:link'" class="size-3" :class="{ 'text-emerald-400': copiedLinkId === invitation.id }" aria-hidden="true" />
+											{{ copiedLinkId === invitation.id ? t("admin.invites.copied") : t("admin.invites.copyLink") }}
+										</button>
 										<button type="button" class="rounded border border-flixer-border px-2 py-1 text-xs text-flixer-text hover:bg-flixer-border/40" @click="openEditInvitation(invitation)">{{ t("admin.invites.edit") }}</button>
 										<button type="button" class="rounded border border-flixer-border px-2 py-1 text-xs text-flixer-text hover:bg-flixer-border/40" @click="toggleUsages(invitation)">{{ t("admin.invites.usages") }}</button>
 										<button type="button" class="rounded border border-flixer-border px-2 py-1 text-xs text-flixer-text hover:bg-flixer-border/40" @click="toggleInvite(invitation)">{{ invitation.disabled ? t("admin.invites.enable") : t("admin.invites.disable") }}</button>

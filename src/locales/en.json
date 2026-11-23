@@ -1260,6 +1260,8 @@
 			"copied": "Invite link copied.",
 			"copyFailed": "The invite link could not be copied.",
 			"copyLink": "Copy invite link",
+			"copyCode": "Copy code",
+			"codeCopied": "Invite code copied.",
 			"loadFailed": "Couldn't load invitations.",
 			"saveFailed": "Couldn't save the invitation.",
 			"deleteFailed": "Couldn't delete that.",

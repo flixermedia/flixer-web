@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { createFriendInvite, type FriendInviteMode } from '../../api'
 import { catchError } from '../../utils/catchError'
+import { copyToClipboard } from '../../utils/clipboard'
 
 defineOptions({ modalGroup: 'default' })
 
@@ -50,8 +51,8 @@ async function createLink() {
 }
 
 async function copyLink() {
-  const [failure] = await catchError(navigator.clipboard.writeText(link.value))
-  if (failure) {
+  const success = await copyToClipboard(link.value)
+  if (!success) {
     error.value = true
     return
   }
