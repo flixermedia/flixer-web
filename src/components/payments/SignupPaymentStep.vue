@@ -4,7 +4,7 @@ import { Input } from "@ui-sdk/vue/input";
 import axios from "axios";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { beginSignupSetup, completeSignupPayment, type AuthResult, type SignupAction, type SignupPayment, type SignupSetup, type VerificationPending } from "../../api";
+import { beginSignupSetup, completeSignupPayment, type AuthResult, type InviteDestination, type SignupAction, type SignupPayment, type SignupSetup, type VerificationPending } from "../../api";
 import { completePaymentAction } from "../../composables/paymentSdk";
 import { usePaymentFormat } from "../../composables/usePaymentFormat";
 import { usePayments } from "../../composables/usePayments";
@@ -12,8 +12,8 @@ import { describeRequestError } from "../../composables/useProfile";
 import { catchError } from "../../utils/catchError";
 import CardElement from "./CardElement.vue";
 
-const props = defineProps<{ token: string; name?: string; email?: string }>();
-const emit = defineEmits<{ paid: [result: AuthResult | VerificationPending]; expired: []; back: [] }>();
+const props = defineProps<{ token: string; name?: string; email?: string; backLabel?: string }>();
+const emit = defineEmits<{ paid: [result: (AuthResult | (VerificationPending & { resendToken?: string })) & { destination?: InviteDestination }]; expired: []; back: [] }>();
 
 const { t } = useI18n();
 const { price, recurring } = usePaymentFormat();
@@ -65,7 +65,7 @@ async function pay() {
 		const result = confirmed.value ?? (await card.value.collect());
 		confirmed.value = result;
 		const payment: SignupPayment = { ...result, setupToken: setup.value.setupToken, couponCode: coupon.value.trim() || undefined, currency: payments.activeStatus.value?.currency };
-		let outcome: AuthResult | VerificationPending | SignupAction;
+		let outcome: ((AuthResult | VerificationPending) & { destination?: InviteDestination }) | SignupAction;
 		try {
 			outcome = await completeSignupPayment(props.token, payment);
 			if ("requiresAction" in outcome) {
@@ -117,7 +117,7 @@ async function pay() {
 				<span v-if="busy" class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
 				<Icon v-else icon="lucide:lock" class="size-[17px]" aria-hidden="true" />
 			</Button>
-			<Button type="button" class="h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-flixer-accent underline-offset-2 hover:bg-transparent hover:underline disabled:opacity-100" :disabled="busy" @click="emit('back')">{{ t("payments.signup.backToSignIn") }}</Button>
+			<Button type="button" class="h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-flixer-accent underline-offset-2 hover:bg-transparent hover:underline disabled:opacity-100" :disabled="busy" @click="emit('back')">{{ props.backLabel || t("payments.signup.backToSignIn") }}</Button>
 		</form>
 	</div>
 </template>

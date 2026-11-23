@@ -340,7 +340,7 @@ function variableToken(variable: string) { return `{{${variable}}}` }
 const keysOpen = ref(false)
 const keyGroups = computed(() => {
   const keys = activeTemplate.value?.keys ?? []
-  return (['global', 'account', 'payments'] as const).map((group) => ({ group, keys: keys.filter((entry) => entry.group === group) })).filter((entry) => entry.keys.length)
+  return (['global', 'account', 'payments', 'invites'] as const).map((group) => ({ group, keys: keys.filter((entry) => entry.group === group) })).filter((entry) => entry.keys.length)
 })
 function mailboxKind(kind: Mailbox['kind']) { return t(`admin.mail.kind.${kind}`) }
 

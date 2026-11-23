@@ -3,6 +3,7 @@ import { startAuthentication, startRegistration, type PublicKeyCredentialCreatio
 import { api, clearAccessToken } from "./client";
 import { catchError } from "../utils/catchError";
 import type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, ServerSetting, FlixerApiRouteBody, FlixerApiRouteData, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from "flixer-api-client";
+import type { InviteDestination } from "./invites";
 export type { AuthResult, AuthSession, Passkey, PasskeyRequired, RegistrationStatus, SettingRequestValue, ServerSetting, UserPreferences, UserPreferencesUpdate, UserProfile, VerificationPending } from "flixer-api-client";
 
 /** The account exists but has to save a card before it can sign in; `token` lets the holder finish paying. */
@@ -112,9 +113,15 @@ export async function register(username: string, password: string, email: string
 	return response.data;
 }
 
-export async function verifyEmail(token: string): Promise<void> {
+export interface VerifyEmailResult {
+	verified: true;
+	destination?: InviteDestination;
+}
+
+export async function verifyEmail(token: string): Promise<VerifyEmailResult> {
 	const request: FlixerApiRouteBody<"post", "/auth/verify-email"> = { token };
-	await api.post("/auth/verify-email", request);
+	const response = await api.post<VerifyEmailResult>("/auth/verify-email", request);
+	return response.data;
 }
 
 export async function resendVerification(username: string, password: string): Promise<void> {

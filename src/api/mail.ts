@@ -107,7 +107,7 @@ export interface MailMessagePage {
 
 export interface MailTemplateKey {
   key: string
-  group: 'global' | 'account' | 'payments'
+  group: 'global' | 'account' | 'payments' | 'invites'
   description: string
   sample: string
 }

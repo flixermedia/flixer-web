@@ -10,6 +10,7 @@ import { catchError } from '../../utils/catchError'
 import TextInput from '../ui/TextInput.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
 import AdminToggle from './AdminToggle.vue'
+import StatusPill from './StatusPill.vue'
 
 defineOptions({ modalGroup: 'default' })
 
@@ -123,8 +124,21 @@ async function revokeSessions() {
   notify.success(t('admin.users.sessionsRevoked', { count: result.revoked }))
 }
 
+const inviteServerLabel = computed(() => {
+  const invite = props.user.invite
+  if (!invite || invite.serverType === 'flixer') return t('admin.invites.types.flixer')
+  const typeLabel = t(`admin.invites.types.${invite.serverType}`)
+  if (!invite.serverName || invite.serverName.trim().toLowerCase() === typeLabel.toLowerCase()) return typeLabel
+  return `${typeLabel} · ${invite.serverName}`
+})
+
+const hasLinkedExternalAccount = computed(() => Boolean(props.user.invite && props.user.invite.serverType !== 'flixer' && props.user.invite.serverType !== 'other'))
+
 async function remove() {
-  if (!(await confirmAction(t('admin.users.confirmDelete', { name: props.user.displayName }), { danger: true }))) return
+  const message = hasLinkedExternalAccount.value
+    ? t('admin.users.confirmDeleteExternal', { name: props.user.displayName, server: inviteServerLabel.value })
+    : t('admin.users.confirmDelete', { name: props.user.displayName })
+  if (!(await confirmAction(message, { danger: true }))) return
   const done = await run(() => deleteAdminUser(props.user.id).then(() => true), 'admin.users.deleteError')
   if (!done) return
   notify.success(t('admin.users.deleted', { name: props.user.displayName }))
@@ -161,6 +175,15 @@ async function remove() {
           <TextInput v-model="form.email" :label="t('admin.users.email')" type="email" name="email" maxlength="254" autocomplete="off" />
           <p class="text-xs text-flixer-muted">{{ t('admin.users.username') }}: {{ user.username }}</p>
         </form>
+
+        <div v-if="user.invited && user.invite" class="rounded border border-flixer-border bg-flixer-background/50 p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <StatusPill tone="accent">{{ t('admin.users.invitedBadge') }}</StatusPill>
+            <StatusPill :tone="user.invite.serverType !== 'flixer' ? 'good' : 'neutral'">{{ inviteServerLabel }}</StatusPill>
+            <span class="text-xs text-flixer-muted">{{ t('admin.users.inviteCode', { code: user.invite.code }) }}</span>
+          </div>
+          <p v-if="hasLinkedExternalAccount" class="mt-2 text-xs text-flixer-muted">{{ t('admin.users.externalDeleteSyncNote', { server: inviteServerLabel }) }}</p>
+        </div>
 
         <div>
           <p class="text-xs font-semibold text-flixer-muted">{{ t('admin.users.access') }}</p>

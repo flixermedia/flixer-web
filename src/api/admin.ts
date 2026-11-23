@@ -3,9 +3,25 @@ import { api, apiRequest } from './client'
 import type { AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview, AdminUser as ApiAdminUser, AdminUserChanges as ApiAdminUserChanges, ApiKeyInfo, CreatedApiKey, IndexerStatus, IndexerTask as ApiIndexerTask, IndexerTaskState, NewAdminUser, StreamSessionList, FlixerApiRouteBody, FlixerApiRouteData } from 'flixer-api-client'
 export type { AdminActivityEntry, AdminActivityFilters, AdminActivityPage, AdminDevice, AdminOverview,  ApiKeyInfo, CreatedApiKey, IndexerQueueStats, IndexerScan, IndexerScanState, IndexerStatus, IndexerTaskState, NewAdminUser, StreamSession, StreamSessionList } from 'flixer-api-client'
 
+import type { InviteDestinationType } from './invites'
+
 export type OriginalAccess = 'inherit' | 'allow' | 'deny'
 
-export type AdminUser = ApiAdminUser & { originalAccess?: OriginalAccess }
+export interface AdminUserInvite {
+  invitationId: string
+  code: string
+  serverType: InviteDestinationType
+  serverName: string | null
+  externalUserId: string | null
+  externalEmail: string | null
+  status: 'pending_payment' | 'pending_verification' | 'completed' | 'failed'
+}
+
+export type AdminUser = ApiAdminUser & {
+  originalAccess?: OriginalAccess
+  invited?: boolean
+  invite?: AdminUserInvite | null
+}
 export type AdminUserChanges = ApiAdminUserChanges & { originalAccess?: OriginalAccess }
 
 export type LibraryAccessMode = 'all' | 'selected'

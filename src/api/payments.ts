@@ -2,6 +2,7 @@
 import axios from "axios";
 import { api } from "./client";
 import type { AuthResult, VerificationPending } from "./auth";
+import type { InviteDestination } from "./invites";
 
 export type PaymentProviderId = "stripe" | "square";
 export type ContentKind = "movies" | "tv" | "music" | "guide";
@@ -444,8 +445,8 @@ export interface SignupAction {
 }
 
 /** Saves the card, takes the registration fee and signs the account in. Rejects with 402 and the reason when the card is refused; it can be retried. */
-export async function completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<AuthResult | VerificationPending | SignupAction> {
-	return (await api.post<AuthResult | VerificationPending | SignupAction>("/payments/signup/complete", { token, payment, orderId })).data;
+export async function completeSignupPayment(token: string, payment: SignupPayment | undefined, orderId?: string): Promise<((AuthResult | VerificationPending) & { destination?: InviteDestination }) | SignupAction> {
+	return (await api.post<((AuthResult | VerificationPending) & { destination?: InviteDestination }) | SignupAction>("/payments/signup/complete", { token, payment, orderId })).data;
 }
 
 export async function getOrderReceiptUrl(orderId: string): Promise<string> {

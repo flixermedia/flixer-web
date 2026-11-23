@@ -101,6 +101,11 @@ const router = createRouter({
 			component: () => import("../views/LoginView.vue"),
 		},
 		{
+			path: "/invite/:code",
+			name: "invite",
+			component: () => import("../views/InviteView.vue"),
+		},
+		{
 			path: "/pages/:slug",
 			name: "custom-page",
 			component: () => import("../components/pageBuilder/CustomPageView.vue"),

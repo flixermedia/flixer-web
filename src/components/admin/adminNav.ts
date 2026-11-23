@@ -8,6 +8,7 @@ export const ADMIN_TABS = {
 	logging: ["logging"],
 	providers: ["metadata", "subtitles", "themes", "trailerCache"],
 	requests: ["requests"],
+	invites: ["invites"],
 	issues: ["tickets", "issueReports"],
 	notifications: ["notifications", "smtp"],
 	mail: ["mailOverview", "mailDomains", "mailInboxes", "mailMessages", "mailTemplates"],
@@ -70,6 +71,7 @@ export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): Ad
 	const tab = text(tabQuery);
 	const page = text(pageQuery);
 	if (tab === "requests" && page === "tickets") return { tab: "issues", page: "tickets" };
+	if (tab === "settings" && page === "invites") return { tab: "invites", page: "invites" };
 	if (tab === "settings" && page === "issueReports") return { tab: "issues", page: "issueReports" };
 	if (tab === "settings" && page === "chatEncryption") return { tab: "communications", page: "chatSettings" };
 	if (tab === "settings" && page === "calls") return { tab: "communications", page: "callSettings" };

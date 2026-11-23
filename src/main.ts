@@ -144,8 +144,10 @@ if (Capacitor.isNativePlatform()) {
 
 app.mount("#app");
 
+await router.isReady();
+document.getElementById("startup")?.remove();
+
 if (Capacitor.isNativePlatform()) {
-	await router.isReady();
 	try {
 		await initializeNativeNavigation(router);
 	} catch (error) {

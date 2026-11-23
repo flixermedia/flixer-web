@@ -45,8 +45,19 @@ const secondaryButton = 'rounded bg-white/10 px-4 py-1.5 text-xs font-semibold t
 
 const filtered = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return users.value.filter((user) => `${user.displayName} ${user.username} ${user.email ?? ''}`.toLowerCase().includes(needle))
+  return users.value.filter((user) => {
+    const origin = user.invited ? `invited ${user.invite?.serverType ?? ''} ${user.invite?.serverName ?? ''} ${user.invite?.code ?? ''}` : 'flixer'
+    return `${user.displayName} ${user.username} ${user.email ?? ''} ${origin}`.toLowerCase().includes(needle)
+  })
 })
+
+function accountServerLabel(user: AdminUser): string {
+  const invite = user.invite
+  if (!invite || invite.serverType === 'flixer') return t('admin.invites.types.flixer')
+  const typeLabel = t(`admin.invites.types.${invite.serverType}`)
+  if (!invite.serverName || invite.serverName.trim().toLowerCase() === typeLabel.toLowerCase()) return typeLabel
+  return `${typeLabel} · ${invite.serverName}`
+}
 const selectableVisible = computed(() => filtered.value.filter((user) => !user.current))
 const selectedUsers = computed(() => users.value.filter((user) => !user.current && selectedIds.value.includes(user.id)))
 const allVisibleSelected = computed(() => selectableVisible.value.length > 0 && selectableVisible.value.every((user) => selectedIds.value.includes(user.id)))
@@ -285,6 +296,7 @@ onMounted(() => {
             <tr>
               <th class="w-10 pb-2"><input type="checkbox" :checked="allVisibleSelected" :indeterminate="someVisibleSelected && !allVisibleSelected" :disabled="bulkBusy || !selectableVisible.length" :aria-label="t('admin.users.bulk.selectVisible')" class="accent-flixer-accent" @change="selectVisible" /></th>
               <th class="pb-2 font-medium">{{ t('admin.users.user') }}</th>
+              <th class="pb-2 font-medium">{{ t('admin.users.accountOrigin') }}</th>
               <th class="pb-2 font-medium">{{ t('admin.users.role') }}</th>
               <th class="pb-2 font-medium">{{ t('admin.users.status') }}</th>
               <th class="pb-2 font-medium">{{ t('admin.users.passkeys') }}</th>
@@ -309,6 +321,12 @@ onMounted(() => {
                 </div>
               </td>
               <td>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <StatusPill v-if="user.invited" tone="accent">{{ t('admin.users.invitedBadge') }}</StatusPill>
+                  <StatusPill :tone="user.invite && user.invite.serverType !== 'flixer' ? 'good' : 'neutral'">{{ accountServerLabel(user) }}</StatusPill>
+                </div>
+              </td>
+              <td>
                 <StatusPill :tone="user.role === 'admin' ? 'accent' : 'neutral'">{{ user.role === 'admin' ? t('admin.users.administrator') : t('admin.users.user') }}</StatusPill>
               </td>
               <td>
@@ -325,7 +343,7 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="7" class="py-6 text-center text-flixer-muted">{{ users.length === 0 ? t('admin.users.noUsers') : t('admin.users.noSearchMatches') }}</td>
+              <td colspan="8" class="py-6 text-center text-flixer-muted">{{ users.length === 0 ? t('admin.users.noUsers') : t('admin.users.noSearchMatches') }}</td>
             </tr>
           </tbody>
         </table>

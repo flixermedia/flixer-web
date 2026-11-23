@@ -15,6 +15,7 @@ export * from "./api/issues";
 export * from "./api/mail";
 export * from "./api/access";
 export * from "./api/payments";
+export * from "./api/invites";
 export * from "./api/logger";
 export * from "./api/appearance";
 export * from "./components/pageBuilder/pageBuilder";

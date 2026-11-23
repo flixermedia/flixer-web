@@ -34,6 +34,7 @@ const OidcClients = lazy(() => import("./OidcClientsPanel.vue"));
 const General = lazy(() => import("./GeneralPanel.vue"));
 const UserWebhooks = lazy(() => import("./UserWebhookSettings.vue"));
 const Users = lazy(() => import("./UsersPanel.vue"));
+const Invites = lazy(() => import("./InvitesPanel.vue"));
 const Networking = lazy(() => import("./NetworkingSection.vue"));
 const Connections = lazy(() => import("./ConnectionsSection.vue"));
 const Search = lazy(() => import("./MediaSearchSettingsSection.vue"));
@@ -107,6 +108,7 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
 	ai: [{ component: Ai }],
 	issueReports: [{ component: IssueReportSettings }],
 	users: [{ component: Users }, { component: Devices, props: { part: "devices" } }],
+	invites: [{ component: Invites }],
 	networking: [{ component: Networking }, { component: Connections }],
 	search: [{ component: Search }],
 	updates: [{ component: Updates }],

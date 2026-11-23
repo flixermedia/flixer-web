@@ -87,6 +87,16 @@ describe("admin navigation", () => {
 		expect(resolveAdminLocation("settings", "issueReports")).toEqual({ tab: "issues", page: "issueReports" });
 	});
 
+	it("gives invites its own top-level menu and preserves old settings links", () => {
+		expect(ADMIN_TABS.invites).toEqual(["invites"]);
+		expect(ADMIN_TABS.settings).not.toContain("invites");
+		expect(tabOf("invites")).toBe("invites");
+		expect(resolveAdminLocation("invites")).toEqual({ tab: "invites", page: "invites" });
+		expect(resolveAdminLocation("settings", "invites")).toEqual({ tab: "invites", page: "invites" });
+		expect(adminQuery("invites", "invites")).toEqual({ tab: "invites" });
+		expect(en.admin.groups).toHaveProperty("invites", expect.any(String));
+	});
+
 	it("keeps old links working", () => {
 		expect(resolveAdminLocation("indexer")).toEqual({ tab: "library", page: "tasks" });
 		expect(resolveAdminLocation("tasks")).toEqual({ tab: "library", page: "tasks" });
