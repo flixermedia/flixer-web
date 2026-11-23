@@ -8,6 +8,7 @@ import { i18n, initLocale } from "../i18n";
 import AppIcon from "../components/ui/AppIcon.vue";
 import router from "./router";
 import App from "./App.vue";
+import { prefetchSetupGate } from "../setup/setupGate";
 import "../tailwind.css";
 import "../toast.css";
 import "../modal.css";
@@ -15,6 +16,8 @@ import "../modal.css";
 declare module "@kolirt/vue-modal" {
 	interface ModalGroupRegistry extends DefineGroups<["default"]> {}
 }
+
+prefetchSetupGate();
 
 const app = createApp(App);
 

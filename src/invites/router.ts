@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { clearAccessToken, getAccessToken } from "../api";
 import { useProfile } from "../composables/useProfile";
+import { setSetupRequiredHandler, setupGuard } from "../setup/setupGate";
 
 declare module "vue-router" {
 	interface RouteMeta {
@@ -23,6 +24,21 @@ const router = createRouter({
 				const token = getAccessToken();
 				return token ? "/admin/invites" : "/login";
 			},
+		},
+		{
+			path: "/setup",
+			name: "setup",
+			component: () => import("../views/SetupView.vue"),
+		},
+		{
+			path: "/quick-setup",
+			name: "quick-setup",
+			component: () => import("../views/QuickSetupView.vue"),
+		},
+		{
+			path: "/unavailable",
+			name: "unavailable",
+			component: () => import("../views/UnavailableView.vue"),
 		},
 		{
 			path: "/login",
@@ -81,6 +97,9 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+	const setupRedirect = await setupGuard(to);
+	if (setupRedirect !== true) return setupRedirect;
+
 	const token = getAccessToken();
 	const { profile, load: loadProfile } = useProfile();
 
@@ -103,6 +122,12 @@ router.beforeEach(async (to) => {
 			return { path: "/admin/invites" };
 		}
 	}
+
+	return true;
+});
+
+setSetupRequiredHandler(() => {
+	if (router.currentRoute.value.name !== "setup") void router.replace({ name: "setup" });
 });
 
 export default router;
