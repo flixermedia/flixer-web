@@ -96,6 +96,7 @@ let remoteSeekUntil = 0
 let remotePlaybackTarget: boolean | null = null
 let remotePlaybackUntil = 0
 const HIDE_DELAY_MS = 3000
+const TV_HIDE_DELAY_MS = 5000
 const ADAPTIVE_START_TIMEOUT_MS = 20_000
 const VOLUME_KEY = 'flixer.player.volume'
 const SUBTITLE_KEY = 'flixer.player.subtitles'
@@ -1006,16 +1007,20 @@ function showControls() {
 
 function scheduleHide() {
   clearTimeout(hideTimer)
-  if (paused.value || menuOpen.value || scrubbing.value || (isTvMode.value && !props.mini && root.value?.contains(document.activeElement))) return
+  if (paused.value || menuOpen.value || scrubbing.value) return
+  const delay = isTvMode.value && !props.mini ? TV_HIDE_DELAY_MS : HIDE_DELAY_MS
   hideTimer = setTimeout(() => {
     controlsVisible.value = false
-  }, HIDE_DELAY_MS)
+    if (isTvMode.value && !props.mini && document.activeElement instanceof HTMLElement && root.value?.contains(document.activeElement)) {
+      document.activeElement.blur()
+    }
+  }, delay)
 }
 
 function onPlayerFocusIn() {
   if (!isTvMode.value || props.mini) return
-  clearTimeout(hideTimer)
   controlsVisible.value = true
+  scheduleHide()
 }
 
 function onPlayerFocusOut(event: FocusEvent) {
@@ -1092,16 +1097,30 @@ function onBarLeave() {
 }
 
 function onTvKeydown(event: KeyboardEvent) {
-  if (!isTvMode.value || props.mini || controlsShown.value || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(event.key)) return
-  event.preventDefault()
-  event.stopPropagation()
-  showControls()
-  playButton.value?.focus()
+  if (!isTvMode.value || props.mini) return
+  if (!controlsShown.value) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault()
+      event.stopPropagation()
+      showControls()
+      playButton.value?.focus()
+    }
+    return
+  }
+  scheduleHide()
 }
 
 function onKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented) return
   const target = event.target as HTMLElement | null
+  if (isTvMode.value && !props.mini && !controlsShown.value) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault()
+      showControls()
+      playButton.value?.focus()
+      return
+    }
+  }
   if (isTvMode.value && !props.mini && target?.matches('input[type="range"]') && isTvAdjustmentMode(target) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
     const delta = event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -0.05 : 0.05
     setVolume(volume.value + delta)
