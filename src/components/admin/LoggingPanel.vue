@@ -8,6 +8,7 @@ import { useRoute } from 'vue-router'
 import { AUTH_INVALID_EVENT, AUTH_TOKEN_CHANGED_EVENT, configureLogger, configureLoggerOwner, createLoggerOwnerPairing, discardLoggerPairing, getAccessToken, getLoggerCapacity, getLoggerCapacityPolicy, getLoggerConfiguration, getLoggerCredentials, getLoggerHealth, getLoggerIngestionPolicy, getLoggerOwnerConfiguration, getLoggerOwnerCredentials, getLoggerOwnerPairings, getLoggerPairing, getLoggerQuota, getLoggerRetention, getLoggerStatus, LoggerClient, LoggerRequestError, pairLogger, retryLoggerPairing, revokeLoggerCredential, revokeLoggerOwnerCredential, revokeLoggerOwnerPairing, setLoggerCapacityPolicy, setLoggerIngestionPolicy, setLoggerQuota, setLoggerRetention, type LoggerCapacity, type LoggerCredential, type LoggerDeploymentStatus, type LoggerErrorGroup, type LoggerEvent, type LoggerExporterStatus, type LoggerLevel, type LoggerOwnerCredential, type LoggerOwnerPairing, type LoggerSearch, type LoggerSourceCount } from '../../api'
 import { clearLoggerLogs } from '../../api/logger'
 import { confirmAction } from '../../composables/confirm'
+import { copyToClipboard } from '../../utils/clipboard'
 import AdminSection from './AdminSection.vue'
 import AnalyticsTrendChart from './AnalyticsTrendChart.vue'
 import { aggregateLoggingAnalytics, loggingApplicationCounts, type LoggingAnalytics, type LoggingBucketSize } from './loggingAnalytics'
@@ -185,11 +186,10 @@ async function copyEvent(event: LoggerEvent) {
   const generation = sessionGeneration
   error.value = ''
   notice.value = ''
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(event, null, 2))
-    if (generation === sessionGeneration) notice.value = t('admin.logging.copySuccess')
-  } catch {
-    if (generation === sessionGeneration) error.value = t('admin.logging.copyError')
+  const ok = await copyToClipboard(JSON.stringify(event, null, 2))
+  if (generation === sessionGeneration) {
+    if (ok) notice.value = t('admin.logging.copySuccess')
+    else error.value = t('admin.logging.copyError')
   }
 }
 
@@ -266,11 +266,10 @@ function loadFilter() {
 async function copyFilterLink() {
   const generation = sessionGeneration
   presetError.value = ''
-  try {
-    await navigator.clipboard.writeText(loggingFilterLink(window.location.href, currentFilter()))
-    if (generation === sessionGeneration) notice.value = t('admin.logging.filterLinkCopied')
-  } catch {
-    if (generation === sessionGeneration) presetError.value = t('admin.logging.filterLinkError')
+  const ok = await copyToClipboard(loggingFilterLink(window.location.href, currentFilter()))
+  if (generation === sessionGeneration) {
+    if (ok) notice.value = t('admin.logging.filterLinkCopied')
+    else presetError.value = t('admin.logging.filterLinkError')
   }
 }
 
@@ -592,11 +591,10 @@ async function revokeOwnerPairing(pairing: LoggerOwnerPairing) {
 async function copyOwnerPairing() {
   if (!issuedPairing.value) return
   const generation = sessionGeneration
-  try {
-    await navigator.clipboard.writeText(issuedPairing.value.token)
-    if (generation === sessionGeneration) notice.value = t('admin.logging.ownerPairingCopied')
-  } catch {
-    if (generation === sessionGeneration) ownerPairingsError.value = t('admin.logging.copyError')
+  const ok = await copyToClipboard(issuedPairing.value.token)
+  if (generation === sessionGeneration) {
+    if (ok) notice.value = t('admin.logging.ownerPairingCopied')
+    else ownerPairingsError.value = t('admin.logging.copyError')
   }
 }
 

@@ -7,6 +7,7 @@ import { api, deleteRequestService, getRequestWebhookCredentials, getRequestsCon
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
+import { copyToClipboard } from '../../utils/clipboard'
 import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import ConfirmModal from '../ui/ConfirmModal.vue'
@@ -63,9 +64,9 @@ function webhookUrl(service: RequestServiceView) {
   return base.toString()
 }
 async function copyWebhookValue(value: string) {
-  const [error] = await catchError(Promise.resolve().then(() => navigator.clipboard.writeText(value)))
-  if (error) {
-    notify.error(describeRequestError(error, t('admin.requests.webhookCopyFailed')))
+  const ok = await copyToClipboard(value)
+  if (!ok) {
+    notify.error(t('admin.requests.webhookCopyFailed'))
   } else {
     notify.success(t('admin.requests.webhookCopied'))
   }

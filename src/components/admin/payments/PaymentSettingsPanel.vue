@@ -7,6 +7,7 @@ import { loadPaymentCurrencies } from "../../../composables/usePaymentCurrencies
 import { usePaymentFormat } from "../../../composables/usePaymentFormat";
 import { describeRequestError } from "../../../composables/useProfile";
 import { catchError } from "../../../utils/catchError";
+import { copyToClipboard } from "../../../utils/clipboard";
 import AdminSection from "../AdminSection.vue";
 import AdminSkeleton from "../AdminSkeleton.vue";
 import AdminToggle from "../AdminToggle.vue";
@@ -148,9 +149,9 @@ async function test() {
 }
 
 async function copyWebhook() {
-	const [error] = await catchError(Promise.resolve().then(() => navigator.clipboard.writeText(webhookUrl.value)));
-	if (error) notify.error(describeRequestError(error, t("payments.admin.copyFailed")));
-	else notify.success(t("payments.admin.copied"));
+	const ok = await copyToClipboard(webhookUrl.value);
+	if (ok) notify.success(t("payments.admin.copied"));
+	else notify.error(t("payments.admin.copyFailed"));
 }
 
 function addTaxRate() {

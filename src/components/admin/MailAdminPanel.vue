@@ -10,6 +10,7 @@ import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
 import { groupDnsRecords, isValidMailTemplateSlug } from '../../utils/mailHelpers'
+import { copyToClipboard } from '../../utils/clipboard'
 
 const props = defineProps<{ screen: 'overview' | 'domains' | 'inboxes' | 'messages' | 'templates' }>()
 const { t } = useI18n()
@@ -187,8 +188,9 @@ async function removeDomain(domain: MailDomain) {
   finally { domainBusy.value = null }
 }
 async function copyValue(value: string) {
-  try { await navigator.clipboard.writeText(value); notify.success(t('admin.mail.copied')) }
-  catch { notify.error(t('admin.mail.copyFailed')) }
+  const ok = await copyToClipboard(value)
+  if (ok) notify.success(t('admin.mail.copied'))
+  else notify.error(t('admin.mail.copyFailed'))
 }
 async function addMailbox() {
   busy.value = true

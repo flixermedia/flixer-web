@@ -6,6 +6,7 @@ import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
+import { copyToClipboard } from '../../utils/clipboard'
 import { useLiveTopic } from '../../composables/useLive'
 import AdminSection from './AdminSection.vue'
 import StatusPill from './StatusPill.vue'
@@ -98,11 +99,11 @@ async function revoke(key: ApiKeyInfo) {
 
 async function copySecret() {
   if (!createdKey.value) return
-  const [error] = await catchError(navigator.clipboard.writeText(createdKey.value.secret))
-  if (error) {
-    notify.error(t('admin.devices.copyError'))
-  } else {
+  const ok = await copyToClipboard(createdKey.value.secret)
+  if (ok) {
     notify.success(t('admin.devices.copied'))
+  } else {
+    notify.error(t('admin.devices.copyError'))
   }
 }
 

@@ -15,6 +15,7 @@ import HeroCarousel from '../components/home/HeroCarousel.vue'
 import CardGridSkeleton from '../components/ui/CardGridSkeleton.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
 import { confirmAction } from '../composables/confirm'
+import { copyToClipboard } from '../utils/clipboard'
 import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { isTvMode } from '../platform/tvMode'
@@ -159,7 +160,11 @@ async function share() {
   try {
     if (Capacitor.isNativePlatform()) await Share.share({ title: collection.value?.name, url: window.location.href })
     else if (navigator.share) await navigator.share({ title: collection.value?.name, url: window.location.href })
-    else { await navigator.clipboard.writeText(window.location.href); notify.info(t('userMedia.copied')) }
+    else {
+      const ok = await copyToClipboard(window.location.href)
+      if (ok) notify.info(t('userMedia.copied'))
+      else failed.value = true
+    }
   } catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) failed.value = true }
 }
 watch([id, automaticDetail], () => void load(), { immediate: true })

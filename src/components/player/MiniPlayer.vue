@@ -11,6 +11,7 @@ import { openModal } from "@kolirt/vue-modal";
 import AddToPlaylistModal from "../AddToPlaylistModal.vue";
 import { formatTime } from "./formatTime";
 import { catchError } from "../../utils/catchError";
+import { copyToClipboard } from "../../utils/clipboard";
 import { isTvMode } from "../../platform/tvMode";
 import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from "@ui-sdk/vue/slider";
 
@@ -35,8 +36,8 @@ async function onParty() {
 	partyBusy.value = true;
 	try {
 		if (hostingListen.value) {
-			const [error] = await catchError(Promise.resolve().then(() => navigator.clipboard.writeText(party.inviteLink())));
-			if (error) {
+			const ok = await copyToClipboard(party.inviteLink());
+			if (!ok) {
 				notify.error(t("party.copyFailed"));
 				return;
 			}

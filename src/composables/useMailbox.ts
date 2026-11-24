@@ -6,6 +6,7 @@ import { confirmAction } from './confirm'
 import { notify } from './notify'
 import { describeRequestError } from './useProfile'
 import { useMailSummary } from './useMailSummary'
+import { copyToClipboard } from '../utils/clipboard'
 
 // Shared so the mail list and reader panes inside the combined messages view stay in sync.
 const pageData = ref<MailMessagePage | null>(null)
@@ -117,10 +118,10 @@ export function useMailbox() {
 
   async function copyAddress() {
     if (!mailbox.value?.address) return
-    try {
-      await navigator.clipboard.writeText(mailbox.value.address)
+    const ok = await copyToClipboard(mailbox.value.address)
+    if (ok) {
       notify.success(t('inbox.addressCopied'))
-    } catch {
+    } else {
       notify.error(t('inbox.copyFailed'))
     }
   }

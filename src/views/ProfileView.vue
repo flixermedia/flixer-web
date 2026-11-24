@@ -19,6 +19,7 @@ import { notify } from '../composables/notify'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useParty } from '../composables/useParty'
 import { catchError } from '../utils/catchError'
+import { copyToClipboard } from '../utils/clipboard'
 import { isTvMode } from '../platform/tvMode'
 
 const { t } = useI18n()
@@ -89,8 +90,9 @@ async function shareProfile() {
     } else if (typeof navigator.share === 'function') {
       await navigator.share({ title: t('social.shareProfile'), url })
     } else {
-      await navigator.clipboard.writeText(url)
-      notify.success(t('social.linkCopied'))
+      const ok = await copyToClipboard(url)
+      if (ok) notify.success(t('social.linkCopied'))
+      else notify.error(t('social.shareError'))
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') return

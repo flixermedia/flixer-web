@@ -7,7 +7,7 @@ import { useParty } from '../../composables/useParty'
 import { usePartyVoice } from '../../composables/usePartyVoice'
 import { notify } from '../../composables/notify'
 import UserAvatar from '../ui/UserAvatar.vue'
-import { catchError } from '../../utils/catchError'
+import { copyToClipboard } from '../../utils/clipboard'
 
 const emit = defineEmits<{ left: [] }>()
 const { t } = useI18n()
@@ -16,8 +16,8 @@ const voice = usePartyVoice()
 const busy = ref(false)
 
 async function copyLink() {
-  const [failure] = await catchError(navigator.clipboard.writeText(party.inviteLink()))
-  if (failure) {
+  const ok = await copyToClipboard(party.inviteLink())
+  if (!ok) {
     notify.error(t('party.copyFailed'))
     return
   }
