@@ -1,21 +1,27 @@
 import { api } from "../../api/client";
 
-export type PageBlockType = "heading" | "text" | "image" | "auth" | "auth-field" | "auth-custom" | "auth-action" | "button" | "video" | "card" | "columns";
+export type PageBlockType = "heading" | "text" | "image" | "auth" | "auth-field" | "auth-custom" | "auth-action" | "button" | "video" | "card" | "columns" | "hero" | "media-row";
 export type AuthField = "username" | "password" | "email" | "displayName" | "submit" | "switch" | "passkey" | "quickConnect" | "providers" | "resend";
+export type MediaRowSource = "continue" | "recent" | "library" | "collection";
 export type PageAccess = "public" | "signed-in";
 export interface PageBlockStyle {
 	align?: "left" | "center" | "right";
 	color?: string;
 	background?: string;
 	spacing?: "compact" | "normal" | "spacious";
+	fontSize?: "sm" | "md" | "lg" | "xl";
+	radius?: "none" | "sm" | "md" | "lg" | "full";
+	shadow?: "none" | "sm" | "md" | "lg";
+	opacity?: number;
 }
 export interface PagePosition {
 	x: number;
 	y: number;
 	width: number;
+	height?: number;
 }
 export function defaultPagePosition(blocks: PageBlock[], index: number, viewport: "desktop" | "mobile"): PagePosition {
-	const y = blocks.slice(0, index).reduce((offset, block) => offset + (block.type === "auth" ? 950 : 180), 0);
+	const y = blocks.slice(0, index).reduce((offset, block) => offset + (block.type === "auth" ? 950 : block.type === "hero" ? 320 : block.type === "media-row" ? 280 : 180), 0);
 	return { x: 0, y: Math.min(5000, y), width: viewport === "desktop" ? 50 : 90 };
 }
 export interface PageBlock {
@@ -24,7 +30,10 @@ export interface PageBlock {
 	text: string;
 	image: string | null;
 	description?: string;
+	buttonText?: string;
 	href?: string;
+	source?: MediaRowSource;
+	sourceId?: string;
 	field?: AuthField;
 	allowedFields?: string[];
 	style?: PageBlockStyle;
@@ -67,6 +76,7 @@ export interface BuilderPage {
 	title: string;
 	slug: string;
 	kind: "page" | "login";
+	clusterId?: string | null;
 	access?: PageAccess;
 	draft: PageContent;
 	published: PublishedPage | null;
@@ -77,11 +87,11 @@ export interface BuilderPage {
 export async function listBuilderPages(): Promise<BuilderPage[]> {
 	return (await api.get<BuilderPage[]>("/admin/pages")).data;
 }
-export async function createBuilderPage(): Promise<BuilderPage> {
-	return (await api.post<BuilderPage>("/admin/pages")).data;
+export async function createBuilderPage(clusterId?: string): Promise<BuilderPage> {
+	return (await api.post<BuilderPage>("/admin/pages", clusterId ? { clusterId } : undefined)).data;
 }
 export async function saveBuilderPage(page: BuilderPage): Promise<BuilderPage> {
-	return (await api.put<BuilderPage>(`/admin/pages/${encodeURIComponent(page.id)}`, { title: page.title, slug: page.slug, access: page.access ?? "public", draft: page.draft })).data;
+	return (await api.put<BuilderPage>(`/admin/pages/${encodeURIComponent(page.id)}`, { title: page.title, slug: page.slug, access: page.access ?? "public", clusterId: page.clusterId ?? null, draft: page.draft })).data;
 }
 export async function publishBuilderPage(id: string): Promise<BuilderPage> {
 	return (await api.post<BuilderPage>(`/admin/pages/${encodeURIComponent(id)}/publish`)).data;
@@ -113,8 +123,9 @@ export async function savePageSiteSettings(settings: PageSiteSettings): Promise<
 export async function getPageNavigation(): Promise<PageNavigationItem[]> {
 	return (await api.get<PageNavigationItem[]>("/page-site/navigation")).data;
 }
-export async function getPageHome(): Promise<PublishedPage> {
-	return (await api.get<PublishedPage>("/page-site/home")).data;
+export async function getPageHome(): Promise<PublishedPage | null> {
+	const response = await api.get<PublishedPage | null>("/page-site/home");
+	return response.status === 204 || !response.data ? null : response.data;
 }
 export async function listPageTemplates(): Promise<ReusablePageBlock[]> {
 	return (await api.get<ReusablePageBlock[]>("/admin/page-templates")).data;

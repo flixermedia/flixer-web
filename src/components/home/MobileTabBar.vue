@@ -6,7 +6,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { isActivePath } from '../../composables/homeNav'
 import type { NavTab } from '../../types/media'
 
-const props = defineProps<{ tabs: NavTab[] }>()
+const props = defineProps<{ tabs: NavTab[]; forceVisible?: boolean }>()
 const { t } = useI18n()
 const route = useRoute()
 
@@ -68,7 +68,7 @@ watch(
 </script>
 
 <template>
-  <nav ref="navRef" data-haptic class="mobile-tab-bar pointer-events-none fixed inset-x-0 bottom-0 z-30 transition-[padding] duration-300 ease-out lg:hidden" :class="isDocked ? 'px-0' : 'px-4'" :style="{ paddingBottom: isDocked ? '0px' : 'max(0.75rem, env(safe-area-inset-bottom))' }" :aria-label="t('home.tabs')">
+  <nav ref="navRef" data-haptic class="mobile-tab-bar pointer-events-none fixed inset-x-0 bottom-0 z-30 transition-[padding] duration-300 ease-out" :class="[isDocked ? 'px-0' : 'px-4', forceVisible ? '' : 'lg:hidden']" :style="{ paddingBottom: isDocked ? '0px' : 'max(0.75rem, env(safe-area-inset-bottom))' }" :aria-label="t('home.tabs')">
     <div class="mobile-tab-bar__surface pointer-events-auto relative mx-auto flex max-w-full items-center justify-around border border-white/10 bg-flixer-surface/80 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl transition-[max-width,border-radius,border-color] duration-300 ease-out" :class="isDocked ? 'rounded-none border-x-0 border-b-0 border-t-white/10' : 'rounded'" :style="isDocked ? { paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' } : undefined">
       <RouterLink v-if="homeTab" :to="homeTab.to" class="group flex h-12 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded text-[10px] font-medium transition focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, homeTab.to) ? 'bg-flixer-primary/20 text-white' : 'text-flixer-muted hover:text-white'" :aria-current="isActivePath(route.path, homeTab.to) ? 'page' : undefined">
         <Icon :icon="homeTab.icon" class="size-5 transition group-active:scale-90" :class="isActivePath(route.path, homeTab.to) ? 'text-flixer-accent' : ''" aria-hidden="true" />

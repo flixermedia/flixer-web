@@ -24,8 +24,9 @@ const props = withDefaults(
 		navBackground?: boolean;
 		docked?: boolean;
 		disableScrollCollapse?: boolean;
+		forceMobile?: boolean;
 	}>(),
-	{ navPosition: "center", navBackground: true, docked: false, disableScrollCollapse: false },
+	{ navPosition: "center", navBackground: true, docked: false, disableScrollCollapse: false, forceMobile: false },
 );
 
 const emit = defineEmits<{ logout: [] }>();
@@ -130,29 +131,29 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 
 <template>
 	<header class="app-header fixed inset-x-0 top-0 z-40 font-sans text-flixer-text transition-[top,padding] duration-300 ease-out" :class="barLook ? 'is-scrolled p-0' : 'px-3 pt-3 sm:px-6 sm:pt-4'">
-		<nav data-haptic class="mx-auto grid grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[headerHeight, effectiveNavPosition === 'start' ? 'lg:grid-cols-[auto_auto_1fr]' : 'lg:grid-cols-[1fr_auto_1fr]', navLook]" :aria-label="t('header.mainNavigation')">
-			<RouterLink class="flex items-center gap-2.5 justify-self-start rounded pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
-				<img :src="logoSrc" alt="" class="size-10 object-contain" />
-				<span v-if="showName" class="text-xl font-semibold tracking-tight text-white">{{ appName }}</span>
+		<nav data-haptic class="mx-auto grid grid-cols-[auto_1fr] items-center gap-4 border px-3 backdrop-blur-xl transition-all duration-300 ease-out md:px-4" :class="[headerHeight, forceMobile ? '' : effectiveNavPosition === 'start' ? 'lg:grid-cols-[auto_minmax(0,1fr)_auto]' : 'lg:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)]', navLook]" :aria-label="t('header.mainNavigation')">
+			<RouterLink class="flex shrink-0 items-center gap-2.5 justify-self-start rounded pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" to="/" :aria-label="t('header.flixerHome')">
+				<img :src="logoSrc" alt="" class="size-10 shrink-0 object-contain" />
+				<span v-if="showName" class="whitespace-nowrap text-xl font-semibold tracking-tight text-white">{{ appName }}</span>
 			</RouterLink>
 
-			<div class="hidden lg:block" :class="effectiveNavPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
+			<div v-if="!forceMobile" class="hidden min-w-0 max-w-full lg:block" :class="effectiveNavPosition === 'start' ? 'justify-self-start' : 'justify-self-center'">
 				<slot name="nav">
-					<ul v-if="links.length" ref="navList" class="relative flex items-center gap-1 rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
+					<ul v-if="links.length" ref="navList" class="nav-pill-list relative flex max-w-full items-center gap-1 overflow-x-auto rounded p-1" :class="navBackground ? 'bg-white/5' : ''">
 						<li aria-hidden="true" class="nav-indicator pointer-events-none absolute left-0 top-0 rounded bg-white/15" :class="{ 'nav-indicator-visible': indicator }" :style="indicator ? { transform: `translate(${indicator.left}px, ${indicator.top}px)`, width: `${indicator.width}px`, height: `${indicator.height}px` } : undefined"></li>
-						<li v-for="link in links" :key="link.to" class="relative">
-							<RouterLink :to="link.to" class="block rounded px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
+						<li v-for="link in links" :key="link.to" class="relative shrink-0">
+							<RouterLink :to="link.to" class="block whitespace-nowrap rounded px-3 py-2 text-sm font-medium transition xl:px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="isActivePath(route.path, link.to) ? 'text-white' : 'text-flixer-text/70 hover:text-white'" :aria-current="isActivePath(route.path, link.to) ? 'page' : undefined">{{ link.label }}</RouterLink>
 						</li>
 					</ul>
 				</slot>
 			</div>
 
 			<div class="flex items-center justify-self-end gap-1">
-				<RouterLink :to="{ name: 'search' }" :class="`hidden lg:grid ${iconButton}`" :aria-label="t('header.search')">
+				<RouterLink v-if="!forceMobile" :to="{ name: 'search' }" :class="`hidden lg:grid ${iconButton}`" :aria-label="t('header.search')">
 					<Icon icon="lucide:search" class="size-5" aria-hidden="true" />
 				</RouterLink>
 
-				<ChatButton :button-class="`hidden lg:grid relative ${iconButton}`" />
+				<ChatButton v-if="!forceMobile" :button-class="`hidden lg:grid relative ${iconButton}`" />
 
 				<PartyButton :key="route.path" :button-class="`relative ${iconButton}`" />
 
@@ -179,6 +180,14 @@ const iconButton = "grid size-10 place-items-center rounded text-white/80 transi
 </template>
 
 <style scoped>
+.nav-pill-list {
+	scrollbar-width: none;
+}
+
+.nav-pill-list::-webkit-scrollbar {
+	display: none;
+}
+
 .nav-indicator {
 	opacity: 0;
 	transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1), height 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease;

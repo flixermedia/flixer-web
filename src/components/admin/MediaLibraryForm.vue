@@ -11,6 +11,7 @@ import { notify } from '../../composables/notify'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
 
+import AdminToggle from './AdminToggle.vue'
 import MediaFolderPicker, { type PickedFolder } from './MediaFolderPicker.vue'
 
 const props = defineProps<{ library?: MediaLibrary }>()
@@ -27,6 +28,7 @@ const name = ref(props.library?.name ?? '')
 const type = ref<MediaLibraryType>(props.library?.type ?? 'movies')
 const folders = ref<PickedFolder[]>((props.library?.folders ?? []).map((folder) => ({ rootId: folder.rootId, path: folder.path, label: folder.location || folder.path })))
 const imageStorage = ref<MediaImageStorage>(props.library?.imageStorage ?? 'cache')
+const ignoreLocalImages = ref(props.library?.ignoreLocalImages ?? false)
 const saving = ref(false)
 const error = ref('')
 
@@ -45,7 +47,7 @@ async function save() {
   if (!canSave.value) return
   saving.value = true
   error.value = ''
-  const input = { name: name.value.trim(), type: type.value, imageStorage: imageStorage.value, folders: folders.value.map(({ rootId, path }) => ({ rootId, path })) }
+  const input = { name: name.value.trim(), type: type.value, imageStorage: imageStorage.value, ignoreLocalImages: ignoreLocalImages.value, folders: folders.value.map(({ rootId, path }) => ({ rootId, path })) }
   try {
     const [requestError, saved] = await catchError(props.library ? updateMediaLibrary(props.library.id, input) : createMediaLibrary(input))
     if (requestError) {
@@ -96,6 +98,9 @@ async function save() {
           </Select>
         </Field>
       </div>
+
+      <AdminToggle v-model="ignoreLocalImages" :label="t('admin.libraries.ignoreLocalImages')"
+        :description="t('admin.libraries.ignoreLocalImagesDescription')" />
 
       <div>
         <p class="text-xs font-semibold text-flixer-muted">{{ t('admin.libraries.folders') }}</p>

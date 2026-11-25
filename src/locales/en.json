@@ -1108,7 +1108,9 @@
 			"button": "Button",
 			"video": "Video",
 			"card": "Card",
-			"columns": "Columns"
+			"columns": "Columns",
+			"hero": "Hero banner",
+			"media-row": "Media row"
 		},
 		"heading": "Heading",
 		"createCustomForm": "Create custom form",
@@ -2296,6 +2298,8 @@
 				"cache": "Server Cache",
 				"alongside": "Alongside media files"
 			},
+			"ignoreLocalImages": "Ignore local images",
+			"ignoreLocalImagesDescription": "Ignore image files in media folders and always download and cache artwork from metadata providers.",
 			"scan": "Scan",
 			"scanFolders": "Scan Folders",
 			"scanFoldersTitle": "Scan library folders",

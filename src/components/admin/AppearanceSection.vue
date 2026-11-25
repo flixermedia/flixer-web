@@ -196,7 +196,7 @@ const iconButton = 'rounded p-2 text-flixer-muted transition hover:bg-white/10 h
             </span>
           </label>
         </div>
-        <RouterLink :to="{ name: 'page-builder', query: { page: 'login' } }"
+        <RouterLink :to="{ name: 'page-builder', params: { slug: 'login' } }"
           class="rounded border p-3 text-left transition hover:border-flixer-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent"
           :class="state.loginLayout === 'custom' ? 'border-flixer-accent bg-flixer-primary/10' : 'border-flixer-border bg-flixer-background/30'">
           <span class="layout-preview layout-preview--custom" aria-hidden="true">

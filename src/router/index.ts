@@ -111,7 +111,7 @@ const router = createRouter({
 			component: () => import("../components/pageBuilder/CustomPageView.vue"),
 		},
 		{
-			path: "/admin/page-builder",
+			path: "/admin/page-builder/:slug?",
 			name: "page-builder",
 			component: () => import("../components/pageBuilder/PageBuilderView.vue"),
 			meta: { requiresAuth: true, requiresAdmin: true },

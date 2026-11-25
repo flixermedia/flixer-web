@@ -98,6 +98,7 @@ const carouselItems = computed(() => {
     type: item.type,
     year: item.year,
     imageIndex: props.kind === 'music' ? (item.poster ?? item.backdrop) : (item.backdrop ?? item.poster),
+    logo: item.logo,
     squareArtwork: props.kind === 'music' || item.backdrop === null,
     to: { name: 'media-item', params: { id: item.id } },
   }))

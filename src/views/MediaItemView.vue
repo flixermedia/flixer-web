@@ -99,7 +99,7 @@ watch(
 )
 const themeMusic = useThemeMusic(
   computed(() => item.value?.id),
-  computed(() => item.value !== null && ['movie', 'series'].includes(item.value.type)),
+  computed(() => item.value !== null && ['movie', 'series'].includes(item.value.type) && item.value.hasTheme !== false),
 )
 const isLoading = ref(true)
 const failure = ref<'missing' | 'error' | 'locked' | null>(null)

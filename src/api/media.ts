@@ -3,8 +3,12 @@ import { api, apiRequest } from "./client";
 import { isNativeApp, resolveServerResourceUrl } from "../platform/serverConnection";
 import { fetchNativeImage } from "../composables/nativeImageCache";
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from "flixer-api-client";
-import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, IndexerProviderSetting as ApiIndexerProviderSetting, ItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
-export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerSubtitleSetting, ItemDetail, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
+import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, IndexerProviderSetting as ApiIndexerProviderSetting, ItemDetail as ApiItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary as ApiMediaLibrary, MediaLibraryInput as ApiMediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
+export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerSubtitleSetting, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
+export type ItemDetail = ApiItemDetail & { hasTheme?: boolean };
+
+export type MediaLibrary = ApiMediaLibrary & { ignoreLocalImages?: boolean };
+export type MediaLibraryInput = ApiMediaLibraryInput & { ignoreLocalImages?: boolean };
 
 export type IndexerProviderSetting = ApiIndexerProviderSetting & { appId?: string };
 
@@ -12,7 +16,7 @@ export type NetworkShareProtocol = "smb" | "nfs" | "webdav" | "s3";
 export type NetworkShare = Omit<ApiNetworkShare, "protocol" | "region"> & { protocol: NetworkShareProtocol; region?: string | null };
 export type NetworkShareInput = Omit<ApiNetworkShareInput, "protocol" | "region"> & { protocol?: NetworkShareProtocol; region?: string | null };
 /** A card as returned for the current viewer; `locked` is set for restricted titles when the server shows them locked. */
-export type HomeCard = ApiHomeCard & { locked?: boolean; lockReason?: "rating" | "unrated" | "tags" };
+export type HomeCard = ApiHomeCard & { logo?: number | null; locked?: boolean; lockReason?: "rating" | "unrated" | "tags" };
 export interface ExtendedMediaFilters {
 	cast?: string;
 	studio?: string;

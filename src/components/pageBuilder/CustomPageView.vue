@@ -6,9 +6,11 @@ import { getPublishedPage, type PublishedPage } from './pageBuilder'
 import PageCanvas from './PageCanvas.vue'
 import axios from 'axios'
 import { getAccessToken } from '../../api/client'
+import { useProfile } from '../../composables/useProfile'
 
 const route = useRoute()
 const { t } = useI18n()
+const { profile } = useProfile()
 const page = ref<PublishedPage | null>(null)
 const loading = ref(true)
 const requiresSignIn = ref(false)
@@ -32,6 +34,12 @@ watch(() => route.params.slug, async (slug, _previous, onCleanup) => {
 
 <template>
   <main class="min-h-screen bg-flixer-background text-flixer-text" :class="{ 'pt-20': getAccessToken() }">
+    <div v-if="page && profile?.role === 'admin'" class="flex justify-end px-6 pt-3">
+      <RouterLink :to="{ name: 'page-builder', params: { slug: page.slug } }"
+        class="rounded border border-flixer-border bg-flixer-surface px-3 py-1.5 text-xs font-medium text-flixer-text hover:border-flixer-accent">
+        Edit page
+      </RouterLink>
+    </div>
     <PageCanvas v-if="page" :blocks="page.blocks" :layout="page.layout" />
     <p v-else-if="loading" role="status" class="p-8 text-flixer-muted">{{ t('pageBuilder.loading') }}</p>
     <div v-else-if="requiresSignIn" class="p-8">

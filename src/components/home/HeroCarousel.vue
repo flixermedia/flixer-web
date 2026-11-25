@@ -20,6 +20,7 @@ export type HeroCarouselItem = {
   imageIndex?: number | null
   poster?: number | null
   backdrop?: number | null
+  logo?: number | null
   squareArtwork?: boolean
   to?: RouteLocationRaw
 }
@@ -129,7 +130,12 @@ onBeforeUnmount(stopAutoplay)
       </div>
 
       <div v-if="currentItem" class="absolute inset-x-0 bottom-16 page-gutter">
-        <h1 class="line-clamp-3 max-w-4xl break-words font-bold uppercase text-white drop-shadow-lg"
+        <h1 v-if="currentItem.logo != null" class="max-w-md sm:max-w-lg lg:max-w-xl">
+          <AuthImage scope="library" :item-id="currentItem.imageItemId ?? currentItem.id" :index="currentItem.logo"
+            :version="currentItem.updatedAt" :width="600" :alt="currentItem.title"
+            img-class="max-h-24 w-auto max-w-full object-contain object-left drop-shadow-lg sm:max-h-28 lg:max-h-36" />
+        </h1>
+        <h1 v-else class="line-clamp-3 max-w-4xl break-words font-bold uppercase text-white drop-shadow-lg"
           :class="tv ? 'tv-featured-title' : titleSize(currentItem.title)">
           {{ currentItem.title }}
         </h1>

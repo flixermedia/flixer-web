@@ -141,7 +141,7 @@ if (Capacitor.isNativePlatform()) {
 	<!-- Main application view -->
 	<RouterView v-slot="{ Component, route }">
 		<Transition name="page" mode="out-in">
-			<component :is="Component" :key="route.path" />
+			<component :is="Component" :key="route.name === 'page-builder' ? 'page-builder' : route.path" />
 		</Transition>
 	</RouterView>
 
