@@ -5,6 +5,7 @@ import { marked } from 'marked'
 import { Textarea } from '@ui-sdk/vue/textarea'
 import { browseMedia, getHomeContent } from '../../api/media'
 import AuthImage from '../ui/AuthImage.vue'
+import BlurImage from '../ui/BlurImage.vue'
 import type { PageBlock } from './pageBuilder'
 
 const props = defineProps<{ block: PageBlock; editable?: boolean; selectedId?: string; editingId?: string }>()
@@ -71,7 +72,7 @@ watch(() => [props.block.type, props.block.source, props.block.sourceId], () => 
         </template>
         <h2 v-else-if="block.type === 'heading'" class="page-heading">{{ block.text || (editable ? 'Heading' : '') }}</h2>
         <div v-else-if="block.type === 'text'" class="page-text" v-html="block.text ? markdown : (editable ? '<p>Text block — double-click to edit</p>' : '')"></div>
-        <img v-else-if="block.type === 'image' && block.image" class="page-image" :src="block.image"
+        <BlurImage v-else-if="block.type === 'image' && block.image" img-class="page-image" :src="block.image"
             :alt="block.text" />
         <div v-else-if="block.type === 'image' && editable" class="page-placeholder">Image (upload in inspector)</div>
         <a v-else-if="block.type === 'button' && (safeHref || editable)" :href="safeHref || '#'" class="page-button"
@@ -80,7 +81,7 @@ watch(() => [props.block.type, props.block.source, props.block.sourceId], () => 
             preload="metadata"></video>
         <div v-else-if="block.type === 'video' && editable" class="page-placeholder">Video (set URL in inspector)</div>
         <section v-else-if="block.type === 'hero'" class="page-hero">
-            <img v-if="block.image" :src="block.image" :alt="block.text" class="page-hero-bg" />
+            <BlurImage v-if="block.image" :src="block.image" :alt="block.text" img-class="page-hero-bg" />
             <div class="page-hero-scrim"></div>
             <div class="page-hero-body">
                 <h2 class="page-hero-title">{{ block.text || (editable ? 'Hero title' : '') }}</h2>
@@ -111,8 +112,8 @@ watch(() => [props.block.type, props.block.source, props.block.sourceId], () => 
                 </template>
             </div>
         </section>
-        <article v-else-if="block.type === 'card'" class="page-card"><img v-if="block.image" :src="block.image"
-                :alt="block.text" class="page-image" />
+        <article v-else-if="block.type === 'card'" class="page-card"><BlurImage v-if="block.image" :src="block.image"
+                :alt="block.text" img-class="page-image" />
             <div class="card-content">
                 <h3>{{ block.text || (editable ? 'Card title' : '') }}</h3>
                 <p>{{ block.description }}</p><a v-if="safeHref" :href="safeHref"

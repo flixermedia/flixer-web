@@ -3,9 +3,21 @@ import { api, apiRequest } from "./client";
 import { isNativeApp, resolveServerResourceUrl } from "../platform/serverConnection";
 import { fetchNativeImage } from "../composables/nativeImageCache";
 import type { FlixerApiRouteBody, FlixerApiRouteData, FlixerApiRouteQuery } from "flixer-api-client";
-import type { BrowseKind, BrowseSort, HomeCard as ApiHomeCard, HomeContent, IndexerProviderSetting as ApiIndexerProviderSetting, ItemDetail as ApiItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary as ApiMediaLibrary, MediaLibraryInput as ApiMediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
-export type { BrowseKind, BrowseSort, ContinueCard, HomeContent, HomeFeatured, HomeLibrary, IndexerSubtitleSetting, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
-export type ItemDetail = ApiItemDetail & { hasTheme?: boolean };
+import type { BrowseKind, BrowseSort, ContinueCard as ApiContinueCard, HomeCard as ApiHomeCard, HomeContent as ApiHomeContent, HomeFeatured as ApiHomeFeatured, HomeLibrary as ApiHomeLibrary, IndexerProviderSetting as ApiIndexerProviderSetting, ItemDetail as ApiItemDetail, MediaBrowseResult, MediaImageType, MediaItemChanges as ApiMediaItemChanges, MediaItemDetail, MediaItemImage as ApiMediaItemImage, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibrary as ApiMediaLibrary, MediaLibraryInput as ApiMediaLibraryInput, MediaRoot, NetworkShare as ApiNetworkShare, NetworkShareInput as ApiNetworkShareInput, PersonCredits, SearchFilters as ApiSearchFilters, SubtitleSearchResult } from "flixer-api-client";
+export type { BrowseKind, BrowseSort, IndexerSubtitleSetting, ItemSummary, MediaBrowseResult, MediaImageStorage, MediaImageType, MediaItemDetail, MediaItemPage, MediaItemQuery, MediaItemSummary, MediaItemType, MediaLibraryFolder, MediaLibraryFolderInput, MediaLibraryType, MediaRoot, PersonCredits, SubtitleFile, SubtitleSearchResult } from "flixer-api-client";
+export type MediaItemImage = ApiMediaItemImage & { blurhash?: string | null };
+export type HomeLibrary = Omit<ApiHomeLibrary, "cover"> & { cover: (NonNullable<ApiHomeLibrary["cover"]> & { blurhash?: string | null }) | null };
+export type ContinueCard = ApiContinueCard & { imageBlurhash?: string | null };
+export type HomeFeatured = ApiHomeFeatured & { posterBlurhash?: string | null; backdropBlurhash?: string | null };
+export type HomeContent = Omit<ApiHomeContent, "libraries" | "featured" | "continueWatching" | "recentMovies" | "recentShows" | "recentAlbums"> & {
+	libraries: HomeLibrary[];
+	featured: HomeFeatured[];
+	continueWatching: ContinueCard[];
+	recentMovies: HomeCard[];
+	recentShows: HomeCard[];
+	recentAlbums: HomeCard[];
+};
+export type ItemDetail = ApiItemDetail & { hasTheme?: boolean; posterBlurhash?: string | null; backdropBlurhash?: string | null };
 
 export type MediaLibrary = ApiMediaLibrary & { ignoreLocalImages?: boolean };
 export type MediaLibraryInput = ApiMediaLibraryInput & { ignoreLocalImages?: boolean };
@@ -16,7 +28,7 @@ export type NetworkShareProtocol = "smb" | "nfs" | "webdav" | "s3";
 export type NetworkShare = Omit<ApiNetworkShare, "protocol" | "region"> & { protocol: NetworkShareProtocol; region?: string | null };
 export type NetworkShareInput = Omit<ApiNetworkShareInput, "protocol" | "region"> & { protocol?: NetworkShareProtocol; region?: string | null };
 /** A card as returned for the current viewer; `locked` is set for restricted titles when the server shows them locked. */
-export type HomeCard = ApiHomeCard & { logo?: number | null; locked?: boolean; lockReason?: "rating" | "unrated" | "tags" };
+export type HomeCard = ApiHomeCard & { logo?: number | null; posterBlurhash?: string | null; backdropBlurhash?: string | null; locked?: boolean; lockReason?: "rating" | "unrated" | "tags" };
 export interface ExtendedMediaFilters {
 	cast?: string;
 	studio?: string;
@@ -28,8 +40,8 @@ export interface ExtendedMediaFilters {
 }
 export type SearchFilters = ApiSearchFilters & ExtendedMediaFilters & { includeChildren?: boolean };
 
-export type HomeRecommendations = FlixerApiRouteData<"get", "/recommendations/home">;
-export type HomeRecommendation = HomeRecommendations["items"][number];
+export type HomeRecommendation = FlixerApiRouteData<"get", "/recommendations/home">["items"][number] & { posterBlurhash?: string | null; backdropBlurhash?: string | null };
+export type HomeRecommendations = Omit<FlixerApiRouteData<"get", "/recommendations/home">, "items"> & { items: HomeRecommendation[] };
 export type HomeMusicRecommendation = HomeRecommendation;
 export type HomeMusicRecommendations = { enabled: boolean; items: HomeMusicRecommendation[] };
 

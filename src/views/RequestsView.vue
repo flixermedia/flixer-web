@@ -11,6 +11,7 @@ import { useProfile } from '../composables/useProfile'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
 import DeclineRequestModal from '../components/DeclineRequestModal.vue'
 import MobileTabBar from '../components/home/MobileTabBar.vue'
+import BlurImage from '../components/ui/BlurImage.vue'
 import { getMobileTabs } from '../composables/homeNav'
 import { catchError } from '../utils/catchError'
 
@@ -147,7 +148,7 @@ watch([scope, status, type], () => {
         <li v-for="row in rows" :key="row.id" class="group rounded border border-flixer-border bg-flixer-surface/50 p-3 transition hover:border-white/20 hover:bg-flixer-surface/80 sm:p-4">
           <div class="flex flex-wrap items-center gap-3 sm:gap-4">
             <div class="relative h-20 w-14 shrink-0 overflow-hidden rounded border border-white/10 bg-flixer-background sm:h-24 sm:w-16">
-              <img v-if="row.poster" :src="row.poster" loading="lazy" :alt="row.title" class="size-full object-cover" />
+              <BlurImage v-if="row.poster" :src="row.poster" loading="lazy" :alt="row.title" img-class="size-full object-cover" />
               <div v-else class="grid size-full place-items-center p-1 text-center text-[10px] text-flixer-muted">{{ row.title }}</div>
               <span class="absolute inset-x-0 bottom-0 h-1" :class="row.status === 'available' ? 'bg-emerald-400' : row.status === 'failed' || row.status === 'declined' ? 'bg-red-400' : row.status === 'approved' ? 'bg-flixer-accent' : 'bg-amber-300'" />
             </div>

@@ -4,6 +4,7 @@ import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import AuthImage from '../ui/AuthImage.vue'
+import BlurImage from '../ui/BlurImage.vue'
 import type { ExternalRequestStatus } from '../../api'
 import { requestStatusLabelKey } from '../../composables/requestStatus'
 import { useAccess } from '../../composables/useAccess'
@@ -19,6 +20,7 @@ const props = withDefaults(
     /** Index of the image to show, or null/undefined when the item has none yet. */
     imageIndex?: number | null
     version?: string
+    blurhash?: string | null
     subtitle?: string
     variant?: 'poster' | 'landscape' | 'library' | 'square'
     progress?: number
@@ -74,10 +76,10 @@ const statusClass = computed(
       <div
         class="relative overflow-hidden rounded border border-flixer-border bg-flixer-surface transition duration-300 group-hover:-translate-y-1 group-hover:border-white/30 group-hover:shadow-xl group-hover:shadow-black/50"
         :class="variant === 'poster' ? 'aspect-[2/3]' : variant === 'square' ? 'aspect-square' : 'aspect-video'">
-        <img v-if="posterUrl" :src="posterUrl" alt="" loading="lazy" referrerpolicy="no-referrer"
-          class="size-full object-cover transition duration-500 group-hover:scale-105" />
+        <BlurImage v-if="posterUrl" :src="posterUrl" :blurhash="blurhash" alt="" loading="lazy" referrerpolicy="no-referrer"
+          img-class="size-full object-cover transition duration-500 group-hover:scale-105" />
         <AuthImage v-else-if="itemId && imageIndex !== null && imageIndex !== undefined" scope="library"
-          :item-id="itemId" :index="imageIndex" :version="version"
+          :item-id="itemId" :index="imageIndex" :version="version" :blurhash="blurhash"
           :width="variant === 'landscape' ? 300 : variant === 'library' ? 260 : 200"
           :alt="variant === 'library' ? '' : title"
           img-class="size-full object-cover transition duration-500 group-hover:scale-105" />

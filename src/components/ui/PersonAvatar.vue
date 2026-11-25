@@ -3,15 +3,19 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchPersonImage } from '../../api'
 import { limitedImageLoad } from '../../composables/imageQueue'
 import AuthImage from './AuthImage.vue'
+import BlurhashCanvas from './BlurhashCanvas.vue'
+import { isValidBlurhash } from '../../composables/blurhash'
 import { catchError } from '../../utils/catchError'
 
 /**
  * A round photo of a person. Without a photo it shows the artwork of `fallback` (an album cover, for artists)
  * and finally their initials.
  */
-const props = defineProps<{ personId: string; name: string; hasImage: boolean; width: number; fallback?: { itemId: string; index: number; version?: string } | null }>()
+const props = defineProps<{ personId: string; name: string; hasImage: boolean; width: number; blurhash?: string | null; fallback?: { itemId: string; index: number; version?: string; blurhash?: string | null } | null }>()
+const hasBlurhash = computed(() => isValidBlurhash(props.blurhash))
 
 const src = ref('')
+const loaded = ref(false)
 let objectUrl = ''
 let request = 0
 
@@ -58,6 +62,7 @@ async function load() {
   const signal = abort.signal
   release()
   src.value = ''
+  loaded.value = false
   if (!props.hasImage) return
   const width = Math.ceil(props.width * Math.min(window.devicePixelRatio || 1, 2))
   const [failure, blob] = await catchError(limitedImageLoad(() => fetchPersonImage(props.personId, width), { signal }))
@@ -87,9 +92,22 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="relative overflow-hidden bg-flixer-surface" role="img" :aria-label="name">
-    <img v-if="src" :src="src" alt="" class="size-full object-cover object-top" />
+    <BlurhashCanvas
+      v-if="hasImage && hasBlurhash"
+      :hash="blurhash!"
+      class="absolute inset-0 size-full transition-opacity duration-500 motion-reduce:transition-none"
+      :class="src && loaded ? 'opacity-0' : 'opacity-100'"
+    />
+    <img
+      v-if="src"
+      :src="src"
+      alt=""
+      class="relative size-full object-cover object-top transition-opacity duration-500 motion-reduce:transition-none"
+      :class="loaded ? 'opacity-100' : 'opacity-0'"
+      @load="loaded = true"
+    />
     <slot v-else>
-      <AuthImage v-if="fallback" scope="library" :item-id="fallback.itemId" :index="fallback.index" :version="fallback.version" :width="width" alt="" />
+      <AuthImage v-if="fallback" scope="library" :item-id="fallback.itemId" :index="fallback.index" :version="fallback.version" :blurhash="fallback.blurhash" :width="width" alt="" />
       <span v-else class="grid size-full place-items-center text-sm font-semibold text-flixer-muted" aria-hidden="true">{{ initials }}</span>
     </slot>
   </div>

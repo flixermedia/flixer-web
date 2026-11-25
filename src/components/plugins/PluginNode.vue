@@ -13,6 +13,7 @@ import PluginButton from './PluginButton.vue'
 import PluginCard from './PluginCard.vue'
 import PluginForm from './PluginForm.vue'
 import PluginSection from './PluginSection.vue'
+import BlurImage from '../ui/BlurImage.vue'
 import PluginTable from './PluginTable.vue'
 
 const props = defineProps<{ node: ViewNode }>()
@@ -57,7 +58,7 @@ function selectTab(value: string | null) {
   <span v-else-if="node.type === 'badge'" class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold" :class="badgeToneClasses[node.tone ?? 'default']">{{ node.text }}</span>
 
   <div v-else-if="node.type === 'image'" class="relative w-full max-w-xs overflow-hidden rounded border border-white/10 bg-flixer-background" :class="aspectClasses[node.aspect ?? 'poster']">
-    <img :src="node.src" :alt="node.alt" loading="lazy" referrerpolicy="no-referrer" class="size-full object-cover" />
+    <BlurImage :src="node.src" :alt="node.alt" loading="lazy" referrerpolicy="no-referrer" img-class="size-full object-cover" />
   </div>
 
   <div v-else-if="node.type === 'grid'" class="grid gap-4" :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${node.minWidth ?? 160}px), 1fr))` }">

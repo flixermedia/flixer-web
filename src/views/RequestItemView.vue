@@ -11,6 +11,7 @@ import { describeRequestError, useProfile } from '../composables/useProfile'
 import { notify } from '../composables/notify'
 import { useRequestsConfig } from '../composables/useRequestsConfig'
 import ClampedText from '../components/ui/ClampedText.vue'
+import BlurImage from '../components/ui/BlurImage.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import { catchError } from '../utils/catchError'
 
@@ -120,14 +121,14 @@ watch(
     <main v-else-if="detail">
       <section class="relative overflow-hidden" :aria-label="detail.title">
         <div v-if="detail.backdrop" class="absolute inset-0">
-          <img :src="detail.backdrop" alt="" class="size-full object-cover object-top" />
+          <BlurImage :src="detail.backdrop" alt="" img-class="size-full object-cover object-top" />
         </div>
         <div class="absolute inset-0 bg-gradient-to-t from-flixer-background via-flixer-background/70 to-flixer-background/30"></div>
         <div class="absolute inset-0 bg-gradient-to-r from-flixer-background/90 via-flixer-background/40 to-transparent"></div>
 
         <div class="relative page-gutter flex flex-col gap-8 pb-10 pt-32 sm:flex-row sm:items-end sm:pt-44">
           <div v-if="detail.poster || !detail.backdrop" class="w-40 shrink-0 overflow-hidden rounded border border-flixer-border bg-flixer-surface shadow-2xl shadow-black/60 sm:w-56" :class="detail.type === 'music' ? 'aspect-square' : 'aspect-[2/3]'">
-            <img v-if="detail.poster" :src="detail.poster" :alt="detail.title" class="size-full object-cover" />
+            <BlurImage v-if="detail.poster" :src="detail.poster" :alt="detail.title" img-class="size-full object-cover" />
             <span v-else class="grid size-full place-items-center p-4 text-center text-sm font-medium text-flixer-muted">{{ detail.title }}</span>
           </div>
 

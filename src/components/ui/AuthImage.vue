@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchHomeImage, fetchMediaImage } from '../../api'
 import { limitedImageLoad } from '../../composables/imageQueue'
 import { fetchCachedImageBlob } from '../../composables/imageBlobCache'
+import { isValidBlurhash } from '../../composables/blurhash'
 import { catchError } from '../../utils/catchError'
+import BlurhashCanvas from './BlurhashCanvas.vue'
 
 // Images need the signed-in user's token, so they are fetched as blobs instead of used as plain img sources.
 // "admin" reads through the admin media endpoint (which can see every image); "library" is for regular users.
-const props = withDefaults(defineProps<{ itemId: string; index: number; alt: string; version?: string; scope?: 'admin' | 'library'; imgClass?: string; width?: number }>(), { scope: 'admin', imgClass: 'size-full object-cover' })
+const props = withDefaults(defineProps<{ itemId: string; index: number; alt: string; version?: string; blurhash?: string | null; scope?: 'admin' | 'library'; imgClass?: string; width?: number }>(), { scope: 'admin', imgClass: 'size-full object-cover' })
+const hasBlurhash = computed(() => isValidBlurhash(props.blurhash))
 
 /** The server scales to the width asked for, so request what the element needs (in CSS px) plus room for high-density screens. */
 function pixelWidth(): number | undefined {
@@ -16,6 +19,7 @@ function pixelWidth(): number | undefined {
 }
 
 const src = ref('')
+const loaded = ref(false)
 const failed = ref(false)
 let objectUrl = ''
 let request = 0
@@ -32,6 +36,7 @@ async function load() {
   abort = new AbortController()
   const signal = abort.signal
   failed.value = false
+  loaded.value = false
   const width = pixelWidth()
   const cacheKey = JSON.stringify([props.scope, props.itemId, props.index, width ?? 'original', props.version ?? ''])
   const fetcher = () => (props.scope === 'admin'
@@ -92,6 +97,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <img v-if="src" ref="el" :src="src" :alt="alt" loading="lazy" :class="imgClass" />
-  <span v-else ref="el" class="flex size-full items-center justify-center text-[10px] text-flixer-muted" :class="failed ? '' : 'animate-pulse bg-white/10 motion-reduce:animate-none'" :aria-label="alt">{{ failed ? '⚠' : '' }}</span>
+  <span ref="el" class="relative block size-full overflow-hidden">
+    <BlurhashCanvas
+      v-if="!failed && hasBlurhash"
+      :hash="blurhash!"
+      class="absolute inset-0 size-full transition-opacity duration-500 motion-reduce:transition-none"
+      :class="src && loaded ? 'opacity-0' : 'opacity-100'"
+    />
+    <span
+      v-else-if="!src || !loaded || failed"
+      class="absolute inset-0 flex size-full items-center justify-center text-[10px] text-flixer-muted"
+      :class="failed ? '' : 'animate-pulse bg-white/10 motion-reduce:animate-none'"
+      :aria-label="alt"
+    >{{ failed ? '⚠' : '' }}</span>
+    <img
+      v-if="src"
+      :src="src"
+      :alt="alt"
+      loading="lazy"
+      :class="[imgClass, 'transition-opacity duration-500 motion-reduce:transition-none', loaded ? 'opacity-100' : 'opacity-0']"
+      @load="loaded = true"
+    />
+  </span>
 </template>

@@ -364,7 +364,8 @@ function subtitleOf(item: SearchCard) {
             <MediaCard v-for="(item, index) in results" :key="item.id" class="!w-auto"
               :style="{ '--i': Math.min(index, 14) }" :variant="item.type === 'album' ? 'square' : 'poster'"
               :title="item.title" :subtitle="subtitleOf(item)" :item-id="item.id"
-              :image-index="item.poster ?? item.backdrop" :version="item.updatedAt" :locked="item.locked" />
+              :image-index="item.poster ?? item.backdrop" :version="item.updatedAt"
+              :blurhash="item.poster !== null ? item.posterBlurhash : item.backdropBlurhash" :locked="item.locked" />
           </TransitionGroup>
         </div>
         <section v-if="externalResults.length"

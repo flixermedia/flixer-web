@@ -181,7 +181,8 @@ onMounted(() => {
     :class="{ 'overflow-x-hidden': !isTvMode }">
 
     <main>
-      <HeroCarousel v-if="isLoading || (content && content.featured.length > 0)" :items="content?.featured ?? []"
+      <HeroCarousel v-if="isLoading || (content && content.featured.length > 0)"
+        :items="(content?.featured ?? []).map((item) => ({ ...item, blurhash: item.backdropBlurhash ?? item.posterBlurhash }))"
         :loading="isLoading" :tv="isTvMode" />
       <div v-else class="h-24 sm:h-28"></div>
 
@@ -212,13 +213,13 @@ onMounted(() => {
         <MediaRow key="libraries" v-if="content.libraries.length > 0" :title="t('home.myMedia')">
           <MediaCard v-for="library in content.libraries" :key="library.id" variant="library" :title="library.name"
             :to="libraryRoute(library.type)" :item-id="library.cover?.itemId" :image-index="library.cover?.index"
-            :version="library.cover?.updatedAt" />
+            :version="library.cover?.updatedAt" :blurhash="library.cover?.blurhash" />
         </MediaRow>
         <MediaRow key="continue" v-if="content.continueWatching.length > 0" :title="t('home.continueWatching')">
           <MediaCard v-for="entry in content.continueWatching" :key="entry.id" variant="landscape" :title="entry.title"
             :subtitle="entry.subtitle ?? undefined" :to="{ name: 'media-item', params: { id: entry.id } }"
             :item-id="entry.imageItemId" :image-index="entry.imageIndex" :version="entry.imageUpdatedAt"
-            :progress="entry.progress" markable @watched="markWatched(entry.id)" />
+            :blurhash="entry.imageBlurhash" :progress="entry.progress" markable @watched="markWatched(entry.id)" />
         </MediaRow>
         <MediaRow key="watch-later" v-if="watchLater.length > 0 || watchLaterFailed" :title="t('userMedia.watchLater')">
           <li v-if="watchLaterLoading" class="py-3 text-sm text-flixer-muted" role="status">{{ t('common.loading') }}
@@ -252,17 +253,17 @@ onMounted(() => {
             </Button></template>
           <MediaCard v-for="item in recommendations" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
+            :version="item.updatedAt" :blurhash="item.posterBlurhash" dismissible @dismiss="dismissRecommendation(item.id)" />
         </MediaRow>
         <MediaRow key="movies" v-if="content.recentMovies.length > 0" :title="t('home.recentMovies')">
           <MediaCard v-for="item in content.recentMovies" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" markable @watched="markWatched(item.id)" />
+            :version="item.updatedAt" :blurhash="item.posterBlurhash" markable @watched="markWatched(item.id)" />
         </MediaRow>
         <MediaRow key="shows" v-if="content.recentShows.length > 0" :title="t('home.recentTvShows')">
           <MediaCard v-for="item in content.recentShows" :key="item.id" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" markable @watched="markWatched(item.id)" />
+            :version="item.updatedAt" :blurhash="item.posterBlurhash" markable @watched="markWatched(item.id)" />
         </MediaRow>
         <MediaRow key="music-recommendations" v-if="musicRecommendations.length > 0"
           :title="t('home.musicRecommendations')">
@@ -274,7 +275,7 @@ onMounted(() => {
             </Button></template>
           <MediaCard v-for="item in musicRecommendations" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" dismissible @dismiss="dismissRecommendation(item.id)" />
+            :version="item.updatedAt" :blurhash="item.posterBlurhash" dismissible @dismiss="dismissRecommendation(item.id)" />
         </MediaRow>
         <section v-if="hasDismissedRecommendations && !recommendations.length && !musicRecommendations.length"
           key="recommendation-review" class="page-gutter flex items-center gap-3">
@@ -288,7 +289,7 @@ onMounted(() => {
         <MediaRow key="music" v-if="content.recentAlbums.length > 0" :title="t('home.recentMusic')">
           <MediaCard v-for="item in content.recentAlbums" :key="item.id" variant="square" :title="item.title"
             :subtitle="item.year ? String(item.year) : undefined" :item-id="item.id" :image-index="item.poster"
-            :version="item.updatedAt" />
+            :version="item.updatedAt" :blurhash="item.posterBlurhash" />
         </MediaRow>
       </TransitionGroup>
       <p v-if="recommendationsUnavailable" class="page-gutter -mt-2 text-sm text-flixer-muted" role="status">

@@ -652,7 +652,7 @@ watch(
       <template v-else-if="item">
         <section class="relative overflow-hidden" :class="{ 'tv-media-item-hero': isTvMode }" :aria-label="item.title">
           <div v-if="item.backdrop !== null" class="absolute inset-0">
-            <AuthImage scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" :width="1600"
+            <AuthImage scope="library" :item-id="item.id" :index="item.backdrop" :version="item.updatedAt" :blurhash="item.backdropBlurhash" :width="1600"
               alt="" img-class="size-full object-cover object-top" />
           </div>
           <MusicBanner v-else-if="isMusic" :seed="item.id" />

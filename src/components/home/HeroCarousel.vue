@@ -20,6 +20,7 @@ export type HeroCarouselItem = {
   imageIndex?: number | null
   poster?: number | null
   backdrop?: number | null
+  blurhash?: string | null
   logo?: number | null
   squareArtwork?: boolean
   to?: RouteLocationRaw
@@ -112,7 +113,7 @@ onBeforeUnmount(stopAutoplay)
         :class="index === activeSlide ? 'opacity-100' : 'opacity-0'">
         <AuthImage v-if="(item.imageIndex ?? item.backdrop ?? item.poster ?? null) !== null" scope="library"
           :item-id="item.imageItemId ?? item.id" :index="(item.imageIndex ?? item.backdrop ?? item.poster)!"
-          :version="item.updatedAt" :width="1600" alt=""
+          :version="item.updatedAt" :blurhash="item.blurhash" :width="1600" alt=""
           :img-class="item.squareArtwork ? 'absolute inset-0 size-full scale-110 object-cover opacity-25 blur-2xl' : 'absolute inset-0 size-full object-cover object-top'" />
       </div>
       <div

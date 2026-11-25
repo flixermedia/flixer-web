@@ -401,6 +401,7 @@ onBeforeUnmount(() => { controller?.abort(); clearTimeout(filterTimer) })
             <MediaCard v-for="item in items" :key="item.id" class="!w-auto"
               :variant="kind === 'music' ? 'square' : 'poster'" :title="item.title" :subtitle="subtitleOf(item)"
               :item-id="item.id" :image-index="item.poster ?? item.backdrop" :version="item.updatedAt"
+              :blurhash="item.poster !== null ? item.posterBlurhash : item.backdropBlurhash"
               :locked="item.locked" />
           </template>
           <li v-for="n in isLoading ? 6 : 0" :key="`more-${n}`" aria-hidden="true">
