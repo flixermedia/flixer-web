@@ -3,6 +3,7 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { createFlixerApiClient } from "flixer-api-client";
 import { forgetNativeServerUrl, getApiBaseUrl, saveNativeServerUrl } from "../platform/serverConnection";
+import { useMaintenanceMode } from "../composables/useMaintenanceMode";
 
 export const ACCESS_TOKEN_KEY = "flixer.accessToken";
 export const AUTH_INVALID_EVENT = "flixer:auth-invalid";
@@ -194,6 +195,13 @@ function shouldRetryRead(error: AxiosError): boolean {
 api.interceptors.response.use(
 	(response) => response,
 	async (error: unknown) => {
+		if (axios.isAxiosError(error)) {
+			const data = error.response?.data as { maintenance?: boolean; name?: string } | undefined;
+			const url = error.config?.url ?? "";
+			if (error.response?.status === 503 && (data?.maintenance === true || data?.name === "MAINTENANCE") && !url.includes("/admin/updates") && !url.includes("/setup/status")) {
+				useMaintenanceMode().enterMaintenance();
+			}
+		}
 		if (axios.isAxiosError(error) && shouldRetryRead(error) && error.config) {
 			(error.config as AxiosRequestConfig & { __retried?: boolean }).__retried = true;
 			await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));

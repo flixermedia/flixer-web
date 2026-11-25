@@ -6,7 +6,11 @@ import { Capacitor } from "@capacitor/core";
 import { ModalOverlay, ModalTarget } from "@kolirt/vue-modal";
 import NativeMoreMenu from "./components/home/NativeMoreMenu.vue";
 import IdleSplash from "./components/ui/IdleSplash.vue";
+import MaintenanceOverlay from "./components/ui/MaintenanceOverlay.vue";
 import OfflineBanner from "./components/ui/OfflineBanner.vue";
+import UpdateProgressOverlay from "./components/admin/UpdateProgressOverlay.vue";
+import { useMaintenanceMode } from "./composables/useMaintenanceMode";
+import { useUpdateOverlay } from "./composables/useUpdateOverlay";
 import ChatCallOverlay from "./components/chat/ChatCallOverlay.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
 import PlayerOverlay from "./components/player/PlayerOverlay.vue";
@@ -53,6 +57,8 @@ const audio = useAudioPlayer();
 const { lyricsOpen } = audio;
 const party = useParty();
 const { playing, close: closeVideo, play: playVideo } = useVideoOverlay();
+const { maintenanceActive } = useMaintenanceMode();
+const { overlayOpen } = useUpdateOverlay();
 const idle = useIdleSplash(() => playing.value !== null);
 watch(() => route.name, (name) => {
 	lyricsOpen.value = name === "lyrics";
@@ -161,6 +167,10 @@ if (Capacitor.isNativePlatform()) {
 
 	<!-- Offline banner -->
 	<OfflineBanner />
+
+	<!-- Maintenance & admin update overlays -->
+	<MaintenanceOverlay v-if="maintenanceActive && !overlayOpen" />
+	<UpdateProgressOverlay v-if="overlayOpen" />
 
 	<!-- Modal target -->
 	<ModalTarget group="default" class="z-50">

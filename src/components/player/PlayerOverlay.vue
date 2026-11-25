@@ -12,6 +12,7 @@ import UserMediaListView from '../../views/UserMediaListView.vue'
 import PlayerSkeleton from './PlayerSkeleton.vue'
 import { isNativeApp } from '../../platform/serverConnection'
 import { describeRequestError } from '../../composables/useProfile'
+import { describePlaybackError } from '../../composables/playbackError'
 import { catchError } from '../../utils/catchError'
 import { getGuideChannelPlaybackInfo, type EpgChannel, type GuidePlaybackInfo } from '../../api/guide'
 import LiveGuidePanel from './LiveGuidePanel.vue'
@@ -39,6 +40,7 @@ const info = ref<StreamInfo | null>(null)
 const autoSkipIntroCredits = ref(true)
 const defaultAudioLanguage = ref('')
 const error = ref('')
+const errorTitle = ref('')
 const liveTitle = ref(props.title)
 const liveGuideOpen = ref(false)
 const videoQueueOpen = ref(false)
@@ -254,6 +256,7 @@ async function load(itemId: string, retryAfterPayment = true) {
   playback.value = null
   info.value = null
   error.value = ''
+  errorTitle.value = ''
   startAt.value = 0
   activeAd.value = null
   adBreaks.value = []
@@ -275,13 +278,21 @@ async function load(itemId: string, retryAfterPayment = true) {
   const [playbackError, next] = await catchError(Promise.resolve().then(() => getItemPlaybackInfo(itemId)))
   if (playbackError) {
     if (retryAfterPayment && itemId === props.itemId && (await offerUnlock(playbackError, itemId))) return load(itemId, false)
-    if (itemId === props.itemId) error.value = t('player.couldNotGetStreamUrl')
+    if (itemId === props.itemId) {
+      const details = describePlaybackError(playbackError, 'playback-info')
+      errorTitle.value = details.title
+      error.value = details.message
+    }
     return
   }
   const [streamError, streamInfo] = await catchError(Promise.resolve().then(() => getStreamInfo(next.mediaSource.streamUrl)))
   if (streamError) {
     if (retryAfterPayment && itemId === props.itemId && (await offerUnlock(streamError, itemId))) return load(itemId, false)
-    if (itemId === props.itemId) error.value = t('player.couldNotGetStreamUrl')
+    if (itemId === props.itemId) {
+      const details = describePlaybackError(streamError, 'stream-info')
+      errorTitle.value = details.title
+      error.value = details.message
+    }
     return
   }
   // Resuming is best effort; playback still starts from the beginning if this fails.
@@ -382,8 +393,28 @@ onBeforeUnmount(() => {
       :switching-channel-id="switchingChannelId" :switch-error="liveGuideError" @close="liveGuideOpen = false"
       @select-channel="switchLiveChannel" />
     <div v-else-if="!activeAd && !(playback && info)" class="relative size-full">
-      <p v-if="error" class="absolute inset-0 grid place-items-center p-6 text-center text-sm text-red-400"
-        role="alert">{{ error }}</p>
+      <div v-if="error" class="absolute inset-0 grid place-items-center bg-black/90 p-6" role="alert">
+        <div class="w-full max-w-md rounded-xl border border-white/10 bg-zinc-900/95 p-6 text-center shadow-2xl shadow-black/80 backdrop-blur-md">
+          <div class="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-red-500/15 text-red-400">
+            <Icon icon="lucide:alert-circle" class="size-6" aria-hidden="true" />
+          </div>
+          <h2 class="text-base font-semibold text-white">{{ errorTitle || t('player.error.genericTitle') }}</h2>
+          <p class="mt-2 text-sm leading-relaxed text-zinc-300">{{ error }}</p>
+          <div class="mt-6 flex items-center justify-center gap-3">
+            <button type="button"
+              class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              @click="load(props.itemId)">
+              <Icon icon="lucide:rotate-cw" class="size-4" aria-hidden="true" />
+              {{ t('player.retry') }}
+            </button>
+            <button v-if="!mini" type="button"
+              class="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              @click="closeOverlay()">
+              {{ t('mediaItem.close') }}
+            </button>
+          </div>
+        </div>
+      </div>
       <PlayerSkeleton v-else />
     </div>
     <p v-if="error && playback && info && nativePlayback && !isLive && adBreaks.length === 0"

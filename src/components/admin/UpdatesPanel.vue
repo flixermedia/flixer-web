@@ -10,10 +10,15 @@ import AdminSection from './AdminSection.vue'
 import AdminToggle from './AdminToggle.vue'
 import StatusPill from './StatusPill.vue'
 import { confirmAction } from '../../composables/confirm'
+import { useMaintenanceMode } from '../../composables/useMaintenanceMode'
+import { useUpdateOverlay, type ExtendedUpdateRun } from '../../composables/useUpdateOverlay'
 
 const POLL_MS = 4000
 
 const { t, locale } = useI18n()
+const { enterMaintenance } = useMaintenanceMode()
+const { syncRun, openOverlay, startEmulation } = useUpdateOverlay()
+const isDev = import.meta.env.DEV
 
 const status = ref<UpdateStatus | null>(null)
 const isChecking = ref(false)
@@ -75,6 +80,7 @@ async function load(refresh = false, quiet = false) {
     return false
   } else {
     status.value = result
+    syncRun((result.run as ExtendedUpdateRun | null) ?? null)
     return true
   }
 }
@@ -101,6 +107,7 @@ async function updateAll() {
       notify.error(describeRequestError(error))
     } else {
       notify.success(t('admin.updates.started'))
+      openOverlay()
       await load(false, true)
       schedulePoll()
     }
@@ -164,6 +171,9 @@ onBeforeUnmount(() => {
   <div class="flex flex-col gap-6">
     <AdminSection :title="t('admin.updates.title')" :description="t('admin.updates.description')">
       <template #actions>
+        <button v-if="status?.run" type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/15" @click="openOverlay">
+          {{ t('admin.updates.viewProgress') }}
+        </button>
         <button type="button" class="rounded bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/15 disabled:opacity-60" :disabled="isChecking || running" @click="check">
           {{ isChecking ? t('admin.updates.checking') : t('admin.updates.check') }}
         </button>
@@ -198,6 +208,19 @@ onBeforeUnmount(() => {
       <p v-if="status?.updaterMode === 'development'" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.developmentMode') }}</p>
       <p v-else-if="status && !status.canApply" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.notConfigured') }}</p>
       <p v-else-if="status && !status.updaterReachable" class="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{{ t('admin.updates.unreachable') }}</p>
+
+      <div v-if="isDev || status?.updaterMode === 'development'" class="mt-3 flex flex-wrap items-center gap-2 rounded border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs">
+        <span class="font-medium text-flixer-muted">{{ t('admin.updates.devTools') }}</span>
+        <button type="button" class="rounded bg-white/10 px-2.5 py-1 font-medium text-white transition hover:bg-white/15" @click="startEmulation(false)">
+          {{ t('admin.updates.simulateUpdate') }}
+        </button>
+        <button type="button" class="rounded bg-white/10 px-2.5 py-1 font-medium text-white transition hover:bg-white/15" @click="startEmulation(true)">
+          {{ t('admin.updates.simulateRollback') }}
+        </button>
+        <button type="button" class="rounded bg-white/10 px-2.5 py-1 font-medium text-white transition hover:bg-white/15" @click="enterMaintenance(true)">
+          {{ t('admin.updates.previewMaintenance') }}
+        </button>
+      </div>
 
       <div v-if="status?.run" class="mt-4 rounded border px-3 py-2 text-sm" :class="status.run.status === 'failed' || status.run.status === 'rollback_failed' ? 'border-red-500/40 bg-red-500/10' : status.run.status === 'rolled_back' ? 'border-amber-500/40 bg-amber-500/10' : status.run.status === 'running' ? 'border-flixer-accent/40 bg-flixer-accent/10' : 'border-emerald-500/30 bg-emerald-500/10'">
         <p v-if="status.run.status === 'running'">{{ t('admin.updates.run.running') }} {{ t(`admin.updates.run.steps.${status.run.step.split(':')[0]}`, { component: status.run.step.split(':')[1] ?? '' }) }}</p>

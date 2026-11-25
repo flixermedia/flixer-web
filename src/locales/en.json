@@ -1,4 +1,12 @@
 {
+	"maintenance": {
+		"title": "Flixer is Updating",
+		"description": "An update is currently in progress. Your session will automatically resume as soon as the server is back online.",
+		"checking": "Checking server status…",
+		"autoReload": "Automatically checking every few seconds…",
+		"checkNow": "Check Now",
+		"exitPreview": "Exit Preview"
+	},
 	"collectionsPage": {
 		"title": "Collections",
 		"all": "All",
@@ -3054,6 +3062,24 @@
 			"developmentMode": "This updater is running in development mode. Native workspace checkouts cannot be updated or restored by the Compose updater.",
 			"started": "Update started. Flixer will restart shortly.",
 			"allCurrent": "Everything is up to date.",
+			"viewProgress": "View Progress",
+			"devTools": "Dev emulation:",
+			"simulateUpdate": "Simulate Update",
+			"simulateRollback": "Simulate Rollback",
+			"previewMaintenance": "Preview Maintenance",
+			"overlay": {
+				"title": "Flixer Update Progress",
+				"updatingTitle": "Updating Flixer",
+				"succeededTitle": "Update Complete",
+				"rolledBackTitle": "Update Rolled Back",
+				"failedTitle": "Update Failed",
+				"emulatedBadge": "Emulated",
+				"inProgress": "Rollout in progress",
+				"finished": "Rollout finished",
+				"stepsHeading": "Steps",
+				"logsToggle": "Logs ({count})",
+				"reloadApp": "Reload App"
+			},
 			"run": {
 				"running": "Update in progress… the dashboard may be unavailable for a minute.",
 				"succeeded": "The last update finished successfully.",
@@ -4235,7 +4261,36 @@
 		"testControls": "Space/K play·pause, ←/→ or J/L ±10s, ↑/↓ volume, M mute, F fullscreen, 0–9 jump.",
 		"tokenExpires": "Token expires {expiresAt}.",
 		"couldNotLoadSamples": "Could not load sample videos from the Flixer API.",
-		"couldNotGetStreamUrl": "Could not get a stream URL. Is flixer-streamer running?"
+		"couldNotGetStreamUrl": "Could not get a stream URL. Is flixer-streamer running?",
+		"retry": "Try Again",
+		"error": {
+			"genericTitle": "Playback Unavailable",
+			"streamerUnreachableTitle": "Streamer Unreachable",
+			"streamerUnreachable": "Could not reach flixer-streamer. Check that the flixer-streamer container is running and healthy.",
+			"serverUnreachableTitle": "Server Unreachable",
+			"serverUnreachable": "Could not reach the Flixer server. Check your connection and verify the API is running.",
+			"serverUnavailableTitle": "Server Unavailable",
+			"serverUnavailable": "The Flixer server is temporarily unavailable. Try again in a moment.",
+			"transcoderBusyTitle": "Transcoder Busy",
+			"transcoderBusy": "Too many active transcodes are running right now. Try again shortly.",
+			"streamExpiredTitle": "Stream Session Expired",
+			"streamExpired": "Your stream token has expired or is invalid. Close the player and start playback again.",
+			"unauthorizedTitle": "Sign In Required",
+			"unauthorized": "Your session has expired. Sign in again to continue watching.",
+			"permissionDeniedTitle": "Media Permission Denied",
+			"mediaPermissionDenied": "flixer-streamer does not have permission to read this media file. Check file permissions and container UID/GID.",
+			"forbiddenTitle": "Playback Not Allowed",
+			"originalNotPermitted": "Original quality playback is not permitted for your account.",
+			"forbidden": "You do not have permission to play this item.",
+			"mediaNotFoundTitle": "Media File Missing",
+			"mediaNotFound": "This media file could not be found on disk. It may have been moved, deleted, or the library needs a rescan.",
+			"transcodingUnavailableTitle": "Transcoding Unavailable",
+			"transcodingUnavailable": "Transcoding is required for this file, but ffmpeg is not available on flixer-streamer.",
+			"invalidOptionsTitle": "Unsupported Playback Options",
+			"invalidOptions": "The requested playback options are not supported for this stream.",
+			"streamFailedTitle": "Unable to Play Media",
+			"streamFailed": "flixer-streamer could not inspect or read this media file. Check that the file is intact and readable."
+		}
 	},
 	"languageModal": {
 		"title": "Choose your language",

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getSamplePlaybackInfo, getStreamInfo, listSampleVideos, type PlaybackInfo, type SampleVideo, type StreamInfo } from '../api'
 import VideoPlayer from '../components/player/VideoPlayer.vue'
 import { catchError } from '../utils/catchError'
+import { describePlaybackError } from '../composables/playbackError'
 
 const { t } = useI18n()
 
@@ -36,14 +37,14 @@ async function load() {
     if (playbackError) {
       playback.value = null
       info.value = null
-      error.value = t('player.couldNotGetStreamUrl')
+      error.value = describePlaybackError(playbackError, 'playback-info').message
       return
     }
     const [streamError, streamInfo] = await catchError(getStreamInfo(next.mediaSource.streamUrl))
     if (streamError) {
       playback.value = null
       info.value = null
-      error.value = t('player.couldNotGetStreamUrl')
+      error.value = describePlaybackError(streamError, 'stream-info').message
       return
     }
     info.value = streamInfo
