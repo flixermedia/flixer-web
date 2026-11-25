@@ -1,7 +1,7 @@
 {
 	"maintenance": {
-		"title": "Flixer is Updating",
-		"description": "An update is currently in progress. Your session will automatically resume as soon as the server is back online.",
+		"title": "Under Maintenance",
+		"description": "Flixer is currently undergoing maintenance. Your session will automatically resume as soon as it is back online.",
 		"checking": "Checking server status…",
 		"autoReload": "Automatically checking every few seconds…",
 		"checkNow": "Check Now",
@@ -1757,6 +1757,16 @@
 			"upload": "Upload Backup",
 			"uploading": "Uploading {percent}%",
 			"started": "Backup started.",
+			"simulateBackup": "Simulate Backup",
+			"simulateRestore": "Simulate Restore",
+			"overlay": {
+				"runningTitle": "Creating Backup",
+				"succeededTitle": "Backup Complete",
+				"failedTitle": "Backup Failed",
+				"restoreRunningTitle": "Restoring Backup",
+				"restoreSucceededTitle": "Restore Complete",
+				"restoreFailedTitle": "Restore Failed"
+			},
 			"uploaded": "Backup uploaded.",
 			"restoreStarted": "Restore started. Flixer will restart.",
 			"never": "Never",
@@ -1773,12 +1783,18 @@
 				"database": "Database",
 				"config": "Settings",
 				"secrets": "Secrets",
+				"avatars": "Avatars",
+				"advertisements": "Advertisements",
+				"plugins": "Plugins",
 				"metadata": "Indexer Data"
 			},
 			"steps": {
 				"dump-database": "Dumping the database…",
 				"archive-config": "Archiving Settings…",
 				"archive-secrets": "Archiving Secrets…",
+				"archive-avatars": "Archiving Avatars…",
+				"archive-advertisements": "Archiving Advertisements…",
+				"archive-plugins": "Archiving Plugins…",
 				"archive-metadata": "Archiving indexer data…",
 				"encrypt-finish": "Writing the backup…",
 				"prune": "Removing old backups…",
@@ -3104,6 +3120,8 @@
 				"checkHelp": "Every 6 hours; admins get a notification when something new is released.",
 				"auto": "Install updates automatically",
 				"autoHelp": "Off by default. Backs up the database first, then updates everything as soon as a release is found.",
+				"maintenance": "Maintenance mode",
+				"maintenanceHelp": "Show the maintenance screen to all non-admin users while keeping the site and dashboard accessible to admins.",
 				"url": "Updater URL",
 				"urlHelp": "Leave empty to use the bundled updater service.",
 				"save": "Save"

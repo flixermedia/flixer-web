@@ -4,6 +4,7 @@ import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } f
 import { createFlixerApiClient } from "flixer-api-client";
 import { forgetNativeServerUrl, getApiBaseUrl, saveNativeServerUrl } from "../platform/serverConnection";
 import { useMaintenanceMode } from "../composables/useMaintenanceMode";
+import { useUpdateOverlay } from "../composables/useUpdateOverlay";
 
 export const ACCESS_TOKEN_KEY = "flixer.accessToken";
 export const AUTH_INVALID_EVENT = "flixer:auth-invalid";
@@ -189,6 +190,8 @@ function shouldRetryRead(error: AxiosError): boolean {
 	if (!config || config.__retried || (config.method ?? "get").toLowerCase() !== "get") return false;
 	if (config.signal?.aborted || error.code === "ERR_CANCELED" || error.code === "ECONNABORTED") return false;
 	if (RETRY_EXEMPT_URLS.some((path) => config.url?.includes(path))) return false;
+	const data = error.response?.data as { maintenance?: boolean; name?: string } | undefined;
+	if (error.response?.status === 503 && (data?.maintenance === true || data?.name === "MAINTENANCE")) return false;
 	return error.response ? RETRYABLE_STATUS.has(error.response.status) : error.code === "ERR_NETWORK";
 }
 
@@ -200,6 +203,7 @@ api.interceptors.response.use(
 			const url = error.config?.url ?? "";
 			if (error.response?.status === 503 && (data?.maintenance === true || data?.name === "MAINTENANCE") && !url.includes("/admin/updates") && !url.includes("/setup/status")) {
 				useMaintenanceMode().enterMaintenance();
+				void useUpdateOverlay().resumeAdminUpdateIfRunning(Boolean(getAccessToken()));
 			}
 		}
 		if (axios.isAxiosError(error) && shouldRetryRead(error) && error.config) {

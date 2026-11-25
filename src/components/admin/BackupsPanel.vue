@@ -9,10 +9,13 @@ import AdminSection from './AdminSection.vue'
 import AdminSkeleton from './AdminSkeleton.vue'
 import StatusPill from './StatusPill.vue'
 import { confirmAction } from '../../composables/confirm'
+import { useUpdateOverlay, type ExtendedUpdateRun } from '../../composables/useUpdateOverlay'
 
 const POLL_MS = 3000
 
 const { t, te, locale } = useI18n()
+const { syncRun, openOverlay, startBackupEmulation } = useUpdateOverlay()
+const isDev = import.meta.env.DEV
 
 const status = ref<BackupStatus | null>(null)
 const loadError = ref('')
@@ -62,6 +65,7 @@ function stepLabel(step: string) {
 
 function adopt(next: BackupStatus) {
   status.value = next
+  syncRun((next.run as unknown as ExtendedUpdateRun | null) ?? null)
   if (!scheduleDirty.value) {
     schedule.value = next.schedule
     keep.value = next.keep
@@ -101,6 +105,7 @@ async function create() {
       notify.error(describeRequestError(error))
     } else {
       notify.success(t('admin.backups.started'))
+      openOverlay()
       await load(true)
       wasRunning = running.value
       schedulePoll()
@@ -172,6 +177,7 @@ async function restore() {
     } else {
       notify.success(t('admin.backups.restoreStarted'))
       restoreTarget.value = null
+      openOverlay()
       await load(true)
       wasRunning = true
       schedulePoll()
@@ -240,6 +246,9 @@ onBeforeUnmount(() => {
     <AdminSection :title="t('admin.backups.title')" :description="t('admin.backups.description')">
       <template #actions>
         <input ref="fileInput" type="file" accept=".flxbak" class="hidden" @change="upload" />
+        <button v-if="status?.run" type="button" :class="quietButtonClass" @click="openOverlay">
+          {{ t('admin.updates.viewProgress') }}
+        </button>
         <button type="button" :class="quietButtonClass" :disabled="!ready || busy" @click="pickFile">
           {{ uploadProgress === null ? t('admin.backups.upload') : t('admin.backups.uploading', { percent: Math.round(uploadProgress * 100) }) }}
         </button>
@@ -251,6 +260,15 @@ onBeforeUnmount(() => {
       <p v-if="loadError" role="alert" class="rounded border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{{ loadError }}</p>
       <AdminSkeleton v-else-if="!status" variant="table" />
       <template v-else>
+        <div v-if="isDev" class="mb-4 flex flex-wrap items-center gap-2 rounded border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs">
+          <span class="font-medium text-flixer-muted">{{ t('admin.updates.devTools') }}</span>
+          <button type="button" class="rounded bg-white/10 px-2.5 py-1 font-medium text-white transition hover:bg-white/15" @click="startBackupEmulation('backup')">
+            {{ t('admin.backups.simulateBackup') }}
+          </button>
+          <button type="button" class="rounded bg-white/10 px-2.5 py-1 font-medium text-white transition hover:bg-white/15" @click="startBackupEmulation('restore')">
+            {{ t('admin.backups.simulateRestore') }}
+          </button>
+        </div>
         <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" leave-active-class="transition duration-150 ease-in" leave-to-class="opacity-0">
           <div v-if="status.run" class="mb-4 rounded border px-3 py-2 text-sm" :class="status.run.status === 'failed' ? 'border-red-500/40 bg-red-500/10' : status.run.status === 'running' ? 'border-flixer-accent/40 bg-flixer-accent/10' : 'border-emerald-500/30 bg-emerald-500/10'" :aria-live="status.run.status === 'running' ? 'polite' : undefined">
             <p v-if="status.run.status === 'running'">{{ t(`admin.backups.run.running.${status.run.kind}`) }} {{ stepLabel(status.run.step) }}</p>

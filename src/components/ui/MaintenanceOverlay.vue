@@ -9,27 +9,27 @@ const { maintenanceActive, maintenancePreview, exitMaintenance } = useMaintenanc
 const checking = ref(false)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
-async function checkServer() {
+async function checkServer(manual = false) {
   if (!maintenanceActive.value || maintenancePreview.value) return
-  checking.value = true
+  if (manual) checking.value = true
   try {
-    const response = await apiRequest({ url: '/setup/status', method: 'get', timeout: 4000 })
-    if (response.status >= 200 && response.status < 300) {
+    const response = await apiRequest<{ maintenance?: boolean }>({ url: '/setup/status', method: 'get', timeout: 4000 })
+    if (response.status >= 200 && response.status < 300 && response.data?.maintenance !== true) {
       exitMaintenance()
-      window.location.reload()
       return
     }
   } catch {
-    // Still updating; try again on next tick.
+    // Still updating or in maintenance; try again on next tick.
   } finally {
-    checking.value = false
+    if (manual) checking.value = false
   }
-  pollTimer = setTimeout(() => void checkServer(), 4000)
+  clearTimeout(pollTimer)
+  pollTimer = setTimeout(() => void checkServer(false), 4000)
 }
 
 onMounted(() => {
   if (!maintenancePreview.value) {
-    pollTimer = setTimeout(() => void checkServer(), 4000)
+    pollTimer = setTimeout(() => void checkServer(false), 4000)
   }
 })
 
@@ -42,7 +42,7 @@ onBeforeUnmount(() => {
   <div class="flixer-modal-overlay z-[200] grid place-items-center p-6 text-flixer-text" role="status" aria-live="polite">
     <div class="flixer-modal-card w-full max-w-md rounded-lg border border-flixer-border bg-flixer-surface p-8 text-center shadow-2xl">
       <div class="mx-auto mb-5 grid size-14 place-items-center rounded-full bg-flixer-primary/15 text-flixer-accent">
-        <Icon icon="lucide:refresh-cw" class="size-7 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+        <Icon icon="lucide:wrench" class="size-7" aria-hidden="true" />
       </div>
       <h1 class="text-xl font-semibold tracking-tight text-flixer-text">{{ t('maintenance.title') }}</h1>
       <p class="mt-2.5 text-sm leading-relaxed text-flixer-muted">{{ t('maintenance.description') }}</p>
@@ -50,7 +50,7 @@ onBeforeUnmount(() => {
       <div class="mt-6 flex justify-center gap-3">
         <button v-if="!maintenancePreview" type="button"
           class="inline-flex items-center gap-2 rounded border border-flixer-border bg-flixer-background/60 px-4 py-2 text-sm font-semibold text-flixer-text transition hover:bg-flixer-background"
-          :disabled="checking" @click="checkServer">
+          :disabled="checking" @click="checkServer(true)">
           <Icon icon="lucide:rotate-cw" class="size-4" aria-hidden="true" />
           {{ t('maintenance.checkNow') }}
         </button>

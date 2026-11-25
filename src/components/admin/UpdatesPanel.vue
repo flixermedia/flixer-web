@@ -25,6 +25,7 @@ const isChecking = ref(false)
 const isApplying = ref(false)
 const checkEnabled = ref(true)
 const autoUpdate = ref(false)
+const maintenanceMode = ref(false)
 const updaterUrl = ref('')
 const savedUrl = ref('')
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -136,6 +137,12 @@ function setAuto(value: boolean) {
   void save('updates_auto_update', value, () => (autoUpdate.value = previous))
 }
 
+function setMaintenanceMode(value: boolean) {
+  const previous = maintenanceMode.value
+  maintenanceMode.value = value
+  void save('maintenance_mode', value, () => (maintenanceMode.value = previous))
+}
+
 async function saveUrl() {
   const [error] = await catchError(updateSetting('updates_updater_url', updaterUrl.value.trim()))
   if (error) {
@@ -156,6 +163,7 @@ onMounted(async () => {
     const value = (key: string) => settings.find((setting) => setting.key === key)?.value
     checkEnabled.value = value('updates_check_enabled') !== false
     autoUpdate.value = value('updates_auto_update') === true
+    maintenanceMode.value = value('maintenance_mode') === true
     const url = value('updates_updater_url')
     updaterUrl.value = savedUrl.value = typeof url === 'string' ? url : ''
   }
@@ -237,6 +245,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-col divide-y divide-flixer-border">
           <AdminToggle :model-value="checkEnabled" :label="t('admin.updates.settings.check')" :description="t('admin.updates.settings.checkHelp')" @update:model-value="setCheck" />
           <AdminToggle :model-value="autoUpdate" :label="t('admin.updates.settings.auto')" :description="t('admin.updates.settings.autoHelp')" @update:model-value="setAuto" />
+          <AdminToggle :model-value="maintenanceMode" :label="t('admin.updates.settings.maintenance')" :description="t('admin.updates.settings.maintenanceHelp')" @update:model-value="setMaintenanceMode" />
         </div>
         <form class="flex flex-col gap-1 text-sm" @submit.prevent="saveUrl">
           <label for="updater-url">{{ t('admin.updates.settings.url') }}</label>

@@ -20,9 +20,35 @@ onBeforeUnmount(() => {
 })
 
 const run = computed(() => displayRun.value)
+const kind = computed(() => run.value?.kind ?? 'update')
 const isRunning = computed(() => run.value?.status === 'running')
 const isSucceeded = computed(() => run.value?.status === 'succeeded')
 const isRolledBack = computed(() => run.value?.status === 'rolled_back')
+
+const overlayHeading = computed(() => {
+  if (kind.value === 'backup') {
+    if (isRunning.value) return t('admin.backups.overlay.runningTitle')
+    return isSucceeded.value ? t('admin.backups.overlay.succeededTitle') : t('admin.backups.overlay.failedTitle')
+  }
+  if (kind.value === 'restore') {
+    if (isRunning.value) return t('admin.backups.overlay.restoreRunningTitle')
+    return isSucceeded.value ? t('admin.backups.overlay.restoreSucceededTitle') : t('admin.backups.overlay.restoreFailedTitle')
+  }
+  if (isRunning.value) return t('admin.updates.overlay.updatingTitle')
+  if (isSucceeded.value) return t('admin.updates.overlay.succeededTitle')
+  if (isRolledBack.value) return t('admin.updates.overlay.rolledBackTitle')
+  return t('admin.updates.overlay.failedTitle')
+})
+
+const overlaySubtitle = computed(() => {
+  if (isRunning.value) return currentStepLabel.value
+  if (isSucceeded.value) {
+    if (kind.value === 'backup') return t('admin.backups.run.created')
+    if (kind.value === 'restore') return t('admin.backups.run.restored')
+    return t('admin.updates.run.succeeded')
+  }
+  return run.value?.error || t('admin.updates.run.failed', { error: '' })
+})
 
 const targetEntries = computed(() => {
   if (!run.value?.targets) return []
@@ -47,7 +73,8 @@ const progressPercent = computed(() => {
   if (!run.value) return 0
   if (run.value.status === 'succeeded') return 100
   const steps = run.value.steps ?? []
-  const totalEstimated = Math.max(steps.length, Object.keys(run.value.targets ?? {}).length * 2 + 3)
+  const defaultTotal = kind.value === 'backup' ? 4 : kind.value === 'restore' ? 6 : Object.keys(run.value.targets ?? {}).length * 2 + 3
+  const totalEstimated = Math.max(steps.length, defaultTotal)
   const completed = steps.filter((s) => s.status === 'succeeded').length
   return Math.min(96, Math.max(6, Math.round((completed / totalEstimated) * 100)))
 })
@@ -90,14 +117,17 @@ function reloadApp() {
           <div>
             <div class="flex items-center gap-2">
               <h2 class="text-lg font-semibold text-flixer-text">
-                {{ isRunning ? t('admin.updates.overlay.updatingTitle') : isSucceeded ? t('admin.updates.overlay.succeededTitle') : isRolledBack ? t('admin.updates.overlay.rolledBackTitle') : t('admin.updates.overlay.failedTitle') }}
+                {{ overlayHeading }}
               </h2>
+              <span v-if="run.encrypted" class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                {{ t('admin.backups.encrypted') }}
+              </span>
               <span v-if="isEmulated" class="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-400">
                 {{ t('admin.updates.overlay.emulatedBadge') }}
               </span>
             </div>
             <p class="mt-0.5 text-sm text-flixer-muted">
-              {{ isRunning ? currentStepLabel : isSucceeded ? t('admin.updates.run.succeeded') : run.error || t('admin.updates.run.failed', { error: '' }) }}
+              {{ overlaySubtitle }}
             </p>
           </div>
         </div>
@@ -159,7 +189,7 @@ function reloadApp() {
           <template v-if="run.backup">{{ t('admin.updates.run.backup', { name: run.backup }) }}</template>
         </p>
         <div class="flex items-center gap-2.5">
-          <button v-if="isSucceeded && !isEmulated" type="button"
+          <button v-if="isSucceeded && !isEmulated && kind !== 'backup'" type="button"
             class="inline-flex items-center gap-2 rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-flixer-primary/80"
             @click="reloadApp">
             <Icon icon="lucide:rotate-cw" class="size-4" aria-hidden="true" />

@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
-import type { UpdateRun } from '../api/updates'
+import { getBackupStatus } from '../api/backups'
+import { getUpdateStatus, type UpdateRun } from '../api/updates'
+import { useMaintenanceMode } from './useMaintenanceMode'
 
 export interface UpdateStepView {
   name: string
@@ -10,14 +12,19 @@ export interface UpdateStepView {
 }
 
 export interface ExtendedUpdateRun extends UpdateRun {
+  kind?: 'update' | 'backup' | 'restore'
+  encrypted?: boolean
   steps?: UpdateStepView[]
   log?: string[]
 }
 
 const overlayOpen = ref(false)
+const activeRun = ref<ExtendedUpdateRun | null>(null)
 const emulatedRun = ref<ExtendedUpdateRun | null>(null)
 const isEmulated = ref(false)
 let emulationTimers: ReturnType<typeof setTimeout>[] = []
+let pollTimer: ReturnType<typeof setTimeout> | undefined
+let resumeInFlight: Promise<boolean> | null = null
 
 function clearEmulationTimers() {
   for (const timer of emulationTimers) clearTimeout(timer)
@@ -62,15 +69,66 @@ const SIMULATED_SEQUENCE: Array<{ name: string; message: string; log: string }> 
 
 /** Shared state for the full-screen admin update overlay and development-mode update emulator. */
 export function useUpdateOverlay() {
-  const activeRun = ref<ExtendedUpdateRun | null>(null)
   const displayRun = computed(() => (isEmulated.value ? emulatedRun.value : activeRun.value))
+
+  function schedulePoll() {
+    clearTimeout(pollTimer)
+    if (isEmulated.value || activeRun.value?.status !== 'running') return
+    const kind = activeRun.value.kind
+    pollTimer = setTimeout(async () => {
+      try {
+        if (kind === 'backup' || kind === 'restore') {
+          const status = await getBackupStatus()
+          syncRun((status.run as unknown as ExtendedUpdateRun | null) ?? null)
+        } else {
+          const status = await getUpdateStatus(false)
+          syncRun((status.run as ExtendedUpdateRun | null) ?? null)
+        }
+      } catch {
+        // API may be restarting mid-rollout or restore; keep polling.
+      }
+      schedulePoll()
+    }, 4000)
+  }
 
   function syncRun(run: ExtendedUpdateRun | null) {
     if (isEmulated.value) return
     activeRun.value = run
     if (run?.status === 'running') {
       overlayOpen.value = true
+    } else if (run) {
+      useMaintenanceMode().exitMaintenance()
     }
+  }
+
+  function resumeAdminUpdateIfRunning(hasToken: boolean): Promise<boolean> {
+    if (!hasToken || isEmulated.value) return Promise.resolve(false)
+    if (activeRun.value?.status === 'running') {
+      overlayOpen.value = true
+      schedulePoll()
+      return Promise.resolve(true)
+    }
+    if (resumeInFlight) return resumeInFlight
+    resumeInFlight = Promise.allSettled([getUpdateStatus(false), getBackupStatus()])
+      .then(([updateResult, backupResult]) => {
+        const updateRun = updateResult.status === 'fulfilled' ? ((updateResult.value.run as ExtendedUpdateRun | null) ?? null) : null
+        if (updateRun?.status === 'running') {
+          syncRun(updateRun)
+          schedulePoll()
+          return true
+        }
+        const backupRun = backupResult.status === 'fulfilled' ? ((backupResult.value.run as unknown as ExtendedUpdateRun | null) ?? null) : null
+        if (backupRun?.status === 'running') {
+          syncRun(backupRun)
+          schedulePoll()
+          return true
+        }
+        return false
+      })
+      .finally(() => {
+        resumeInFlight = null
+      })
+    return resumeInFlight
   }
 
   function openOverlay() {
@@ -79,6 +137,7 @@ export function useUpdateOverlay() {
 
   function closeOverlay() {
     if (displayRun.value?.status === 'running') return
+    clearTimeout(pollTimer)
     overlayOpen.value = false
     if (isEmulated.value) {
       clearEmulationTimers()
@@ -180,13 +239,91 @@ export function useUpdateOverlay() {
     })
   }
 
+  function startBackupEmulation(kind: 'backup' | 'restore') {
+    clearEmulationTimers()
+    isEmulated.value = true
+    overlayOpen.value = true
+
+    const sequence =
+      kind === 'backup'
+        ? [
+            { name: 'dump', message: 'Backing up PostgreSQL database', log: 'Database dump written' },
+            { name: 'archive', message: 'Archiving config, secrets, and cache', log: 'Added 3 components to archive' },
+            { name: 'encrypt', message: 'Encrypting backup archive', log: 'Encrypted flixer-dev-emulated.flxbak' },
+          ]
+        : [
+            { name: 'verify', message: 'Verifying backup archive and passphrase', log: 'Archive signature and manifest verified' },
+            { name: 'stop', message: 'Stopping application services', log: 'Stopped api, web, indexer, streamer, ai' },
+            { name: 'restore-db', message: 'Restoring PostgreSQL database', log: 'Database restored cleanly' },
+            { name: 'restore-files', message: 'Restoring config, secrets, and cache', log: 'Restored 3 components' },
+            { name: 'start', message: 'Starting services and waiting for health', log: 'All services are healthy' },
+          ]
+
+    emulatedRun.value = {
+      id: `emulated-${kind}-${Date.now()}`,
+      kind,
+      encrypted: true,
+      status: 'running',
+      step: 'starting',
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      targets: {},
+      previous: {},
+      backup: 'flixer-dev-emulated.flxbak',
+      error: '',
+      steps: [],
+      log: [`Starting emulated ${kind} operation...`],
+    }
+
+    const stepDelayMs = 650
+    sequence.forEach((entry, idx) => {
+      const timer = setTimeout(() => {
+        if (!emulatedRun.value) return
+        const now = new Date().toISOString()
+        const steps = [...(emulatedRun.value.steps ?? [])]
+        if (steps.length > 0 && steps[steps.length - 1].status === 'running') {
+          steps[steps.length - 1] = { ...steps[steps.length - 1], status: 'succeeded', finishedAt: now }
+        }
+        steps.push({ name: entry.name, message: entry.message, status: 'running', startedAt: now })
+        emulatedRun.value = {
+          ...emulatedRun.value,
+          step: entry.name,
+          steps,
+          log: [...(emulatedRun.value.log ?? []), `[${new Date().toLocaleTimeString()}] ${entry.message}`],
+        }
+
+        if (idx === sequence.length - 1) {
+          const finishTimer = setTimeout(() => {
+            if (!emulatedRun.value) return
+            const doneAt = new Date().toISOString()
+            const finalSteps = [...(emulatedRun.value.steps ?? [])]
+            if (finalSteps.length > 0) {
+              finalSteps[finalSteps.length - 1] = { ...finalSteps[finalSteps.length - 1], status: 'succeeded', finishedAt: doneAt }
+            }
+            emulatedRun.value = {
+              ...emulatedRun.value,
+              status: 'succeeded',
+              finishedAt: doneAt,
+              steps: finalSteps,
+              log: [...(emulatedRun.value.log ?? []), `[${new Date().toLocaleTimeString()}] ${entry.log}`],
+            }
+          }, stepDelayMs)
+          emulationTimers.push(finishTimer)
+        }
+      }, idx * stepDelayMs)
+      emulationTimers.push(timer)
+    })
+  }
+
   return {
     overlayOpen,
     displayRun,
     isEmulated,
     syncRun,
+    resumeAdminUpdateIfRunning,
     openOverlay,
     closeOverlay,
     startEmulation,
+    startBackupEmulation,
   }
 }
