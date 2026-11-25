@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Run INSIDE your Coder workspace, as the same user running VS Code.
-# Connects Docker to a remote host through SSH.
-# The MCP server runs in Coder; no MCP installation is required on the Mac.
+# Run INSIDE your Coder workspace (or locally on Debian/macOS), as the same user running VS Code.
+# Connects Docker to a remote Debian or macOS host through SSH.
+# The MCP server runs locally; no MCP installation is required on the remote host.
 
 REMOTE="${REMOTE:-}"
 CONTEXT="${CONTEXT:-docker-remote}"
@@ -20,39 +20,91 @@ command -v python3 >/dev/null || fail 'Python 3 is required to safely merge VS C
 say "Checking SSH access to $REMOTE"
 ssh -o BatchMode=yes -o ConnectTimeout=12 "$REMOTE" 'true' || fail 'SSH failed. Check connectivity and SSH authentication for the remote host.'
 
-say 'Ensuring Docker CLI is visible to non-interactive SSH on macOS'
-# Docker SSH transport invokes `docker system dial-stdio` directly. An SSH
-# session may not source .zprofile or .zshrc, so fix the noninteractive PATH.
-ssh -o BatchMode=yes "$REMOTE" 'zsh -s' <<'REMOTE_ZSH'
+say 'Ensuring Docker CLI is visible to non-interactive SSH on the remote host'
+# Docker SSH transport invokes `docker system dial-stdio` directly. A non-interactive
+# SSH session may not source login profiles, so ensure PATH includes the Docker CLI.
+ssh -o BatchMode=yes "$REMOTE" 'sh -s' <<'REMOTE_SH'
 set -eu
+os="$(uname -s)"
 if ! command -v docker >/dev/null 2>&1; then
-  for candidate in \
-    /Applications/Docker.app/Contents/Resources/bin/docker \
-    "$HOME/.docker/bin/docker" \
-    /opt/homebrew/bin/docker \
-    /usr/local/bin/docker \
-    /Applications/OrbStack.app/Contents/MacOS/xbin/docker \
-    "$HOME/.colima/bin/docker"; do
-    if [[ -x "$candidate" ]]; then
-      # ~/.zshenv is sourced by noninteractive zsh, including SSH commands.
-      # Only prepend a known CLI directory; preserve any existing contents.
-      cli_dir="${candidate:h}"
-      zenv="$HOME/.zshenv"
+  case "$os" in
+    Darwin)
+      candidates="
+        /Applications/Docker.app/Contents/Resources/bin/docker
+        $HOME/.docker/bin/docker
+        /opt/homebrew/bin/docker
+        /usr/local/bin/docker
+        /Applications/OrbStack.app/Contents/MacOS/xbin/docker
+        $HOME/.colima/bin/docker
+      "
+      ;;
+    *)
+      candidates="
+        /usr/bin/docker
+        /usr/local/bin/docker
+        /snap/bin/docker
+        $HOME/.local/bin/docker
+        $HOME/bin/docker
+        $HOME/.docker/bin/docker
+      "
+      ;;
+  esac
+
+  for candidate in $candidates; do
+    if [ -x "$candidate" ]; then
+      cli_dir="$(dirname "$candidate")"
       marker='# docker-coder-ssh-path'
-      if ! grep -Fq "$marker" "$zenv" 2>/dev/null; then
-        printf '\n%s\nexport PATH="%s:$PATH"\n' "$marker" "$cli_dir" >> "$zenv"
-      fi
+      case "${SHELL:-}" in
+        */zsh)
+          rc_file="$HOME/.zshenv"
+          if ! grep -Fq "$marker" "$rc_file" 2>/dev/null; then
+            printf '\n%s\nexport PATH="%s:$PATH"\n' "$marker" "$cli_dir" >> "$rc_file"
+          fi
+          ;;
+        */bash)
+          rc_file="$HOME/.bashrc"
+          if ! grep -Fq "$marker" "$rc_file" 2>/dev/null; then
+            # Prepend so it runs before Debian's non-interactive early return in ~/.bashrc.
+            tmp_rc="$(mktemp)"
+            printf '%s\nexport PATH="%s:$PATH"\n' "$marker" "$cli_dir" > "$tmp_rc"
+            [ -f "$rc_file" ] && cat "$rc_file" >> "$tmp_rc"
+            mv "$tmp_rc" "$rc_file"
+          fi
+          ;;
+        *)
+          if [ "$os" = "Darwin" ]; then
+            rc_file="$HOME/.zshenv"
+            if ! grep -Fq "$marker" "$rc_file" 2>/dev/null; then
+              printf '\n%s\nexport PATH="%s:$PATH"\n' "$marker" "$cli_dir" >> "$rc_file"
+            fi
+          fi
+          ;;
+      esac
       export PATH="$cli_dir:$PATH"
       break
     fi
   done
 fi
-command -v docker >/dev/null 2>&1 || { echo 'Docker CLI not found on Mac. Install Docker Desktop, OrbStack, or Colima.' >&2; exit 1; }
-docker info --format '{{.Name}}' || { echo 'Docker CLI found, but daemon is not running or accessible.' >&2; exit 1; }
-REMOTE_ZSH
+if ! command -v docker >/dev/null 2>&1; then
+  if [ "$os" = "Darwin" ]; then
+    echo 'Docker CLI not found on macOS. Install Docker Desktop, OrbStack, or Colima.' >&2
+  else
+    echo 'Docker CLI not found on Linux/Debian. Install Docker Engine (docker-ce or docker.io).' >&2
+  fi
+  exit 1
+fi
+if ! docker info --format '{{.Name}}'; then
+  if [ "$os" = "Darwin" ]; then
+    echo 'Docker CLI found, but daemon is not running or accessible.' >&2
+  else
+    echo 'Docker CLI found, but daemon is not running or accessible (check docker service and docker group membership).' >&2
+  fi
+  exit 1
+fi
+REMOTE_SH
 
 say 'Verifying Docker CLI in the actual non-interactive SSH command environment'
-ssh -o BatchMode=yes "$REMOTE" 'command -v docker && docker info --format "{{.Name}}"' || fail 'SSH still cannot find Docker. Inspect ~/.zshenv and the Docker installation on your Mac.'
+ssh -o BatchMode=yes "$REMOTE" 'command -v docker && docker info --format "{{.Name}}"' || fail 'SSH still cannot find Docker. Inspect your remote shell PATH (e.g. ~/.zshenv on macOS or ~/.bashrc on Debian) and Docker installation.'
 
 say "Creating/updating Docker context: $CONTEXT"
 if docker context inspect "$CONTEXT" >/dev/null 2>&1; then
@@ -61,14 +113,14 @@ else
   docker context create "$CONTEXT" --docker "host=ssh://$REMOTE" >/dev/null
 fi
 
-# Some macOS SSH sessions do not include Docker in PATH. Docker SSH transport
+# Some SSH sessions do not include Docker in PATH. Docker SSH transport
 # needs remote `docker` available in the default noninteractive shell PATH.
 say 'Testing Docker context (including remote docker system dial-stdio)'
 if ! docker --context "$CONTEXT" ps >/dev/null; then
-  fail 'Docker context could not reach the Mac. Ensure remote `docker` is in the SSH noninteractive PATH (ssh host "command -v docker") and Docker is running.'
+  fail "Docker context could not reach $REMOTE. Ensure remote \`docker\` is in the SSH noninteractive PATH (ssh $REMOTE \"command -v docker\") and Docker is running."
 fi
 
-say 'Installing uvx locally in Coder if necessary'
+say 'Installing uvx locally if necessary'
 if ! command -v uvx >/dev/null 2>&1; then
   if command -v uv >/dev/null 2>&1; then
     UVX_CMD="$(command -v uv)"
@@ -88,8 +140,8 @@ fi
 say "Merging Docker MCP server into $MCP_FILE"
 mkdir -p "$(dirname "$MCP_FILE")"
 export MCP_FILE REMOTE UVX_CMD
-# Docker context selected explicitly. The MCP process runs in Coder.
-python3 - "${UVX_ARGS[@]}" <<'PY'
+# Docker context selected explicitly. The MCP process runs locally.
+python3 - ${UVX_ARGS[@]+"${UVX_ARGS[@]}"} <<'PY'
 import json, os, pathlib, sys
 p = pathlib.Path(os.environ['MCP_FILE'])
 if p.exists():
@@ -121,5 +173,5 @@ say 'Done'
 printf 'Docker context: %s\nVS Code MCP config: %s\nRemote Docker: %s\n' "$CONTEXT" "$MCP_FILE" "$REMOTE"
 printf '\nTry: docker --context %s ps\n' "$CONTEXT"
 printf 'In VS Code, open the MCP servers view and start/restart "docker-remote".\n'
-printf 'MCP is installed/launched in Coder via uvx; nothing is installed on the Mac.\n'
+printf 'MCP is installed/launched locally via uvx; nothing is installed on the remote host.\n'
 printf '\nNOTE: Docker grants host-level privileges. The MCP tool restriction is not a security boundary.\n'
