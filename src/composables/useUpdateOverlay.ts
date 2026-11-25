@@ -15,7 +15,6 @@ export interface ExtendedUpdateRun extends UpdateRun {
   kind?: 'update' | 'backup' | 'restore'
   encrypted?: boolean
   steps?: UpdateStepView[]
-  log?: string[]
 }
 
 const overlayOpen = ref(false)

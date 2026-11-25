@@ -31,6 +31,7 @@ describe('useUpdateOverlay', () => {
       previous: { flixer: '1.13.12' },
       backup: '',
       error: '',
+      log: [],
     })
     expect(overlayOpen.value).toBe(true)
     // Cannot dismiss while still running.
