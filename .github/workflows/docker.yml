@@ -44,11 +44,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Prepare image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/flixermedia/flixer-web
+          images: |
+            ghcr.io/flixermedia/flixer-web
+            flixermedia/flixer-web
           tags: |
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.new_release == 'true' }}
             type=sha,prefix=sha-
@@ -76,6 +84,8 @@ jobs:
           tags: |
             ghcr.io/flixermedia/flixer-web:invites
             ghcr.io/flixermedia/flixer-web:invites-${{ steps.version.outputs.version }}
+            flixermedia/flixer-web:invites
+            flixermedia/flixer-web:invites-${{ steps.version.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_MODE=invites
