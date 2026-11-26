@@ -7,7 +7,7 @@ const { t } = useI18n()
 const links = [
   { key: 'libraries', query: adminQuery('library', 'libraries') },
   { key: 'tasks', query: adminQuery('library', 'tasks') },
-  { key: 'users', query: adminQuery('settings', 'users') },
+  { key: 'users', query: adminQuery('users', 'users') },
   { key: 'requests', query: adminQuery('requests') },
   { key: 'updates', query: adminQuery('settings', 'updates') },
   { key: 'backups', query: adminQuery('settings', 'backups') },

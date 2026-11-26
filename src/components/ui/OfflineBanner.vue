@@ -1,14 +1,41 @@
 <script setup lang="ts">
-import { useOnlineStatus } from '../../composables/useOnlineStatus'
+import { onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
+import { toast } from 'vue3-toastify'
+import { useOnlineStatus } from '../../composables/useOnlineStatus'
 
+const OFFLINE_TOAST_ID = 'flixer-offline'
+const AUTH_ROUTE_NAMES = new Set(['login', 'register', 'oauth-sign-in', 'external-auth-callback'])
+
+const route = useRoute()
 const { isOnline } = useOnlineStatus()
 const { t } = useI18n()
+
+function syncOfflineToast() {
+  const onAuthRoute = AUTH_ROUTE_NAMES.has(String(route.name ?? ''))
+  if (!isOnline.value && !onAuthRoute) {
+    if (!toast.isActive(OFFLINE_TOAST_ID)) {
+      toast.warning(t('ui.offlineBanner'), {
+        toastId: OFFLINE_TOAST_ID,
+        toastClassName: 'flixer-toast flixer-toast--offline',
+        autoClose: false,
+        closeOnClick: false,
+        closeButton: false,
+        clearOnUrlChange: false,
+        role: 'status',
+      })
+    }
+    return
+  }
+  toast.remove(OFFLINE_TOAST_ID)
+}
+
+watch([isOnline, () => route.name], syncOfflineToast, { immediate: true })
+
+onBeforeUnmount(() => {
+  toast.remove(OFFLINE_TOAST_ID)
+})
 </script>
 
-<template>
-  <div v-if="!isOnline" role="status" class="fixed inset-x-0 bottom-0 z-60 flex items-center justify-center gap-2 border-t border-amber-400/30 bg-amber-950/95 px-4 py-3 text-center text-sm text-amber-100 backdrop-blur">
-    <Icon icon="lucide:wifi-off" class="size-4 shrink-0" aria-hidden="true" />
-    <span>{{ t('ui.offlineBanner') }}</span>
-  </div>
-</template>
+<template></template>

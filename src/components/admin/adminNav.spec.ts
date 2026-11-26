@@ -50,12 +50,11 @@ describe("admin navigation", () => {
 		expect(adminQuery("logging", "logging")).toEqual({ tab: "logging" });
 	});
 
-	it("gives OAuth applications their own page without moving API keys", () => {
-		expect(ADMIN_TABS.apikeys).toEqual(["apikeys"]);
-		expect(ADMIN_TABS.oauth).toEqual(["oauth"]);
-		expect(resolveAdminLocation("apikeys")).toEqual({ tab: "apikeys", page: "apikeys" });
-		expect(resolveAdminLocation("oauth")).toEqual({ tab: "oauth", page: "oauth" });
-		expect(adminQuery("oauth", "oauth")).toEqual({ tab: "oauth" });
+	it("groups users, invites, API keys, and OAuth applications under Users & Access", () => {
+		expect(ADMIN_TABS.users).toEqual(["users", "invites", "apikeys", "oauth"]);
+		expect(resolveAdminLocation("apikeys")).toEqual({ tab: "users", page: "apikeys" });
+		expect(resolveAdminLocation("oauth")).toEqual({ tab: "users", page: "oauth" });
+		expect(adminQuery("users", "oauth")).toEqual({ tab: "users", page: "oauth" });
 		expect(ADMIN_PAGE_BLOCKS.apikeys).toHaveLength(1);
 		expect(ADMIN_PAGE_BLOCKS.oauth).toHaveLength(1);
 		expect(ADMIN_PAGE_BLOCKS.apikeys[0].component).not.toBe(ADMIN_PAGE_BLOCKS.oauth[0].component);
@@ -87,14 +86,14 @@ describe("admin navigation", () => {
 		expect(resolveAdminLocation("settings", "issueReports")).toEqual({ tab: "issues", page: "issueReports" });
 	});
 
-	it("gives invites its own top-level menu and preserves old settings links", () => {
-		expect(ADMIN_TABS.invites).toEqual(["invites"]);
+	it("groups invites under Users & Access and preserves old settings links", () => {
+		expect(ADMIN_TABS.users).toContain("invites");
 		expect(ADMIN_TABS.settings).not.toContain("invites");
-		expect(tabOf("invites")).toBe("invites");
-		expect(resolveAdminLocation("invites")).toEqual({ tab: "invites", page: "invites" });
-		expect(resolveAdminLocation("settings", "invites")).toEqual({ tab: "invites", page: "invites" });
-		expect(adminQuery("invites", "invites")).toEqual({ tab: "invites" });
-		expect(en.admin.groups).toHaveProperty("invites", expect.any(String));
+		expect(tabOf("invites")).toBe("users");
+		expect(resolveAdminLocation("invites")).toEqual({ tab: "users", page: "invites" });
+		expect(resolveAdminLocation("settings", "invites")).toEqual({ tab: "users", page: "invites" });
+		expect(adminQuery("users", "invites")).toEqual({ tab: "users", page: "invites" });
+		expect(en.admin.groups).toHaveProperty("users", expect.any(String));
 	});
 
 	it("keeps old links working", () => {
@@ -102,8 +101,11 @@ describe("admin navigation", () => {
 		expect(resolveAdminLocation("tasks")).toEqual({ tab: "library", page: "tasks" });
 		expect(resolveAdminLocation("media")).toEqual({ tab: "library", page: "media" });
 		expect(resolveAdminLocation("transcoding")).toEqual({ tab: "library", page: "transcoding" });
-		expect(resolveAdminLocation("users")).toEqual({ tab: "settings", page: "users" });
-		expect(resolveAdminLocation("devices")).toEqual({ tab: "settings", page: "users" });
+		expect(resolveAdminLocation("users")).toEqual({ tab: "users", page: "users" });
+		expect(resolveAdminLocation("devices")).toEqual({ tab: "users", page: "users" });
+		expect(resolveAdminLocation("search")).toEqual({ tab: "library", page: "search" });
+		expect(resolveAdminLocation("settings", "users")).toEqual({ tab: "users", page: "users" });
+		expect(resolveAdminLocation("settings", "search")).toEqual({ tab: "library", page: "search" });
 		expect(resolveAdminLocation("updates")).toEqual({ tab: "settings", page: "updates" });
 		expect(resolveAdminLocation("backups")).toEqual({ tab: "settings", page: "backups" });
 		expect(resolveAdminLocation("settings")).toEqual({ tab: "settings", page: "server" });

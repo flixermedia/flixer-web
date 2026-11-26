@@ -266,6 +266,12 @@ const router = createRouter({
 			meta: { requiresAuth: true, requiresAdmin: true },
 		},
 		{
+			path: "/admin/cloud/callback",
+			name: "admin-cloud-callback",
+			component: () => import("../views/AdminCloudCallbackView.vue"),
+			meta: { requiresAuth: true, requiresAdmin: true },
+		},
+		{
 			path: "/admin/activity",
 			name: "admin-activity",
 			component: () => import("../views/AdminActivityView.vue"),

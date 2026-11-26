@@ -73,17 +73,20 @@ async function poll() {
     <h1 id="quick-connect-title" class="mt-3 text-3xl font-semibold tracking-tight text-flixer-text sm:text-4xl">{{ t('auth.quickConnectTitle') }}</h1>
     <p class="mt-2 text-sm leading-6 text-flixer-muted">{{ t('auth.quickConnectInstructions') }}</p>
 
-    <div v-if="isStarting" class="mt-8 flex items-center gap-3 text-sm text-flixer-muted">
-      <span class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
-      {{ t('auth.quickConnectStarting') }}
-    </div>
-    <template v-else-if="request">
-      <div class="mt-8 rounded border border-flixer-accent/30 bg-flixer-primary/10 p-5 text-center">
+    <template v-if="isStarting || request">
+      <div class="mt-6 rounded border border-flixer-accent/30 bg-flixer-primary/10 p-5 text-center">
         <p class="text-xs font-semibold uppercase tracking-widest text-flixer-muted">{{ t('auth.quickConnectCodeLabel') }}</p>
-        <p class="mt-3 select-all font-mono text-3xl font-bold tracking-[0.2em] text-flixer-text">{{ request.userCode }}</p>
+        <div v-if="isStarting" class="mt-3 flex h-9 items-center justify-center" aria-hidden="true">
+          <span class="h-8 w-44 animate-pulse rounded bg-flixer-border/70"></span>
+        </div>
+        <p v-else class="mt-3 select-all font-mono text-3xl font-bold leading-9 tracking-[0.2em] text-flixer-text">{{ request!.userCode }}</p>
         <p class="mt-3 text-xs text-flixer-muted">{{ t('auth.quickConnectMenuAdvice') }}</p>
       </div>
-      <p v-if="terminalMessage" class="mt-5 rounded border border-flixer-border px-4 py-3 text-sm text-flixer-muted" role="status">{{ terminalMessage }}</p>
+      <p v-if="isStarting" class="mt-5 flex items-center gap-2.5 text-sm text-flixer-muted" role="status">
+        <span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-flixer-muted/30 border-t-flixer-accent" aria-hidden="true"></span>
+        <span>{{ t('auth.quickConnectStarting') }}</span>
+      </p>
+      <p v-else-if="terminalMessage" class="mt-5 rounded border border-flixer-border px-4 py-3 text-sm text-flixer-muted" role="status">{{ terminalMessage }}</p>
       <p v-else class="mt-5 text-sm text-flixer-muted" role="status">{{ t('auth.quickConnectWaiting') }}</p>
     </template>
     <p v-else class="mt-6 rounded border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">{{ errorMessage }}</p>

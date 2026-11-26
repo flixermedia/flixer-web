@@ -9,7 +9,10 @@ import IdleSplash from "./components/ui/IdleSplash.vue";
 import MaintenanceOverlay from "./components/ui/MaintenanceOverlay.vue";
 import OfflineBanner from "./components/ui/OfflineBanner.vue";
 import UpdateProgressOverlay from "./components/admin/UpdateProgressOverlay.vue";
+import AdminCommandPalette from "./components/admin/AdminCommandPalette.vue";
+import PrioritySupportFloatingChat from "./components/admin/PrioritySupportFloatingChat.vue";
 import { useMaintenanceMode } from "./composables/useMaintenanceMode";
+import { useProfile } from "./composables/useProfile";
 import { useUpdateOverlay } from "./composables/useUpdateOverlay";
 import ChatCallOverlay from "./components/chat/ChatCallOverlay.vue";
 import MiniPlayer from "./components/player/MiniPlayer.vue";
@@ -59,6 +62,7 @@ const party = useParty();
 const { playing, close: closeVideo, play: playVideo } = useVideoOverlay();
 const { maintenanceActive } = useMaintenanceMode();
 const { overlayOpen } = useUpdateOverlay();
+const { profile } = useProfile();
 const idle = useIdleSplash(() => playing.value !== null);
 watch(() => route.name, (name) => {
 	lyricsOpen.value = name === "lyrics";
@@ -147,7 +151,7 @@ if (Capacitor.isNativePlatform()) {
 	<!-- Main application view -->
 	<RouterView v-slot="{ Component, route }">
 		<Transition name="page" mode="out-in">
-			<component :is="Component" :key="route.name === 'page-builder' ? 'page-builder' : route.path" />
+			<component :is="Component" :key="route.name === 'page-builder' ? 'page-builder' : (route.name === 'login' || route.name === 'register') ? 'auth' : route.path" />
 		</Transition>
 	</RouterView>
 
@@ -171,6 +175,8 @@ if (Capacitor.isNativePlatform()) {
 	<!-- Maintenance & admin update overlays -->
 	<MaintenanceOverlay v-if="maintenanceActive && !overlayOpen" />
 	<UpdateProgressOverlay v-if="overlayOpen" />
+	<AdminCommandPalette v-if="route.meta.requiresAdmin && profile?.role === 'admin'" />
+	<PrioritySupportFloatingChat v-if="profile?.role === 'admin'" />
 
 	<!-- Modal target -->
 	<ModalTarget group="default" class="z-50">

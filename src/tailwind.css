@@ -290,3 +290,24 @@ select:not([multiple]) {
 .multiline-text {
 	white-space: pre-line;
 }
+
+@keyframes admin-command-pulse {
+	0% {
+		box-shadow: 0 0 0 2px var(--color-flixer-accent), 0 0 24px color-mix(in srgb, var(--color-flixer-accent) 40%, transparent);
+	}
+	100% {
+		box-shadow: 0 0 0 0 transparent, 0 0 0 transparent;
+	}
+}
+
+.admin-command-highlight {
+	border-radius: var(--radius, 0.25rem);
+	animation: admin-command-pulse 2.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.admin-command-highlight {
+		animation: none;
+		outline: 2px solid var(--color-flixer-accent);
+	}
+}

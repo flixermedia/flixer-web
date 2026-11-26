@@ -46,6 +46,8 @@ const PlayerSettings = lazy(() => import("./PlayerSettingsSection.vue"));
 const ChatEncryption = lazy(() => import("./ChatEncryptionSettingsSection.vue"));
 const Calls = lazy(() => import("./CallSettingsSection.vue"));
 const Plugins = lazy(() => import("./PluginsPanel.vue"));
+const Cloud = lazy(() => import("./CloudPanel.vue"));
+const PrioritySupport = lazy(() => import("./PrioritySupportPanel.vue"));
 const PaymentSettings = lazy(() => import("./payments/PaymentSettingsPanel.vue"));
 const PaymentCatalog = lazy(() => import("./payments/PaymentCatalogPanel.vue"));
 const PaymentOrders = lazy(() => import("./payments/PaymentOrdersPanel.vue"));
@@ -118,6 +120,8 @@ export const ADMIN_PAGE_BLOCKS: Record<AdminPageId, PageBlock[]> = {
 	chatSettings: [{ component: ChatEncryption }],
 	callSettings: [{ component: Calls }],
 	plugins: [{ component: Plugins }],
+	cloud: [{ component: Cloud }],
+	prioritySupport: [{ component: PrioritySupport }],
 	payments: [{ component: PaymentSettings }],
 	paymentsCatalog: [{ component: PaymentCatalog }],
 	paymentsSales: [{ component: PaymentOrders }, { component: PaymentSubscriptions }, { component: PaymentGrants }],

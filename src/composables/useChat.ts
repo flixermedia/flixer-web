@@ -62,7 +62,7 @@ function buildUrl(): string {
   return buildApiWebSocketUrl('/chat/live')
 }
 
-function unlockAudio() {
+export function unlockAudio() {
   try {
     if (typeof AudioContext !== 'undefined') {
       audioContext ??= new AudioContext()
@@ -90,7 +90,7 @@ function unlockFallbackAudio() {
   })
 }
 
-function playChime() {
+export function playChime() {
   if (!audioContext || audioContext.state !== 'running') {
     if (!fallbackChime) return
     fallbackChime.currentTime = 0

@@ -90,16 +90,20 @@ export const api = new Proxy(apiTransport, {
 					);
 			case "post":
 				return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
-					generatedOrTransport(
-						() => generatedApi.post<T>(url, data, config),
-						() => apiTransport.post<T>(url, data, config),
-					);
+					data instanceof FormData
+						? apiTransport.post<T>(url, data, config)
+						: generatedOrTransport(
+								() => generatedApi.post<T>(url, data, config),
+								() => apiTransport.post<T>(url, data, config),
+							);
 			case "put":
 				return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
-					generatedOrTransport(
-						() => generatedApi.put<T>(url, data, config),
-						() => apiTransport.put<T>(url, data, config),
-					);
+					data instanceof FormData
+						? apiTransport.put<T>(url, data, config)
+						: generatedOrTransport(
+								() => generatedApi.put<T>(url, data, config),
+								() => apiTransport.put<T>(url, data, config),
+							);
 			case "patch":
 				return <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
 					generatedOrTransport(
@@ -176,6 +180,9 @@ api.interceptors.request.use((config) => {
 	const accessToken = getAccessToken();
 	if (accessToken && !config.url?.includes("/sentry/config/web")) {
 		config.headers.set("Authorization", `Bearer ${accessToken}`);
+	}
+	if (config.data instanceof FormData) {
+		config.headers.delete("Content-Type");
 	}
 	return config;
 });

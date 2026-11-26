@@ -1,24 +1,23 @@
 /** Each top-level tab holds one or more pages. The first page is the tab's own; the others appear in its dropdown. */
 export const ADMIN_TABS = {
 	dashboard: ["overview"],
+	library: ["libraries", "media", "tasks", "duplicateSuggestions", "transcoding", "search"],
 	guide: ["guide"],
-	library: ["libraries", "tasks", "media", "duplicateSuggestions", "transcoding"],
-	advertising: ["advertisements"],
+	providers: ["metadata", "subtitles", "themes", "trailerCache"],
+	users: ["users", "invites", "apikeys", "oauth"],
+	requests: ["requests"],
+	issues: ["tickets", "issueReports"],
 	analytics: ["analyticsOverview", "analyticsVideo", "analyticsMusic", "analyticsHistory", "analyticsAdvertising", "analyticsGuide", "analyticsPayments"],
 	logging: ["logging"],
-	providers: ["metadata", "subtitles", "themes", "trailerCache"],
-	requests: ["requests"],
-	invites: ["invites"],
-	issues: ["tickets", "issueReports"],
 	notifications: ["notifications", "smtp"],
 	mail: ["mailOverview", "mailDomains", "mailInboxes", "mailMessages", "mailTemplates"],
-	payments: ["payments", "paymentsCatalog", "paymentsSales"],
-	apikeys: ["apikeys"],
-	oauth: ["oauth"],
-	videoPlayer: ["playerSettings", "widevine"],
 	communications: ["chatSettings", "callSettings"],
+	videoPlayer: ["playerSettings", "widevine"],
+	payments: ["payments", "paymentsCatalog", "paymentsSales"],
+	advertising: ["advertisements"],
 	plugins: ["plugins"],
-	settings: ["server", "appearance", "webhooks", "ai", "users", "networking", "search", "updates", "backups"],
+	cloud: ["cloud", "prioritySupport"],
+	settings: ["server", "appearance", "ai", "webhooks", "networking", "updates", "backups"],
 } as const;
 
 export type AdminTabId = keyof typeof ADMIN_TABS;
@@ -51,8 +50,12 @@ const LEGACY: Record<string, AdminLocation> = {
 	tasks: { tab: "library", page: "tasks" },
 	media: { tab: "library", page: "media" },
 	transcoding: { tab: "library", page: "transcoding" },
-	users: { tab: "settings", page: "users" },
-	devices: { tab: "settings", page: "users" },
+	search: { tab: "library", page: "search" },
+	users: { tab: "users", page: "users" },
+	devices: { tab: "users", page: "users" },
+	invites: { tab: "users", page: "invites" },
+	apikeys: { tab: "users", page: "apikeys" },
+	oauth: { tab: "users", page: "oauth" },
 	general: { tab: "settings", page: "server" },
 	updates: { tab: "settings", page: "updates" },
 	backups: { tab: "settings", page: "backups" },
@@ -71,7 +74,9 @@ export function resolveAdminLocation(tabQuery: unknown, pageQuery?: unknown): Ad
 	const tab = text(tabQuery);
 	const page = text(pageQuery);
 	if (tab === "requests" && page === "tickets") return { tab: "issues", page: "tickets" };
-	if (tab === "settings" && page === "invites") return { tab: "invites", page: "invites" };
+	if (tab === "settings" && page === "invites") return { tab: "users", page: "invites" };
+	if (tab === "settings" && page === "users") return { tab: "users", page: "users" };
+	if (tab === "settings" && page === "search") return { tab: "library", page: "search" };
 	if (tab === "settings" && page === "issueReports") return { tab: "issues", page: "issueReports" };
 	if (tab === "settings" && page === "chatEncryption") return { tab: "communications", page: "chatSettings" };
 	if (tab === "settings" && page === "calls") return { tab: "communications", page: "callSettings" };

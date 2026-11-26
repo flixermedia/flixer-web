@@ -1,89 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useAdminCommandPalette } from "../../composables/useAdminCommandPalette";
+import { ADMIN_PAGE_ICONS, ADMIN_TAB_ICONS } from "./adminIcons";
 import type { AdminLocation, AdminPageId, AdminTabId, AdminTabItem } from "./adminNav";
 
 const props = defineProps<{ tabs: AdminTabItem[]; active: AdminLocation; title: string; subtitle: string; compact: boolean }>();
 const emit = defineEmits<{ select: [location: AdminLocation]; toggleCompact: [] }>();
 const { t } = useI18n();
+const { open: openCommandPalette } = useAdminCommandPalette();
 const openSection = ref<AdminTabId | null>(props.active.tab);
+const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent);
+const commandShortcut = isMac ? "⌘Space" : "Ctrl+Space";
 
 const mobilePages = computed(() => props.tabs.find((tab) => tab.id === props.active.tab)?.pages ?? []);
 
-const icons: Record<AdminTabId, string> = {
-	dashboard: "lucide:layout-dashboard",
-	guide: "lucide:tv",
-	library: "lucide:library",
-	advertising: "lucide:megaphone",
-	analytics: "lucide:chart-no-axes-combined",
-	logging: "lucide:scroll-text",
-	providers: "lucide:plug",
-	requests: "lucide:message-square",
-	invites: "lucide:ticket",
-	issues: "lucide:life-buoy",
-	notifications: "lucide:bell",
-	mail: "lucide:mail",
-	apikeys: "lucide:key-round",
-	oauth: "lucide:shield-check",
-	videoPlayer: "lucide:clapperboard",
-	communications: "lucide:messages-square",
-	payments: "lucide:credit-card",
-	plugins: "lucide:puzzle",
-	settings: "lucide:settings",
-};
-
-const pageIcons: Record<AdminPageId, string> = {
-	overview: "lucide:layout-dashboard",
-	logging: "lucide:scroll-text",
-	guide: "lucide:calendar-days",
-	libraries: "lucide:library",
-	tasks: "lucide:list-checks",
-	media: "lucide:film",
-	duplicateSuggestions: "lucide:copy-check",
-	transcoding: "lucide:video",
-	advertisements: "lucide:megaphone",
-	analyticsOverview: "lucide:layout-dashboard",
-	analyticsVideo: "lucide:clapperboard",
-	analyticsMusic: "lucide:music",
-	analyticsHistory: "lucide:history",
-	analyticsAdvertising: "lucide:megaphone",
-	analyticsGuide: "lucide:tv",
-	analyticsPayments: "lucide:credit-card",
-	metadata: "lucide:file-text",
-	subtitles: "lucide:captions",
-	themes: "lucide:palette",
-	appearance: "lucide:paintbrush",
-	trailerCache: "lucide:film",
-	requests: "lucide:message-square",
-	tickets: "lucide:life-buoy",
-	notifications: "lucide:bell",
-	smtp: "lucide:mail",
-	mailOverview: "lucide:activity",
-	mailDomains: "lucide:globe-2",
-	mailInboxes: "lucide:inbox",
-	mailMessages: "lucide:mails",
-	mailTemplates: "lucide:file-code-2",
-	apikeys: "lucide:key-round",
-	oauth: "lucide:shield-check",
-	widevine: "lucide:shield-check",
-	playerSettings: "lucide:settings-2",
-	chatSettings: "lucide:lock-keyhole",
-	callSettings: "lucide:audio-lines",
-	ai: "lucide:brain-circuit",
-	issueReports: "lucide:life-buoy",
-	payments: "lucide:credit-card",
-	paymentsCatalog: "lucide:package",
-	paymentsSales: "lucide:receipt",
-	plugins: "lucide:puzzle",
-	server: "lucide:server",
-	webhooks: "lucide:webhook",
-	users: "lucide:users-round",
-	invites: "lucide:ticket",
-	networking: "lucide:network",
-	search: "lucide:search",
-	updates: "lucide:refresh-cw",
-	backups: "lucide:archive",
-};
+const icons = ADMIN_TAB_ICONS;
+const pageIcons = ADMIN_PAGE_ICONS;
 
 function choose(tab: AdminTabId, page: AdminPageId) {
 	emit("select", { tab, page });
@@ -152,6 +85,13 @@ watch(
 <template>
 	<nav class="rounded border border-flixer-border bg-flixer-surface/90 shadow-xl shadow-black/10 backdrop-blur transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none lg:rounded-none lg:fixed lg:bottom-0 lg:left-0 lg:top-16 lg:z-30 lg:flex lg:flex-col lg:overflow-hidden lg:shadow-2xl" :class="compact ? 'p-2 lg:w-20' : 'p-2 lg:p-3 lg:w-60'" :aria-label="t('admin.adminNavigation')">
 		<div class="lg:hidden">
+			<div class="mb-2 flex items-center gap-2">
+				<button type="button" class="flex h-9 w-full items-center gap-2 rounded border border-white/10 bg-white/5 px-3 text-xs text-flixer-muted transition hover:border-flixer-accent/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" @click="openCommandPalette()">
+					<Icon icon="lucide:search" class="size-3.5 shrink-0" aria-hidden="true" />
+					<span class="truncate">{{ t('admin.commandPalette.trigger') }}</span>
+					<kbd class="ml-auto rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">{{ commandShortcut }}</kbd>
+				</button>
+			</div>
 			<div class="admin-mobile-row flex gap-1 overflow-x-auto" role="tablist">
 				<button v-for="tab in tabs" :id="`admin-mobile-nav-${tab.id}`" :key="tab.id" type="button" role="tab" class="flex h-9 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="active.tab === tab.id ? 'bg-flixer-primary/20 text-white' : 'text-flixer-text/70'" :aria-selected="active.tab === tab.id" @click="chooseFirstPage(tab)">
 					<Icon :icon="icons[tab.id]" class="size-4 shrink-0" aria-hidden="true" />
@@ -175,30 +115,60 @@ watch(
 				</Transition>
 			</div>
 		</header>
+		<div class="hidden lg:block lg:shrink-0 lg:px-1 lg:pt-3">
+			<button
+				type="button"
+				class="flex h-9 w-full items-center rounded border border-white/10 bg-white/5 text-xs text-flixer-muted transition hover:border-flixer-accent/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+				:class="compact ? 'justify-center px-0' : 'gap-2 px-2.5'"
+				:aria-label="`${t('admin.commandPalette.trigger')} (${commandShortcut})`"
+				:title="`${t('admin.commandPalette.trigger')} (${commandShortcut})`"
+				@click="openCommandPalette()"
+			>
+				<Icon icon="lucide:search" class="size-4 shrink-0" aria-hidden="true" />
+				<span v-if="!compact" class="min-w-0 flex-1 truncate text-left">{{ t('admin.commandPalette.trigger') }}</span>
+				<kbd v-if="!compact" class="shrink-0 rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">{{ commandShortcut }}</kbd>
+			</button>
+		</div>
 		<div class="relative hidden lg:block lg:min-h-0 lg:flex-1">
 			<div class="admin-nav-scroll h-full overflow-y-auto lg:py-5">
 				<div v-for="tab in tabs" :key="tab.id" class="not-first:mt-2">
-					<button :id="`admin-nav-${tab.id}`" type="button" class="admin-nav-item flex w-full items-center rounded py-3 text-sm font-semibold transition-[gap,padding,background-color,color] duration-300 ease-in-out hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="[compact ? 'justify-center px-0' : 'gap-3 px-3 text-left', active.tab === tab.id ? 'text-white' : 'text-flixer-text/70']" :aria-label="compact ? tab.label : undefined" :title="compact ? tab.label : undefined" :aria-expanded="openSection === tab.id" :aria-controls="`admin-nav-pages-${tab.id}`" @click="toggle(tab.id)">
+					<button
+						v-if="tab.pages.length === 1"
+						:id="`admin-nav-${tab.id}`"
+						type="button"
+						class="admin-nav-item flex w-full items-center rounded border py-3 text-sm font-semibold transition-[gap,padding,background-color,color] duration-300 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent"
+						:class="[compact ? 'justify-center px-0' : 'gap-3 px-3 text-left', active.tab === tab.id ? 'border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border-transparent text-flixer-text/70 hover:bg-white/5 hover:text-white']"
+						:aria-label="compact ? tab.label : undefined"
+						:title="compact ? tab.label : undefined"
+						:aria-current="active.tab === tab.id ? 'page' : undefined"
+						@click="chooseFirstPage(tab)"
+					>
 						<Icon :icon="icons[tab.id]" class="admin-nav-icon size-5 shrink-0" aria-hidden="true" />
 						<span class="admin-nav-label min-w-0 flex-1 truncate" :class="compact && 'is-compact'" :aria-hidden="compact">{{ tab.label }}</span>
-						<span class="admin-nav-chevron shrink-0" :class="compact && 'is-compact'" aria-hidden="true">
-							<Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-200 motion-reduce:transition-none" :class="openSection === tab.id ? 'rotate-180' : ''" />
-						</span>
 					</button>
-					<Transition @before-enter="beforeAccordionEnter" @enter="enterAccordion" @after-enter="afterAccordionEnter" @before-leave="beforeAccordionLeave" @leave="leaveAccordion" @after-leave="afterAccordionLeave">
-						<div v-if="openSection === tab.id" :id="`admin-nav-pages-${tab.id}`" class="min-h-0">
-							<ul class="admin-subnav-list mt-2 grid gap-1" :class="compact ? 'is-compact' : 'ml-5 pl-3'">
-								<li v-for="page in tab.pages" :key="page.id">
-									<button type="button" class="admin-subnav-item flex h-9 w-full items-center rounded text-sm transition-[padding,background-color,color] duration-300 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="[compact ? 'justify-center px-0' : 'justify-start px-3 text-left', active.tab === tab.id && active.page === page.id ? 'border border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border border-transparent text-flixer-text/70 hover:bg-white/5 hover:text-white']" :aria-label="compact ? page.label : undefined" :title="compact ? page.label : undefined" :aria-current="active.tab === tab.id && active.page === page.id ? 'page' : undefined" @click="choose(tab.id, page.id)">
-										<span class="flex min-w-0 items-center transition-[gap] duration-300 ease-in-out" :class="compact ? 'justify-center' : 'gap-2.5'">
-											<Icon :icon="pageIcons[page.id]" class="admin-subnav-icon size-4 shrink-0 opacity-80" aria-hidden="true" />
-											<span class="admin-nav-label min-w-0 truncate whitespace-nowrap" :class="compact && 'is-compact'" :aria-hidden="compact">{{ page.label }}</span>
-										</span>
-									</button>
-								</li>
-							</ul>
-						</div>
-					</Transition>
+					<template v-else>
+						<button :id="`admin-nav-${tab.id}`" type="button" class="admin-nav-item flex w-full items-center rounded py-3 text-sm font-semibold transition-[gap,padding,background-color,color] duration-300 ease-in-out hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="[compact ? 'justify-center px-0' : 'gap-3 px-3 text-left', active.tab === tab.id ? 'text-white' : 'text-flixer-text/70']" :aria-label="compact ? tab.label : undefined" :title="compact ? tab.label : undefined" :aria-expanded="openSection === tab.id" :aria-controls="`admin-nav-pages-${tab.id}`" @click="toggle(tab.id)">
+							<Icon :icon="icons[tab.id]" class="admin-nav-icon size-5 shrink-0" aria-hidden="true" />
+							<span class="admin-nav-label min-w-0 flex-1 truncate" :class="compact && 'is-compact'" :aria-hidden="compact">{{ tab.label }}</span>
+							<span class="admin-nav-chevron shrink-0" :class="compact && 'is-compact'" aria-hidden="true">
+								<Icon icon="lucide:chevron-down" class="size-4 transition-transform duration-200 motion-reduce:transition-none" :class="openSection === tab.id ? 'rotate-180' : ''" />
+							</span>
+						</button>
+						<Transition @before-enter="beforeAccordionEnter" @enter="enterAccordion" @after-enter="afterAccordionEnter" @before-leave="beforeAccordionLeave" @leave="leaveAccordion" @after-leave="afterAccordionLeave">
+							<div v-if="openSection === tab.id" :id="`admin-nav-pages-${tab.id}`" class="min-h-0">
+								<ul class="admin-subnav-list mt-2 grid gap-1" :class="compact ? 'is-compact' : 'ml-5 pl-3'">
+									<li v-for="page in tab.pages" :key="page.id">
+										<button type="button" class="admin-subnav-item flex h-9 w-full items-center rounded text-sm transition-[padding,background-color,color] duration-300 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent" :class="[compact ? 'justify-center px-0' : 'justify-start px-3 text-left', active.tab === tab.id && active.page === page.id ? 'border border-flixer-accent/25 bg-flixer-primary/20 text-white' : 'border border-transparent text-flixer-text/70 hover:bg-white/5 hover:text-white']" :aria-label="compact ? page.label : undefined" :title="compact ? page.label : undefined" :aria-current="active.tab === tab.id && active.page === page.id ? 'page' : undefined" @click="choose(tab.id, page.id)">
+											<span class="flex min-w-0 items-center transition-[gap] duration-300 ease-in-out" :class="compact ? 'justify-center' : 'gap-2.5'">
+												<Icon :icon="pageIcons[page.id]" class="admin-subnav-icon size-4 shrink-0 opacity-80" aria-hidden="true" />
+												<span class="admin-nav-label min-w-0 truncate whitespace-nowrap" :class="compact && 'is-compact'" :aria-hidden="compact">{{ page.label }}</span>
+											</span>
+										</button>
+									</li>
+								</ul>
+							</div>
+						</Transition>
+					</template>
 				</div>
 			</div>
 		</div>

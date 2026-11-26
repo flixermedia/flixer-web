@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getAdminOverview, getPreferences, updatePreferences, type AdminOverview } from '../../api'
 import { notify } from '../../composables/notify'
+import { useAdminCommandPalette } from '../../composables/useAdminCommandPalette'
 import { useLiveTopic } from '../../composables/useLive'
 import { describeRequestError } from '../../composables/useProfile'
 import { catchError } from '../../utils/catchError'
@@ -13,11 +14,18 @@ import ViewingAnalyticsWidget from './dashboard/ViewingAnalyticsWidget.vue'
 import AddWidgetModal from './AddWidgetModal.vue'
 import BackupsWidget from './dashboard/BackupsWidget.vue'
 import ContentMixWidget from './dashboard/ContentMixWidget.vue'
+import InvitesWidget from './dashboard/InvitesWidget.vue'
+import IssuesWidget from './dashboard/IssuesWidget.vue'
 import LibrariesWidget from './dashboard/LibrariesWidget.vue'
+import MailWidget from './dashboard/MailWidget.vue'
+import PaymentsWidget from './dashboard/PaymentsWidget.vue'
+import PluginsWidget from './dashboard/PluginsWidget.vue'
 import QueuesWidget from './dashboard/QueuesWidget.vue'
 import RequestsWidget from './dashboard/RequestsWidget.vue'
+import SearchAiWidget from './dashboard/SearchAiWidget.vue'
 import ServicesWidget from './dashboard/ServicesWidget.vue'
 import ShortcutsWidget from './dashboard/ShortcutsWidget.vue'
+import TasksWidget from './dashboard/TasksWidget.vue'
 import TranscodingWidget from './dashboard/TranscodingWidget.vue'
 import UpdatesWidget from './dashboard/UpdatesWidget.vue'
 import UptimeWidget from './dashboard/UptimeWidget.vue'
@@ -32,6 +40,9 @@ import LogsPanel from './LogsPanel.vue'
 import StreamSessionsPanel from './StreamSessionsPanel.vue'
 
 const { t } = useI18n()
+const { open: openCommandPalette } = useAdminCommandPalette()
+const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent)
+const commandShortcut = isMac ? '⌘Space' : 'Ctrl+Space'
 
 // Must match the grid CSS below: rows are half a row (96px) tall with a 16px gap between all cells.
 const ROW_UNIT = 96
@@ -68,7 +79,23 @@ const rows = computed(() => rowCount(layout.value) + (editing.value ? EXTRA_ROWS
 const changed = computed(() => !sameGrid(draft.value, saved.value))
 
 const COMPONENTS = { stats: StatsWidget, server: ServerWidget, storage: StorageWidget, activity: ActivityWidget, uptime: UptimeWidget, transcoding: TranscodingWidget, libraries: LibrariesWidget, 'content-mix': ContentMixWidget, services: ServicesWidget } as const
-const STANDALONE = { queues: QueuesWidget, updates: UpdatesWidget, backups: BackupsWidget, requests: RequestsWidget, users: UsersWidget, shortcuts: ShortcutsWidget, 'ad-analytics': AdvertisementAnalyticsWidget, 'viewing-analytics': ViewingAnalyticsWidget } as const
+const STANDALONE = {
+  queues: QueuesWidget,
+  updates: UpdatesWidget,
+  backups: BackupsWidget,
+  requests: RequestsWidget,
+  shortcuts: ShortcutsWidget,
+  users: UsersWidget,
+  'ad-analytics': AdvertisementAnalyticsWidget,
+  'viewing-analytics': ViewingAnalyticsWidget,
+  issues: IssuesWidget,
+  tasks: TasksWidget,
+  plugins: PluginsWidget,
+  'search-ai': SearchAiWidget,
+  payments: PaymentsWidget,
+  mail: MailWidget,
+  invites: InvitesWidget,
+} as const
 const needsOverview = (id: DashboardWidgetId): id is keyof typeof COMPONENTS => id in COMPONENTS
 const standalone = (id: DashboardWidgetId): id is keyof typeof STANDALONE => id in STANDALONE
 
@@ -213,6 +240,21 @@ function toggleEditorActions() {
   else startEditing()
 }
 
+const isRefreshing = ref(false)
+const serverHealthy = computed(() => !loadError.value)
+
+async function refreshOverview() {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  await load()
+  isRefreshing.value = false
+}
+
+function quickAddPanel() {
+  if (!editing.value) startEditing()
+  void addPanel()
+}
+
 async function load() {
   try {
     const [error, result] = await catchError(getAdminOverview())
@@ -253,6 +295,88 @@ watch(live.data, (value) => {
 
 <template>
   <div class="flex flex-col gap-5">
+    <!-- Compact Overview Action Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded border border-flixer-border/70 bg-flixer-surface/75 px-4 py-2.5 shadow-sm backdrop-blur">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium" :class="serverHealthy ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-red-400/30 bg-red-500/10 text-red-200'">
+          <span class="size-2 rounded-full" :class="serverHealthy ? 'bg-emerald-400' : 'bg-red-400'"></span>
+          {{ t(serverHealthy ? 'admin.dashboard.healthOnline' : 'admin.dashboard.healthDegraded') }}
+        </span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-flixer-muted">
+          {{ t('admin.dashboard.widgetCount', { count: layout.length }) }}
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-flixer-text transition hover:border-flixer-accent/40 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          @click="openCommandPalette()"
+        >
+          <Icon icon="lucide:search" class="size-3.5 text-flixer-accent" aria-hidden="true" />
+          <span>{{ t('admin.dashboard.commandBarButton') }}</span>
+          <kbd class="hidden rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-flixer-muted sm:inline-block">{{ commandShortcut }}</kbd>
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-flixer-text transition hover:bg-white/10 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          :disabled="isRefreshing"
+          @click="refreshOverview"
+        >
+          <Icon icon="lucide:refresh-cw" class="size-3.5" :class="isRefreshing && 'animate-spin'" aria-hidden="true" />
+          <span>{{ t('admin.dashboard.refreshOverview') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-flixer-text transition hover:bg-white/10 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          :disabled="isSaving"
+          @click="quickAddPanel"
+        >
+          <Icon icon="lucide:plus" class="size-3.5" aria-hidden="true" />
+          <span>{{ t('admin.dashboard.addPanel') }}</span>
+        </button>
+
+        <template v-if="editing">
+          <button
+            type="button"
+            class="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-flixer-text transition hover:bg-white/10 disabled:opacity-40"
+            :disabled="isSaving || (isDefaultGrid(draft) && isDefaultGrid(saved))"
+            @click="reset"
+          >
+            <Icon icon="lucide:rotate-ccw" class="size-3.5" aria-hidden="true" />
+            <span>{{ t('admin.dashboard.reset') }}</span>
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-8 items-center gap-1.5 rounded bg-flixer-primary px-3 text-xs font-semibold text-white transition hover:bg-flixer-primary/80 disabled:opacity-40"
+            :disabled="isSaving || !changed"
+            @click="save"
+          >
+            <Icon icon="lucide:check" class="size-3.5" aria-hidden="true" />
+            <span>{{ t('admin.dashboard.save') }}</span>
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 px-2.5 text-xs font-medium text-flixer-muted transition hover:bg-white/10 hover:text-white"
+            @click="cancel"
+          >
+            <span>{{ t('admin.dashboard.cancel') }}</span>
+          </button>
+        </template>
+        <button
+          v-else
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded bg-flixer-accent/90 px-3 text-xs font-semibold text-white transition hover:bg-flixer-accent focus-visible:outline-2 focus-visible:outline-flixer-accent"
+          @click="startEditing"
+        >
+          <Icon icon="lucide:layout-dashboard" class="size-3.5" aria-hidden="true" />
+          <span>{{ t('admin.dashboard.customize') }}</span>
+        </button>
+      </div>
+    </div>
+
     <Teleport defer to="#admin-header-actions">
       <div class="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-1">
         <TransitionGroup id="admin-layout-actions" name="fab-pop" tag="div" class="flex flex-col items-end gap-1">
@@ -325,6 +449,12 @@ watch(live.data, (value) => {
 }
 .dash-cell {
   order: var(--o);
+}
+.dash-cell :deep(.admin-card) {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.dash-cell:hover :deep(.admin-card) {
+  border-color: color-mix(in srgb, var(--color-flixer-accent) 30%, var(--color-flixer-border));
 }
 @media (min-width: 1024px) {
   .dash-grid {

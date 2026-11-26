@@ -94,44 +94,46 @@ watch([scope, status, type], () => {
           <button v-for="tab in ['all', 'mine'] as const" :key="tab" type="button" class="rounded px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent sm:px-4 sm:text-sm" :class="scope === tab ? 'bg-white text-flixer-background shadow' : 'text-flixer-muted hover:text-white'" :aria-pressed="scope === tab" @click="scope = tab">{{ t(`requests.scope.${tab}`) }}</button>
         </div>
       </header>
-      <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" :aria-label="t('requests.allStatuses')">
+      <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center">
+        <div class="flex min-w-0 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" :aria-label="t('requests.allStatuses')">
           <button v-for="entry in ['', 'pending', 'approved', 'declined', 'failed', 'available'] as const" :key="entry" type="button" class="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flixer-accent" :class="status === entry ? 'border-white bg-white text-flixer-background' : 'border-flixer-border bg-flixer-surface/50 text-flixer-muted hover:border-white/30 hover:text-white'" :aria-pressed="status === entry" @click="status = entry">
             <span>{{ entry ? t(`requests.status.${entry}`) : t('requests.allStatuses') }}</span
             ><span v-if="entry" class="rounded-full px-1.5 py-0.5 text-[10px]" :class="status === entry ? 'bg-black/10' : 'bg-white/10'">{{ counts[entry] }}</span>
           </button>
         </div>
-        <Select v-model:value="type" virtual-focus class="w-full sm:w-44">
-          <SelectLabel class="sr-only">{{ t('requests.allTypes') }}</SelectLabel>
-          <SelectTrigger
-            class="inline-flex h-auto w-full items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2.5 text-sm text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
-            <SelectValue />
-            <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
-          </SelectTrigger>
-          <SelectContent
-            class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
-            <SelectItem value=""
-              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
-              {{ t('requests.allTypes') }}
-              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
-            </SelectItem>
-            <SelectItem value="movie"
-              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
-              {{ t('home.itemType.movie') }}
-              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
-            </SelectItem>
-            <SelectItem value="tv"
-              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
-              {{ t('home.itemType.series') }}
-              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
-            </SelectItem>
-            <SelectItem value="music"
-              class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
-              {{ t('home.itemType.album') }}
-              <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <div class="w-full">
+          <Select v-model:value="type" virtual-focus>
+            <SelectLabel class="sr-only">{{ t('requests.allTypes') }}</SelectLabel>
+            <SelectTrigger
+              class="inline-flex h-auto w-full min-w-0 items-center justify-between gap-2 rounded border border-flixer-border bg-flixer-surface px-3 py-2 text-xs font-semibold text-white shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-flixer-accent">
+              <SelectValue />
+              <Icon icon="lucide:chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+            </SelectTrigger>
+            <SelectContent
+              class="z-50 max-h-60 min-w-[var(--anchor-width)] overflow-auto rounded border border-flixer-border bg-flixer-surface p-1 text-white shadow-xl">
+              <SelectItem value=""
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('requests.allTypes') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+              <SelectItem value="movie"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('home.itemType.movie') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+              <SelectItem value="tv"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('home.itemType.series') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+              <SelectItem value="music"
+                class="flex cursor-default items-center justify-between gap-3 rounded px-2 py-1.5 text-sm outline-none data-highlighted:bg-white/10 data-selected:bg-white/10">
+                {{ t('home.itemType.album') }}
+                <SelectItemIndicator><Icon icon="lucide:check" class="size-4" aria-hidden="true" /></SelectItemIndicator>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div v-if="busy && !rows.length" class="mt-6 space-y-3" role="status" :aria-label="t('common.loading')">

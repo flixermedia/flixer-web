@@ -7,7 +7,7 @@ import Skeleton from '../ui/Skeleton.vue'
 const props = defineProps<{ widget: DashboardWidgetId }>()
 const { t } = useI18n()
 const title = computed(() => t(`admin.dashboard.widgets.${props.widget}`))
-const compact = computed(() => ['services', 'updates', 'requests'].includes(props.widget))
+const compact = computed(() => ['services', 'updates', 'requests', 'plugins', 'mail', 'invites', 'payments'].includes(props.widget))
 const headerWidth = computed(() => (props.widget === 'shortcuts' ? 'w-28' : 'w-36'))
 </script>
 

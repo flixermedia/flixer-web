@@ -28,3 +28,7 @@
 .Toastify__toast.flixer-toast .Toastify__close-button {
   color: #9492a4;
 }
+
+.Toastify__toast.flixer-toast.flixer-toast--offline {
+  border-color: rgb(251 191 36 / 0.35);
+}

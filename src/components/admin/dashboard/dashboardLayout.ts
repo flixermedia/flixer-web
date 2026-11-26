@@ -25,7 +25,10 @@ export const DEFAULT_GRID: readonly GridItem[] = [
   { id: 'users', x: 2, y: 5, w: 1, h: 2 },
   { id: 'storage', x: 0, y: 6, w: 1, h: 3 },
   { id: 'streams', x: 1, y: 7, w: 2, h: 2 },
-  { id: 'logs', x: 0, y: 9, w: 3, h: 4 },
+  { id: 'issues', x: 0, y: 9, w: 1, h: 2 },
+  { id: 'tasks', x: 1, y: 9, w: 1, h: 2 },
+  { id: 'plugins', x: 2, y: 9, w: 1, h: 1 },
+  { id: 'logs', x: 0, y: 11, w: 3, h: 4 },
 ]
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
