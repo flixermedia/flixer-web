@@ -1,4 +1,5 @@
 /** Authentication, account, profile, settings, and passkey operations. */
+import axios from "axios";
 import { startAuthentication, startRegistration, type PublicKeyCredentialCreationOptionsJSON, type PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/browser";
 import { api, clearAccessToken } from "./client";
 import { catchError } from "../utils/catchError";
@@ -129,9 +130,23 @@ export async function resendVerification(username: string, password: string): Pr
 	await api.post("/auth/resend-verification", request);
 }
 
-export async function validateAccessToken(): Promise<boolean> {
-	const response = await api.get<AuthSession[]>("/auth/sessions");
-	return response.data.some((session) => session.current);
+function isTransientSessionError(error: unknown): boolean {
+	if (!axios.isAxiosError(error)) return false;
+	return !error.response || error.response.status >= 500;
+}
+
+export async function validateAccessToken(retryDelayMs = 400): Promise<boolean> {
+	try {
+		const response = await api.get<AuthSession[]>("/auth/sessions");
+		return response.data.some((session) => session.current);
+	} catch (error) {
+		if (!isTransientSessionError(error)) {
+			throw error;
+		}
+		await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+		const response = await api.get<AuthSession[]>("/auth/sessions");
+		return response.data.some((session) => session.current);
+	}
 }
 
 export async function getProfile(): Promise<UserProfile> {

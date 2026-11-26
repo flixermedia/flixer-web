@@ -23,6 +23,7 @@ import { syncLocaleFromAccount } from '../i18n'
 import { isNativeApp } from '../platform/serverConnection'
 import { getNativeBiometricCredentials, getNativeBiometricLoginStatus, removeNativeBiometricCredentials, saveNativeAccount, saveNativeBiometricCredentials, restoreNativeAccount } from '../platform/nativeAccount'
 import { beginNativePasskeyHandoff } from '../platform/passkeyHandoff'
+import { sanitizeRedirectTarget } from '../router/sessionRedirect'
 import { catchError } from '../utils/catchError'
 import { oauthInteractionPath } from '../router/oauthSignIn'
 import { getOidcInteractionClient } from '../api/oidc'
@@ -174,8 +175,7 @@ let sessionRecoveryTimer: ReturnType<typeof setInterval> | undefined
 let sessionRecoveryInFlight = false
 
 function getPostLoginDestination(): string | undefined {
-  const redirect = route.query.redirect
-  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : undefined
+  return sanitizeRedirectTarget(route.query.redirect)
 }
 
 onMounted(() => {

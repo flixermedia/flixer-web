@@ -19,14 +19,10 @@ interface LoginSecurity {
   usernameLimit: number
   windowSeconds: number
 }
-interface TrustedProxies { enabled: boolean; addresses: string[] }
-
 const props = defineProps<{ settings: ServerSetting[]; loading: boolean }>()
 const { t } = useI18n()
 const login = reactive<LoginSecurity>({ timingEnabled: true, minimumMs: 400, jitterMs: 40, throttleEnabled: true, ipLimit: 20, usernameLimit: 10, windowSeconds: 60 })
-const proxies = reactive({ enabled: false, addresses: '' })
 const savedLogin = ref<LoginSecurity | null>(null)
-const savedProxies = ref<TrustedProxies | null>(null)
 const busy = ref(false)
 const inputClass = 'mt-1 w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm disabled:opacity-60'
 const buttonClass = 'rounded bg-flixer-primary px-4 py-2 text-sm font-semibold text-white hover:bg-flixer-primary/80 disabled:opacity-60'
@@ -39,29 +35,17 @@ function readLogin(value: unknown): LoginSecurity | null {
     ? { ...candidate } : null
 }
 
-function readProxies(value: unknown): TrustedProxies | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as TrustedProxies
-  return typeof candidate.enabled === 'boolean' && Array.isArray(candidate.addresses) && candidate.addresses.every((address) => typeof address === 'string')
-    ? { enabled: candidate.enabled, addresses: [...candidate.addresses] } : null
-}
-
 watch(() => props.settings, (settings) => {
   const loginSetting = readLogin(settings.find((setting) => setting.key === 'login_security')?.value)
-  const proxySetting = readProxies(settings.find((setting) => setting.key === 'trusted_proxies')?.value)
   savedLogin.value = loginSetting
-  savedProxies.value = proxySetting
   if (loginSetting) Object.assign(login, loginSetting)
-  if (proxySetting) Object.assign(proxies, { enabled: proxySetting.enabled, addresses: proxySetting.addresses.join('\n') })
 }, { immediate: true })
 
 const loginValid = computed(() => [
   [login.minimumMs, 100, 5000], [login.jitterMs, 0, 1000], [login.ipLimit, 1, 1000],
   [login.usernameLimit, 1, 1000], [login.windowSeconds, 10, 3600],
 ].every(([value, minimum, maximum]) => Number.isInteger(value) && value >= minimum && value <= maximum))
-const proxyAddresses = computed(() => proxies.addresses.split(/[\n,]+/).map((address) => address.trim()).filter(Boolean))
 const loginChanged = computed(() => savedLogin.value && (Object.keys(login) as Array<keyof LoginSecurity>).some((key) => login[key] !== savedLogin.value?.[key]))
-const proxiesChanged = computed(() => savedProxies.value && JSON.stringify({ enabled: proxies.enabled, addresses: proxyAddresses.value }) !== JSON.stringify(savedProxies.value))
 
 async function saveLogin() {
   if (busy.value || !savedLogin.value || !loginValid.value || !loginChanged.value) return
@@ -83,30 +67,12 @@ async function saveLogin() {
     notify.success(t('admin.loginSecurity.saved'))
   } finally { busy.value = false }
 }
-
-async function saveProxies() {
-  if (busy.value || !savedProxies.value || !proxiesChanged.value || proxyAddresses.value.length > 32 || (proxies.enabled && !proxyAddresses.value.length)) return
-  busy.value = true
-  try {
-    if (proxies.enabled && !(await confirmAction(t('admin.loginSecurity.confirmProxies'), { danger: true }))) return
-    const [error, result] = await catchError(updateSetting('trusted_proxies', { enabled: proxies.enabled, addresses: proxyAddresses.value }))
-    if (error) {
-      notify.error(describeRequestError(error, t('admin.loginSecurity.saveFailed')))
-      return
-    }
-    const saved = readProxies(result.value)
-    if (!saved) { notify.error(t('admin.loginSecurity.saveFailed')); return }
-    savedProxies.value = saved
-    Object.assign(proxies, { enabled: saved.enabled, addresses: saved.addresses.join('\n') })
-    notify.success(t('admin.loginSecurity.saved'))
-  } finally { busy.value = false }
-}
 </script>
 
 <template>
   <AdminSection :title="t('admin.loginSecurity.title')">
     <AdminSkeleton v-if="loading" variant="toggles" :rows="2" />
-    <p v-else-if="!savedLogin || !savedProxies" role="alert" class="text-sm text-red-300">{{ t('admin.loginSecurity.loadFailed') }}</p>
+    <p v-else-if="!savedLogin" role="alert" class="text-sm text-red-300">{{ t('admin.loginSecurity.loadFailed') }}</p>
     <template v-else>
       <form class="space-y-4" @submit.prevent="saveLogin">
         <AdminToggle v-model="login.timingEnabled" :label="t('admin.loginSecurity.timing')" :disabled="busy" />
@@ -124,14 +90,6 @@ async function saveProxies() {
         <p class="text-xs text-flixer-muted">{{ t('admin.loginSecurity.limitScope') }}</p>
         <p v-if="!loginValid" role="alert" class="text-sm text-red-300">{{ t('admin.loginSecurity.invalid') }}</p>
         <button type="submit" :class="buttonClass" :disabled="busy || !loginValid || !loginChanged">{{ t('admin.loginSecurity.saveLogin') }}</button>
-      </form>
-      <form class="mt-6 space-y-3 border-t border-flixer-border pt-4" @submit.prevent="saveProxies">
-        <AdminToggle v-model="proxies.enabled" :label="t('admin.loginSecurity.trustProxies')" :disabled="busy" />
-        <p class="text-xs text-amber-300">{{ t('admin.loginSecurity.proxyWarning') }}</p>
-        <label class="block text-sm text-flixer-muted">{{ t('admin.loginSecurity.proxyAddresses') }}<textarea v-model="proxies.addresses" rows="3" :disabled="busy" :class="inputClass" placeholder="192.0.2.10&#10;2001:db8::/32" /></label>
-        <p v-if="proxyAddresses.length > 32" role="alert" class="text-sm text-red-300">{{ t('admin.loginSecurity.proxyLimit') }}</p>
-        <p v-if="proxies.enabled && !proxyAddresses.length" role="alert" class="text-sm text-red-300">{{ t('admin.loginSecurity.proxyRequired') }}</p>
-        <button type="submit" :class="buttonClass" :disabled="busy || proxyAddresses.length > 32 || (proxies.enabled && !proxyAddresses.length) || !proxiesChanged">{{ t('admin.loginSecurity.saveProxies') }}</button>
       </form>
     </template>
   </AdminSection>

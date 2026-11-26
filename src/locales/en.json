@@ -1259,6 +1259,11 @@
 		"invites": {
 			"title": "Invitations",
 			"description": "Create invite links that let people create an account even while public registration is off. Paid registration applies unless an invite waives it.",
+			"standaloneBanner": {
+				"title": "Run Flixer Invites as a standalone lightweight service",
+				"description": "Only need invitations and user onboarding? Self-host Flixer Invites on its own without the full Flixer media stack.",
+				"cta": "View on GitHub"
+			},
 			"new": "New invitation",
 			"edit": "Edit",
 			"editTitle": "Edit invitation",
@@ -3856,6 +3861,30 @@
 			"webhookRotated": "Webhook credentials rotated."
 		},
 		"mail": {
+			"setupMail": "Setup Mail",
+			"setupOverlayTitle": "Mail is not configured yet",
+			"setupOverlayDescription": "Run the guided setup to configure your mail server, add a domain, import DNS records to Cloudflare, and test delivery.",
+			"importToCloudflare": "Import records to Cloudflare",
+			"cloudflareExported": "Cloudflare DNS zone file downloaded and copied to clipboard. Upload it in Cloudflare DNS → Import and Export.",
+			"setup": {
+				"title": "Mail Setup",
+				"subtitle": "Configure your domain, DNS records, and test mail delivery in three steps.",
+				"stepDomain": "1. Domain & Server",
+				"stepDns": "2. DNS & Cloudflare",
+				"stepTest": "3. Diagnostics & Test",
+				"domainPlaceholder": "example.com",
+				"saveAndContinue": "Save & Continue",
+				"dnsDescription": "Add these DNS records to your domain, or export a BIND zone file to import directly into Cloudflare.",
+				"cloudflareHint": "In Cloudflare Dashboard, go to DNS → Records → Import and Export, then paste or upload the exported zone file.",
+				"testDescription": "Run server diagnostics and send a test email to confirm everything is working.",
+				"testEmailLabel": "Send a test email to",
+				"sendTest": "Send test email",
+				"testSent": "Test email queued for {email}.",
+				"testFailed": "Failed to send test email.",
+				"finish": "Finish Setup",
+				"back": "Back",
+				"next": "Next"
+			},
 			"addDomain": "Add a domain",
 			"addDomainAction": "Add domain",
 			"address": "Address",

@@ -10,6 +10,7 @@ import { getNativeServerUrl } from "../platform/serverConnection";
 import { setTvMode } from "../platform/tvMode";
 import { catchError } from "../utils/catchError";
 import { oauthInteractionPath, signInForRoute } from "./oauthSignIn";
+import { sanitizeRedirectTarget } from "./sessionRedirect";
 
 declare module "vue-router" {
 	interface RouteMeta {
@@ -408,11 +409,13 @@ router.beforeEach(async (to) => {
 			return isAuthRoute ? true : signInForRoute(to.name, to.fullPath);
 		}
 
+		const { redirect: rawRedirect, ...restQuery } = to.query;
+		const redirect = sanitizeRedirectTarget(rawRedirect) ?? (isAuthRoute ? undefined : sanitizeRedirectTarget(to.fullPath));
 		return {
 			name: to.name === "oauth-interaction" || to.name === "oauth-sign-in" ? "oauth-sign-in" : "login",
 			query: {
-				...to.query,
-				redirect: to.query.redirect ?? to.fullPath,
+				...restQuery,
+				...(redirect ? { redirect } : {}),
 				sessionCheck: "unavailable",
 			},
 		};

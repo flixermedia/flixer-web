@@ -64,16 +64,6 @@ export const SecurityControls: Story = {
 				windowSeconds: 60,
 			}),
 		);
-
-		await userEvent.type(canvas.getByLabelText("Trusted IP addresses or CIDRs, one per line"), "192.0.2.0/24");
-		await userEvent.click(canvas.getByRole("switch", { name: "Trust configured proxies" }));
-		await userEvent.click(canvas.getByRole("button", { name: "Save trusted proxies" }));
-		await expect(await dialog.findByText(/Trust these proxy addresses/)).toBeInTheDocument();
-		await userEvent.click(dialog.getByRole("button", { name: "Confirm" }));
-		await waitFor(() => expect(mocked(updateSetting)).toHaveBeenCalledWith("trusted_proxies", { enabled: true, addresses: ["192.0.2.0/24"] }));
-		await userEvent.click(canvas.getByRole("switch", { name: "Trust configured proxies" }));
-		await userEvent.click(canvas.getByRole("button", { name: "Save trusted proxies" }));
-		await waitFor(() => expect(mocked(updateSetting)).toHaveBeenCalledWith("trusted_proxies", { enabled: false, addresses: ["192.0.2.0/24"] }));
 	},
 };
 
@@ -115,9 +105,6 @@ export const SecurityConfiguration: Story = {
 				windowSeconds: 120,
 			}),
 		);
-		await userEvent.click(canvas.getByRole("switch", { name: "Trust configured proxies" }));
-		await expect(canvas.getByText("Enter at least one trusted address before enabling proxy trust.")).toBeVisible();
-		await expect(canvas.getByRole("button", { name: "Save trusted proxies" })).toBeDisabled();
 	},
 };
 

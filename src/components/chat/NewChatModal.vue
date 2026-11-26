@@ -101,7 +101,7 @@ function submit() {
       </header>
 
       <RadioGroup v-if="!adding" :value="mode" :aria-label="t('chat.newChat')" class="mt-4 grid grid-cols-2 gap-1 rounded bg-white/5 p-1" @update:value="(value) => { if (value === 'direct' || value === 'group') mode = value }">
-        <Radio v-for="option in ['direct', 'group'] as const" :key="option" :value="option" class="h-auto rounded border-0 bg-transparent px-3 py-1.5 text-center text-sm font-semibold text-flixer-muted transition motion-reduce:transition-none hover:bg-transparent hover:text-white data-checked:bg-white data-checked:text-flixer-background data-checked:hover:bg-white data-checked:hover:text-flixer-background">{{ t(option === 'direct' ? 'chat.direct' : 'chat.group') }}</Radio>
+        <Radio v-for="option in ['direct', 'group'] as const" :key="option" :value="option" class="h-auto w-full rounded border-0 bg-transparent px-3 py-1.5 text-center text-sm font-semibold text-flixer-muted transition motion-reduce:transition-none hover:bg-transparent hover:text-white data-checked:bg-white data-checked:text-flixer-background data-checked:hover:bg-white data-checked:hover:text-flixer-background">{{ t(option === 'direct' ? 'chat.direct' : 'chat.group') }}</Radio>
       </RadioGroup>
 
       <Input v-if="!adding && mode === 'group'" v-model="name" maxlength="60" class="mt-4 h-auto w-full rounded border border-flixer-border bg-flixer-background px-3 py-2 text-sm text-white placeholder:text-flixer-muted focus:outline-none focus:ring-2 focus:ring-flixer-accent focus-visible:border-flixer-border" :placeholder="t('chat.groupName')" :aria-label="t('chat.groupName')" />

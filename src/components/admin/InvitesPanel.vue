@@ -13,6 +13,8 @@ import { describeRequestError } from "../../composables/useProfile";
 import { catchError } from "../../utils/catchError";
 import { copyToClipboard } from "../../utils/clipboard";
 
+const props = defineProps<{ standalone?: boolean }>();
+
 const { t, locale } = useI18n();
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString(locale.value, { dateStyle: "medium" });
@@ -177,6 +179,29 @@ async function removeServer(server: InviteServer) {
 </script>
 
 <template>
+	<div class="flex flex-col gap-6">
+		<div v-if="!props.standalone" class="admin-card flex flex-wrap items-center justify-between gap-4 border-flixer-accent/30 bg-flixer-primary/10 p-4">
+		<div class="flex min-w-0 items-start gap-3">
+			<div class="flex size-9 shrink-0 items-center justify-center rounded bg-flixer-primary/20 text-flixer-accent">
+				<Icon icon="lucide:sparkles" class="size-4" aria-hidden="true" />
+			</div>
+			<div class="min-w-0">
+				<p class="text-sm font-semibold text-flixer-text">{{ t("admin.invites.standaloneBanner.title") }}</p>
+				<p class="mt-0.5 text-sm text-flixer-muted">{{ t("admin.invites.standaloneBanner.description") }}</p>
+			</div>
+		</div>
+		<a
+			href="https://github.com/flixermedia/flixer-invites"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="inline-flex shrink-0 items-center gap-1.5 rounded border border-flixer-accent/40 bg-flixer-primary/20 px-3 py-1.5 text-sm font-semibold text-flixer-text transition hover:bg-flixer-primary/30"
+		>
+			<Icon icon="lucide:github" class="size-4" aria-hidden="true" />
+			<span>{{ t("admin.invites.standaloneBanner.cta") }}</span>
+			<Icon icon="lucide:external-link" class="size-3.5 text-flixer-muted" aria-hidden="true" />
+		</a>
+	</div>
+
 	<AdminSection :title="t('admin.invites.title')" :description="t('admin.invites.description')">
 		<template #actions>
 			<button type="button" class="rounded bg-flixer-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110" @click="openCreateInvitation">
@@ -278,7 +303,7 @@ async function removeServer(server: InviteServer) {
 		</template>
 	</AdminSection>
 
-	<AdminSection :title="t('admin.invites.servers.title')" :description="t('admin.invites.servers.description')" class="mt-6">
+	<AdminSection :title="t('admin.invites.servers.title')" :description="t('admin.invites.servers.description')">
 		<template #actions>
 			<button type="button" class="rounded border border-flixer-border px-3 py-2 text-sm text-flixer-text hover:bg-flixer-border/40" @click="openServerModal()">
 				{{ t("admin.invites.servers.add") }}
@@ -308,4 +333,5 @@ async function removeServer(server: InviteServer) {
 			</ul>
 		</template>
 	</AdminSection>
+	</div>
 </template>
