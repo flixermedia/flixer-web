@@ -21,9 +21,11 @@ jobs:
       - name: Resolve release version
         id: version
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
-          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then
+          if gh release view "v$version" >/dev/null 2>&1; then
             new_release=false
           else
             new_release=true
