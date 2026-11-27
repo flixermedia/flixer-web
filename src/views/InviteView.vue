@@ -5,7 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import logo from "../../resources/logo/flixer-logo.svg";
 import AuthField from "../components/auth/AuthField.vue";
 import SignupPaymentStep from "../components/payments/SignupPaymentStep.vue";
-import { acceptInvite, acceptPlexInvite, getInvite, loginInvite, pollPlexInviteAuth, resendInviteVerification, saveAccessToken, startPlexInviteAuth, type AuthResult, type InviteDestination, type InviteRedemptionResult, type InviteVerificationPending, type PlexInviteAccount, type PublicInvite } from "../api";
+import { acceptInvite, acceptPlexInvite, getInvite, loginInvite, pollPlexInviteAuth, resendInviteVerification, saveAccessToken, startPlexInviteAuth, type AuthResult, type InviteDestination, type InviteRedemptionResult, type InviteVerificationPending, type LinkedServiceOutcome, type PlexInviteAccount, type PublicInvite, type PublicInviteService } from "../api";
 import { notify } from "../composables/notify";
 import { describeRequestError } from "../composables/useProfile";
 import { useProfile } from "../composables/useProfile";
@@ -16,9 +16,11 @@ const route = useRoute();
 const router = useRouter();
 
 const code = computed(() => String(route.params.code ?? ""));
-const step = ref<"loading" | "invalid" | "form" | "login" | "payment" | "verification" | "done">("loading");
+const step = ref<"loading" | "invalid" | "form" | "login" | "plex_step" | "payment" | "verification" | "done">("loading");
 const invite = ref<PublicInvite | null>(null);
 const destination = ref<InviteDestination | null>(null);
+const linkedServices = ref<LinkedServiceOutcome[]>([]);
+const existingAccountUsername = ref("");
 const invalidMessage = ref("");
 const verificationEmail = ref("");
 const verificationResendToken = ref("");
@@ -91,10 +93,25 @@ function clearPendingPayment() {
 	localStorage.removeItem(PENDING_PAYMENT_KEY);
 }
 
-const isPlexInvite = computed(() => invite.value?.destination.type === "plex");
+const inviteServices = computed<PublicInviteService[]>(() => {
+	if (invite.value?.services?.length) return invite.value.services;
+	if (!invite.value) return [];
+	return [{ id: invite.value.destination.type, type: invite.value.destination.type, name: invite.value.destination.name }];
+});
+const hasPlexService = computed(() => inviteServices.value.some((s) => s.type === "plex"));
+const hasNonPlexService = computed(() => inviteServices.value.some((s) => s.type !== "plex"));
+const isPlexInvite = computed(() => hasPlexService.value && !hasNonPlexService.value);
+const isMultiService = computed(() => inviteServices.value.length > 1);
 const isClaimed = computed(() => invite.value?.usesRemaining === 0);
 
+function serviceLabel(service: { type: InviteDestination["type"]; name: string | null }): string {
+	return service.type !== "flixer" ? (service.name ?? t(`admin.invites.types.${service.type}`)) : t("admin.invites.types.flixer");
+}
+
 const destinationName = computed(() => {
+	if (isMultiService.value) {
+		return inviteServices.value.map((s) => serviceLabel(s)).join(" + ");
+	}
 	const target = destination.value ?? (invite.value ? { ...invite.value.destination, url: null, instructions: null, invitedByEmail: false } : null);
 	return target && target.type !== "flixer" ? (target.name ?? t(`admin.invites.types.${target.type}`)) : t("admin.invites.types.flixer");
 });
@@ -194,10 +211,14 @@ async function beginPlexSignIn() {
 
 function handleRedemptionResult(result: InviteRedemptionResult, identity: { name: string; email: string }) {
 	destination.value = result.destination;
+	if (result.linkedServices) {
+		linkedServices.value = result.linkedServices;
+	}
 	if ("accountExists" in result) {
-		loginUsername.value = username.value || email.value;
+		existingAccountUsername.value = result.existingUsername ?? (username.value || email.value);
+		loginUsername.value = result.existingUsername ?? (username.value || email.value);
 		loginPassword.value = "";
-		loginNotice.value = t("invite.accountExistsNotice");
+		loginNotice.value = `It appears you already have a Flixer account (${existingAccountUsername.value}). Sign in with your Flixer password to link and set up ${destinationName.value}.`;
 		step.value = "login";
 		return;
 	}
@@ -348,7 +369,7 @@ function handlePaymentExpired() {
 	step.value = "login";
 }
 
-function finish(result: AuthResult | InviteVerificationPending) {
+function finish(result: (AuthResult | InviteVerificationPending) & { plexPending?: boolean }) {
 	if ("verificationRequired" in result) {
 		verificationEmail.value = result.email;
 		verificationResendToken.value = result.resendToken ?? "";
@@ -357,6 +378,11 @@ function finish(result: AuthResult | InviteVerificationPending) {
 	}
 	useProfile().clear();
 	saveAccessToken(result.accessToken);
+	if (result.plexPending) {
+		resetPlexAuth();
+		step.value = "plex_step";
+		return;
+	}
 	step.value = "done";
 }
 
@@ -517,11 +543,78 @@ function enterFlixer() {
 				</div>
 			</template>
 
+			<template v-else-if="step === 'plex_step'">
+				<span class="mt-6 block text-center text-[9px] font-bold tracking-[0.2em] text-flixer-accent">STEP 2 OF 2 · PLEX</span>
+				<h1 class="mt-2 text-center text-2xl font-semibold tracking-tight">Connect your Plex account</h1>
+				<p class="mt-2 text-center text-sm text-flixer-muted">Your Flixer account is ready. Sign in with Plex to link and share your Plex library access.</p>
+
+				<div class="mt-6 flex flex-col gap-4">
+					<template v-if="plexState === 'idle' || plexState === 'starting'">
+						<button type="button" class="flex h-12 items-center justify-center gap-2 rounded bg-[#e5a00d] text-sm font-semibold text-[#18181b] shadow-lg transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60" :disabled="plexState === 'starting'" :aria-busy="plexState === 'starting'" @click="beginPlexSignIn">
+							<span v-if="plexState === 'starting'" class="size-4 animate-spin rounded-full border-2 border-[#18181b]/40 border-t-[#18181b]" aria-hidden="true"></span>
+							<Icon v-else icon="lucide:external-link" class="size-4" aria-hidden="true" />
+							<span>{{ plexState === "starting" ? t("invite.plex.opening") : t("invite.plex.signInButton") }}</span>
+						</button>
+						<button type="button" class="flex h-10 items-center justify-center rounded border border-flixer-border text-xs font-semibold text-flixer-muted transition hover:bg-white/5 hover:text-flixer-text" @click="step = 'done'">
+							Skip for now
+						</button>
+					</template>
+
+					<template v-else-if="plexState === 'waiting'">
+						<div class="rounded border border-flixer-border bg-flixer-background/60 p-4 text-center">
+							<span class="mx-auto block size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#e5a00d]" aria-hidden="true"></span>
+							<p class="mt-3 text-sm font-medium">{{ t("invite.plex.waitingTitle") }}</p>
+							<p class="mt-1 text-xs text-flixer-muted">{{ t("invite.plex.waitingDescription") }}</p>
+						</div>
+						<a v-if="plexAuthUrl" :href="plexAuthUrl" target="_blank" rel="noopener noreferrer" class="flex h-11 items-center justify-center gap-2 rounded bg-[#e5a00d] text-sm font-semibold text-[#18181b] transition hover:brightness-110">
+							<Icon icon="lucide:external-link" class="size-4" aria-hidden="true" />
+							<span>{{ t("invite.plex.reopenWindow") }}</span>
+						</a>
+						<button type="button" class="flex h-10 items-center justify-center rounded border border-flixer-border text-xs font-semibold text-flixer-muted transition hover:bg-white/5 hover:text-flixer-text" @click="resetPlexAuth">
+							{{ t("common.cancel") }}
+						</button>
+					</template>
+
+					<template v-else-if="plexState === 'connected' && plexAccount">
+						<div class="flex items-center gap-3 rounded border border-flixer-border bg-flixer-background/60 p-3">
+							<img v-if="plexAccount.avatarUrl" :src="plexAccount.avatarUrl" alt="" class="size-10 shrink-0 rounded-full object-cover" />
+							<div v-else class="grid size-10 shrink-0 place-items-center rounded-full bg-[#e5a00d]/20 text-sm font-bold text-[#e5a00d]">
+								{{ plexAccount.displayName.slice(0, 1).toUpperCase() }}
+							</div>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-sm font-semibold">{{ plexAccount.displayName }}</p>
+								<p class="truncate text-xs text-flixer-muted">{{ plexAccount.email }}</p>
+							</div>
+							<button type="button" class="shrink-0 text-xs font-semibold text-flixer-accent hover:underline" :disabled="isSubmitting" @click="resetPlexAuth">
+								{{ t("invite.plex.switchAccount") }}
+							</button>
+						</div>
+
+						<button type="button" class="flex h-12 items-center justify-center gap-2 rounded bg-gradient-to-r from-flixer-primary to-flixer-secondary text-sm font-semibold text-white shadow-lg shadow-flixer-primary/20 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60" :disabled="isSubmitting" :aria-busy="isSubmitting" @click="submitPlex">
+							<span>{{ isSubmitting ? "Connecting Plex..." : "Link Plex Account" }}</span>
+							<span v-if="isSubmitting" class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+						</button>
+					</template>
+				</div>
+			</template>
+
 			<template v-else-if="step === 'done'">
 				<h1 class="mt-6 text-center text-2xl font-semibold tracking-tight">{{ t("invite.doneTitle") }}</h1>
 				<p class="mt-3 text-center text-sm text-flixer-muted">
 					{{ destination?.invitedByEmail ? t("invite.plexEmailSent", { email }) : t("invite.doneDescription", { name: destinationName }) }}
 				</p>
+				<ul v-if="linkedServices.length" class="mt-4 flex flex-col gap-2">
+					<li v-for="svc in linkedServices" :key="svc.serverId" class="flex items-center justify-between gap-3 rounded border border-flixer-border bg-flixer-background/60 px-3 py-2 text-xs">
+						<div class="min-w-0">
+							<p class="truncate font-semibold text-flixer-text">{{ svc.name }} <span class="text-flixer-muted">({{ t(`admin.invites.types.${svc.type}`) }})</span></p>
+							<p v-if="svc.error" class="mt-0.5 text-rose-400">{{ svc.error }}</p>
+							<p v-else-if="svc.alreadyLinked" class="mt-0.5 text-emerald-400">Already linked · access updated</p>
+							<p v-else-if="svc.invitedByEmail" class="mt-0.5 text-flixer-muted">Plex invite sent by email</p>
+							<p v-else class="mt-0.5 text-emerald-400">Linked &amp; ready</p>
+						</div>
+						<a v-if="svc.url && svc.status === 'completed'" :href="svc.url" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded border border-flixer-border px-2.5 py-1 text-[11px] font-semibold text-flixer-text hover:bg-flixer-border/40">Open</a>
+					</li>
+				</ul>
 				<p v-if="destination?.type === 'jellyfin' || destination?.type === 'emby'" class="mt-2 text-center text-xs text-flixer-muted">{{ t("invite.sameCredentials") }}</p>
 				<p v-if="destination?.instructions" class="mt-4 whitespace-pre-wrap rounded border border-flixer-border bg-flixer-background/60 p-3 text-left text-xs leading-5 text-flixer-text">{{ destination.instructions }}</p>
 				<div class="mt-6 flex flex-col gap-2">

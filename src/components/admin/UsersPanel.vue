@@ -3,7 +3,7 @@ import { openModal } from '@kolirt/vue-modal'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminSkeleton from './AdminSkeleton.vue'
-import { deleteAdminUser, listAdminUsers, listSettings, revokeAdminUserSessions, updateAdminUser, updateSetting, type AdminUser, type AdminUserChanges, type ServerSetting } from '../../api'
+import { deleteAdminUser, listAdminLinkedAccounts, listAdminUsers, listSettings, revokeAdminUserSessions, updateAdminUser, updateSetting, type AdminUser, type AdminUserChanges, type PublicLinkedAccount, type ServerSetting } from '../../api'
 import { getMailStatus } from '../../api/mail'
 import { confirmAction } from '../../composables/confirm'
 import { notify } from '../../composables/notify'
@@ -27,6 +27,7 @@ const { t, locale } = useI18n()
 const payments = usePayments()
 
 const users = ref<AdminUser[]>([])
+const linkedByUser = ref<Record<string, PublicLinkedAccount[]>>({})
 const settingsValues = ref<ServerSetting[]>([])
 const isLoading = ref(true)
 const loadError = ref('')
@@ -164,13 +165,18 @@ function relativeTime(iso: string | null) {
 
 async function load() {
   try {
-    const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings(), getMailStatus().catch(() => null)]))
+    const [error, result] = await catchError(Promise.all([listAdminUsers(), listSettings(), getMailStatus().catch(() => null), listAdminLinkedAccounts().catch(() => [] as PublicLinkedAccount[])]))
     if (error) {
       console.error('[users] failed to load', error)
       loadError.value = describeRequestError(error, t('admin.users.loadError'))
     } else {
-      const [list, settings, mail] = result
+      const [list, settings, mail, linked] = result
       users.value = list
+      const grouped: Record<string, PublicLinkedAccount[]> = {}
+      for (const item of linked) {
+        ;(grouped[item.userId] ??= []).push(item)
+      }
+      linkedByUser.value = grouped
       settingsValues.value = settings
       selectionAnchor = null
       selectedIds.value = selectedIds.value.filter((id) => list.some((user) => user.id === id && !user.current))
@@ -328,6 +334,14 @@ onMounted(() => {
                 <div class="flex flex-wrap items-center gap-1.5">
                   <StatusPill v-if="user.invited" tone="accent">{{ t('admin.users.invitedBadge') }}</StatusPill>
                   <StatusPill :tone="user.invite && user.invite.serverType !== 'flixer' ? 'good' : 'neutral'">{{ accountServerLabel(user) }}</StatusPill>
+                  <StatusPill
+                    v-for="acct in linkedByUser[user.id] ?? []"
+                    :key="acct.id"
+                    :tone="acct.status === 'failed' ? 'bad' : acct.status === 'completed' ? 'good' : 'warn'"
+                    :title="acct.error ?? `${acct.serverName} (${acct.status})`"
+                  >
+                    {{ t(`admin.invites.types.${acct.serverType}`) }} · {{ acct.serverName }}
+                  </StatusPill>
                 </div>
               </td>
               <td>

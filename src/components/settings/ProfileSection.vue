@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListSkeleton from '../ui/ListSkeleton.vue'
 import { useRouter } from 'vue-router'
-import { clearAccessToken, deleteAccount, getRegistrationFields, updateProfile, type RegistrationFieldValue } from '../../api'
+import { clearAccessToken, deleteAccount, getRegistrationFields, listMyLinkedAccounts, updateProfile, type PublicLinkedAccount, type RegistrationFieldValue } from '../../api'
 import { notify } from '../../composables/notify'
 import { requestPassword } from '../../composables/requestPassword'
 import { describeRequestError, useProfile } from '../../composables/useProfile'
@@ -19,7 +19,9 @@ const { t } = useI18n()
 const { profile, load, setProfile, clear } = useProfile()
 const isDeletingAccount = ref(false)
 const registrationFields = ref<RegistrationFieldValue[]>([])
+const linkedAccounts = ref<PublicLinkedAccount[]>([])
 void getRegistrationFields().then((fields) => { registrationFields.value = fields }).catch(() => undefined)
+void listMyLinkedAccounts().then((accounts) => { linkedAccounts.value = accounts }).catch(() => undefined)
 
 async function confirmDeleteAccount() {
   if (isDeletingAccount.value) return
@@ -139,6 +141,25 @@ async function save() {
     <PrivacySection />
 
     <ExternalProvidersSection />
+
+    <section v-if="linkedAccounts.length" class="lg:col-span-2" aria-labelledby="linked-accounts-heading">
+      <h2 id="linked-accounts-heading" class="text-lg font-semibold">Linked Accounts</h2>
+      <p class="mt-1 text-sm text-flixer-muted">Media server accounts linked to your Flixer account.</p>
+      <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+        <li v-for="acct in linkedAccounts" :key="acct.id" class="flex items-center justify-between gap-3 rounded border border-flixer-border bg-flixer-surface/50 px-4 py-3">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-flixer-text">{{ acct.serverName }} <span class="text-xs font-normal text-flixer-muted">({{ t(`admin.invites.types.${acct.serverType}`) }})</span></p>
+            <p class="mt-0.5 truncate text-xs text-flixer-muted">
+              <span v-if="acct.externalUsername">{{ acct.externalUsername }}</span>
+              <span v-else-if="acct.externalEmail">{{ acct.externalEmail }}</span>
+              · <span :class="acct.status === 'failed' ? 'text-rose-400' : acct.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'">{{ acct.status }}</span>
+            </p>
+            <p v-if="acct.error" class="mt-1 text-xs text-rose-400">{{ acct.error }}</p>
+          </div>
+          <a v-if="acct.serverUrl && acct.status === 'completed'" :href="acct.serverUrl" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded border border-flixer-border px-3 py-1.5 text-xs font-semibold text-flixer-text hover:bg-flixer-border/40">Open</a>
+        </li>
+      </ul>
+    </section>
 
     <section class="rounded border border-rose-400/20 bg-rose-400/5 p-5 lg:col-span-2" aria-labelledby="danger-heading">
       <h2 id="danger-heading" class="text-lg font-semibold text-rose-200">{{ t('settings.profile.deleteAccountTitle') }}

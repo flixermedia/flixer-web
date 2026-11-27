@@ -35,6 +35,8 @@ export interface Invitation {
 	code: string;
 	label: string | null;
 	server: { id: string; name: string; type: InviteServerType } | null;
+	servers?: { id: string; name: string; type: InviteServerType }[];
+	includeFlixer?: boolean;
 	maxUses: number | null;
 	usedCount: number;
 	expiresAt: string | null;
@@ -55,6 +57,8 @@ export interface InvitationInput {
 	code?: string;
 	label?: string | null;
 	serverId?: string | null;
+	serverIds?: string[];
+	includeFlixer?: boolean;
 	maxUses?: number | null;
 	expiresAt?: string | null;
 	disabled?: boolean;
@@ -81,10 +85,17 @@ export interface InvitationUsage {
 	createdAt: string;
 }
 
+export interface PublicInviteService {
+	id: string;
+	type: InviteDestinationType;
+	name: string | null;
+}
+
 export interface PublicInvite {
 	code: string;
 	label: string | null;
 	destination: { type: InviteDestinationType; name: string | null };
+	services?: PublicInviteService[];
 	paymentRequired: boolean;
 	expiresAt: string | null;
 	usesRemaining: number | null;
@@ -100,11 +111,47 @@ export interface InviteDestination {
 
 export interface InviteAccountExists {
 	accountExists: true;
+	existingUsername?: string;
+}
+
+export type LinkedAccountStatus = "pending_payment" | "pending_verification" | "completed" | "failed";
+
+export interface LinkedServiceOutcome {
+	serverId: string;
+	name: string;
+	type: InviteServerType;
+	url: string | null;
+	status: LinkedAccountStatus;
+	alreadyLinked: boolean;
+	invitedByEmail: boolean;
+	error: string | null;
+}
+
+export interface PublicLinkedAccount {
+	id: string;
+	userId: string;
+	serverId: string;
+	serverName: string;
+	serverType: InviteServerType;
+	serverUrl: string | null;
+	externalUserId: string | null;
+	externalUsername: string | null;
+	externalEmail: string | null;
+	status: LinkedAccountStatus;
+	error: string | null;
+	lastSyncedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export type InviteVerificationPending = VerificationPending & { resendToken?: string };
 
-export type InviteRedemptionResult = (AuthResult | InviteVerificationPending | PaymentPending | InviteAccountExists) & { destination: InviteDestination };
+export type InviteRedemptionResult = (AuthResult | InviteVerificationPending | PaymentPending | InviteAccountExists) & {
+	destination: InviteDestination;
+	services?: PublicInviteService[];
+	linkedServices?: LinkedServiceOutcome[];
+	plexPending?: boolean;
+};
 
 export interface PlexInviteAuthStart {
 	sessionToken: string;
@@ -190,4 +237,16 @@ export async function pollPlexInviteAuth(code: string, sessionToken: string): Pr
 
 export async function acceptPlexInvite(code: string, plexAuthTicket: string): Promise<InviteRedemptionResult> {
 	return (await api.post<InviteRedemptionResult>(`/invites/${encodeURIComponent(code)}/plex/accept`, { plexAuthTicket })).data;
+}
+
+export async function listMyLinkedAccounts(): Promise<PublicLinkedAccount[]> {
+	return (await api.get<PublicLinkedAccount[]>("/invites/linked-accounts")).data;
+}
+
+export async function listAdminLinkedAccounts(): Promise<PublicLinkedAccount[]> {
+	return (await api.get<PublicLinkedAccount[]>("/admin/invites/linked-accounts")).data;
+}
+
+export async function listAdminUserLinkedAccounts(userId: string): Promise<PublicLinkedAccount[]> {
+	return (await api.get<PublicLinkedAccount[]>(`/admin/invites/users/${encodeURIComponent(userId)}/linked-accounts`)).data;
 }

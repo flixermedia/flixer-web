@@ -9,7 +9,7 @@ set -euo pipefail
 # Configuration
 # -----------------------------------------------------------------------------
 
-MAC_HOST="${MAC_HOST:-ashley@ashleys-macbook-pro}"
+MAC_HOST="${REMOTE:-}"
 MAC_DIR="${MAC_DIR:-Developer/flixer-web}"
 
 # Leave empty for first available device / interactive

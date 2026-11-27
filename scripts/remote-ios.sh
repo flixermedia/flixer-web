@@ -11,7 +11,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 # Remote macOS environment
-MAC_HOST="${MAC_HOST:-ashley@ashleys-macbook-pro}"
+MAC_HOST="${REMOTE:-ashley@ashleys-macbook-pro}"
 MAC_DIR="${MAC_DIR:-Developer/flixer-web}"
 
 # Device configuration

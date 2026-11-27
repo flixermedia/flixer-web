@@ -98,7 +98,15 @@ function inviteState(invitation: Invitation): "disabled" | "expired" | "exhauste
 }
 
 function destinationLabel(invitation: Invitation): string {
-	return invitation.server ? `${invitation.server.name} (${t(`admin.invites.types.${invitation.server.type}`)})` : t("admin.invites.types.flixer");
+	const parts: string[] = [];
+	if (invitation.includeFlixer ?? true) {
+		parts.push(t("admin.invites.types.flixer"));
+	}
+	const servers = invitation.servers?.length ? invitation.servers : invitation.server ? [invitation.server] : [];
+	for (const server of servers) {
+		parts.push(`${server.name} (${t(`admin.invites.types.${server.type}`)})`);
+	}
+	return parts.length ? parts.join(" + ") : t("admin.invites.types.flixer");
 }
 
 async function toggleInvite(invitation: Invitation) {

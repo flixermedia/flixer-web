@@ -27,11 +27,18 @@ function toDateTimeLocal(iso: string | null | undefined): string {
 const isEditing = computed(() => !!props.invitation);
 const canChangeDestination = computed(() => !props.invitation || props.invitation.usedCount === 0);
 
+const initialServerIds = props.invitation?.servers?.length
+	? props.invitation.servers.map((s) => s.id)
+	: props.invitation?.server?.id
+		? [props.invitation.server.id]
+		: [];
+
 const busy = ref(false);
 const form = reactive({
 	label: props.invitation?.label ?? "",
 	code: props.invitation?.code ?? "",
-	serverId: props.invitation?.server?.id ?? "",
+	includeFlixer: props.invitation?.includeFlixer ?? true,
+	serverIds: [...initialServerIds],
 	maxUses: props.invitation?.maxUses != null ? String(props.invitation.maxUses) : "",
 	expiresAt: toDateTimeLocal(props.invitation?.expiresAt),
 	userExpiresInDays: props.invitation?.userExpiresInDays != null ? String(props.invitation.userExpiresInDays) : "",
@@ -44,8 +51,10 @@ const form = reactive({
 	disablePlexOnlineSources: props.invitation?.disablePlexOnlineSources ?? true,
 });
 
-const selectableServers = computed(() => props.servers.filter((item) => item.enabled || item.id === props.invitation?.server?.id));
-const selectedServer = computed(() => props.servers.find((server) => server.id === form.serverId) ?? (props.invitation?.server?.id === form.serverId ? props.invitation.server : null));
+const selectableServers = computed(() => props.servers.filter((item) => item.enabled || form.serverIds.includes(item.id)));
+const selectedServers = computed(() => props.servers.filter((server) => form.serverIds.includes(server.id)));
+const hasNonOtherSelected = computed(() => selectedServers.value.some((server) => server.type !== "other"));
+const hasPlexSelected = computed(() => selectedServers.value.some((server) => server.type === "plex"));
 
 async function submit() {
 	busy.value = true;
@@ -55,14 +64,15 @@ async function submit() {
 			.map((id) => id.trim())
 			.filter(Boolean);
 		const libraryIds = form.libraryMode === "selected" ? form.libraryIds : [];
-		const disablePlexOnlineSources = selectedServer.value?.type === "plex" ? form.disablePlexOnlineSources : false;
+		const disablePlexOnlineSources = hasPlexSelected.value ? form.disablePlexOnlineSources : false;
 
 		const [error, saved] = await catchError(
 			props.invitation
 				? updateInvitation(props.invitation.id, {
 						label: form.label.trim(),
 						code: form.code.trim(),
-						...(canChangeDestination.value ? { serverId: form.serverId || null } : {}),
+						...(canChangeDestination.value ? { serverIds: form.serverIds, serverId: form.serverIds[0] ?? null } : {}),
+						includeFlixer: form.includeFlixer,
 						maxUses: form.maxUses ? Number(form.maxUses) : null,
 						expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
 						userExpiresInDays: form.userExpiresInDays ? Number(form.userExpiresInDays) : null,
@@ -77,7 +87,9 @@ async function submit() {
 				: createInvitation({
 						label: form.label.trim() || undefined,
 						code: form.code.trim() || undefined,
-						serverId: form.serverId || undefined,
+						serverIds: form.serverIds,
+						serverId: form.serverIds[0] || undefined,
+						includeFlixer: form.includeFlixer,
 						maxUses: form.maxUses ? Number(form.maxUses) : undefined,
 						expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
 						userExpiresInDays: form.userExpiresInDays ? Number(form.userExpiresInDays) : undefined,
@@ -115,11 +127,17 @@ async function submit() {
 					<TextInput v-model="form.label" :label="t('admin.invites.form.label')" name="label" maxlength="100" :placeholder="t('admin.invites.form.labelPlaceholder')" autocomplete="off" autofocus />
 
 					<div class="flex min-w-0 flex-col gap-2">
-						<label for="invitation-destination" class="text-xs font-semibold text-flixer-muted">{{ t("admin.invites.form.destination") }}</label>
-						<select id="invitation-destination" v-model="form.serverId" :disabled="!canChangeDestination" class="h-12 w-full rounded border border-flixer-border bg-flixer-surface/50 px-4 text-base text-flixer-text outline-none focus:border-flixer-accent/60 disabled:opacity-60 sm:text-sm">
-							<option value="">{{ t("admin.invites.types.flixer") }}</option>
-							<option v-for="server in selectableServers" :key="server.id" :value="server.id">{{ server.name }} ({{ t(`admin.invites.types.${server.type}`) }})</option>
-						</select>
+						<span class="text-xs font-semibold text-flixer-muted">{{ t("admin.invites.form.destination") }}</span>
+						<div class="flex flex-col gap-2 rounded border border-flixer-border bg-flixer-surface/50 p-3">
+							<label class="flex items-center gap-2.5 text-sm text-flixer-text">
+								<input v-model="form.includeFlixer" type="checkbox" class="accent-flixer-primary" :disabled="!canChangeDestination" />
+								<span>{{ t("admin.invites.types.flixer") }}</span>
+							</label>
+							<label v-for="server in selectableServers" :key="server.id" class="flex items-center gap-2.5 text-sm text-flixer-text">
+								<input v-model="form.serverIds" type="checkbox" :value="server.id" class="accent-flixer-primary" :disabled="!canChangeDestination" />
+								<span>{{ server.name }} <span class="text-xs text-flixer-muted">({{ t(`admin.invites.types.${server.type}`) }})</span></span>
+							</label>
+						</div>
 						<p v-if="!canChangeDestination" class="text-xs text-flixer-muted">{{ t("admin.invites.form.destinationLockedHint") }}</p>
 					</div>
 
@@ -144,10 +162,10 @@ async function submit() {
 						</div>
 					</div>
 
-					<TextInput v-if="selectedServer && selectedServer.type !== 'other'" v-model="form.externalLibraryIds" :label="t('admin.invites.form.externalLibraryIds')" name="externalLibraryIds" :hint="t('admin.invites.form.externalLibraryIdsPlaceholder')" autocomplete="off" />
+					<TextInput v-if="hasNonOtherSelected" v-model="form.externalLibraryIds" :label="t('admin.invites.form.externalLibraryIds')" name="externalLibraryIds" :hint="t('admin.invites.form.externalLibraryIdsPlaceholder')" autocomplete="off" />
 
 					<AdminToggle v-model="form.allowDownloads" :label="t('admin.invites.form.allowDownloads')" :description="t('admin.invites.form.allowDownloadsDescription')" />
-					<AdminToggle v-if="selectedServer?.type === 'plex'" v-model="form.disablePlexOnlineSources" :label="t('admin.invites.form.disablePlexOnlineSources')" :description="t('admin.invites.form.disablePlexOnlineSourcesDescription')" />
+					<AdminToggle v-if="hasPlexSelected" v-model="form.disablePlexOnlineSources" :label="t('admin.invites.form.disablePlexOnlineSources')" :description="t('admin.invites.form.disablePlexOnlineSourcesDescription')" />
 					<AdminToggle v-model="form.skipPayment" :label="t('admin.invites.form.skipPayment')" :description="t('admin.invites.form.skipPaymentDescription')" />
 					<AdminToggle v-model="form.skipEmailVerification" :label="t('admin.invites.form.skipEmailVerification')" :description="t('admin.invites.form.skipEmailVerificationDescription')" />
 				</div>
