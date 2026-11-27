@@ -4,6 +4,7 @@ import { AUTH_TOKEN_CHANGED_EVENT, deleteNotification, getAccessToken, getNotifi
 import { isNativeApp } from '../platform/serverConnection'
 import { checkNativeNotificationPermission, NATIVE_NOTIFICATIONS_ENABLED_KEY, newNotificationsSince, prepareNativeNotifications, requestNativeNotificationPermission, setNativeAppBadge, showNativeNotifications, supportsNativeLocalNotifications } from '../platform/nativeNotifications.ts'
 import { catchError } from '../utils/catchError'
+import { runOptimistic } from '../utils/optimistic'
 import { notify } from './notify'
 import { i18n } from '../i18n'
 
@@ -259,30 +260,70 @@ async function disablePush() {
 
 async function markAllRead() {
   if (unread.value === 0) return
-  items.value = items.value.map((item) => ({ ...item, read: true }))
-  unread.value = 0
-  syncNativeBadge(0)
-  const [error] = await catchError(markNotificationsRead())
-  if (error) await refresh()
+  await runOptimistic({
+    key: 'notifications:markAllRead',
+    apply: () => {
+      const prevItems = items.value.map((item) => ({ ...item }))
+      const prevUnread = unread.value
+      items.value = items.value.map((item) => ({ ...item, read: true }))
+      unread.value = 0
+      syncNativeBadge(0)
+      return { prevItems, prevUnread }
+    },
+    commit: () => markNotificationsRead(),
+    rollback: ({ prevItems, prevUnread }) => {
+      items.value = prevItems
+      unread.value = prevUnread
+      syncNativeBadge(prevUnread)
+    },
+  })
 }
 
 async function markRead(id: string) {
   const target = items.value.find((item) => item.id === id)
   if (!target || target.read) return
-  target.read = true
-  unread.value = Math.max(0, unread.value - 1)
-  syncNativeBadge(unread.value)
-  const [error] = await catchError(markNotificationsRead([id]))
-  if (error) await refresh()
+  await runOptimistic({
+    key: `notifications:read:${id}`,
+    apply: () => {
+      const prevUnread = unread.value
+      target.read = true
+      unread.value = Math.max(0, unread.value - 1)
+      syncNativeBadge(unread.value)
+      return prevUnread
+    },
+    commit: () => markNotificationsRead([id]),
+    rollback: (prevUnread) => {
+      const current = items.value.find((item) => item.id === id)
+      if (current) current.read = false
+      unread.value = prevUnread
+      syncNativeBadge(prevUnread)
+    },
+  })
 }
 
 async function dismiss(id: string) {
-  const target = items.value.find((item) => item.id === id)
-  items.value = items.value.filter((item) => item.id !== id)
-  if (target && !target.read) unread.value = Math.max(0, unread.value - 1)
-  syncNativeBadge(unread.value)
-  const [error] = await catchError(deleteNotification(id))
-  if (error) await refresh()
+  await runOptimistic({
+    key: `notifications:dismiss:${id}`,
+    apply: () => {
+      const index = items.value.findIndex((item) => item.id === id)
+      const target = index >= 0 ? items.value[index] : undefined
+      const prevUnread = unread.value
+      items.value = items.value.filter((item) => item.id !== id)
+      if (target && !target.read) unread.value = Math.max(0, unread.value - 1)
+      syncNativeBadge(unread.value)
+      return { index, target, prevUnread }
+    },
+    commit: () => deleteNotification(id),
+    rollback: ({ index, target, prevUnread }) => {
+      if (target && !items.value.some((item) => item.id === target.id)) {
+        const next = [...items.value]
+        next.splice(Math.min(Math.max(0, index), next.length), 0, target)
+        items.value = next
+      }
+      unread.value = prevUnread
+      syncNativeBadge(prevUnread)
+    },
+  })
 }
 
 export function useNotifications() {

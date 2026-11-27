@@ -22,7 +22,7 @@ const counts = computed(() => {
 <template>
   <AdminSection :title="t('admin.dashboard.widgets.issues')" compact class="h-full">
     <template #actions>
-      <router-link :to="{ name: 'admin', query: { tab: 'issues', page: 'tickets' } }" class="text-xs font-medium text-flixer-accent hover:underline">
+      <router-link :to="{ name: 'issues' }" class="text-xs font-medium text-flixer-accent hover:underline">
         {{ t('admin.dashboard.viewAll') }}
       </router-link>
     </template>

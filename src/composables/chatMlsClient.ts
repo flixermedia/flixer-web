@@ -169,47 +169,68 @@ async function registerInitialPackage(userId: string, record: LocalDeviceRecord)
 	await saveLocalDevice(userId, record);
 }
 
+const reserveLockByUser = new Map<string, Promise<void>>();
+
 async function createAndUploadPackage(userId: string, record: LocalDeviceRecord): Promise<void> {
 	const device = await createChatMlsDevice(userId, record.deviceId);
 	const localId = `pending:${randomId()}`;
-	record.keyPackages[localId] = {
+	const freshBefore = (await readLocalDevice(userId)) ?? record;
+	freshBefore.keyPackages[localId] = {
 		serializedDevice: serializeChatMlsDevice(device),
 		keyPackageId: null,
 		pendingUpload: true,
 	};
-	await saveLocalDevice(userId, record);
-	const result = await addChatMlsKeyPackage(record.deviceId, encodeChatMlsKeyPackage(device.keyPackage));
-	delete record.keyPackages[localId];
-	record.keyPackages[result.keyPackageId] = {
+	await saveLocalDevice(userId, freshBefore);
+	const result = await addChatMlsKeyPackage(freshBefore.deviceId, encodeChatMlsKeyPackage(device.keyPackage));
+	const freshAfter = (await readLocalDevice(userId)) ?? freshBefore;
+	delete freshAfter.keyPackages[localId];
+	freshAfter.keyPackages[result.keyPackageId] = {
 		serializedDevice: serializeChatMlsDevice(device),
 		keyPackageId: result.keyPackageId,
 		pendingUpload: false,
 	};
-	await saveLocalDevice(userId, record);
+	await saveLocalDevice(userId, freshAfter);
+	Object.assign(record, freshAfter);
 }
 
 async function uploadPendingPackages(userId: string, record: LocalDeviceRecord): Promise<void> {
-	for (const [localId, packageRecord] of Object.entries(record.keyPackages)) {
+	const fresh = (await readLocalDevice(userId)) ?? record;
+	for (const [localId, packageRecord] of Object.entries(fresh.keyPackages)) {
 		if (!packageRecord.pendingUpload) continue;
 		const device = restoreChatMlsDevice(packageRecord.serializedDevice);
-		const result = await addChatMlsKeyPackage(record.deviceId, encodeChatMlsKeyPackage(device.keyPackage));
-		delete record.keyPackages[localId];
-		record.keyPackages[result.keyPackageId] = {
+		const result = await addChatMlsKeyPackage(fresh.deviceId, encodeChatMlsKeyPackage(device.keyPackage));
+		const latest = (await readLocalDevice(userId)) ?? fresh;
+		delete latest.keyPackages[localId];
+		latest.keyPackages[result.keyPackageId] = {
 			serializedDevice: packageRecord.serializedDevice,
 			keyPackageId: result.keyPackageId,
 			pendingUpload: false,
 		};
-		await saveLocalDevice(userId, record);
+		await saveLocalDevice(userId, latest);
+		Object.assign(record, latest);
 	}
 }
 
 async function ensurePackageReserve(userId: string, record: LocalDeviceRecord): Promise<void> {
-	await uploadPendingPackages(userId, record);
-	const remote = await getChatMlsDeviceKeyPackages(record.deviceId);
-	const locallyUsable = remote.keyPackages.filter((item) => item.available && record.keyPackages[item.keyPackageId]);
-	while (locallyUsable.length < KEY_PACKAGE_RESERVE) {
-		await createAndUploadPackage(userId, record);
-		locallyUsable.push({ keyPackageId: Object.keys(record.keyPackages).at(-1) ?? "", keyPackage: "", available: true });
+	const previous = reserveLockByUser.get(userId) ?? Promise.resolve();
+	const run = previous.catch(() => undefined).then(async () => {
+		const latest = (await readLocalDevice(userId)) ?? record;
+		await uploadPendingPackages(userId, latest);
+		const remote = await getChatMlsDeviceKeyPackages(latest.deviceId);
+		const locallyUsable = remote.keyPackages.filter((item) => item.available && latest.keyPackages[item.keyPackageId]);
+		while (locallyUsable.length < KEY_PACKAGE_RESERVE) {
+			await createAndUploadPackage(userId, latest);
+			locallyUsable.push({ keyPackageId: Object.keys(latest.keyPackages).at(-1) ?? "", keyPackage: "", available: true });
+		}
+		Object.assign(record, latest);
+	});
+	reserveLockByUser.set(userId, run);
+	try {
+		await run;
+	} finally {
+		if (reserveLockByUser.get(userId) === run) {
+			reserveLockByUser.delete(userId);
+		}
 	}
 }
 
@@ -265,6 +286,25 @@ async function registerDevice(userId: string): Promise<LocalDeviceRecord> {
 	return record;
 }
 
+const reserveSyncedAtByUser = new Map<string, number>();
+const reserveWatchers = new Set<string>();
+
+function startPackageReserveWatcher(userId: string) {
+	if (typeof window === "undefined" || reserveWatchers.has(userId)) return;
+	reserveWatchers.add(userId);
+	const topUp = () => {
+		if (document.visibilityState === "hidden") return;
+		const lastSynced = reserveSyncedAtByUser.get(userId) ?? 0;
+		if (Date.now() - lastSynced < 30_000) return;
+		reserveSyncedAtByUser.set(userId, Date.now());
+		void initializeChatMlsDevice(userId).catch(() => {
+			reserveSyncedAtByUser.delete(userId);
+		});
+	};
+	window.setInterval(topUp, 60_000);
+	document.addEventListener("visibilitychange", topUp);
+}
+
 export async function initializeChatMlsDevice(userId: string): Promise<LocalDeviceRecord | null> {
 	if (!encryptionStatus || Date.now() - encryptionStatusCheckedAt > 60_000) {
 		encryptionStatusCheckedAt = Date.now();
@@ -280,7 +320,18 @@ export async function initializeChatMlsDevice(userId: string): Promise<LocalDevi
 		registrationByUser.set(userId, pending);
 	}
 	try {
-		return await pending;
+		const record = await pending;
+		if (record.status === "active") {
+			startPackageReserveWatcher(userId);
+			const lastSynced = reserveSyncedAtByUser.get(userId) ?? 0;
+			if (Date.now() - lastSynced > 30_000) {
+				reserveSyncedAtByUser.set(userId, Date.now());
+				void ensurePackageReserve(userId, record).catch(() => {
+					reserveSyncedAtByUser.delete(userId);
+				});
+			}
+		}
+		return record;
 	} finally {
 		registrationByUser.delete(userId);
 	}
@@ -350,7 +401,10 @@ export async function syncChatMlsHistoryBackup(userId: string, password: string)
 				const page = await getChatMessages(conversation.id, beforeSequence ? { beforeSequence } : {});
 				const result = await decryptChatMessages(userId, conversation.id, page.messages, false);
 				if (result.unavailableMessageIds.size > 0) {
-					throw new Error(`${result.unavailableMessageIds.size} encrypted message(s) could not be decrypted on this device.`);
+					console.debug("[chat encryption] skipped unavailable messages during history sync", {
+						conversationId: conversation.id,
+						count: result.unavailableMessageIds.size,
+					});
 				}
 				if (!page.hasMore || page.messages.length === 0) break;
 				const nextBefore = page.messages[0].sequence;
@@ -377,7 +431,7 @@ export async function decryptChatMessages(
 	if (!record) return { messages: new Map(), unavailableMessageIds: new Set() };
 	if (record.status !== "active") throw new Error("This chat device is not active. Sign in again after updating the Flixer server.");
 	const [{ keyPackages }, { welcomes }] = await Promise.all([
-		getChatMlsKeyPackages(conversationId),
+		getChatMlsKeyPackages(conversationId, true),
 		getChatMlsWelcomes(conversationId, record.deviceId),
 	]);
 	const trustedDevices: ChatMlsTrustedDevice[] = keyPackages.map((item) => ({
@@ -402,19 +456,24 @@ export async function decryptChatMessages(
 			unavailableMessageIds.add(message.id);
 			continue;
 		}
-		const localDevice = packageForId(record, welcome.keyPackageId);
-		const group = await joinChatMlsGroup(
-			decodeChatMlsWelcome(welcome.welcome),
-			localDevice,
-			decodeChatMlsRatchetTree(welcome.ratchetTree),
-			authentication,
-		);
-		const decrypted = await decryptChatMlsMessage(group, message.body, rejectGroupChanges);
-		if (decrypted.plaintext === null) throw new Error("The encrypted chat message did not contain text.");
-		await storeChatMlsLocalValue(userId, record.deviceId, `message:${message.id}`, decrypted.plaintext);
-		cacheChanged = true;
-		await acknowledgeChatMlsWelcome(conversationId, welcome.id, record.deviceId);
-		result.set(message.id, decrypted.plaintext);
+		try {
+			const localDevice = packageForId(record, welcome.keyPackageId);
+			const group = await joinChatMlsGroup(
+				decodeChatMlsWelcome(welcome.welcome),
+				localDevice,
+				decodeChatMlsRatchetTree(welcome.ratchetTree),
+				authentication,
+			);
+			const decrypted = await decryptChatMlsMessage(group, message.body, rejectGroupChanges);
+			if (decrypted.plaintext === null) throw new Error("The encrypted chat message did not contain text.");
+			await storeChatMlsLocalValue(userId, record.deviceId, `message:${message.id}`, decrypted.plaintext);
+			cacheChanged = true;
+			await acknowledgeChatMlsWelcome(conversationId, welcome.id, record.deviceId);
+			result.set(message.id, decrypted.plaintext);
+		} catch (error) {
+			console.warn("[chat encryption] could not decrypt message", { conversationId, messageId: message.id, error });
+			unavailableMessageIds.add(message.id);
+		}
 	}
 	if (preparePackages) await ensurePackageReserve(userId, record);
 	if (syncBackup && cacheChanged && historyBackupPassword) {

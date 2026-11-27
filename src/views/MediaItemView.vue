@@ -266,7 +266,7 @@ const isMusic = computed(() => isAlbum.value || isTrack.value)
 const usesBanner = computed(() => isMusic.value && item.value !== null && item.value.backdrop === null)
 const FAVORITABLE = ['movie', 'series', 'album', 'track', 'video']
 const canFavorite = computed(() => !!item.value && FAVORITABLE.includes(item.value.type))
-const canReportIssue = computed(() => issueReports.enabled.value && !!item.value)
+const canReportIssue = computed(() => !isAdmin.value && issueReports.enabled.value && !!item.value)
 async function reportIssue() {
   const current = item.value
   if (!current) return

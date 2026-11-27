@@ -3,21 +3,29 @@ import { domToJpeg } from 'modern-screenshot'
 import { getAccessToken } from '../api/client'
 import { i18n } from '../i18n'
 import {
+  createSupportTicket,
+  deleteSupportTicket,
   endSupportSession,
   fetchSupportAttachmentBlobUrl,
   getCloudStatus,
   getSupportDiagnostics,
   getSupportMessages,
+  getSupportTicket,
+  listSupportTickets,
+  replySupportTicket,
   sendSupportMessage,
   syncCloudEntitlements,
   type CloudEntitlementStatus,
   type SupportChatMessage,
+  type SupportTicket,
+  type SupportTicketMessage,
 } from '../api/cloud'
 import { buildApiWebSocketUrl } from '../platform/serverConnection'
 import { notify } from './notify'
 import { playChime, unlockAudio } from './useChat'
 import { describeRequestError } from './useProfile'
 import { catchError } from '../utils/catchError'
+import { runOptimistic } from '../utils/optimistic'
 
 const RECONNECT_DELAY_MS = 3000
 const STORAGE_OPEN_KEY = 'flixer:priority-support-open'
@@ -352,18 +360,38 @@ async function openChat(minimized = false) {
   connectSocket()
 }
 
+let backgroundRoomTimer: number | null = null
+
+function startBackgroundRoomWatcher() {
+  if (backgroundRoomTimer !== null || typeof window === 'undefined') return
+  backgroundRoomTimer = window.setInterval(async () => {
+    if (isOpen.value || !hasPrioritySupport.value || document.visibilityState === 'hidden') return
+    const [error, data] = await catchError(getSupportMessages())
+    if (error || !data?.room?.open) return
+    applyMessagesUpdate(data.room, data.messages)
+    await openChat(false)
+  }, 15_000)
+}
+
 async function restoreOpenChat() {
   if (isOpen.value) return
-  if (readStorageFlag(STORAGE_OPEN_KEY)) {
-    await openChat(readStorageFlag(STORAGE_MINIMIZED_KEY))
-    return
-  }
   if (!status.value) {
     await refreshStatus()
   }
-  if (!hasPrioritySupport.value) return
+  if (!hasPrioritySupport.value) {
+    writeStorageFlag(STORAGE_OPEN_KEY, false)
+    writeStorageFlag(STORAGE_MINIMIZED_KEY, false)
+    writeStorageFlag(STORAGE_HAD_ROOM_KEY, false)
+    return
+  }
+  startBackgroundRoomWatcher()
   const [error, data] = await catchError(getSupportMessages())
-  if (error || !data?.room?.open) return
+  if (error || !data?.room?.open) {
+    writeStorageFlag(STORAGE_OPEN_KEY, false)
+    writeStorageFlag(STORAGE_MINIMIZED_KEY, false)
+    writeStorageFlag(STORAGE_HAD_ROOM_KEY, false)
+    return
+  }
   applyMessagesUpdate(data.room, data.messages)
   await openChat(readStorageFlag(STORAGE_MINIMIZED_KEY))
 }
@@ -491,20 +519,34 @@ async function sendMessage() {
   const screenshot = pendingScreenshot.value
   if ((!text && !screenshot) || isSending.value) return
   isSending.value = true
+  const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const optimisticMsg: SupportChatMessage = {
+    id: tempId,
+    sender: 'customer',
+    senderName: 'You',
+    text,
+    timestamp: new Date().toISOString(),
+    ...(screenshot ? { attachments: [{ name: screenshot.name, url: screenshot.dataUrl, contentType: 'image/jpeg' }] } : {}),
+  }
+  draft.value = ''
+  pendingScreenshot.value = null
+  messages.value = [...messages.value, optimisticMsg]
+
   try {
     if (!screenshot && socket && socket.readyState === WebSocket.OPEN && wsConnected.value) {
       socket.send(JSON.stringify({ type: 'send', message: text }))
-      draft.value = ''
       return
     }
 
     const [error, data] = await catchError(sendSupportMessage(text, screenshot ?? undefined))
     if (error) {
+      messages.value = messages.value.filter((m) => m.id !== tempId)
+      if (!draft.value) draft.value = text
+      if (screenshot && !pendingScreenshot.value) pendingScreenshot.value = screenshot
       notify.error(describeRequestError(error, i18n.global.t('admin.prioritySupport.sendFailed')))
       return
     }
-    draft.value = ''
-    pendingScreenshot.value = null
+    messages.value = messages.value.filter((m) => m.id !== tempId)
     if (data?.message) {
       if (screenshot && data.message.attachments?.length) {
         for (const att of data.message.attachments) {
@@ -521,6 +563,89 @@ async function sendMessage() {
     }
   } finally {
     isSending.value = false
+  }
+}
+
+const tickets = ref<SupportTicket[]>([])
+const isLoadingTickets = ref(false)
+const isSubmittingTicket = ref(false)
+const deletingTicketId = ref<string | null>(null)
+
+async function loadTickets() {
+  if (!hasPrioritySupport.value) return
+  isLoadingTickets.value = true
+  try {
+    tickets.value = await listSupportTickets()
+  } catch {
+    // Non-fatal
+  } finally {
+    isLoadingTickets.value = false
+  }
+}
+
+async function openTicketThread(ticketId: string): Promise<{ ticket: SupportTicket; messages: SupportTicketMessage[]; conversationId?: string | null }> {
+  return getSupportTicket(ticketId)
+}
+
+async function submitNewTicket(subject: string, message: string, category = 'general'): Promise<{ ticket: SupportTicket; conversationId: string | null } | null> {
+  isSubmittingTicket.value = true
+  try {
+    const res = await createSupportTicket(subject, message, category)
+    const ticketWithChat: SupportTicket = {
+      ...res.ticket,
+      conversationId: res.conversationId ?? res.ticket.conversationId ?? null,
+    }
+    tickets.value = [ticketWithChat, ...tickets.value]
+    notify.success('Support ticket submitted.')
+    return { ticket: ticketWithChat, conversationId: ticketWithChat.conversationId ?? null }
+  } catch (error) {
+    notify.error(describeRequestError(error, 'Could not submit support ticket.'))
+    return null
+  } finally {
+    isSubmittingTicket.value = false
+  }
+}
+
+async function sendTicketReply(ticketId: string, message: string): Promise<{ ticket: SupportTicket; message: SupportTicketMessage } | null> {
+  isSubmittingTicket.value = true
+  try {
+    const res = await replySupportTicket(ticketId, message)
+    tickets.value = tickets.value.map((t) => (t.id === res.ticket.id ? res.ticket : t))
+    return res
+  } catch (error) {
+    notify.error(describeRequestError(error, 'Could not send ticket reply.'))
+    return null
+  } finally {
+    isSubmittingTicket.value = false
+  }
+}
+
+async function removeTicket(ticketId: string): Promise<boolean> {
+  deletingTicketId.value = ticketId
+  try {
+    const res = await runOptimistic({
+      key: `support:ticket:delete:${ticketId}`,
+      apply: () => {
+        const prev = [...tickets.value]
+        tickets.value = tickets.value.filter((t) => t.id !== ticketId)
+        return prev
+      },
+      commit: () => deleteSupportTicket(ticketId),
+      rollback: (prev) => {
+        tickets.value = prev
+      },
+      onError: (error) => {
+        notify.error(describeRequestError(error, 'Could not delete support ticket.'))
+      },
+    })
+    if (res.ok) {
+      notify.success('Support ticket deleted.')
+    }
+    return res.ok
+  } finally {
+    if (deletingTicketId.value === ticketId) {
+      deletingTicketId.value = null
+    }
   }
 }
 
@@ -542,6 +667,10 @@ export function usePrioritySupportChat() {
     isCapturingScreenshot,
     pendingScreenshot,
     chatError,
+    tickets,
+    isLoadingTickets,
+    isSubmittingTicket,
+    deletingTicketId,
     unreadCount,
     wsConnected,
     hasPrioritySupport,
@@ -560,5 +689,10 @@ export function usePrioritySupportChat() {
     clearScreenshot,
     resolveAttachmentUrl,
     sendMessage,
+    loadTickets,
+    openTicketThread,
+    submitNewTicket,
+    sendTicketReply,
+    removeTicket,
   }
 }

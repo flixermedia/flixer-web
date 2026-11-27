@@ -39,7 +39,10 @@ const headerHeight = computed(() => ({ compact: "h-14", standard: "h-16", tall: 
 const barLook = computed(() => scrolled.value || headerStyle.value === "bar" || headerStyle.value === "minimal");
 const navLook = computed(() => {
 	if (headerStyle.value === "minimal") return "max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background backdrop-blur-none! sm:px-8 md:px-8";
-	if (barLook.value) return "max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85 shadow-lg shadow-black/40 sm:px-8 md:px-8";
+	if (barLook.value) {
+		const shadow = route.name === "chat" ? "" : " shadow-lg shadow-black/40";
+		return `max-w-full rounded-none border-x-0 border-t-0 border-white/10 bg-flixer-background/85${shadow} sm:px-8 md:px-8`;
+	}
 	if (headerStyle.value === "transparent") return "max-w-[110rem] rounded border-transparent bg-transparent backdrop-blur-none!";
 	return "max-w-[110rem] rounded border-white/10 bg-flixer-background/30";
 });

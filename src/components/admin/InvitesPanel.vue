@@ -11,6 +11,7 @@ import { confirmAction } from "../../composables/confirm";
 import { notify } from "../../composables/notify";
 import { describeRequestError } from "../../composables/useProfile";
 import { catchError } from "../../utils/catchError";
+import { runOptimistic } from "../../utils/optimistic";
 import { copyToClipboard } from "../../utils/clipboard";
 
 const props = defineProps<{ standalone?: boolean }>();
@@ -123,15 +124,26 @@ async function toggleInvite(invitation: Invitation) {
 async function removeInvite(invitation: Invitation) {
 	const confirmed = await confirmAction(t("admin.invites.deleteConfirm", { code: invitation.code }), { danger: true });
 	if (!confirmed) return;
-	busyId.value = invitation.id;
-	const [error] = await catchError(deleteInvitation(invitation.id));
-	busyId.value = null;
-	if (error) {
-		notify.error(describeRequestError(error, t("admin.invites.deleteFailed")));
-		return;
-	}
-	invitations.value = invitations.value.filter((item) => item.id !== invitation.id);
-	if (expandedInviteId.value === invitation.id) expandedInviteId.value = null;
+	await runOptimistic({
+		key: `admin:invite:delete:${invitation.id}`,
+		apply: () => {
+			const prevInvitations = [...invitations.value];
+			const prevExpanded = expandedInviteId.value;
+			invitations.value = invitations.value.filter((item) => item.id !== invitation.id);
+			if (expandedInviteId.value === invitation.id) expandedInviteId.value = null;
+			return { prevInvitations, prevExpanded };
+		},
+		commit: async () => {
+			await deleteInvitation(invitation.id);
+		},
+		rollback: ({ prevInvitations, prevExpanded }) => {
+			invitations.value = prevInvitations;
+			expandedInviteId.value = prevExpanded;
+		},
+		onError: (error) => {
+			notify.error(describeRequestError(error, t("admin.invites.deleteFailed")));
+		},
+	});
 }
 
 const expandedInviteId = ref<string | null>(null);

@@ -17,6 +17,7 @@ import PlaylistEditorModal from '../components/PlaylistEditorModal.vue'
 import { getMobileTabs } from '../composables/homeNav'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { catchError } from '../utils/catchError'
+import { runOptimistic } from '../utils/optimistic'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -87,19 +88,35 @@ async function confirm(message: string, label: string) {
   return openModal<boolean>(ConfirmModal, { props: { message, confirmLabel: label, danger: true } }).catch(() => false)
 }
 async function removeTrack(track: PlaylistTrack) {
-  if (!playlist.value || busy.value) return
+  const current = playlist.value
+  if (!current || busy.value) return
   const ok = await confirm(t('social.removeTrackConfirm', { title: track.title }), t('social.removeTrack'))
   if (!ok) return
   busy.value = track.id
   try {
-    const [error] = await catchError(removePlaylistItem(playlist.value.id, track.id))
-    if (error) {
-      failed.value = true
-      return
-    }
-    playlist.value.tracks = playlist.value.tracks.filter((entry) => entry.id !== track.id)
-    playlist.value.trackCount = playlist.value.tracks.length
-    playlist.value.durationSeconds = playlist.value.tracks.reduce((total, entry) => total + (entry.durationSeconds ?? 0), 0)
+    await runOptimistic({
+      key: `playlist:remove:${current.id}:${track.id}`,
+      apply: () => {
+        const prevTracks = [...current.tracks]
+        const prevCount = current.trackCount
+        const prevDuration = current.durationSeconds
+        current.tracks = current.tracks.filter((entry) => entry.id !== track.id)
+        current.trackCount = current.tracks.length
+        current.durationSeconds = current.tracks.reduce((total, entry) => total + (entry.durationSeconds ?? 0), 0)
+        return { prevTracks, prevCount, prevDuration }
+      },
+      commit: () => removePlaylistItem(current.id, track.id),
+      rollback: ({ prevTracks, prevCount, prevDuration }) => {
+        if (playlist.value?.id === current.id) {
+          playlist.value.tracks = prevTracks
+          playlist.value.trackCount = prevCount
+          playlist.value.durationSeconds = prevDuration
+        }
+      },
+      onError: () => {
+        failed.value = true
+      },
+    })
   } finally {
     busy.value = null
   }

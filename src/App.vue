@@ -11,6 +11,7 @@ import OfflineBanner from "./components/ui/OfflineBanner.vue";
 import UpdateProgressOverlay from "./components/admin/UpdateProgressOverlay.vue";
 import AdminCommandPalette from "./components/admin/AdminCommandPalette.vue";
 import PrioritySupportFloatingChat from "./components/admin/PrioritySupportFloatingChat.vue";
+import UserFloatingChat from "./components/chat/UserFloatingChat.vue";
 import { useMaintenanceMode } from "./composables/useMaintenanceMode";
 import { useProfile } from "./composables/useProfile";
 import { useUpdateOverlay } from "./composables/useUpdateOverlay";
@@ -177,6 +178,7 @@ if (Capacitor.isNativePlatform()) {
 	<UpdateProgressOverlay v-if="overlayOpen" />
 	<AdminCommandPalette v-if="route.meta.requiresAdmin && profile?.role === 'admin'" />
 	<PrioritySupportFloatingChat v-if="profile?.role === 'admin'" />
+	<UserFloatingChat v-if="profile?.id" />
 
 	<!-- Modal target -->
 	<ModalTarget group="default" class="z-50">

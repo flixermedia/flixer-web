@@ -2,10 +2,18 @@ import { apiRequest } from './client'
 
 export type IssueReportStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 
+export interface IssueReportAttachment {
+  id: string
+  name: string
+  dataUrl: string
+  contentType: string
+}
+
 export interface IssueReportUpdate {
   id: string
   body: string
   isInternal: boolean
+  attachments?: IssueReportAttachment[]
   createdAt: string
   author: { username: string; displayName: string } | null
 }
@@ -20,6 +28,7 @@ export interface IssueReport {
   mediaTitle: string | null
   chatOpen: boolean
   chatConversationId: string | null
+  attachments?: IssueReportAttachment[]
   createdAt: string
   updatedAt: string
   resolvedAt: string | null
@@ -51,8 +60,21 @@ export async function createIssueReport(input: {
   category: string
   description: string
   mediaItemId?: string
+  attachments?: Array<{ name: string; dataUrl: string }>
 }): Promise<IssueReport> {
   return (await apiRequest<IssueReport>({ method: 'POST', url: '/issues', data: input })).data
+}
+
+export async function addIssueReportUpdate(
+  id: string,
+  body: string,
+  attachments?: Array<{ name: string; dataUrl: string }>,
+): Promise<IssueReport> {
+  return (await apiRequest<IssueReport>({
+    method: 'POST',
+    url: `/issues/${encodeURIComponent(id)}/updates`,
+    data: { body, attachments },
+  })).data
 }
 
 export async function listAdminIssueReports(): Promise<IssueReport[]> {
@@ -76,11 +98,16 @@ export async function setAdminIssueReportStatus(id: string, status: IssueReportS
   })).data
 }
 
-export async function addAdminIssueReportUpdate(id: string, body: string, isInternal: boolean): Promise<IssueReport> {
+export async function addAdminIssueReportUpdate(
+  id: string,
+  body: string,
+  isInternal: boolean,
+  attachments?: Array<{ name: string; dataUrl: string }>,
+): Promise<IssueReport> {
   return (await apiRequest<IssueReport>({
     method: 'POST',
     url: `/admin/issues/${encodeURIComponent(id)}/updates`,
-    data: { body, isInternal },
+    data: { body, isInternal, attachments },
   })).data
 }
 

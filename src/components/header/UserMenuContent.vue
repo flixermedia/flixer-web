@@ -106,7 +106,7 @@ function openRemotePlayback() {
 	<button v-if="!isTvMode" type="button" :class="row" role="menuitem" aria-haspopup="dialog" @click="openRemotePlayback"><Icon icon="lucide:monitor-play" :class="iconClass" aria-hidden="true" />{{ t("remotePlayback.menu") }}</button>
 
 	<RouterLink to="/people" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:users" :class="iconClass" aria-hidden="true" />{{ t("header.people") }}</RouterLink>
-	<RouterLink to="/issues" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:flag" :class="iconClass" aria-hidden="true" />{{ t("issues.myReports") }}</RouterLink>
+	<RouterLink v-if="!isAdmin" to="/issues" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:flag" :class="iconClass" aria-hidden="true" />{{ t("issues.myReports") }}</RouterLink>
 	<RouterLink v-if="requestsEnabled" to="/requests" :class="row" role="menuitem" @click="emit('close')"><Icon icon="lucide:clapperboard" :class="iconClass" aria-hidden="true" />{{ t("requests.nav.requests") }}</RouterLink>
 	<button type="button" :class="row" role="menuitem" aria-haspopup="dialog" @click="openQuickConnect"><Icon icon="lucide:monitor-smartphone" :class="iconClass" aria-hidden="true" />{{ t("auth.quickConnectMenu") }}</button>
 
@@ -139,7 +139,7 @@ function openRemotePlayback() {
 		<Transition v-bind="accordion">
 		<div v-if="open === 'admin'" role="group">
 			<RouterLink to="/admin" :class="subRow" role="menuitem" @click="emit('close')"><Icon icon="lucide:layout-dashboard" :class="iconClass" aria-hidden="true" />{{ t("header.adminDashboard") }}</RouterLink>
-			<RouterLink :to="{ name: 'admin', query: { tab: 'issues', page: 'tickets' } }" :class="subRow" role="menuitem" @click="emit('close')"><Icon icon="lucide:ticket" :class="iconClass" aria-hidden="true" />{{ t("header.manageIssues") }}</RouterLink>
+			<RouterLink :to="{ name: 'issues' }" :class="subRow" role="menuitem" @click="emit('close')"><Icon icon="lucide:ticket" :class="iconClass" aria-hidden="true" />{{ t("header.manageIssues") }}</RouterLink>
 		</div>
 		</Transition>
 	</template>

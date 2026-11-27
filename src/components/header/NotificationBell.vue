@@ -148,13 +148,12 @@ async function acceptRequest(notificationId: string, url: string | null) {
 	if (!username || acceptingFriendRequest.value) return;
 	acceptingFriendRequest.value = notificationId;
 	try {
+		void dismiss(notificationId);
 		const [acceptError] = await catchError(acceptFriend(username));
 		if (acceptError) {
 			notify.error(t("notifications.friendRequestAcceptError"));
-			return;
+			await refresh();
 		}
-		const [dismissError] = await catchError(dismiss(notificationId));
-		if (dismissError) notify.error(t("notifications.friendRequestAcceptError"));
 	} finally {
 		acceptingFriendRequest.value = "";
 	}

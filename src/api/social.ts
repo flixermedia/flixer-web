@@ -183,6 +183,10 @@ export async function getChatUnread(): Promise<number> {
 	return (await api.get<FlixerApiRouteData<"get", "/chat/unread">>("/chat/unread")).data.count;
 }
 
+export async function postChatPresence(input: { active?: boolean; offline?: boolean }): Promise<Record<string, "online" | "away" | "offline">> {
+	return (await api.post<{ presence: Record<string, "online" | "away" | "offline"> }>("/chat/presence", input)).data.presence;
+}
+
 export async function startDirectChat(username: string): Promise<ChatConversation> {
 	const request: FlixerApiRouteBody<"post", "/chat/conversations"> = { username };
 	return (await api.post<ChatConversation>("/chat/conversations", request)).data;
@@ -202,6 +206,7 @@ export async function getChatMessages(
 	options: FlixerApiRouteQuery<"get", "/chat/conversations/{param}/messages"> & {
 		beforeSequence?: string;
 		afterSequence?: string;
+		limit?: number;
 	} = {},
 ): Promise<{ messages: ChatMessageWithSequence[]; hasMore: boolean }> {
 	return (
@@ -277,6 +282,18 @@ export interface ChatCallIceConfig {
 /** STUN/TURN servers for peer-to-peer calls. Fails with 403 when the admin has not enabled calls. */
 export async function getChatCallIce(): Promise<ChatCallIceConfig> {
 	return (await api.get<ChatCallIceConfig>("/chat/calls/ice")).data;
+}
+
+export async function postChatCallSignal(input: { conversationId: string; callId: string; to?: string; payload: string }): Promise<{ queued: number }> {
+	return (await api.post<{ queued: number }>("/chat/calls/signal", input)).data;
+}
+
+export async function getChatCallSignals(after = 0): Promise<{ signals: Array<{ type: "call-signal"; conversationId: string; callId: string; from: string; payload: string; seq?: number }>; cursor?: number }> {
+	return (await api.get<{ signals: Array<{ type: "call-signal"; conversationId: string; callId: string; from: string; payload: string; seq?: number }>; cursor?: number }>("/chat/calls/signals", { params: { after } })).data;
+}
+
+export async function postChatCallLog(input: { conversationId: string; callId: string; video: boolean; outcome: "ended" | "declined" | "missed" | "failed"; durationSeconds?: number }): Promise<{ message: ChatMessage | null }> {
+	return (await api.post<{ message: ChatMessage | null }>("/chat/calls/log", input)).data;
 }
 
 export async function getPartyCallIce(partyId: string): Promise<ChatCallIceConfig> {

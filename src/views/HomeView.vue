@@ -14,6 +14,7 @@ import { getHomeContent, getHomeMusicRecommendations, getHomeRecommendations, se
 import { getMobileTabs } from '../composables/homeNav'
 import { notify } from '../composables/notify'
 import { catchError } from '../utils/catchError'
+import { runOptimistic } from '../utils/optimistic'
 import { getDismissedRecommendations, getWatchLater, setRecommendationFeedback, setWatchLater } from '../api/userMedia'
 import { useVideoQueue } from '../composables/useVideoQueue'
 import { isTvMode } from '../platform/tvMode'
@@ -48,27 +49,70 @@ function libraryRoute(type: string) {
 }
 
 async function markWatched(id: string) {
-  const [error] = await catchError(setItemWatched(id, true))
-  if (error) {
-    notify.error(t('home.loadError'))
-    return
-  }
-  const home = content.value
-  if (!home) return
-  home.continueWatching = home.continueWatching.filter((entry) => entry.id !== id)
-  home.recentMovies = home.recentMovies.filter((entry) => entry.id !== id)
-  home.recentShows = home.recentShows.filter((entry) => entry.id !== id)
-  home.featured = home.featured.filter((entry) => entry.id !== id)
-  recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
-  musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+  await runOptimistic({
+    key: `home:watched:${id}`,
+    apply: () => {
+      const home = content.value
+      const snapshot = {
+        continueWatching: home ? [...home.continueWatching] : [],
+        recentMovies: home ? [...home.recentMovies] : [],
+        recentShows: home ? [...home.recentShows] : [],
+        featured: home ? [...home.featured] : [],
+        recommendations: [...recommendations.value],
+        musicRecommendations: [...musicRecommendations.value],
+      }
+      if (home) {
+        home.continueWatching = home.continueWatching.filter((entry) => entry.id !== id)
+        home.recentMovies = home.recentMovies.filter((entry) => entry.id !== id)
+        home.recentShows = home.recentShows.filter((entry) => entry.id !== id)
+        home.featured = home.featured.filter((entry) => entry.id !== id)
+      }
+      recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
+      musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+      return snapshot
+    },
+    commit: () => setItemWatched(id, true),
+    rollback: (snapshot) => {
+      const home = content.value
+      if (home) {
+        home.continueWatching = snapshot.continueWatching
+        home.recentMovies = snapshot.recentMovies
+        home.recentShows = snapshot.recentShows
+        home.featured = snapshot.featured
+      }
+      recommendations.value = snapshot.recommendations
+      musicRecommendations.value = snapshot.musicRecommendations
+    },
+    onError: () => {
+      notify.error(t('home.loadError'))
+    },
+  })
 }
 
 async function dismissRecommendation(id: string) {
-  const [error] = await catchError(setRecommendationFeedback(id, 'dismiss'))
-  if (error) { notify.error(t('userMedia.error')); return }
-  hasDismissedRecommendations.value = true
-  recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
-  musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+  await runOptimistic({
+    key: `home:dismiss:${id}`,
+    apply: () => {
+      const snapshot = {
+        hasDismissed: hasDismissedRecommendations.value,
+        recommendations: [...recommendations.value],
+        musicRecommendations: [...musicRecommendations.value],
+      }
+      hasDismissedRecommendations.value = true
+      recommendations.value = recommendations.value.filter((entry) => entry.id !== id)
+      musicRecommendations.value = musicRecommendations.value.filter((entry) => entry.id !== id)
+      return snapshot
+    },
+    commit: () => setRecommendationFeedback(id, 'dismiss'),
+    rollback: (snapshot) => {
+      hasDismissedRecommendations.value = snapshot.hasDismissed
+      recommendations.value = snapshot.recommendations
+      musicRecommendations.value = snapshot.musicRecommendations
+    },
+    onError: () => {
+      notify.error(t('userMedia.error'))
+    },
+  })
 }
 
 async function reviewRecommendations() {

@@ -7,6 +7,7 @@ import ChatEncryptionSection from "../components/settings/ChatEncryptionSection.
 import ConnectedAppsSection from "../components/settings/ConnectedAppsSection.vue";
 import DefaultPlaybackOptionsSection from "../components/settings/DefaultPlaybackOptionsSection.vue";
 import LanguageSection from "../components/settings/LanguageSection.vue";
+import NotificationsSection from "../components/settings/NotificationsSection.vue";
 import PasskeysSection from "../components/settings/PasskeysSection.vue";
 import ProfileSection from "../components/settings/ProfileSection.vue";
 import ServerSection from "../components/settings/ServerSection.vue";
@@ -26,6 +27,7 @@ const tabIcons: Record<string, string> = {
 	profile: "lucide:user-round",
 	passkeys: "lucide:fingerprint",
 	language: "lucide:languages",
+	notifications: "lucide:bell",
 	defaultPlayback: "lucide:play",
 	chatEncryption: "lucide:lock-keyhole",
 	connectedApps: "lucide:app-window",
@@ -34,7 +36,7 @@ const tabIcons: Record<string, string> = {
 };
 
 const tabs = computed<SettingsTab[]>(() => {
-	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "defaultPlayback", label: t("playbackTabs.title") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "connectedApps", label: t("oidc.connected.title") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
+	return [{ id: "profile", label: t("settings.tabs.profile") }, ...(!isNativeApp() ? [{ id: "passkeys" as const, label: t("settings.tabs.passkeys") }] : []), { id: "language", label: t("settings.tabs.language") }, { id: "notifications", label: t("settings.tabs.notifications", "Notifications") }, { id: "defaultPlayback", label: t("playbackTabs.title") }, { id: "chatEncryption", label: t("settings.tabs.chatEncryption") }, { id: "connectedApps", label: t("oidc.connected.title") }, { id: "webhooks", label: t("webhooks.title") }, ...(payments.active.value ? [{ id: "billing", label: t("settings.tabs.billing") }] : [])];
 });
 
 const activeTab = computed({
@@ -123,6 +125,7 @@ const playbackPages = [
 							<ProfileSection v-if="activeTab === 'profile'" />
 							<PasskeysSection v-else-if="activeTab === 'passkeys'" />
 							<LanguageSection v-else-if="activeTab === 'language'" />
+							<NotificationsSection v-else-if="activeTab === 'notifications'" />
 							<template v-else-if="activeTab === 'defaultPlayback'">
 								<DefaultPlaybackOptionsSection v-if="playbackTab === 'options'" />
 								<PlaybackHistoryView v-else embedded />

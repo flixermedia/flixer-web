@@ -6,7 +6,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { isActivePath } from '../../composables/homeNav'
 import type { NavTab } from '../../types/media'
 
-const props = defineProps<{ tabs: NavTab[]; forceVisible?: boolean }>()
+const props = defineProps<{ tabs: NavTab[]; forceVisible?: boolean; docked?: boolean }>()
 const { t } = useI18n()
 const route = useRoute()
 
@@ -31,8 +31,10 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function updateDocked() {
-  isDocked.value = window.scrollY > 24
+  isDocked.value = Boolean(props.docked) || window.scrollY > 24
 }
+
+watch(() => props.docked, updateDocked)
 
 // Other fixed UI (the mini player) sits above the tab bar using this height.
 function publishHeight() {

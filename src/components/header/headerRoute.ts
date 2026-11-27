@@ -9,13 +9,13 @@ const standardRoutes = new Set(["home", "tv-home", "custom-page", "discover", "r
 
 const dockedRoutes = new Set(["admin", "admin-activity", "settings"]);
 
-export function getHeaderRoute(name: unknown, compact: boolean): HeaderRoute {
+export function getHeaderRoute(name: unknown, _compact: boolean): HeaderRoute {
 	const routeName = typeof name === "string" ? name : "";
 	const showLinks = standardRoutes.has(routeName);
 	return {
 		show: showLinks || dockedRoutes.has(routeName) || routeName === "player-test",
 		showLinks,
-		docked: dockedRoutes.has(routeName) || (routeName === "chat" && compact),
+		docked: dockedRoutes.has(routeName) || routeName === "chat" || routeName === "issues",
 		disableScrollCollapse: routeName === "guide",
 	};
 }

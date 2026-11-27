@@ -29,10 +29,10 @@ describe("getHeaderRoute", () => {
 		});
 	});
 
-	it("preserves guide and compact chat behavior", () => {
+	it("preserves guide and docked chat behavior", () => {
 		expect(getHeaderRoute("guide", false).disableScrollCollapse).toBe(true);
 		expect(getHeaderRoute("chat", true).docked).toBe(true);
-		expect(getHeaderRoute("chat", false).docked).toBe(false);
+		expect(getHeaderRoute("chat", false).docked).toBe(true);
 	});
 
 	it("does not show navigation on routes without a header", () => {

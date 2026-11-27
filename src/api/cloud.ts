@@ -134,3 +134,71 @@ export async function getSupportDiagnostics(): Promise<ServerDiagnosticsSummary>
   const response = await api.get<ServerDiagnosticsSummary>('/admin/cloud/support/diagnostics')
   return response.data
 }
+
+export type SupportTicketStatus = 'open' | 'in_progress' | 'waiting_on_user' | 'resolved' | 'closed'
+
+export interface SupportTicket {
+  id: string
+  subject: string
+  category: string
+  status: SupportTicketStatus
+  lastMessageBy: 'customer' | 'agent'
+  conversationId?: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  lastMessageAt: string | null
+}
+
+export interface SupportTicketMessage {
+  id: string
+  sender: 'customer' | 'agent'
+  senderName: string
+  text: string
+  createdAt: string | null
+}
+
+export async function listSupportTickets(): Promise<SupportTicket[]> {
+  const response = await api.get<{ tickets: SupportTicket[] }>('/admin/cloud/support/tickets')
+  return response.data.tickets ?? []
+}
+
+export async function getSupportTicket(
+  ticketId: string,
+): Promise<{ ticket: SupportTicket; messages: SupportTicketMessage[]; conversationId?: string | null }> {
+  const response = await api.get<{ ticket: SupportTicket; messages: SupportTicketMessage[]; conversationId?: string | null }>(
+    `/admin/cloud/support/tickets/${encodeURIComponent(ticketId)}`,
+  )
+  return response.data
+}
+
+export async function createSupportTicket(
+  subject: string,
+  message: string,
+  category = 'general',
+): Promise<{ ticket: SupportTicket; messages: SupportTicketMessage[]; conversationId?: string | null }> {
+  const response = await api.post<{ ticket: SupportTicket; messages: SupportTicketMessage[]; conversationId?: string | null }>(
+    '/admin/cloud/support/tickets',
+    { subject, message, category },
+  )
+  return response.data
+}
+
+export async function replySupportTicket(
+  ticketId: string,
+  message: string,
+): Promise<{ ticket: SupportTicket; message: SupportTicketMessage }> {
+  const response = await api.post<{ ticket: SupportTicket; message: SupportTicketMessage }>(
+    `/admin/cloud/support/tickets/${encodeURIComponent(ticketId)}/reply`,
+    { message },
+  )
+  return response.data
+}
+
+export async function deleteSupportTicket(
+  ticketId: string,
+): Promise<{ deleted: boolean; ticketId: string }> {
+  const response = await api.delete<{ deleted: boolean; ticketId: string }>(
+    `/admin/cloud/support/tickets/${encodeURIComponent(ticketId)}`,
+  )
+  return response.data
+}

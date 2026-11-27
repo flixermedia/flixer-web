@@ -95,7 +95,8 @@
     "confirm": "Confirm",
     "confirmTitle": "Are you sure?",
     "close": "Close",
-    "delete": "Delete"
+    "delete": "Delete",
+    "search": "Search"
   },
   "externalAuth": {
     "title": "External sign-in",
@@ -829,6 +830,7 @@
       "profile": "Profile",
       "passkeys": "Passkeys",
       "language": "Language",
+      "notifications": "Notifications",
       "defaultPlayback": "Playback Options",
       "chatEncryption": "Encrypted Chat",
       "billing": "Billing",
@@ -1514,6 +1516,8 @@
     },
     "prioritySupport": {
       "title": "Priority Support",
+      "chatTitle": "Priority Support",
+      "chatSubtitle": "Direct line to the Flixer support team",
       "description": "Start and manage live Priority Support with the Flixer team. Once opened, the chat window follows you across pages.",
       "sessionActive": "Live session active",
       "readyToStart": "Ready to start",
@@ -5359,6 +5363,9 @@
       "incomingVideo": "{name} is video calling…",
       "calling": "Calling {name}…",
       "connecting": "Connecting…",
+      "connected": "Connected",
+      "minimize": "Minimize call",
+      "expand": "Expand call",
       "e2ee": "End-to-end encrypted call",
       "accept": "Accept",
       "decline": "Decline",

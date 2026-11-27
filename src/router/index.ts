@@ -443,6 +443,9 @@ router.beforeEach(async (to) => {
 	if (!isAuthRoute) {
 		const { profile, load } = useProfile();
 		await load();
+		if (to.name === "admin" && to.query.tab === "issues" && to.query.page !== "issueReports") {
+			return { name: "issues" };
+		}
 		if (profile.value?.id) {
 			void initializeChatMlsDevice(profile.value.id).catch((error: unknown) => {
 				console.error("[chat encryption] device provisioning failed", error);

@@ -7,6 +7,7 @@ import { notify } from './notify'
 import { describeRequestError } from './useProfile'
 import { useMailSummary } from './useMailSummary'
 import { copyToClipboard } from '../utils/clipboard'
+import { runOptimistic } from '../utils/optimistic'
 
 // Shared so the mail list and reader panes inside the combined messages view stay in sync.
 const pageData = ref<MailMessagePage | null>(null)
@@ -44,11 +45,30 @@ export function useMailbox() {
 
   async function open(id: string) {
     readerLoading.value = true
+    const summary = pageData.value?.items.find((item) => item.id === id)
+    const wasUnread = Boolean(summary && !summary.read)
+    if (wasUnread && pageData.value) {
+      pageData.value = {
+        ...pageData.value,
+        items: pageData.value.items.map((item) => (item.id === id ? { ...item, read: true } : item)),
+      }
+      if (mailbox.value && mailbox.value.unread > 0) {
+        mailbox.value = { ...mailbox.value, unread: mailbox.value.unread - 1 }
+      }
+    }
     try {
       active.value = await getMyMailMessage(id)
       await refreshMailInfo(true)
-      if (pageData.value) pageData.value.items = pageData.value.items.map((item) => (item.id === id ? { ...item, read: true } : item))
     } catch (requestError) {
+      if (wasUnread && pageData.value) {
+        pageData.value = {
+          ...pageData.value,
+          items: pageData.value.items.map((item) => (item.id === id ? { ...item, read: false } : item)),
+        }
+        if (mailbox.value) {
+          mailbox.value = { ...mailbox.value, unread: mailbox.value.unread + 1 }
+        }
+      }
       active.value = null
       error.value = describeRequestError(requestError, t('inbox.messageLoadFailed'))
     } finally {
@@ -94,16 +114,42 @@ export function useMailbox() {
 
   async function remove(message: MailMessageSummary) {
     if (!await confirmAction(t('inbox.deleteConfirm', { subject: message.subject || t('inbox.noSubject') }), { title: t('inbox.deleteTitle'), danger: true })) return
-    actionBusy.value = true
-    try {
-      await deleteMyMailMessage(message.id)
-      if (active.value?.id === message.id) await close()
+    const wasActive = active.value?.id === message.id
+    const res = await runOptimistic({
+      key: `mail:delete:${message.id}`,
+      apply: () => {
+        const prevPage = pageData.value ? { ...pageData.value, items: [...pageData.value.items] } : null
+        const prevActive = active.value
+        const prevMailbox = mailbox.value ? { ...mailbox.value } : null
+        if (pageData.value) {
+          pageData.value = {
+            ...pageData.value,
+            total: Math.max(0, pageData.value.total - 1),
+            items: pageData.value.items.filter((item) => item.id !== message.id),
+          }
+        }
+        if (!message.read && mailbox.value && mailbox.value.unread > 0) {
+          mailbox.value = { ...mailbox.value, unread: mailbox.value.unread - 1 }
+        }
+        if (wasActive) active.value = null
+        return { prevPage, prevActive, prevMailbox }
+      },
+      commit: async () => {
+        await deleteMyMailMessage(message.id)
+      },
+      rollback: ({ prevPage, prevActive, prevMailbox }) => {
+        pageData.value = prevPage
+        active.value = prevActive
+        mailbox.value = prevMailbox
+      },
+      onError: (requestError) => {
+        notify.error(describeRequestError(requestError, t('inbox.deleteFailed')))
+      },
+    })
+    if (res.ok) {
+      if (wasActive) void router.replace({ query: { ...route.query, message: undefined } })
       notify.success(t('inbox.deleted'))
-      await Promise.all([load(), refreshMailInfo(true)])
-    } catch (requestError) {
-      notify.error(describeRequestError(requestError, t('inbox.deleteFailed')))
-    } finally {
-      actionBusy.value = false
+      void Promise.all([load(), refreshMailInfo(true)])
     }
   }
 

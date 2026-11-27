@@ -19,6 +19,7 @@ import { notify } from '../composables/notify'
 import { useAudioPlayer, type QueueTrack } from '../composables/useAudioPlayer'
 import { useParty } from '../composables/useParty'
 import { catchError } from '../utils/catchError'
+import { runOptimistic } from '../utils/optimistic'
 import { copyToClipboard } from '../utils/clipboard'
 import { isTvMode } from '../platform/tvMode'
 
@@ -124,13 +125,35 @@ async function changeFriendship() {
   if (!person || person.isSelf || friendBusy.value) return
   friendBusy.value = true
   try {
-    const operation = person.friendship === 'incoming' ? acceptFriend(person.username).then(() => undefined) : person.friendship === 'none' ? requestFriend(person.username).then(() => undefined) : removeFriend(person.username).then(() => undefined)
-    const [error] = await catchError(operation)
-    if (error) {
-      notify.error(t('social.friendActionFailed'))
-      return
+    const nextFriendship =
+      person.friendship === 'incoming' ? 'friends' : person.friendship === 'none' ? 'outgoing' : 'none'
+    const res = await runOptimistic({
+      key: `social:friend:${person.username}`,
+      apply: () => {
+        const prev = person.friendship
+        if (profile.value?.username === person.username) {
+          profile.value.friendship = nextFriendship
+        }
+        return prev
+      },
+      commit: () =>
+        person.friendship === 'incoming'
+          ? acceptFriend(person.username).then(() => undefined)
+          : person.friendship === 'none'
+            ? requestFriend(person.username).then(() => undefined)
+            : removeFriend(person.username).then(() => undefined),
+      rollback: (prev) => {
+        if (profile.value?.username === person.username) {
+          profile.value.friendship = prev
+        }
+      },
+      onError: () => {
+        notify.error(t('social.friendActionFailed'))
+      },
+    })
+    if (res.ok) {
+      void load()
     }
-    await load()
   } finally {
     friendBusy.value = false
   }

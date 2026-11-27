@@ -13,8 +13,38 @@ export interface PaymentPending {
 	token: string;
 }
 
-export type AppPreferences = UserPreferences & { browseColumns?: number; autoSkipIntroCredits?: boolean; emulateLyricWordTiming?: boolean; audioLanguage?: string; themeId?: string };
-export type AppPreferencesUpdate = UserPreferencesUpdate & { browseColumns?: number | null; autoSkipIntroCredits?: boolean | null; emulateLyricWordTiming?: boolean | null; audioLanguage?: string | null; themeId?: string | null };
+export interface NotificationCategoryPreferences {
+	message: boolean;
+	new_media: boolean;
+	request: boolean;
+	system: boolean;
+	admin: boolean;
+}
+
+export interface NotificationPreferences {
+	chatChime: boolean;
+	chatChimeWhileOpen: boolean;
+	chatToasts: boolean;
+	pushEnabled: boolean;
+	categories: NotificationCategoryPreferences;
+}
+
+export type AppPreferences = UserPreferences & {
+	browseColumns?: number;
+	autoSkipIntroCredits?: boolean;
+	emulateLyricWordTiming?: boolean;
+	audioLanguage?: string;
+	themeId?: string;
+	notifications?: Partial<NotificationPreferences>;
+};
+export type AppPreferencesUpdate = UserPreferencesUpdate & {
+	browseColumns?: number | null;
+	autoSkipIntroCredits?: boolean | null;
+	emulateLyricWordTiming?: boolean | null;
+	audioLanguage?: string | null;
+	themeId?: string | null;
+	notifications?: NotificationPreferences | null;
+};
 
 export interface ExternalAuthProvider {
 	id: string;
